@@ -26,6 +26,19 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-14",
+    items: [
+      "マルメゴでカードを公開していく時、画面中央でめくられる前に、そのカードが手札に見えてしまっていたのを直しました。ザ・ギャンブルと同じく、全部めくり終わってから並ぶようになります。",
+      "マルメゴで橙のカードが出て手札をすべて捨てた後、もう何もできないハンドフェイズが自動で進まず止まっていた不具合を直しました。",
+      "3D表示の盤面が、何も動いていない間も休まず描き直していたのをやめました。対戦中の端末の発熱や電池の減りが抑えられます（見た目は変わりません）。",
+    ],
+    itemsEn: [
+      "When Malmego reveals cards, each card could be seen in your hand before it was flipped in the center of the screen. Now, like The Gamble, they line up only after every flip is done.",
+      "Fixed the hand phase getting stuck after Malmego turned up an orange card and your whole hand was discarded, even though there was nothing left to do.",
+      "The 3D board no longer keeps redrawing while nothing is moving. This reduces device heat and battery drain during matches (it looks the same).",
+    ],
+  },
+  {
     date: "2026-09-11",
     items: [
       "登録しなくても遊べる入口を用意しました。戦績管理システムの「デジタルアプリ版をテストプレイする」から開くと、ログインの代わりに「遊び方を教わりながら遊ぶ」「すぐにCPUと対戦する」が出て、そのまま遊び始められます。ログインしている方は、今までどおりの画面になります。",

@@ -45,6 +45,14 @@ let rootGroup = null;
 let rafId = null;
 let active = false;
 let needsRebuild = true;
+// 【#348「iPhoneの画面がすごく熱い」】以前は requestAnimationFrame のたびに**毎回** renderer.render()
+// していた（何も変わっていなくても1秒に最大60回、iPhoneでは3倍の解像度で盤面全体を描き直す）。
+// 描く中身（板の位置・色・テクスチャ）が変わるのは「作り直した／見え方(カメラ・盤面の変形)が
+// 変わった／テクスチャが読み込み終わった／キャンバスの大きさが変わった」時だけなので、その時だけ描く。
+// 待っている間の描画は 60回/秒 → 保険の作り直し（500ms毎）ぶんの 約2回/秒 になる。
+let needsDraw = true;
+let drawsSinceLog = 0;
+let lastCameraKey = "";
 let rebuildTimer = null;
 let unsubscribe = null;
 
@@ -743,6 +751,13 @@ function syncCamera() {
     renderer.setSize(W, H, false);
     canvasEl.style.width = `${W}px`;
     canvasEl.style.height = `${H}px`;
+    needsDraw = true; // 大きさを変えるとキャンバスは消えるので必ず描き直す（#348）
+  }
+  // #348: カメラを決める値が1つでも変わったら描き直す（変わらなければ前のフレームと同じ絵）。
+  const cameraKey = `${W}|${H}|${P}|${ox}|${oy}|${dpr}`;
+  if (cameraKey !== lastCameraKey) {
+    lastCameraKey = cameraKey;
+    needsDraw = true;
   }
 
   // カメラは (ox, oy, P)。CSSはY下向きなので、シーン側はYを反転して置く。
@@ -776,7 +791,8 @@ function syncCamera() {
 
 // --- ループ --------------------------------------------------------------------------
 function scheduleRender() {
-  // rAFループが回っているので、次のフレームで自然に反映される。
+  // rAFループが回っているので、次のフレームで反映される（#348: 変化が無いと描かないので、印を立てる）。
+  needsDraw = true;
 }
 
 // 重なり順を「カメラからの遠さ」で決める（#241）。
@@ -846,7 +862,11 @@ function maybeLogStats() {
     return;
   }
   if (now - lastStatsLogAt < LOG_INTERVAL_MS) return;
+  const spanMs = now - lastStatsLogAt;
   lastStatsLogAt = now;
+  // #348: 実機で「待っている間にどれだけ描いているか」を見るための数（1秒あたりの描画回数）。
+  const drawsPerSec = spanMs > 0 ? +((drawsSinceLog * 1000) / spanMs).toFixed(1) : null;
+  drawsSinceLog = 0;
   try {
     const st = getBoard3dStats();
     logAction("diag-board3d", {
@@ -861,6 +881,7 @@ function maybeLogStats() {
       frameMs: st.frameMs,
       drawMs: st.drawMs,
       rebuildMs: st.rebuildMs,
+      drawsPerSec,
       dpr: window.devicePixelRatio || 1,
       // #247「カードにドロップシャドウのようなものがある」の切り分け用。
       // #238a は「移動できるマスを選んでいる間だけ、暗転の膜のせいでカードが浮いて見える」
@@ -913,9 +934,15 @@ function frame() {
   if (needsRebuild) {
     rebuild();
     lastRebuildMs = performance.now() - t0;
+    needsDraw = true;
   }
   if (!syncCamera()) return;
+  if (needsSort) needsDraw = true; // 盤面の変形が変わった（syncCamera）か作り直した（rebuild）
   sortByDepth();
+  // #348: 何も変わっていなければ、前のフレームと同じ絵なので描かない（発熱対策）。
+  if (!needsDraw) return;
+  needsDraw = false;
+  drawsSinceLog++;
   const t1 = performance.now();
   // 【#278】文脈が失われかけていると three.js が投げることがある（実測: iPhoneで
   // "shaderSource must be an instance of WebGLShader" が未捕捉例外として出ていた）。

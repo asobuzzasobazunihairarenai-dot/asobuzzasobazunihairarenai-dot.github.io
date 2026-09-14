@@ -1118,35 +1118,62 @@ async function runAction(action, ctx, helpers) {
       // publicDrawReturningTokensはtokenIdを返す（手札効果封じ・橙判定に必要）。中央フリップ
       // 公開（gambleReveal）はcardIdを取るので、引いたtokenからcardIdを引き当てて渡す。
       helpers.startSuspenseSound?.();
-      const tokenIds = [];
-      const revealDrawn = async (ids) => {
-        for (const tid of ids) {
-          const t = getState().tokens.find((x) => x.id === tid);
-          if (t) await helpers.gambleReveal?.(t.cardId);
-          tokenIds.push(tid);
+      // 【#346】以前は「公開エリアへ引く → 中央でじらしフリップ」の順だったので、フリップの前に
+      // カードが手札（公開エリア＝手札の扇の末尾）に見えてしまい、ワクワクが無かった。ザ・ギャンブルが
+      // #95 で直したのと同じ helpers.publicDrawThenReveal（山にあるうちに中央でフリップ → 公開エリアへ）と、
+      // 全部のフリップが終わるまで公開エリアへの描画を遅らせる begin/endPublicDrawDefer に揃える。
+      // 手札効果封じ・橙判定にはトークンidが要るので、公開エリアの前後の差分で新しく入った札を特定する
+      // （publicDrawReturningTokens と同じやり方）。
+      const publicDrawIdsOf = () =>
+        new Set(
+          getState()
+            .tokens.filter((x) => x.kind === "card" && x.location.zone === "publicDraw" && x.location.player === ctx.player)
+            .map((x) => x.id)
+        );
+      const beforeIds = publicDrawIdsOf();
+      const revealedCardIds = [];
+      const drawAndReveal = async (n) => {
+        if (helpers.publicDrawThenReveal) {
+          revealedCardIds.push(...(await helpers.publicDrawThenReveal(ctx.player, n)));
+          return;
+        }
+        // 古い helpers しか無い呼び出し元向け（従来の順番のまま）。
+        for (const tid of await helpers.publicDrawReturningTokens(ctx.player, n)) {
+          const tok = getState().tokens.find((x) => x.id === tid);
+          if (tok) {
+            await helpers.gambleReveal?.(tok.cardId);
+            revealedCardIds.push(tok.cardId);
+          }
         }
       };
       let remaining = action.count;
-      while (remaining > 0) {
-        if (helpers.pickHandEffectOption && remaining > 1) {
-          const opt = await helpers.pickHandEffectOption(
-            ctx.cardId,
-            [
-              { id: "one", label: t("ce.L1015"), usable: true },
-              { id: "all", label: t("ce.revealRest", { n: remaining }), usable: true },
-            ],
-            t("ce.L1018") // 「効果を選択」ではなく「公開の仕方」の場面なので専用の見出し（ユーザー指摘2026-08-18）
-          );
-          if (opt?.id === "all") {
-            await revealDrawn(await helpers.publicDrawReturningTokens(ctx.player, remaining));
-            remaining = 0;
-            break;
+      helpers.beginPublicDrawDefer?.();
+      try {
+        while (remaining > 0) {
+          if (helpers.pickHandEffectOption && remaining > 1) {
+            const opt = await helpers.pickHandEffectOption(
+              ctx.cardId,
+              [
+                { id: "one", label: t("ce.L1015"), usable: true },
+                { id: "all", label: t("ce.revealRest", { n: remaining }), usable: true },
+              ],
+              t("ce.L1018") // 「効果を選択」ではなく「公開の仕方」の場面なので専用の見出し（ユーザー指摘2026-08-18）
+            );
+            if (opt?.id === "all") {
+              await drawAndReveal(remaining);
+              remaining = 0;
+              break;
+            }
+            // "one"/閉じた(null) → 1枚だけ公開して次へ。
           }
-          // "one"/閉じた(null) → 1枚だけ公開して次へ。
+          await drawAndReveal(1);
+          remaining -= 1;
         }
-        await revealDrawn(await helpers.publicDrawReturningTokens(ctx.player, 1));
-        remaining -= 1;
+      } finally {
+        // 全部のフリップが終わった今、公開エリアにまとめて並べる（描画遅延を解除）。
+        await helpers.endPublicDrawDefer?.(ctx.player, revealedCardIds);
       }
+      const tokenIds = [...publicDrawIdsOf()].filter((id) => !beforeIds.has(id));
       helpers.stopSuspenseSound?.(); // 結果が出るので鼓動を止める
       if (tokenIds.length === 0) return false;
       for (const tokenId of tokenIds) disableHandEffectForTurn(tokenId);

@@ -358,9 +358,14 @@ export function notePublicDrawForHandPhase(player) {
   publicDrawNoAutoSkip = { player, turnNumber: getState().turnNumber ?? null };
 }
 function isHandAutoSkipSuppressedByPublicDraw(player) {
-  return (
-    publicDrawNoAutoSkip.player === player &&
-    publicDrawNoAutoSkip.turnNumber === (getState().turnNumber ?? null)
+  if (publicDrawNoAutoSkip.player !== player || publicDrawNoAutoSkip.turnNumber !== (getState().turnNumber ?? null)) {
+    return false;
+  }
+  // 【#347】抑止の理由は「引いた札を見る/使う間を残す」こと。引いた札が公開エリアに1枚も
+  // 残っていない（マルメゴで橙が出て、引いた札ごと手札をすべて捨てた等）なら、見るものも
+  // 使うものも無い。それでも抑止し続けると、することの無いハンドフェイズで止まったままになる。
+  return getState().tokens.some(
+    (t) => t.kind === "card" && t.location.zone === "publicDraw" && t.location.player === player
   );
 }
 

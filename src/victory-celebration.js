@@ -38,6 +38,7 @@ import { getCardImagePath } from "./cards-data.js";
 import { getPlayerName, getPlayerAvatar } from "./player-identity.js";
 import { applyAvatarContent } from "./avatar-render.js";
 import { t } from "./ui-text.js";
+import { logAction } from "./action-log.js";
 
 // 盤面パレット(--color-*)はくすみ気味なので、演出用に彩度を上げた色を使う
 // （card-dissolve.js の DISSOLVE_HEX と同じ考え方・同じ値）。
@@ -199,7 +200,17 @@ export async function playVictoryCelebration(player, opts = {}) {
   let stopFlareTrack = null;
   let ghost = null;
   let stopCanvas = null;
-  const stage = (name) => { try { onStage?.(name); } catch (e) {} };
+  // 【#349「CPUの勝利演出がだいぶはしょられてるように見えた」の切り分け用】手元（iPhone相当の
+  // 画面・PC、CPUの勝ち／自分の勝ち）では全段が同じ長さで出て再現しなかった。短く見える原因の候補は
+  // 「演出中に画面を触って早送りになった」「端末の『視差効果を減らす』で一気に短くなった」
+  // 「端末が重くて動きが飛んだ」なので、次の報告でどれか分かるよう、段ごとの時刻と合わせて記録する。
+  const t0 = performance.now();
+  const stageLog = [];
+  let skipAt = null;
+  const stage = (name) => {
+    stageLog.push(`${name}@${Math.round(performance.now() - t0)}`);
+    try { onStage?.(name); } catch (e) {}
+  };
 
   try {
     root = buildRoot();
@@ -208,7 +219,10 @@ export async function playVictoryCelebration(player, opts = {}) {
     stageAt = -1;
     syncStage();
     // タップ/クリックで残りを短縮できる（スキップしても勝敗・報酬・リザルトには影響しない）。
-    const onSkip = () => { skipRequested = true; };
+    const onSkip = () => {
+      if (!skipRequested) skipAt = Math.round(performance.now() - t0);
+      skipRequested = true;
+    };
     root.addEventListener("pointerdown", onSkip);
     window.addEventListener("keydown", onSkip);
     root._cleanupSkip = () => { window.removeEventListener("keydown", onSkip); };
@@ -321,6 +335,18 @@ export async function playVictoryCelebration(player, opts = {}) {
     // flares / ghost は root の子なので root ごと消える。盤面側には何も付けていない。
     if (stopCanvas) stopCanvas();
     document.body.classList.remove("victory-celebration-active");
+    try {
+      logAction("diag-victory-celebration", {
+        player,
+        stages: stageLog,
+        totalMs: Math.round(performance.now() - t0),
+        skippedByTapAtMs: skipAt, // null＝触っていない
+        light, // true＝短縮版（下の2つのどちらか）
+        flightDisabled: isFlightAnimationDisabled(),
+        reducedMotion: prefersReducedMotion(),
+        mobile: s.mobile,
+      });
+    } catch (e) { /* 記録できなくても演出は終える */ }
     running = false;
   }
 
