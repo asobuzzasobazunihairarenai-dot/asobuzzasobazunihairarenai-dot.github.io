@@ -1549,3 +1549,34 @@
 - **検証**: `npm test` 58/58 PASS、`node tools/check-undeclared.mjs` 0件（165ファイル）、`node test/smoke.mjs 2` PASS、
   `node --check`（.mjs へコピー）card-effect-engine.js・phase-automation.js・board-3d.js・victory-celebration.js・changelog.js 通過、
   お知らせ ja/en とも件数一致。サーバー側（Supabase）の変更は無い＝SQLの実行・Edge Function の再デプロイは不要。
+
+### 2026-09-16（続き516）：#348 の発熱対策が**実機で効いていた**（描画 2回/秒）／#350 iPhoneの長押しで文字選択／#351「このマスでいいですか？」が出ない——押したまま離した指で「今後表示しない」が押され得た
+
+ユーザー「debug確認して」。続き515 の手順（Chrome経由・読み取りのみ）で新しい報告 #350・#351（YGM、iPhone、版 20260914）を読んだ。
+
+- **【#348 の確認】** 2件とも新しい版で、`diag-board3d` の **`drawsPerSec` が 2.0〜2.4**（以前は変化が無くても最大60回/秒）。
+  続き515 で入れた「変化がある時だけ描く」が実機で効いている。`diag-victory-celebration` はまだ0件（勝利の場面が無かった）。
+- **#350「iPhoneで画面長押しするとたまにスクショのやつになる」（原因確定・修正）**: 添付画面では左下の名前・手札枚数と
+  お知らせの文字が**青く選択**（選択の取っ手も出ていた）。長押しの抑止は盤面・画像・手札の固定オーバーレイ等に個別に
+  付けてきたが、**ページ全体には付いていなかった**。`body` に `user-select:none; -webkit-touch-callout:none`、
+  入力欄（input/textarea/select/contenteditable）だけ `text` に戻した。style.css を読むのは index.html だけ＝管理者ダッシュボードには影響しない。
+- **#351「このマスでいいですか？の案内モーダルが出ない。設定はオンなのに」（有力な経路を修正・記録を追加）**:
+  報告時の設定は on、同じ日の朝の #350 では **off**＝**日中に切り替わっていた**。ログには「確認を出した/答えた」が残らない
+  （`tap-move` は答えた後に記録される）ので、この報告だけでは確定できない。
+  - **見つけた経路**: 通常移動の確認は **pointerdown（指が触れた瞬間）で開く**。門番（`createOpenGuard`）は「開いてから400ms」
+    だけなので、**指を400ms以上置いてから離すと、離した時のクリックが下のボタンに届く**＝#236 と同じ「今後表示しない」が
+    知らないうちに押される形が、長押し気味のタップで残っていた。
+  - **修正**: 確認のボタン3つとも「**このモーダルが開いた後に始まった** pointerdown からのクリック」だけ受け付ける
+    （`ev.timeStamp >= openedAt`。detail===0＝キーボード/プログラムの `.click()` は対象外）。400msの門番もそのまま。
+  - **記録**: `setCellConfirmEnabled(v, source)` に切り替え元（options / options-reset / dont-show / sync）を持たせ、
+    変わるたびに `diag-cell-confirm-pref` を残す＝次に「勝手に切れた」ら、どこから切れたかがログで分かる。
+  - **A/Bで実測（iPhone横 932x318・タッチ、`scratchpad/probe_351.mjs`、`--old` で cell-confirm.js と style.css だけ HEAD）**:
+    pointerdown で確認を開き、CDP の本物のタッチで「今後表示しない」の上を0.7秒押して離す——
+    **旧: 設定が false になり、確定(true)してモーダルが消える／新: 無視されてモーダルが残り、改めて「はい」をタップすると確定**。
+    #350 は **旧: body・名前欄とも `auto`／新: `none`、入力欄は `text`**。記録も実際に出ることを確認（切り替え2回→2行）。
+  - **正直な限界（ユーザーへ伝えた）**: この画面サイズの見せかけでは、49マスどれを押してもモーダルが**押したマスの中心には
+    重ならなかった**（0/49）。指がずれる／モーダルの上に指が来る場合に起きる経路で、YGMさんの件が確実にこれだったとは言えない。
+
+- **検証**: `npm test` 58/58 PASS、`node tools/check-undeclared.mjs` 0件（165ファイル）、`node test/smoke.mjs 2` PASS、
+  CSSブレース平衡（3297）、`node --check`（.mjs へコピー）cell-confirm.js・options-menu.js・handled-bug-reports.js・changelog.js 通過、
+  お知らせ ja/en とも件数一致（69回・不一致0）。サーバー側（Supabase）の変更は無い＝SQLの実行・Edge Function の再デプロイは不要。

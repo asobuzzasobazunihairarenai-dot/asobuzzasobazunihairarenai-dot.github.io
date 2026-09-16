@@ -1001,7 +1001,7 @@ export function initOptionsMenu() {
             // （マス選択は頻度が段違いに高いので、こちらだけ切りたいのが自然なため）。
             content.appendChild(
               buildCheckboxRow(t("opt.chk.cellConfirm"), isCellConfirmEnabled(), (checked) => {
-                setCellConfirmEnabled(checked);
+                setCellConfirmEnabled(checked, "options");
               })
             );
             // ユーザー要望2026-09-03「スマホであれば振動を与えることできる？」。**対応している
@@ -1018,7 +1018,7 @@ export function initOptionsMenu() {
             icon: "💬",
             onReset: () => {
               setActionConfirmEnabled(true);
-              setCellConfirmEnabled(true);
+              setCellConfirmEnabled(true, "options-reset");
               saveMyPreference({ action_confirm_enabled: true });
               renderContent();
             },

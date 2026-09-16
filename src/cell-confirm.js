@@ -17,6 +17,7 @@ import { createBackdrop, createOpenGuard } from "./ui-helpers.js";
 // left/top に入れると二重にかかる（続き355）。必ずローカル座標へ直してから使う。
 import { stageClientToLocal, showQuickNote } from "./main.js";
 import { registerSyncedPref } from "./pref-registry.js";
+import { logAction } from "./action-log.js";
 
 const STORAGE_KEY = "so7-cell-confirm-enabled";
 
@@ -35,8 +36,15 @@ export function isCellConfirmEnabled() {
   return enabled;
 }
 
-export function setCellConfirmEnabled(v) {
+// source: どこから切り替わったか（"options"＝オプション画面／"options-reset"＝その「元に戻す」／
+// "dont-show"＝確認の「今後表示しない」／"sync"＝アカウントに保存してあった値の読み込み）。
+// 【#351】「設定はオンなのに出ない」の切り分け用に、切り替わるたびに行動ログへ残す。
+export function setCellConfirmEnabled(v, source = "sync") {
+  const prev = enabled;
   enabled = !!v;
+  if (prev !== enabled) {
+    try { logAction("diag-cell-confirm-pref", { enabled, source }); } catch (err) { /* 記録できなくても設定は変える */ }
+  }
   try {
     localStorage.setItem(STORAGE_KEY, enabled ? "1" : "0");
   } catch (err) {
@@ -60,6 +68,19 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     // マスをタップして指を離した位置にボタンが現れることがある。実際、報告 #236 は
     // 「今後このモーダルを表示しない」が知らないうちに押されて設定が切れていた。
     const guard = createOpenGuard();
+    // 【#351】上の門番は「開いてから400ms」だけ。ところが通常移動の確認は**指が触れた瞬間
+    // （pointerdown）に開く**ので、指を400ms以上置いてから離すと、離した時にブラウザが作る
+    // クリックがそのまま下のボタン（「今後表示しない」を含む）に届いてしまう。小さい画面
+    // （932x318 など）ではモーダルがマスの隣に収まらず画面内へ押し込まれ、指の下に来やすい。
+    // そこで「**このモーダルが開いた後に始まった**タッチ／クリック」だけを受け付ける。
+    // detail===0 のクリック（キーボード・プログラムからの .click()）は指が関わらないので対象外。
+    const openedAt = performance.now();
+    let freshPointer = false;
+    const onPointerDown = (ev) => {
+      if (ev.timeStamp >= openedAt) freshPointer = true;
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    const blocked = (ev) => guard() || (ev && ev.detail > 0 && !freshPointer);
 
     // 盤面を隠さないため dim しない。クリックは受け止めて誤操作を防ぐ。
     const backdrop = createBackdrop(() => {}, { dim: false, zIndex: 10610 });
@@ -80,6 +101,7 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     const buttons = document.createElement("div");
     buttons.className = "contact-approval-buttons";
     const finish = (result) => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
       cellEl?.classList.remove("cell-confirm-target");
       backdrop.remove();
       modal.remove();
@@ -89,12 +111,12 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     yesBtn.className = "contact-approval-approve";
     yesBtn.type = "button";
     yesBtn.textContent = t("game.confirm.yes");
-    yesBtn.addEventListener("click", () => { if (guard()) return; finish(true); });
+    yesBtn.addEventListener("click", (ev) => { if (blocked(ev)) return; finish(true); });
     const noBtn = document.createElement("button");
     noBtn.className = "contact-approval-reject";
     noBtn.type = "button";
     noBtn.textContent = t("game.cellConfirm.redo");
-    noBtn.addEventListener("click", () => { if (guard()) return; finish(false); });
+    noBtn.addEventListener("click", (ev) => { if (blocked(ev)) return; finish(false); });
     buttons.appendChild(yesBtn);
     buttons.appendChild(noBtn);
     modal.appendChild(buttons);
@@ -105,9 +127,9 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     dontShow.className = "cell-confirm-dontshow";
     dontShow.type = "button";
     dontShow.textContent = t("game.confirm.never");
-    dontShow.addEventListener("click", () => {
-      if (guard()) return;
-      setCellConfirmEnabled(false);
+    dontShow.addEventListener("click", (ev) => {
+      if (blocked(ev)) return;
+      setCellConfirmEnabled(false, "dont-show");
       // 何が起きたのか分かるように一言残す（#236: 押した覚えがないまま切れていて、
       // 「モーダルが出ない不具合」に見えていた）。戻し方もここで伝える。
       try { showQuickNote?.(t("game.cellConfirm.turnedOff")); } catch (err) { /* 出せなくても致命的ではない */ }

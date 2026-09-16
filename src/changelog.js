@@ -26,6 +26,17 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-16",
+    items: [
+      "iPhoneなどで画面を長押しした時に、文字が青く選択されたり、端末のメニューが出たりしないようにしました（名前を入力する欄などは今までどおり選べます）。",
+      "「このマスでいいですか？」の確認で、指を長めに置いたまま離すと、下にあったボタンが押されてしまうことがあったのを直しました。確認が出た後に改めてタップしたボタンだけが反応します（知らないうちに「今後表示しない」になってしまうことがありました）。",
+    ],
+    itemsEn: [
+      "Long-pressing the screen on iPhone and similar devices no longer highlights text in blue or opens the device's menu (fields you type into, such as your name, still work as before).",
+      "In the \"Is this square OK?\" confirmation, holding your finger down a little longer before lifting it could press the button underneath. Now only a tap made after the confirmation appears counts (this could silently switch the confirmation off).",
+    ],
+  },
+  {
     date: "2026-09-14",
     items: [
       "マルメゴでカードを公開していく時、画面中央でめくられる前に、そのカードが手札に見えてしまっていたのを直しました。ザ・ギャンブルと同じく、全部めくり終わってから並ぶようになります。",
