@@ -342,6 +342,7 @@ export function stopOpeningBgm(durationMs = 600) {
 // 方式にする。
 let gameBgmAudio = null;
 let gameBgmGain = null;
+let gameBgmPlayFailLogs = 0;
 
 export function playGameBgm() {
   stopOtherBgms("game");
@@ -351,7 +352,14 @@ export function playGameBgm() {
     gameBgmGain = attachGainNode(gameBgmAudio);
   }
   gameBgmAudio.currentTime = 0;
-  gameBgmAudio.play().catch(() => {});
+  // 弾かれた時は理由を残す（#343: 自動再生の制限＝NotAllowedError か、それ以外かを見分けるため）。
+  // 取り直しのたびに出ないよう、1回の対局で最初の3回まで。
+  gameBgmAudio.play().catch((err) => {
+    if (gameBgmPlayFailLogs < 3) {
+      gameBgmPlayFailLogs++;
+      logAction("diag-bgm-play-failed", { name: "game", errorName: err?.name ?? null });
+    }
+  });
   const gameTarget = () => Math.min(1, Math.max(0, masterBgmVolume * getPerSoundVolume("--sound-volume-game-bgm")));
   fadeInBgm(gameBgmAudio, gameBgmGain, gameTarget, gameFadeTimer);
   watchBgm("game", gameBgmAudio, () => gameBgmGain, gameTarget);
@@ -452,6 +460,7 @@ export function initGameBgmAutoStart() {
       // 勝利ファンファーレが鳴りっぱなしのままゲームBGMと重なる不具合への対応（ユーザー報告
       // 2026-08-13、CPU戦で勝利BGM中に再戦すると消えなかった）。
       stopVictoryBgm();
+      gameBgmPlayFailLogs = 0; // 弾かれた理由の記録は対局ごとに数え直す
       playGameBgm();
     }
     wasGameStartedForBgm = started;
@@ -472,6 +481,14 @@ export function initGameBgmAutoStart() {
     };
     window.addEventListener("pointerdown", retryOnGesture, { passive: true });
     window.addEventListener("keydown", retryOnGesture, { passive: true });
+    // 【2026-09-18・#343の続き】実機の記録（YGMさんのiPhone）で、対局開始3秒後のゲームBGMが
+    // paused:true・t:0 のまま＝**始まっていなかった**（オープニング・待機BGMはタップ起点なので鳴る）。
+    // 上の保険は pointerdown で取り直していたが、ブラウザの決まりでは**指で触った時の pointerdown は
+    // 「音を鳴らしてよい操作」に数えられない**（数えられるのは指を離した時＝pointerup / touchend、
+    // それと click）。つまり iPhone ではこの保険が一度も効いていなかった可能性が高い。離した時にも
+    // 取り直す（鳴っていれば何もしないので、何度呼ばれても重ならない）。
+    window.addEventListener("pointerup", retryOnGesture, { passive: true });
+    window.addEventListener("touchend", retryOnGesture, { passive: true });
   }
 }
 

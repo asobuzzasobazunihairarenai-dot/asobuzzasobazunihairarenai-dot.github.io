@@ -26,6 +26,19 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-18",
+    items: [
+      "色落ちキャットやなないろの巨光が自分を捨てた後、その下にあった表向きのカード（ジャンプ台など）の到達効果が起きていなかったのを直しました。手札に加えるカードと同じく、下から現れたカードにも到達します。",
+      "オンライン対戦で合同建設などの「相手が選ぶ」場面の時、相手がしばらく操作しないと、相手の画面に選択が開いたまま残り、戻ってきた時に遅れて置かれたり、自分の番の移動先が選べなくなったりしていたのを直しました。時間切れになった選択は、相手の画面でも自動で閉じるようになります。",
+      "iPhoneで対戦中のBGMが鳴らないことがあったため、画面をタップした時にBGMを鳴らし直す仕組みを見直しました。",
+    ],
+    itemsEn: [
+      "After Faded Cat or Prismatic Radiance discarded itself, the face-up card underneath it (such as Jump Pad) did not trigger its arrival effect. Now the card revealed underneath triggers, just as it does when a card is added to your hand.",
+      "In online matches, when an opponent had to make a choice (such as Joint Construction) and stayed idle, the choice stayed open on their screen. When they came back, a card could be placed late, or they could not pick where to move on their own turn. Now a choice that has timed out closes on their screen as well.",
+      "The match BGM sometimes stayed silent on iPhone. We reworked how the BGM restarts when you tap the screen.",
+    ],
+  },
+  {
     date: "2026-09-16",
     items: [
       "iPhoneなどで画面を長押しした時に、文字が青く選択されたり、端末のメニューが出たりしないようにしました（名前を入力する欄などは今までどおり選べます）。",

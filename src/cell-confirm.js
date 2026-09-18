@@ -101,6 +101,7 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     const buttons = document.createElement("div");
     buttons.className = "contact-approval-buttons";
     const finish = (result) => {
+      if (cancelOpenConfirm === cancelThis) cancelOpenConfirm = null;
       document.removeEventListener("pointerdown", onPointerDown, true);
       cellEl?.classList.remove("cell-confirm-target");
       backdrop.remove();
@@ -137,10 +138,20 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     });
     modal.appendChild(dontShow);
 
+    const cancelThis = () => finish(null);
+    cancelOpenConfirm = cancelThis;
+
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
     placeNextToCell(modal, cellEl);
   });
+}
+
+// 【#352】開いている確認を、答えを待たずに閉じる（結果は null＝「選ぶのをやめた」）。
+// 相手に頼まれた選択（合同建設など）の期限が切れた時にだけ使う。開いていなければ何もしない。
+let cancelOpenConfirm = null;
+export function cancelOpenCellConfirm() {
+  cancelOpenConfirm?.();
 }
 
 // 選んだマスの「すぐ右上」に出す。画面からはみ出す時だけ、右下→左上→左下 の順に回して

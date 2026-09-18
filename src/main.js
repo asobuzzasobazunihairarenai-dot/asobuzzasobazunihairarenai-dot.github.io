@@ -241,7 +241,7 @@ import { initPiecePets, registerPiecePetHelpers } from "./piece-pet.js";
 // 「ロック前・手札使用前」の確認モーダルを出すかどうかの設定（全デバイス共通、
 // 「今後表示しない」でオフ・オプションの基本設定でオンに戻せる）。
 import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confirm-prefs.js";
-import { isCellConfirmEnabled, confirmCellChoice } from "./cell-confirm.js";
+import { isCellConfirmEnabled, confirmCellChoice, cancelOpenCellConfirm } from "./cell-confirm.js";
 import { registerTutorialBattleUiHelpers } from "./tutorial-battle-ui.js";
 import { initTurnTimer, transferPriorityTo, isPseudoCpuTarget, notifyPlayerDecision, isTurnTimerEnabled } from "./turn-timer.js";
 import { initIconRearrange } from "./icon-rearrange.js";
@@ -4039,6 +4039,8 @@ async function runJointConstructionTask(player) {
   // 「空いている」になっていた。docs/cards.mdの表記に合わせて「何もない」に統一する。
   const dest = await requestCellChoiceForEffect(emptyCells, t("game.pick.emptyCell"));
   if (!dest) return false;
+  // 【#352】頼まれた選択の期限が切れた後に選ばれても置かない（頼んだ側はもう先へ進んでいる）。
+  if (isDelegationExpired()) return false;
   // ユーザー要望2026-08-07: 手札（公開ドロー含む）が無い時は「山札から/手札から」を聞いても
   // 「手札から」は選べず無意味なので、その選択を出さず自動で山札から置き、「手札がないため
   // 山札から置きました」と全員に周知する（choose-effect-reveal方針に合わせ同じ告知モーダルを流用）。
@@ -4051,10 +4053,10 @@ async function runJointConstructionTask(player) {
     return true;
   }
   const source = await requestPlaceSourceChoiceForEffect();
-  if (!source) return false;
+  if (!source || isDelegationExpired()) return false;
   if (source === "hand") {
     const handToken = await requestHandCardChoiceForEffect(player, t("game.pick.placeFromHand"));
-    if (!handToken) return false;
+    if (!handToken || isDelegationExpired()) return false;
     await moveAndSyncForEffect(handToken.id, { zone: "cell", row: dest.row, col: dest.col });
     // ユーザー要望「合同建設で相手が山札から置いたのか手札から置いたのかを全員に周知」。
     await announceEffectChoiceForEffect("green-joint-construction", player, t("game.place.handFaceDown"));
@@ -4077,7 +4079,7 @@ async function runSlumOfficialDiscardTask(player) {
     ).length;
     if (handCount <= 3) break;
     const chosen = await requestHandCardChoiceForEffect(player, t("game.slum.discardTo3", { n: handCount - 3 }));
-    if (!chosen) break;
+    if (!chosen || isDelegationExpired()) break; // 【#352】期限切れの後は捨てない
     await discardFromHandReveal(chosen.id);
     discardedAny = true;
   }
@@ -4283,6 +4285,30 @@ async function delegateToPlayerForEffect(player, taskType) {
 //  ・"pending": 実行中の再送 → 無視（もう一度選ばせない）
 //  ・結果あり: 完了済みの再送 → タスクを再実行せず、覚えている結果だけ送り返す
 const processedDelegations = new Map(); // requestId -> result | "pending"
+// 【#352】ユーザー報告「相手が寝ちゃって、合同建設の置くのが置き去りになってそのまままた相手の
+// ターンになった。その後起きて合同建設の処理を再開して、その後ムーブフェイズで移動先を選べなく
+// なった」。頼んだ側（delegateToPlayerForEffect）は返事を90秒待って諦め、自分の効果を先へ進める。
+// ところが**頼まれた側の画面では、マスの選択が開きっぱなしのまま残っていた**。起きて（画面が
+// 戻って）から選ぶと、頼んだ側はとっくに先へ進んでいるのに、遅れて札が置かれる。しかも選択が
+// 開いている間は盤面のタップをすべてその選択が受け取るので、自分のターンの移動先が選べない。
+// 頼まれた側でも期限を持ち、過ぎたら自分から選択を閉じて「置かなかった」ことにする。
+// 頼んだ側の90秒より少し短くして、先にこちらの返事（置かなかった）が届くようにする。
+// 端末が眠っている間はタイマーが止まるが、戻った瞬間に遅れていたタイマーが走るので、
+// 起きた時にはすぐ閉じる（途中で選ばれても、下の isDelegationExpired で何も置かない）。
+const DELEGATION_RECEIVER_DEADLINE_MS = 85000;
+let delegationDeadlineAt = 0; // 0 = 頼まれた選択は今走っていない
+function isDelegationExpired() {
+  return delegationDeadlineAt > 0 && Date.now() >= delegationDeadlineAt;
+}
+function closeExpiredDelegationUi() {
+  logAction("diag-delegate", { phase: "receiver-expired", picker: activeEffectPicker?.type ?? null });
+  const picker = activeEffectPicker;
+  if (picker) {
+    activeEffectPicker = null;
+    try { picker.resolve(null); } catch (err) { /* 閉じられなくても期限切れの判定で何も置かない */ }
+  }
+  try { cancelOpenCellConfirm(); } catch (err) { /* 同上 */ }
+}
 onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
   if (getSelfSeat() !== player) return;
   const cached = processedDelegations.get(requestId);
@@ -4292,7 +4318,13 @@ onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
     return;
   }
   processedDelegations.set(requestId, "pending");
+  delegationDeadlineAt = Date.now() + DELEGATION_RECEIVER_DEADLINE_MS;
+  const deadlineTimer = setTimeout(closeExpiredDelegationUi, DELEGATION_RECEIVER_DEADLINE_MS);
   runDelegatedArrivalTask(player, taskType)
+    .finally(() => {
+      clearTimeout(deadlineTimer);
+      delegationDeadlineAt = 0;
+    })
     .then((result) => {
       processedDelegations.set(requestId, result);
       broadcastArrivalDelegateResolved({ requestId, result });
@@ -6807,6 +6839,8 @@ let cellPickAutoResolved = false;
 
 async function requestCellChoiceForEffect(candidates, hint, options = {}) {
   for (;;) {
+    // 【#352】相手に頼まれた選択の期限が切れていたら、選び直しでもハイライトを出し直さない。
+    if (isDelegationExpired()) return null;
     cellPickAutoResolved = false;
     const loc = await requestCellChoiceForEffectOnce(candidates, hint, options);
     if (!loc) return null; // スキップ／中止はそのまま返す
@@ -6819,7 +6853,9 @@ async function requestCellChoiceForEffect(candidates, hint, options = {}) {
     // （駒の下のマスを対象にする効果もあるため）。効果側が「マスを選ばせているのか、相手（駒）を
     // 選ばせているのか」を pickTarget で明示し、それだけで文言を切り替える。
     const titleKey = options.pickTarget === "piece" ? "game.cellConfirm.titleOpponent" : undefined;
-    if (await confirmCellChoice(el, hint, { titleKey })) return loc;
+    const confirmed = await confirmCellChoice(el, hint, { titleKey });
+    if (confirmed === null) return null; // 【#352】期限切れで閉じられた＝選ぶのをやめた
+    if (confirmed) return loc;
     // 「選び直す」→ もう一度ハイライトから
   }
 }
@@ -8194,6 +8230,9 @@ async function runAutoArrivalEffect(cardId, location, player) {
       // 追色コストの支払いで元々discardAndSyncを持っていたが、到達効果側には
       // まだ無かったので追加した。
       discardAndSync: discardFromHandReveal,
+      // 【#353】到達したカードが自分を捨てた後、下から現れたカードへの到達（コンボ）を起こす。
+      triggerExposedArrival: (location, prevTopTokenId) =>
+        maybeTriggerCardArrivalForExposedCard(location, false, prevTopTokenId),
       // 【#315】まとめて捨てた分は1つのお知らせにまとめて見せる（ザ・ギャンブル等）。
       announceCardsDiscarded: (p, ids) => announceCardsDiscarded(p, ids, currentEffectReasonLabel()),
       // ユーザー要望「効果が不発だった場合は『不発のためこのカードを手札に加えます』

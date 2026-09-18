@@ -2258,11 +2258,24 @@ export async function runArrivalEffect(ctx, helpers) {
   // このカードを盤面の外（手札・捨て場等）へ動かしていたら、その行き先は効果が決めた結果なので
   // 既定動作は行わない。
   let arrivalCardMovedByEffect = false;
+  // 【#353】「色落ちキャットの下のジャンプ台が発動しなかった」。到達したカードが**自分で自分を
+  // 捨てる**（DISCARD_SELF＝色落ちキャット・なないろの巨光）と、駒の足元には下にあったカードが
+  // 新しく一番上として現れる。手札に加える既定動作（moveAndSync）はその「露出した下のカードへの
+  // 到達（コンボ）」を起こすが、捨てる経路（discardAndSync）は起こしていなかった。
+  // 捨てた元のマスを控えておき、効果を全部処理し終えた後（手札に加える場合と同じ順番）で起こす。
+  let selfDiscardedFrom = null;
   const wrappedHelpers = {
     ...helpers,
     moveAndSync: (tokenId, location, ...rest) => {
       if (tokenId === ctx.cardTokenId && location?.zone !== "cell") arrivalCardMovedByEffect = true;
       return helpers.moveAndSync(tokenId, location, ...rest);
+    },
+    discardAndSync: (tokenId, ...rest) => {
+      if (tokenId === ctx.cardTokenId && !selfDiscardedFrom) {
+        const loc = getState().tokens.find((t) => t.id === tokenId)?.location;
+        if (loc?.zone === "cell") selfDiscardedFrom = { ...loc };
+      }
+      return helpers.discardAndSync(tokenId, ...rest);
     },
   };
   let hadEffect = false;
@@ -2306,6 +2319,11 @@ export async function runArrivalEffect(ctx, helpers) {
       helpers.announceCardAddedToHand?.(addedCardId, ctx.player, wasFaceUp);
     }
   }
+  // 【#353】自分で自分を捨てたカードの下から現れたカードへの到達（上の selfDiscardedFrom の説明）。
+  // 駒がまだそのマスにいて、下のカードが表向きの時だけ起きる（判定は呼び出し側の関数が持つ）。
+  // 待つのは収穫と種まき（#85）と同じ理由——下のカードの効果（ジャンプ台なら移動）が済む前に
+  // ターンの終わりへ進まないように。
+  if (selfDiscardedFrom) await helpers.triggerExposedArrival?.(selfDiscardedFrom, ctx.cardTokenId);
   return runCtx.arrivedAt;
 }
 
