@@ -1,3 +1,4 @@
+import { getTrialSource } from "./trial-entry.js"; // 訪問記録の「どこから来たか」（続き517）
 // オンライン対戦（第一弾・最小構成）のクライアント側の窓口。
 // supabase-jsは姉妹プロジェクト（7 SHADES OF S:EVEN 戦績管理システム）と同じCDN UMD版を
 // index.htmlで読み込み、同じSupabaseプロジェクトに相乗りする（テーブルはso7_プレフィックスで
@@ -1337,8 +1338,31 @@ export async function recordVisit() {
   const host = location.hostname;
   if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") return;
   if (isAdminUser()) return;
-  const { error } = await client.from("so7_visit_log").insert({ user_id: cachedUser?.id ?? null });
+  // 【2026-09-18 続き517・ユーザー要望（試遊の効果測定）】どこから来たか（source: 試遊の入口なら
+  // "trial" / "trial:<値>"、それ以外は null）と、端末ごとの無作為な印（visitor_key: 同じ人の
+  // 2回目以降を「人数」から除くため。名前やメールとは結び付かない）も残す。
+  // 列を足すSQLをまだ実行していないDBでは、この形の insert は失敗する——その時は従来どおり
+  // user_id だけで記録し直す（訪問の記録そのものが止まってしまう方が困るため）。
+  const row = { user_id: cachedUser?.id ?? null, source: getTrialSource(), visitor_key: getVisitorKey() };
+  let { error } = await client.from("so7_visit_log").insert(row);
+  if (error) {
+    ({ error } = await client.from("so7_visit_log").insert({ user_id: row.user_id }));
+  }
   if (error) console.error("recordVisit failed (未実行のsupabase_setup_so7.sql追加分がある可能性)", error);
+}
+
+// 端末ごとの無作為な印（初回に作って localStorage に置く）。訪問の「人数」を数えるためだけのもの。
+function getVisitorKey() {
+  try {
+    let key = localStorage.getItem("so7-visitor-key");
+    if (!key) {
+      key = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `v${Date.now()}${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem("so7-visitor-key", key);
+    }
+    return key;
+  } catch {
+    return null;
+  }
 }
 
 // アプリ内「不具合報告」（bug-report.js）から呼ぶ。認証済みならuser_id付き、未認証でも

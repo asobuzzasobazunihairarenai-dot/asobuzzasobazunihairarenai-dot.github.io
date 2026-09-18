@@ -1580,3 +1580,39 @@
 - **検証**: `npm test` 58/58 PASS、`node tools/check-undeclared.mjs` 0件（165ファイル）、`node test/smoke.mjs 2` PASS、
   CSSブレース平衡（3297）、`node --check`（.mjs へコピー）cell-confirm.js・options-menu.js・handled-bug-reports.js・changelog.js 通過、
   お知らせ ja/en とも件数一致（69回・不一致0）。サーバー側（Supabase）の変更は無い＝SQLの実行・Edge Function の再デプロイは不要。
+
+### 2026-09-18（続き517）：試遊版の宣伝に向けて——検索に出す＋リンク表示（OGP）／試遊の入口から来た人数を数える（SQL追加・要手動実行）
+
+PR戦略セッション（別のClaudeセッション）経由で、ユーザー（YGM）の決定が届いた——試遊版をクラファン（10/17開始）・
+ゲムマの事前集客に使う。宣伝前の宿題 (a)「紋様」スキンの改名 (b) 新イラスト19点への差し替え（クレジットは SEVRAIL 名義、
+表記はクラファン相談セッションと突き合わせる）(c) GitHub 非公開化（本人操作）、依頼 (d) 検索設定の案 (e) 試遊の人数を数えるSQL。
+
+- **(a) 本人へ直接確認した結果、改名しない**（「クラファンページのコンポーネントのところでも載せている基本の紋様で試遊でいい」）。
+  なお「スタンダード／標準」は既に skin.0（今の既定の駒）の名前なので、改名するとしても使えない。
+- **(d) 本人判断「検索に出す＋リンク表示」**:
+  - `robots.txt` を `Disallow: /` → `Disallow:`（全部読ませる）に。**Disallow で止めると検索エンジンは各ページの noindex を
+    読めず、外部からリンクされた時に「説明の無いアドレスだけ」が出る**ので、隠したいページは HTML 側の noindex で止める。
+    管理者ダッシュボードと 404 は noindex のまま（確認済み）。**robots.txt はドメイン直下の1枚なので、戦績システム
+    （/BATTLE-log/。自前の noindex は無い）も今回から検索対象になる**（公式の窓口なので出る方が自然、とユーザーへ伝えた）。
+  - `index.html` の noindex を外し、`description` と OGP（og:title/description/url/image、twitter:card=summary_large_image）を追加。
+    og:url は `https://seven.asobuzz.net/?trial`。画像は `assets/og-image.jpg`（1200x630・83KB。タイトル画面の絵
+    `assets/opening.webp` を切らずに収め、上下を絵の四隅の平均色＝紙の色で埋めた。`scratchpad/make_og.mjs`）。
+    **お知らせ・文言にクラファンの話は入れていない**（告知前）。
+- **(e) 試遊の入口から来た人を数える**:
+  - `so7_visit_log` に `source`（"trial" / `?trial=cf` なら "trial:cf"。値は英数字・-・_ の16文字まで）と
+    `visitor_key`（端末ごとの無作為な印＝localStorage `so7-visitor-key`。人数を数えるためだけで個人とは結び付かない）を追加
+    （`supabase_setup_so7.sql` 末尾・`if not exists`）。数え方のSQL（日ごと・入口ごとの訪問数と人数／合計／その後ログインした人数）を
+    同じ場所にコメントで置いた。
+  - `recordVisit()` が両方を送る。**列を足すSQLがまだの間は insert が失敗するので、user_id だけで記録し直す**
+    （訪問の記録そのものが止まらないように）。`getTrialSource()` を trial-entry.js に新設。
+  - **ユーザーの手動実行が必要**。今回は**追加した部分だけ**を貼るよう伝えた（全文の再実行安全性は今回は機械的に確かめ切って
+    いない——関数の中の delete と publication の行がスキャンに掛かったため。追加分は単独で安全）。
+  - **宣伝の場所ごとに数えるには、リンクに値を付ける**（例 `?trial=x`）。ただしクラファンの窓口は戦績システム経由なので、
+    クラファンから来た人を分けたい時は戦績システムのボタン側に値を付ける必要がある（未実施・申し送り）。
+- **検証（実測・`scratchpad/probe_visit517.mjs`。本物のSupabaseへは送らず route で横取り、`seven.test` 名で開いて
+  localhost の除外を避けた）**: `?trial` → `{"source":"trial","visitor_key":…}`／`?trial=cf` → `"trial:cf"`／
+  普通 → `source:null`／**「列が無い」(400)を返すと2回目に `{"user_id":null}` だけで送り直す**。例外0件。
+  `npm test` 58/58 PASS、`node tools/check-undeclared.mjs` 0件（165ファイル）、`node test/smoke.mjs 2` PASS、
+  `node --check`（.mjs へコピー）online.js・trial-entry.js 通過。お知らせ（changelog.js）は変えていない（アプリ内で
+  プレイヤーに見える変化が無いため）。**SQLの手動実行が必要**。Edge Function の変更は無い。
+- **申し送り**: (b) は画像データの到着待ち。(c) は本人操作。(b)(c) が片づいたら PR戦略セッションへ「宣伝してよい状態になった」と伝える。

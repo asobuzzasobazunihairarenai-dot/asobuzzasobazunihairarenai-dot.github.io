@@ -2,9 +2,19 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<!-- 【2026-09-07】アルファ版のうちは検索結果に載せない（ユーザー判断）。
-     正式公開の時にこの2行を消せば、通常どおり検索対象に戻る。 -->
-<meta name="robots" content="noindex, nofollow">
+<!-- 【2026-09-18 続き517・ユーザー判断】試遊版の宣伝を始めるので、検索結果に出す（以前は noindex）。
+     あわせて、X・LINE・Discord 等にリンクを貼った時に出る「画像と説明」（OGP）を付けた。
+     画像・アドレスは絶対パスでないと各サービスが読めない。 -->
+<meta name="description" content="ボードゲーム「7 SHADES OF S:EVEN」をブラウザですぐ遊べる試遊版（開発中）。登録なしで、遊び方を教わりながらCPUと対戦できます。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="7 SHADES OF S:EVEN">
+<meta property="og:title" content="7 SHADES OF S:EVEN デジタル試遊版">
+<meta property="og:description" content="ブラウザですぐ遊べる試遊版（開発中）。登録なしで、遊び方を教わりながらCPUと対戦できます。">
+<meta property="og:url" content="https://seven.asobuzz.net/?trial">
+<meta property="og:image" content="https://seven.asobuzz.net/assets/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <!-- maximum-scale=1.0 + user-scalable=no でブラウザ標準のピンチズーム（ページ全体が
      拡縮され、固定配置のアイコン類まで一緒に動いてしまう）を無効化する。代わりに
      src/main.js の initCameraControls() が盤面(.scene)だけを対象にした独自の

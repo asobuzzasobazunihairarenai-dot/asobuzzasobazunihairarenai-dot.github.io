@@ -13,6 +13,21 @@ export function isTrialEntry() {
   }
 }
 
+// 【2026-09-18・ユーザー要望（試遊の効果測定）】訪問記録に残す「どこから来たか」。
+// ?trial だけなら "trial"、?trial=cf のように値が付いていれば "trial:cf"（宣伝の場所ごとに
+// リンクを分けて数えられる）。値は英数字・-・_ の16文字までに切り詰める（記録を汚さないため）。
+// 試遊の入口でなければ null。
+export function getTrialSource() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("trial")) return null;
+    const tag = (params.get("trial") || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 16);
+    return tag ? `trial:${tag}` : "trial";
+  } catch {
+    return null;
+  }
+}
+
 // ログインへ進む時に呼ぶ。Googleログインはページを離れて「今のURL」へ戻ってくるので、
 // ?trial を残したままだと、ログインし終えた人にまた試遊の入口が出てしまう。
 export function clearTrialParam() {

@@ -2994,3 +2994,29 @@ update players
    set avatar_url = 'https://seven.asobuzz.net'
                     || substring(avatar_url from position('/assets/' in avatar_url))
  where avatar_url like 'https://asobuzzasobazunihairarenai-dot.github.io/%/assets/%';
+
+-- ============================================================================
+-- 追加(2026-09-18 続き517): 試遊の入口（?trial）から来た人を数える（宣伝の効果測定）
+-- ============================================================================
+-- source      … どこから来たか。"trial"（?trial）/"trial:cf" など（?trial=cf のように値を付けたリンク）。
+--               普通に開いた訪問は null。
+-- visitor_key … 端末ごとの無作為な印（アプリが初回に作る）。同じ人の2回目以降を「人数」から除く用。
+--               名前・メール・端末の情報とは結び付かない。
+-- 何度実行しても安全（if not exists）。この列が無い間も、アプリは従来どおり訪問を記録し続ける。
+alter table so7_visit_log add column if not exists source text;
+alter table so7_visit_log add column if not exists visitor_key text;
+create index if not exists so7_visit_log_source_created_idx on so7_visit_log (source, created_at);
+
+-- 【数え方】SQL Editor でいつでも実行できる（読むだけ・何も変えない）。
+-- ① 日ごと・入口ごとの訪問数と人数（日本時間）:
+--   select (created_at at time zone 'Asia/Tokyo')::date as 日付, source as 入口,
+--          count(*) as 訪問数, count(distinct visitor_key) as 人数
+--     from so7_visit_log where source like 'trial%'
+--    group by 1, 2 order by 1 desc, 2;
+-- ② ここまでの合計:
+--   select source as 入口, count(*) as 訪問数, count(distinct visitor_key) as 人数
+--     from so7_visit_log where source like 'trial%' group by 1 order by 2 desc;
+-- ③ 試遊から来てその後ログインした人数（同じ端末の印で、後の訪問に user_id が付いたもの）:
+--   select count(distinct v2.user_id) as ログインした人数
+--     from so7_visit_log v1 join so7_visit_log v2 on v2.visitor_key = v1.visitor_key
+--    where v1.source like 'trial%' and v2.user_id is not null;
