@@ -3020,3 +3020,34 @@ create index if not exists so7_visit_log_source_created_idx on so7_visit_log (so
 --   select count(distinct v2.user_id) as ログインした人数
 --     from so7_visit_log v1 join so7_visit_log v2 on v2.visitor_key = v1.visitor_key
 --    where v1.source like 'trial%' and v2.user_id is not null;
+
+-- ============================================================================
+-- 追加(2026-09-19 続き519): 公開してよい「人数だけ」を返す（AsobuzZ コンソールのホームに「今日 N人」を出す用）
+-- ============================================================================
+-- 訪問の記録（so7_visit_log）そのものは管理者しか読めない（so7_get_admin_stats の方針のまま）。
+-- ここは**数字だけ**を返す——名前・メール・ID・時刻は一切出さない。公開鍵（anon）で呼べる。
+-- 「今日」は日本時間の0時で切る（current_date は UTC なので、日本の朝9時で日付が変わってしまう）。
+-- 管理者本人とローカルでの確認の訪問は、記録する側（online.js の recordVisit）で既に除いてある。
+-- 何度実行しても安全（create or replace／grant は重ねても同じ）。
+create or replace function so7_public_counts()
+returns json
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select json_build_object(
+    'loginsToday', (
+      select count(distinct user_id) from so7_visit_log
+       where user_id is not null
+         and created_at >= ((now() at time zone 'Asia/Tokyo')::date::timestamp at time zone 'Asia/Tokyo')
+    ),
+    'visitsToday', (
+      select count(*) from so7_visit_log
+       where created_at >= ((now() at time zone 'Asia/Tokyo')::date::timestamp at time zone 'Asia/Tokyo')
+    ),
+    'totalUsers', (select count(*) from so7_user_profiles)
+  );
+$$;
+revoke execute on function so7_public_counts() from public;
+grant execute on function so7_public_counts() to anon, authenticated;

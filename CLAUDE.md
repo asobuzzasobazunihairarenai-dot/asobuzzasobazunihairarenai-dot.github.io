@@ -1664,3 +1664,21 @@ PR戦略セッション（別のClaudeセッション）経由で、ユーザー
   `node --check`（.mjs へコピー）main.js・card-effect-engine.js・cell-confirm.js・sound.js・changelog.js・handled-bug-reports.js 通過、
   お知らせ ja/en とも件数一致（70回・不一致0）。サーバー側（Supabase）の変更は無い＝SQLの実行・Edge Function の再デプロイは不要
   （委任の往復は既存の broadcast のまま、online.js も無改造）。
+
+### 2026-09-19（続き519）：公開してよい「人数だけ」を返す関数 so7_public_counts()（AsobuzZ コンソールのホーム用・SQL要手動実行）
+
+別のClaudeセッション（AsobuzZ コンソール＝投稿スタジオ）から、ユーザーの希望として依頼が届いた——コンソールのホームの
+「公開しているページ」の札の横に「今日 N人」を出したい。訪問の記録（so7_visit_log）は公開鍵では読めず、読めるのは管理者だけの
+so7_get_admin_stats なので、コンソール（公開鍵で5分おきに1回呼ぶ）からは取れない。
+
+- **`so7_public_counts()` を追加**（`supabase_setup_so7.sql` 末尾。security definer・引数なし・anon/authenticated に execute）。
+  返すのは **数字だけ**——`{ loginsToday, visitsToday, totalUsers }`。loginsToday＝今日の訪問のうち user_id がある人の重複なし人数、
+  visitsToday＝今日の訪問数、totalUsers＝so7_user_profiles の件数。名前・メール・ID・時刻は出さない。
+- **「今日」は日本時間の0時で切る**（`(now() at time zone 'Asia/Tokyo')::date::timestamp at time zone 'Asia/Tokyo'` 以降）。
+  so7_get_admin_stats の visitsToday は `current_date`（UTC）なので**日本の朝9時で日付が変わる**——数字が合わないことがある（管理者画面の方は未変更）。
+- 訪問の個々の記録を「誰でも見られる情報にしたくない」という元の方針（so7_visit_log の RLS）は変えていない。公開になるのは集計の数字だけ。
+  管理者本人とローカル確認の訪問は、記録する側（recordVisit）で既に除いてある。
+- **ユーザーの手動実行が必要**（追加した部分だけを SQL Editor へ）。配信物（src/）の変更は無い＝お知らせは更新していない。
+  Edge Function の変更も無い。実際のDBでの実行確認はこちらからはできない（SQLの文法・日付の切り方は目で確認）。
+- **申し送り**: 戦績管理システム（BATTLE-log・別フォルダ）の page_visits に user_id 列が無い件（あちらの supabase_setup.sql の
+  2026-09-05 の追加が未実行らしい）は、コンソール側からの情報として**ユーザーへ伝えただけ**。流すかどうかは本人判断。
