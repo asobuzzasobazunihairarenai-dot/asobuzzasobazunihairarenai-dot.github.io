@@ -101,6 +101,8 @@ if (client && typeof window !== "undefined" && window.location.hash.includes("ac
 let currentGameId = null;
 let currentSeat = null;
 let broadcastChannel = null;
+// 観戦中でも送ってよいブロードキャスト（対局の進行に一切影響しないものだけ）。
+const SPECTATOR_ALLOWED_BROADCASTS = new Set(["bug_log_request", "bug_log_response"]);
 let authChangeListeners = [];
 
 // 観戦（ユーザー要望「後から部屋に入った人が観戦できるように」）。座席を持たず、状態を
@@ -111,6 +113,17 @@ let authChangeListeners = [];
 let spectating = false;
 let spectateMode = "public";
 let spectateViewSeat = null;
+// 【2026-09-21・ユーザー要望「観戦中は好きなプレイヤーの視点に移動できるように」】
+// 盤面を手前に置く座席（＝誰の視点で見るか）。観戦中だけ変えられる。
+export function getSpectateViewSeat() {
+  return spectateViewSeat;
+}
+export function setSpectateViewSeat(seat) {
+  if (!spectating) return;
+  if (!getState().activePlayers?.includes(seat)) return;
+  spectateViewSeat = seat;
+  notifyListeners(); // 盤面を今の視点で描き直す
+}
 export function isSpectatingGame() {
   return spectating;
 }
@@ -1743,10 +1756,38 @@ export async function getRoomIsRanked(gameId) {
 // パスワードを一切入力せずに参加できてしまう（so7_game_seats_insertポリシー自体は
 // user_id=auth.uid()のみのチェックで、パスワードの有無を関知できないため）。
 // 永続プロフィール（so7_user_profiles）からの初期値反映もso7_join_room側で行う。
+// 【2026-09-21・ユーザー要望】座席は最大4つしか無い。5人目が入ると、その人は対局が始まっても
+// 座席がもらえず、何もできないまま盤面を見ることになる（不具合報告#355の原因）。入る前に人数を
+// 数えて、満席なら入室自体を断る（呼び出し側はこの印を見て「観戦しますか？」と聞く）。
+export const MAX_SEATS = 4;
+export const ROOM_FULL_ERROR = "room_full";
+async function getOpenRoomMemberCount(gameId) {
+  // so7_games_list は「まだ始まっていない部屋」の公開一覧（パスワードの有無と人数だけ）。
+  // 数えられなかった時（通信失敗など）は null を返し、入室を止めない（善処の原則）。
+  try {
+    const { data, error } = await client.from("so7_games_list").select("member_count").eq("id", gameId).maybeSingle();
+    const count = typeof data?.member_count === "number" ? data.member_count : null;
+    // 数えられたか／いくつだったかを残す（満席なのに入れてしまった等、後から追えるように）。
+    logAction("diag-room-full-check", { gameId, count, error: error?.message ?? null });
+    if (error) return null;
+    return count;
+  } catch (err) {
+    logAction("diag-room-full-check", { gameId, count: null, error: String(err?.message ?? err).slice(0, 80) });
+    return null;
+  }
+}
+
 export async function joinRoom(gameId, passwordAttempt) {
   return withLog("部屋に参加", async () => {
     const user = await getCurrentUser();
     if (!user) throw new Error(t("on.err.signIn"));
+
+    const memberCount = await getOpenRoomMemberCount(gameId);
+    if (memberCount !== null && memberCount >= MAX_SEATS) {
+      const full = new Error(t("on.err.roomFull", { n: MAX_SEATS }));
+      full.code = ROOM_FULL_ERROR;
+      throw full;
+    }
 
     const { error } = await client.rpc("so7_join_room", {
       p_game_id: gameId,
@@ -3347,6 +3388,18 @@ export async function fetchAndHydrate(gameId) {
     // このモジュールのローカル変数に留める。
     syncedTimerToggleRejectStreak = gameRow.timer_toggle_reject_streak ?? {};
     const activePlayersList = gameRow.active_players ?? [];
+    // 【2026-09-21・ユーザー要望「観戦者は完全にゲームに関与しないように」】同時入室などで
+    // 座席をもらえないまま対局が始まってしまった人は、ここで観戦へ切り替える。そのままだと
+    // getSelfSeat() の「座席が無い時は A」というフォールバックのせいで、本人の画面では
+    // **A の視点・A の手札が自分のもののように見え**、全員が対象の効果も自分に起きたように
+    // 見えてしまう（実際にはサーバー上の対局には一切関与していない）。
+    if (!spectating && currentSeat === null && gameRow.turn_player && currentGameId === gameId) {
+      spectating = true;
+      spectateMode = "public";
+      spectateViewSeat = null;
+      stopHeartbeat();
+      logAction("diag-became-spectator", { gameId, reason: "no_seat_at_start", activePlayers: activePlayersList });
+    }
     // 観戦の描画視点（手前に置く座席）を、まだ決まっていなければ参加者の先頭に固定する。
     if (spectating && !spectateViewSeat && activePlayersList.length > 0) {
       spectateViewSeat = activePlayersList[0];
@@ -3701,6 +3754,20 @@ function subscribeToGame(gameId, { announceJoin = false } = {}) {
       }
     });
   setOnlineMode(true);
+  // 【2026-09-21・ユーザー要望「観戦者は完全にゲームに関与しないように」】
+  // アクション送信は callAction の先頭で既に止めてあるが、ブロードキャスト（「相手が選んだ」の
+  // 返事・各種承認・エモート・カーソル等）は素通りしていた。観戦者の画面にも「全員が選ぶ」
+  // 効果の選択が出てしまい（getSelfSeat()は観戦中「見ている席」を返すため）、その答えが本物の
+  // プレイヤーより先に届き得た。個々の送信箇所（30か所以上）を直すより漏れが無いので、
+  // チャンネルの送信口1か所で塞ぐ。不具合ログのやりとりだけは対局に影響しないので通す。
+  const rawBroadcastSend = broadcastChannel.send.bind(broadcastChannel);
+  broadcastChannel.send = (msg) => {
+    if (spectating && !SPECTATOR_ALLOWED_BROADCASTS.has(msg?.event)) {
+      logAction("diag-spectator-blocked", { event: msg?.event ?? null });
+      return Promise.resolve("ok");
+    }
+    return rawBroadcastSend(msg);
+  };
   setOnlineTransport(callAction);
   setPriorityTransport(updatePriorityState);
   // fetchAndHydrate()（ネットワーク往復あり）を待たず、この場で即座に再描画を強制する。

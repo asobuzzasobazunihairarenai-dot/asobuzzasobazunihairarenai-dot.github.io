@@ -30,10 +30,18 @@ export const CHANGELOG = [
     items: [
       "チュートリアルで「紫のカードをロックしましょう」の場面のとき、カードをタップせずに自分でロックエリアへドラッグしてロックすると、案内がそこから先へ進まなくなっていたのを直しました。どちらのやり方でロックしても先へ進みます。",
       "対戦が始まった後も「◯◯さんがゲームを開始するのを待っています…」の案内が画面に出たままになることがあったのを直しました（席が足りず参加できなかった時や、観戦している時）。",
+      "対戦できるのは4人までです。満席の部屋を押した時は、これまで席が無いまま入ってしまっていましたが、満席であることをお伝えして「観戦しますか？」とおたずねするようにしました。",
+      "観戦中に、全員が対象のカード効果などで観戦者にも選択を求められることがあったのを直しました。観戦中は対局に一切関わりません（見るだけです）。",
+      "観戦中に、誰の視点からでも盤面を見られるようにしました。画面上の観戦バーに並ぶプレイヤー名を押すと、その人から見た向きに切り替わります。",
+      "セレナーデなどで「手札から1枚選ぶ」場面の最中に、別の手札カードの効果が勝手に始まってしまうことがあったのを直しました（選ぼうとしたカードが場に置かれ、ロックできなくなっていました）。",
     ],
     itemsEn: [
       "In the tutorial step that asks you to lock the purple card, dragging it into your lock area yourself (instead of tapping it) left the guide stuck at that step. Either way of locking now moves the guide forward.",
       "Fixed the \"Waiting for ... to start the match…\" notice staying on screen after the match had already begun (when there was no seat left for you, or while watching a match).",
+      "A match seats up to four players. Tapping a full room used to let you in without a seat; now it tells you the room is full and asks whether you would like to watch instead.",
+      "While watching a match, you could be asked to choose for effects that target every player. Spectators now take no part in the match at all.",
+      "While watching, you can now view the board from any player's side — tap a player's name in the spectator bar to switch.",
+      "Fixed another card's hand effect starting on its own while you were choosing a card from your hand (for example paying Serenade's cost), which put the card you meant to pick onto the board and left you unable to lock it.",
     ],
   },
   {

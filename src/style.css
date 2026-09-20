@@ -2380,6 +2380,36 @@ body.is-phone-device .update-banner-close {
   color: #fff;
   cursor: pointer;
 }
+/* 【2026-09-21・ユーザー要望】観戦中の「視点」切り替え（参加者ごとのボタン）。
+   今見ている人のボタンだけ明るくする。 */
+.spectator-banner-seats {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.spectator-banner-seats-label {
+  font-size: 0.7rem;
+  opacity: 0.85;
+  font-weight: normal;
+}
+.spectator-banner-seat {
+  font-size: 0.72rem;
+  padding: 0.12rem 0.5rem;
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.4rem;
+  color: #fff;
+  cursor: pointer;
+}
+.spectator-banner-seat.is-current {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: #fff;
+  color: #0e7490;
+}
 
 .piece-name-bubble {
   position: fixed;

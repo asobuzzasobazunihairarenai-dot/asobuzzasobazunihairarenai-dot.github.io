@@ -11,7 +11,7 @@
 // 設定がそのまま使われるだけで十分なため、ボタン自体を表示しない。
 
 import { getState } from "./state.js";
-import { isOnlineMode, getSelfSeat, getSyncedTimerConfig, getTimerToggleRejectStreak } from "./online.js";
+import { isOnlineMode, getSelfSeat, isSpectatingGame, getSyncedTimerConfig, getTimerToggleRejectStreak } from "./online.js";
 import { getFinalLockApprovalOrder } from "./board-layout.js";
 import { getPlayerName } from "./player-identity.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -130,7 +130,9 @@ export function updateTimerToggleBanner() {
   }
   bannerEl.classList.add("is-visible");
   const approver = pending.queue[0];
-  const canRespond = !isOnlineMode() || getSelfSeat() === approver;
+  // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
+  // これが無いとその席の本人として応答UIが出てしまう）。
+  const canRespond = !isSpectatingGame() && (!isOnlineMode() || getSelfSeat() === approver);
   bannerEl.innerHTML = "";
 
   const title = document.createElement("div");

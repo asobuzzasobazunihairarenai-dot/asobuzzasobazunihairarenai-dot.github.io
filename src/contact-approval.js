@@ -20,7 +20,7 @@
 // Approval()が自動で承認して先へ進める）、ボタンの文言も「使う/使わない」に変える。
 
 import { getState } from "./state.js";
-import { isOnlineMode, getSelfSeat } from "./online.js";
+import { isOnlineMode, getSelfSeat, isSpectatingGame } from "./online.js";
 import { getPlayerName } from "./player-identity.js";
 import { isAutoProcessingEnabled } from "./card-effect-engine.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ6
@@ -80,7 +80,9 @@ export function updateContactApprovalModal() {
   // ローカルモードは1人で全座席を操作するテスト用途のため、既存の「座席を持っていれば
   // 何でも動かせる」方針を踏襲し、常にボタンを押せるようにする。オンライン中だけ、
   // 実際に接触された本人（defender）にだけ応答を許可する。
-  const canRespond = !isOnlineMode() || getSelfSeat() === pending.defender;
+  // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
+  // これが無いとその席の本人として応答UIが出てしまう）。
+  const canRespond = !isSpectatingGame() && (!isOnlineMode() || getSelfSeat() === pending.defender);
   const autoMode = isAutoProcessingEnabled();
   const counterLockEligible = canRespond && !!checkCounterLockEligibility?.(pending.defender);
   const hasCounterLock = counterLockEligible && autoMode;

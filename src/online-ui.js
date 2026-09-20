@@ -25,6 +25,8 @@ import {
   getCurrentGameId,
   getMySeat,
   isSpectatingGame,
+  MAX_SEATS,
+  ROOM_FULL_ERROR,
   leaveGame,
   signOut,
   startGame,
@@ -183,6 +185,21 @@ async function renderPanelContent() {
   // ユーザー要望で「ログを表示」はこの部屋パネルから撤去（アクションログはオプションの
   // 基本設定から見られるため重複）。buildDebugLogSectionは他から呼ばれなくなるが、
   // 将来また出したくなった時のために関数自体は残しておく。
+}
+
+// 【2026-09-21・ユーザー要望】満席（座席は最大4つ）の部屋を押した時に、あふれたことを伝えて
+// 「観戦にしますか？」と聞く。はいなら観戦（見るだけ・対局には一切関与しない）で入る。
+// 戻り値: 観戦を始めたら true（呼び出し側はそれ以上エラーを出さない）。
+async function offerSpectateInstead(gameId) {
+  if (!confirm(t("oui.roomFullSpectate", { n: MAX_SEATS }))) return false;
+  try {
+    await spectateGame(gameId, "public");
+    closePanel();
+    return true;
+  } catch (err) {
+    alert(t("oui.watchFailed", { msg: err.message ?? err }));
+    return false;
+  }
 }
 
 // ===== 対戦ロビー（対局前の中央モーダル）: ユーザー要望のロビー刷新 =====
@@ -638,6 +655,7 @@ function buildRoomRow(room) {
       history.replaceState(null, "", `?room=${room.id}`);
       await renderPanelContent();
     } catch (err) {
+      if (err?.code === ROOM_FULL_ERROR && (await offerSpectateInstead(room.id))) return;
       if (room.has_password) {
         passStatus.textContent = err.message ?? String(err);
       } else {
@@ -858,6 +876,7 @@ async function renderRoomChoice(user, myGeneration) {
       history.replaceState(null, "", `?room=${code}`);
       await renderPanelContent();
     } catch (err) {
+      if (err?.code === ROOM_FULL_ERROR && (await offerSpectateInstead(code))) return;
       const msg = /invalid_password/.test(err?.message || "") ? t("oui.L836")
         : /foreign key|not.*found|does not exist/i.test(err?.message || "") ? t("oui.L837")
         : t("oui.joinFailed", { msg: err.message ?? err });

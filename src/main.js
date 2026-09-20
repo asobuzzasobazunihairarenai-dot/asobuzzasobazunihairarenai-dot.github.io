@@ -319,6 +319,8 @@ import {
   getSelfSeat,
   isSpectatingGame,
   getSpectateMode,
+  getSpectateViewSeat,
+  setSpectateViewSeat,
   leaveGame,
   getCachedUser,
   getCurrentUser,
@@ -4310,6 +4312,9 @@ function closeExpiredDelegationUi() {
   try { cancelOpenCellConfirm(); } catch (err) { /* 同上 */ }
 }
 onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
+  // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
+  // これが無いとその席の本人として応答UIが出てしまう）。
+  if (isSpectatingGame()) return;
   if (getSelfSeat() !== player) return;
   const cached = processedDelegations.get(requestId);
   if (cached === "pending") return;
@@ -8050,6 +8055,22 @@ function isCpuHandEffectExhausted(tokenId) {
 }
 
 async function runAutoHandEffect(cardId, cardTokenId, player) {
+  // 【不具合報告#356】セレナーデの追色コスト（同じ色の手札を1枚）を選んでいる最中に
+  // パーティーの手札効果が始まり、コストに払うつもりの札が盤面へ置かれてしまった。
+  // タップ・ドラッグの各入口にも守りを入れたが、**報告の経路を手元で再現できなかった**ため、
+  // 入口を問わず最後にここで止める（選択待ち中に新しい手札効果が始まることは、どの
+  // カードでも正しくない——「いつでも使える」割り込みも isAnyEffectProcessingBusy に
+  // activeEffectPicker が含まれており、選択待ち中はそもそも出ない）。
+  // 記録を残すので、次に起きた時は「どのカードが・どの選択待ちの最中に」来たのかが分かる。
+  if (activeEffectPicker) {
+    logAction("diag-hand-effect-blocked-while-picking", {
+      cardId,
+      player: player ?? null,
+      picker: activeEffectPicker.type,
+      pickerOwner: activeEffectPicker.owner ?? null,
+    });
+    return false;
+  }
   setHandEffectBusy(true);
   try {
     setCurrentEffectCardForReason(cardId); // #4: この効果によるドロー/捨てに理由を添える
@@ -11055,13 +11076,45 @@ function updateSpectatorBanner() {
       exitBtn.className = "spectator-banner-exit";
       exitBtn.textContent = t("game.spectate.leave");
       exitBtn.addEventListener("click", () => leaveGame().catch((err) => console.error("leaveGame (spectator) failed", err)));
+      // 【2026-09-21・ユーザー要望「観戦中は好きなプレイヤーの視点に移動できるように」】
+      // 参加者のぶんだけボタンを並べ、押すとその人を手前にして盤面を描き直す。
+      const seats = document.createElement("span");
+      seats.className = "spectator-banner-seats";
       spectatorBannerEl.appendChild(label);
+      spectatorBannerEl.appendChild(seats);
       spectatorBannerEl.appendChild(exitBtn);
       document.body.appendChild(spectatorBannerEl);
       spectatorBannerEl._label = label;
+      spectatorBannerEl._seats = seats;
     }
     spectatorBannerEl._label.textContent =
       getSpectateMode() === "all" ? t("game.spectate.all") : t("game.spectate.public");
+    // 視点の切り替え（参加者が変わることもあるので毎回作り直す）。
+    const seatsEl = spectatorBannerEl._seats;
+    const players = getState().activePlayers ?? [];
+    const viewSeat = getSpectateViewSeat();
+    const key = players.join(",") + "|" + (viewSeat ?? "");
+    if (seatsEl && seatsEl.dataset.key !== key) {
+      seatsEl.dataset.key = key;
+      seatsEl.textContent = "";
+      if (players.length > 1) {
+        const cap = document.createElement("span");
+        cap.className = "spectator-banner-seats-label";
+        cap.textContent = t("game.spectate.viewOf");
+        seatsEl.appendChild(cap);
+        for (const p of players) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "spectator-banner-seat" + (p === viewSeat ? " is-current" : "");
+          btn.textContent = getPlayerName(p);
+          btn.addEventListener("click", () => {
+            setSpectateViewSeat(p);
+            render();
+          });
+          seatsEl.appendChild(btn);
+        }
+      }
+    }
     spectatorBannerEl.style.display = "flex";
   } else if (spectatorBannerEl) {
     spectatorBannerEl.style.display = "none";
@@ -13952,7 +14005,7 @@ function updateAutoProcessingToggleBanner() {
   }
   bannerEl.classList.add("is-visible");
   const approver = pending.queue[0];
-  const canRespond = !isOnlineMode() || getSelfSeat() === approver;
+  const canRespond = !isSpectatingGame() && (!isOnlineMode() || getSelfSeat() === approver);
   bannerEl.innerHTML = "";
 
   const title = document.createElement("div");
@@ -14356,6 +14409,17 @@ async function onDragEnd(e) {
     // （ザ・ギャンブルの公開ドロー等、location.zone==="publicDraw"）のカードも、
     // 通常の手札(zone==="hand")と全く同じ「ハンドフェイズ外でドロップしたら手札効果を
     // 発動する」対象に含める。
+    // 【#356】選択待ち（activeEffectPicker）の最中は、手札を場へ放っても新しい手札効果を
+    // 宣言しない（クリック経路に入れたのと同じ守り。下の「タップで手札効果」の分岐を参照）。
+    if (
+      activeEffectPicker &&
+      kind === "card" &&
+      (cardSourceLocation?.zone === "hand" || cardSourceLocation?.zone === "publicDraw")
+    ) {
+      logAction("diag-hand-drop-while-picking", { picker: activeEffectPicker.type, zone: dropTarget?.zone ?? null });
+      render();
+      return;
+    }
     if (
       isAutoProcessingEnabled() &&
       kind === "card" &&
@@ -14501,6 +14565,28 @@ async function onDragEnd(e) {
             }
             useToken = chosen;
           }
+        }
+        // 【不具合報告#356】「①セレナーデを使用 ②パーティーをコストとして捨てる
+        // ③パーティーをロックしようとした ④できなかった」。ログを追うと、セレナーデの
+        // 追色コスト（同じ色の手札を1枚）を選んでいる最中（pickerActive:true）に
+        // `hand-effect: pink-party` が始まり、パーティー自身の手札効果として盤面へ置かれていた
+        // ＝コストに払うつもりの札が手札から消え、その後ロックできなくなっていた。
+        // 原因: 選択待ちの手札タップは、通常は capture フェーズのハンドラ（activeEffectPicker）が
+        // 横取りするが、確認モーダル等の暗い覆いが出ている間はそこが素通りする作りのため、
+        // この「手札をクリックしたら手札効果を使う」経路まで届いてしまう。
+        // 選択待ちの間の手札タップは「今の選択への答え」であって「新しい手札効果の宣言」ではない。
+        // 候補ならその選択として解決し、候補でなければ何もしない（新しい効果は絶対に始めない）。
+        if (activeEffectPicker) {
+          const pickTarget = clickedToken ?? useToken;
+          if (activeEffectPicker.type === "hand" && pickTarget && activeEffectPicker.tokenIds.has(pickTarget.id)) {
+            const picker = activeEffectPicker;
+            activeEffectPicker = null;
+            picker.resolve(pickTarget);
+          } else {
+            logAction("diag-hand-tap-while-picking", { picker: activeEffectPicker.type, cardId: pickTarget?.cardId ?? null });
+          }
+          render();
+          return;
         }
         const useIsEternalOrFirst = useToken?.cardId?.startsWith("eternal-") || useToken?.cardId?.startsWith("first-");
         // (A) エターナル/ファースト（従来）: ハンドフェイズでそのカードをクリックすると、

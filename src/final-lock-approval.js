@@ -10,7 +10,7 @@
 // （setup-animation.js/remote-move-animator.jsと同じ「main.jsから注入してもらう」既存パターン）。
 
 import { getState } from "./state.js";
-import { isOnlineMode, getSelfSeat } from "./online.js";
+import { isOnlineMode, getSelfSeat, isSpectatingGame } from "./online.js";
 import { getPlayerName } from "./player-identity.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ6
 
@@ -81,7 +81,9 @@ export function updateFinalLockApprovalBanner() {
   // 実際にその座席でログインしている本人にだけ操作を許可する。
   // ローカルCPU戦でCPU席が承認者の時は、人間に操作させず「待っています…」表示にする。
   const autoDriven = !!isApproverAutoDriven?.(approver);
-  const canRespond = (!isOnlineMode() || getSelfSeat() === approver) && !autoDriven;
+  // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
+  // これが無いとその席の本人として応答UIが出てしまう）。
+  const canRespond = !isSpectatingGame() && (!isOnlineMode() || getSelfSeat() === approver) && !autoDriven;
   // #36a: 「ゴメンナサイを使う」を押して奪う札を選んでいる最中は、承認/却下ボタンを引っ込め、
   // 「ロックエリアから奪うカードを選んでください」の案内だけに切り替える。
   if (gomennasaiPicking && canRespond) {
