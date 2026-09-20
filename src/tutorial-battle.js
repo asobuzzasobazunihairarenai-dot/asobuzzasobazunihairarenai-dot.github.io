@@ -572,6 +572,12 @@ function buildSteps() {
       tip: t("tb.L568"),
       handEffectCard: ARRIVAL_CELL.cardId, // 紫(purple-sorry)をクリック/タップで起動
       onHandEffect: scriptLockPurple,
+      // 【不具合報告#354】「チュートリアル中の紫のカードをロックしようとしたところ、進めなくなりました」。
+      // この案内は「手札の紫をタップ」だけを待っていたが、プレイヤーが**自分でロックエリアへ
+      // ドラッグして**ロックすることもできる。そうすると紫は手札から消えるので、待っているタップは
+      // 二度と来ない＝チュートリアルがそこで止まる（実際の報告のログもドラッグでのロックだった）。
+      // やり方が違っても**結果（紫がロックされた）が同じなら先へ進める**。
+      advanceWhen: (state) => selfHasLockedColor(state, FIRST_TARGET_COLOR),
       highlights: (state) => {
         const arr = [{ selector: PURPLE_SLOT_SEL, strong: true }];
         const cardSel = selfHandCardSelector(state, ARRIVAL_CELL.cardId);
@@ -843,6 +849,21 @@ async function goToStep(index) {
     }
     hideTip();
     goToStep(index + 1);
+    return;
+  }
+  // 【#354】このステップに入った時点で、もう目標が満たされていることがある（前の案内を読んで
+  // いる間に、プレイヤーが自分で先にやってしまった場合）。onDriverState は**状態が変わった時**
+  // にしか呼ばれないので、それだけに任せると誰も先へ進めない。入り口でも一度だけ見る。
+  if (step.kind === "playerAction" && step.advanceWhen && step.advanceWhen(getState())) {
+    (async () => {
+      scriptRunning = true;
+      try {
+        if (step.onAccept) await step.onAccept();
+      } finally {
+        scriptRunning = false;
+      }
+      goToStep(index + 1);
+    })();
     return;
   }
   showStepUi(step, index);

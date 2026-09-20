@@ -24,6 +24,7 @@ import {
   getRoomHostInfo,
   getCurrentGameId,
   getMySeat,
+  isSpectatingGame,
   leaveGame,
   signOut,
   startGame,
@@ -166,8 +167,12 @@ async function renderPanelContent() {
       closeHomeScreen();
       markOnlineIntentActive();
       closePanel();
-      if (getMySeat()) {
-        closeLobbyModal(); // 対局中（再開）→ 盤面のみ
+      // 【不具合報告#355】「観戦時、このモーダルが出っ放し。」——観戦者は座席を持たない
+      // （getMySeat() は null のまま）ので、ここが「まだ対局前の人」と同じ扱いになり、
+      // 進行中の盤面の上に「◯◯さんがゲームを開始するのを待っています…」のロビーが出ていた。
+      // しかもロビーが閉じるのは「自分に座席が付いた時」だけなので、観戦中は永久に消えない。
+      if (getMySeat() || isSpectatingGame() || hasGameStarted()) {
+        closeLobbyModal(); // 対局中（再開）・観戦・もう始まっている → 盤面のみ
       } else {
         openLobbyModal(gameId);
       }
@@ -188,8 +193,19 @@ async function renderPanelContent() {
 let lobbyModalEl = null;
 let lobbyModalGameId = null;
 let lobbyRosterUnsub = null;
+let lobbyStateUnsub = null;
+// 【#355】その対局がもう始まっているか。手番が入っていれば始まっている（座席の有無とは別）。
+function hasGameStarted() {
+  return !!getState().turnPlayer;
+}
 
 export function openLobbyModal(gameId) {
+  // 【#355】観戦中は「開始を待つ」ロビーを出さない（観戦者は座席を持たず、閉じる合図＝
+  // 座席が付く瞬間が来ないため、出してしまうと消えない）。他の経路から呼ばれても出さない。
+  if (isSpectatingGame()) {
+    closeLobbyModal();
+    return;
+  }
   if (lobbyModalEl && lobbyModalGameId === gameId) {
     renderLobbyModal();
     return;
@@ -205,8 +221,14 @@ export function openLobbyModal(gameId) {
   // ユーザー報告「部屋主の画面に後から入室した人が着席しない」への対応: onRosterChangeは
   // ロスター（着席プレビュー）を更新するが盤面は再描画しないため、ここで notifyListeners() を
   // 呼んで盤面を描き直し、C→B→Dに着席した他プレイヤーを反映させる。
+  // 【#355】対局が始まったら閉じる。以前は「自分に座席が付いた時」だけを閉じる合図にしていたが、
+  // **座席をもらえなかった人**（席は最大4つなので、5人目以降は座席が無いまま対局が始まる）と
+  // 観戦者は、その合図が永久に来ない＝進行中の盤面の上にロビーが出っ放しになっていた。
+  lobbyStateUnsub = subscribe(() => {
+    if (lobbyModalEl && hasGameStarted()) closeLobbyModal();
+  });
   lobbyRosterUnsub = onRosterChange(() => {
-    if (getMySeat()) {
+    if (getMySeat() || hasGameStarted()) {
       closeLobbyModal();
       return;
     }
@@ -218,6 +240,8 @@ export function openLobbyModal(gameId) {
 export function closeLobbyModal() {
   lobbyRosterUnsub?.();
   lobbyRosterUnsub = null;
+  lobbyStateUnsub?.();
+  lobbyStateUnsub = null;
   lobbyModalEl?.remove();
   lobbyModalEl = null;
   lobbyModalGameId = null;

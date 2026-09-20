@@ -26,6 +26,17 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-21",
+    items: [
+      "チュートリアルで「紫のカードをロックしましょう」の場面のとき、カードをタップせずに自分でロックエリアへドラッグしてロックすると、案内がそこから先へ進まなくなっていたのを直しました。どちらのやり方でロックしても先へ進みます。",
+      "対戦が始まった後も「◯◯さんがゲームを開始するのを待っています…」の案内が画面に出たままになることがあったのを直しました（席が足りず参加できなかった時や、観戦している時）。",
+    ],
+    itemsEn: [
+      "In the tutorial step that asks you to lock the purple card, dragging it into your lock area yourself (instead of tapping it) left the guide stuck at that step. Either way of locking now moves the guide forward.",
+      "Fixed the \"Waiting for ... to start the match…\" notice staying on screen after the match had already begun (when there was no seat left for you, or while watching a match).",
+    ],
+  },
+  {
     date: "2026-09-18",
     items: [
       "色落ちキャットやなないろの巨光が自分を捨てた後、その下にあった表向きのカード（ジャンプ台など）の到達効果が起きていなかったのを直しました。手札に加えるカードと同じく、下から現れたカードにも到達します。",
