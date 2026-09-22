@@ -26,6 +26,15 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-23",
+    items: [
+      "CPU戦（物語のエイドス戦を含む）で、こちらの接触を相手がカウンターロックで防いだ瞬間に画面が固まり、不具合報告のボタンを含めて何も押せなくなることがあったのを直しました。相手が選ぶ場面が残ったままになっていたのが原因で、今後はその選択が自動で進みます。",
+    ],
+    itemsEn: [
+      "In CPU matches (including the Eidos story battle), the screen could lock up the moment your contact was blocked by Counter Lock — nothing was clickable, not even the bug report button. The opponent's pending choice was never resolved; it now resolves automatically.",
+    ],
+  },
+  {
     date: "2026-09-21",
     items: [
       "チュートリアルで「紫のカードをロックしましょう」の場面のとき、カードをタップせずに自分でロックエリアへドラッグしてロックすると、案内がそこから先へ進まなくなっていたのを直しました。どちらのやり方でロックしても先へ進みます。",

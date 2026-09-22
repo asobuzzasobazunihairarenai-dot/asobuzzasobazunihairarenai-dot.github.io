@@ -6148,6 +6148,49 @@ function shouldWaitForCenterBeforeCpuHandEffect() {
   return true;
 }
 
+// 【ユーザー報告 2026-09-23】エイドス戦で、自分の接触をエイドスがカウンターロックで防いだ
+// 瞬間に画面が固まり、不具合報告アイコンを含め**何も押せなくなった**（ホバーの説明だけは出る）。
+// 原因: カウンターロックの「手札を１枚ロックしてもよい」「どの札をロックする？」は**防御側
+// （＝この場合はCPU）が選ぶ**ので activeEffectPicker.owner がCPU席になる。CPUの選択は
+// turn-timer の持ち時間切れ（performPriorityTimeoutAutoAction）で自動解決される作りだが、
+// この場面の優先権を持っているのは**人間**で、CPU戦の自分の席は持ち時間の対象外
+// （isSelfTimeLimitExempt）＝時計が止まっている。つまり解決してくれる人が誰もいない。
+// 残った picker が type:"hand"/"cell" だと、盤面のクリックを握る capture の pointerdown が
+// **画面中のクリックを全部飲む**ので、見た目は「全部押せない／ホバーだけ効く」になる。
+// 対策: 入口（カウンターロック等）を個別に直すのではなく、**CPUが持ち主の選択待ちが一定時間
+// 残っていたら、時計に関係なくここで解決する**（＝CPUの選択は必ず誰かが解決する、を保証する）。
+// CPU自身の手番では今までどおり持ち時間側が先に解決するので、挙動は変わらない。
+const CPU_PICKER_WATCHDOG_MS = 1500;
+let cpuPickerWatch = { picker: null, since: 0, rescued: 0 };
+setInterval(() => {
+  if (!isCpuBattleActive() || isOnlineMode()) {
+    cpuPickerWatch = { picker: null, since: 0, rescued: cpuPickerWatch.rescued };
+    return;
+  }
+  const picker = activeEffectPicker;
+  if (!picker || !picker.owner || !isPseudoCpuTarget(picker.owner)) {
+    cpuPickerWatch = { picker: null, since: 0, rescued: cpuPickerWatch.rescued };
+    return;
+  }
+  if (cpuPickerWatch.picker !== picker) {
+    cpuPickerWatch = { picker, since: Date.now(), rescued: cpuPickerWatch.rescued };
+    return;
+  }
+  if (Date.now() - cpuPickerWatch.since < CPU_PICKER_WATCHDOG_MS) return;
+  // 記録は最初の5回だけ（行動ログを埋めないため）。どの種類の選択で起きたかが分かれば十分。
+  if (cpuPickerWatch.rescued < 5) {
+    logAction("diag-cpu-picker-rescued", {
+      type: picker.type,
+      owner: picker.owner,
+      priorityPlayer: getState().priorityPlayer,
+      turnPlayer: getState().turnPlayer,
+      waitedMs: Date.now() - cpuPickerWatch.since,
+    });
+  }
+  cpuPickerWatch = { picker: null, since: 0, rescued: cpuPickerWatch.rescued + 1 };
+  performPriorityTimeoutAutoAction();
+}, 500);
+
 export function performPriorityTimeoutAutoAction() {
   // ローカルCPU戦ではCPU(C)の番を、それ以外は自分の席を代行する。
   const driveSeat = getAutoDriveSeat();
