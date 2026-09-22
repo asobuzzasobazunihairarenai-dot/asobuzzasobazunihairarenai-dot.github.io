@@ -17,6 +17,7 @@ import { createBackdrop, createOpenGuard } from "./ui-helpers.js";
 // left/top に入れると二重にかかる（続き355）。必ずローカル座標へ直してから使う。
 import { stageClientToLocal, showQuickNote } from "./main.js";
 import { registerSyncedPref } from "./pref-registry.js";
+import { getState, subscribe } from "./state.js";
 import { logAction } from "./action-log.js";
 
 const STORAGE_KEY = "so7-cell-confirm-enabled";
@@ -60,6 +61,10 @@ export function setCellConfirmEnabled(v, source = "sync") {
 // 「この相手でいいですか？」に差し替える（不具合報告#207）。
 export function confirmCellChoice(cellEl, hint, opts = {}) {
   if (!enabled) return Promise.resolve(true);
+  // 【#364】同時に2つ開かない。cancelOpenConfirm は1つ分しか覚えられないので、前のが
+  // 残ったまま次を開くと、前のモーダルは誰にも閉じられない置き去りになる。
+  cancelOpenConfirm?.();
+  let unwatchTurn = null;
   return new Promise((resolve) => {
     // 対象マスを強く光らせる（確認中どのマスの話か一目で分かるように）。
     cellEl?.classList.add("cell-confirm-target");
@@ -102,6 +107,7 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     buttons.className = "contact-approval-buttons";
     const finish = (result) => {
       if (cancelOpenConfirm === cancelThis) cancelOpenConfirm = null;
+      if (unwatchTurn) { try { unwatchTurn(); } catch (err) { /* 解除できなくても閉じる方を優先 */ } unwatchTurn = null; }
       document.removeEventListener("pointerdown", onPointerDown, true);
       cellEl?.classList.remove("cell-confirm-target");
       backdrop.remove();
@@ -140,11 +146,29 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
 
     const cancelThis = () => finish(null);
     cancelOpenConfirm = cancelThis;
+    // 【#364】ユーザー報告「このマスでいいですかモーダルが出っ放しのままゲームが進行した」。
+    // この確認は「今あなたが選んでいるマス」への問いなので、**ターンが進んだら意味を失う**
+    // （答えても、もう自分の番ではない）。置き去りを画面に残さず、その時点で閉じる
+    // （結果は null＝選ぶのをやめた扱い。呼び出し元は false と同じく「確定しない」に落ちる）。
+    const openedTurnSig = turnSignature();
+    unwatchTurn = subscribe(() => {
+      if (turnSignature() !== openedTurnSig) {
+        logAction("diag-cell-confirm-stale", { openedTurnSig, now: turnSignature() });
+        cancelThis();
+      }
+    });
 
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
     placeNextToCell(modal, cellEl);
   });
+}
+
+// 【#364】「今のターン」の目印。ターン番号と手番プレイヤーのどちらかが変われば、
+// 開いている確認は置き去り（もう自分の番ではない）とみなす。
+function turnSignature() {
+  const s = getState();
+  return `${s.turnNumber ?? 0}:${s.turnPlayer ?? ""}`;
 }
 
 // 【#352】開いている確認を、答えを待たずに閉じる（結果は null＝「選ぶのをやめた」）。
