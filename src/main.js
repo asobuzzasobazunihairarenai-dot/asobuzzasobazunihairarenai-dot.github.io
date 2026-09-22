@@ -241,7 +241,7 @@ import { initPiecePets, registerPiecePetHelpers } from "./piece-pet.js";
 // 「ロック前・手札使用前」の確認モーダルを出すかどうかの設定（全デバイス共通、
 // 「今後表示しない」でオフ・オプションの基本設定でオンに戻せる）。
 import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confirm-prefs.js";
-import { isCellConfirmEnabled, confirmCellChoice, cancelOpenCellConfirm } from "./cell-confirm.js";
+import { isCellConfirmEnabled, confirmCellChoice, cancelOpenCellConfirm, isCellConfirmOpen } from "./cell-confirm.js";
 import { registerTutorialBattleUiHelpers } from "./tutorial-battle-ui.js";
 import { initTurnTimer, transferPriorityTo, isPseudoCpuTarget, notifyPlayerDecision, isTurnTimerEnabled } from "./turn-timer.js";
 import { initIconRearrange } from "./icon-rearrange.js";
@@ -7540,6 +7540,11 @@ export function isAnyEffectProcessingBusy() {
     isHandEffectBusy() ||
     activeEffectPicker !== null ||
     anytimeInterruptModalEl !== null ||
+    // 【#364】「このマスでいいですか？」の返事待ちも処理中に含める（ユーザー指摘
+    // 「タイマー制でないのに、そもそも選択してないのに進むことが問題」）。この確認は
+    // activeEffectPicker を使わない別立てのモーダルなので、ここに足さないと自動進行から
+    // 見えない＝返事を待たずにターンが終わってしまう。
+    isCellConfirmOpen() ||
     openContactResultModals > 0
   );
 }
@@ -15595,6 +15600,10 @@ function computeShouldEmphasize() {
   const anytimeInterruptModalShowing = anytimeInterruptModalEl !== null;
   // #40: 接触結果モーダルが開いている間は自動ターン終了を止める（閉じてから次のターンへ）。
   const contactResultModalShowing = openContactResultModals > 0;
+  // 【#364】「このマスでいいですか？」の返事待ち。computeShouldEmphasize は
+  // isAnyEffectProcessingBusy と同じ判定を（診断ログの内訳のため）自前で並べ直しているので、
+  // あちらに足しただけでは効かない——ここにも同じ理由で足す（続き83と同じ構造）。
+  const cellConfirmOpen = isCellConfirmOpen();
   const result =
     autoProcessingEnabled &&
     !endTurnDisabled &&
@@ -15612,6 +15621,7 @@ function computeShouldEmphasize() {
     // 場合や、ゲート侵攻ボーナスの通知ポップアップが続いている場合など、同じ
     // 「まだ何か処理中なのに安全と誤判定してターンを終了してしまう」構造の抜け漏れが
     // 他にもあり得るため、既存のこの判定にもそのまま乗せることで網羅的にする。
+    !cellConfirmOpen &&
     !(gateInvasionPending || gateInvasionQueueActive || handEffectBusyNow || pickerActive || anytimeInterruptModalShowing);
   if (result !== lastShouldEmphasizeLogged) {
     lastShouldEmphasizeLogged = result;
@@ -15628,6 +15638,7 @@ function computeShouldEmphasize() {
       handEffectBusyNow,
       pickerActive,
       anytimeInterruptModalShowing,
+      cellConfirmOpen,
       turnPlayer: state.turnPlayer,
       priorityPlayer: state.priorityPlayer,
       selfSeat: getSelfSeat(),

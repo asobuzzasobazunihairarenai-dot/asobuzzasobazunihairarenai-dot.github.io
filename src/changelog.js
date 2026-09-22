@@ -28,12 +28,12 @@ export const CHANGELOG = [
   {
     date: "2026-09-23",
     items: [
-      "「このマスでいいですか？」の確認が、答えないまま次のターンへ進んだ時に画面に残り続けることがあったのを直しました。ターンが進んだ時点で自動的に閉じます。確認が2つ同時に出ることもなくなりました。",
+      "「このマスでいいですか？」の確認を出している間は、ゲームの自動進行が待つようにしました（答えていないのにターンが進んでしまうのを防ぎます）。あわせて、答えないまま次のターンへ進んだ時に確認が画面に残り続けることがあったのも直し、確認が2つ同時に出ることもなくなりました。",
       "カードを複数枚捨てる時に付く順番の番号（①②③…）が、手札が重なっていると読めなかったのを直しました。選んだカードが手前に出て、番号もカードの上端に大きく表示されます。",
       "CPU戦（物語のエイドス戦を含む）で、こちらの接触を相手がカウンターロックで防いだ瞬間に画面が固まり、不具合報告のボタンを含めて何も押せなくなることがあったのを直しました。相手が選ぶ場面が残ったままになっていたのが原因で、今後はその選択が自動で進みます。",
     ],
     itemsEn: [
-      "The \"Is this the square?\" confirmation could stay on screen after play had already moved on to the next turn. It now closes by itself when the turn changes, and two confirmations can no longer be open at once.",
+      "While the \"Is this the square?\" confirmation is open, automatic progression now waits for your answer, so play can no longer move on before you have chosen. The confirmation also closes by itself if the turn does change, and two confirmations can no longer be open at once.",
       "When discarding several cards, the order numbers could be hidden behind overlapping cards in your hand. Selected cards now come to the front, and the number sits at the top of the card in a larger badge.",
       "In CPU matches (including the Eidos story battle), the screen could lock up the moment your contact was blocked by Counter Lock — nothing was clickable, not even the bug report button. The opponent's pending choice was never resolved; it now resolves automatically.",
     ],

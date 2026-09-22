@@ -164,6 +164,14 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
   });
 }
 
+// 【#364・ユーザー指摘】この確認が開いている間は「プレイヤーの返事待ち＝処理中」。
+// 自動ターン終了・自動フェイズ進行がここを見ないと、**答えていないのに勝手に先へ進む**
+// （置き去りのモーダルが残るのはその結果に過ぎない）。main.js の isAnyEffectProcessingBusy /
+// computeShouldEmphasize から参照する。
+export function isCellConfirmOpen() {
+  return cancelOpenConfirm !== null;
+}
+
 // 【#364】「今のターン」の目印。ターン番号と手番プレイヤーのどちらかが変われば、
 // 開いている確認は置き去り（もう自分の番ではない）とみなす。
 function turnSignature() {
