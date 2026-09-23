@@ -26,6 +26,15 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-24",
+    items: [
+      "「手品師の技 -スリカエ-」の効果文と「ゴメンナサイッ！」のフレーバーを、実際のカードに印刷される文章に合わせました。効果の内容・処理は変わりません。",
+    ],
+    itemsEn: [
+      "The effect wording on \"Magician's Trick -Sleight-\" and the flavor text on \"So Sorry!\" now match the printed cards. How the cards actually work is unchanged.",
+    ],
+  },
+  {
     date: "2026-09-23",
     items: [
       "「このマスでいいですか？」の確認を出している間は、ゲームの自動進行が待つようにしました（答えていないのにターンが進んでしまうのを防ぎます）。あわせて、答えないまま次のターンへ進んだ時に確認が画面に残り続けることがあったのも直し、確認が2つ同時に出ることもなくなりました。",

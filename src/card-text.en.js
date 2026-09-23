@@ -40,7 +40,7 @@ export const CARD_TEXT_EN = {
   "yellow-sleight-of-hand": {
     note: "Nothing in particular.",
     name: "Magician's Trick -Sleight-", titleRuby: "", basic: "", subtitle: "",
-    arrival: "Add 1 card at random from one opponent's hand to your hand. Add 1 card from your hand to that opponent's hand.",
+    arrival: "Add 1 card at random from an opponent's hand to your hand. Add 1 card from your hand to that opponent's hand.",
     hand: "Gain the Arrival Effect above.",
     flavor: "I didn't steal it — you just didn't notice.",
   },
@@ -105,7 +105,7 @@ export const CARD_TEXT_EN = {
     name: "So Sorry!", titleRuby: "", basic: "", subtitle: "",
     arrival: "Move 1 space.",
     hand: "【Color Cost 1】Usable when an opponent declares their final lock. Add 1 of that opponent's locked cards to your hand.",
-    flavor: "If \"sorry\" were enough, there would be no wars.",
+    flavor: "Walking on with a bowed head. If \"sorry\" were enough, there would be no wars.",
   },
   "rainbow-shard": {
     note: "Because it is a Hand Effect, you lock it during your Hand phase. It counts as 2 locked cards. If one of the two is removed by some effect, the other one stays locked.",
