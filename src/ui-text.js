@@ -1135,7 +1135,7 @@ const UI = {
     "cef.opt.lockPair": "２枚をロックする（２枚ドロー）",
     "cef.opt.discardHalf": "あなたの手札を半分捨てる。",
     "cef.opt.forcedGate": "あなたのゲートに強制移動する。",
-    "cef.opt.discardLock": "あなたのロックしているカードを1枚捨てる。",
+    "cef.opt.discardLock": "あなたのロックしている1枚を捨てる。",
     "deckviewer.title": "山札一覧",
     "deckviewer.normal": "通常カード",
     "deckviewer.eternal": "エターナルカード",

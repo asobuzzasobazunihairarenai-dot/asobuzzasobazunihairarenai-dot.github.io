@@ -228,9 +228,9 @@ const PILOT_CARDS = [
   {
     cardId: "blue-choosable-trap",
     kind: "arrivalOptions",
-    actual: "以下の効果のうち1つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしているカードを1枚捨てる。",
+    actual: "以下の効果のうち1つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしている1枚を捨てる。",
   },
-  { cardId: "blue-choosable-trap", kind: "handEffect", actual: "このカードを任意のマスに裏向きで置く。" },
+  { cardId: "blue-choosable-trap", kind: "handEffect", actual: "これを任意のマスに裏向きで置く。" },
   {
     cardId: "yellow-gamble",
     kind: "arrival",

@@ -28,10 +28,10 @@ export const CHANGELOG = [
   {
     date: "2026-09-24",
     items: [
-      "「手品師の技 -スリカエ-」の効果文と「ゴメンナサイッ！」のフレーバーを、実際のカードに印刷される文章に合わせました。効果の内容・処理は変わりません。",
+      "「手品師の技 -スリカエ-」「ゴメンナサイッ！」「選べる罠」「増殖する樹々」の文章を、実際のカードに印刷される文章に合わせました。効果の内容・処理は変わりません。",
     ],
     itemsEn: [
-      "The effect wording on \"Magician's Trick -Sleight-\" and the flavor text on \"So Sorry!\" now match the printed cards. How the cards actually work is unchanged.",
+      "The wording on \"Magician's Trick -Sleight-\", \"So Sorry!\", \"Choosable Trap\" and \"Growing Trees\" now matches the printed cards. How the cards actually work is unchanged.",
     ],
   },
   {

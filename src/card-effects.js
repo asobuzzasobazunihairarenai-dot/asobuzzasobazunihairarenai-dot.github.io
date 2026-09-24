@@ -668,9 +668,9 @@ export const CARD_EFFECTS = {
         actions: [{ verb: VERBS.DISCARD_ONE_LOCKED_CARD }],
       },
     ],
-    // 手札効果: 「このカードを任意のマスに裏向きで置く。」黒の契約の烙印・パーティーと
-    // 同じPLACE_CARD(source:"self")パターンだが、実際の文言が「これを」ではなく
-    // 「このカードを」なのでselfLabelで上書きする。
+    // 手札効果: 「これを任意のマスに裏向きで置く。」黒の契約の烙印・パーティーと同じ
+    // PLACE_CARD(source:"self")パターン。以前は印字が「このカードを」だったので selfLabel で
+    // 上書きしていたが、2026-09-24 に印刷カードどおり「これを」へ揃えたので既定のままでよい。
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -678,7 +678,6 @@ export const CARD_EFFECTS = {
           verb: VERBS.PLACE_CARD,
           source: "self",
           faceUp: false,
-          selfLabel: "このカード",
           destination: { selection: TARGET_SELECTIONS.CHOOSE },
         },
       ],
@@ -925,7 +924,7 @@ function renderAction(action, context) {
     case VERBS.FORCED_MOVE_TO_OWN_GATE:
       return "あなたのゲートに強制移動する。";
     case VERBS.DISCARD_ONE_LOCKED_CARD:
-      return "あなたのロックしているカードを1枚捨てる。";
+      return "あなたのロックしている1枚を捨てる。";
     case VERBS.DECLARE_COLORS:
       // ザ・ギャンブル（「以上」＝下限のみ指定、count自体はプレイヤーが選ぶ）と
       // 試練の儀式（固定数）とで実際の文言の語順が違う（docs/cards.md）ため、
@@ -1120,7 +1119,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
     "  生成: " + generateHandEffectOptionsText(CARD_EFFECTS["blue-choosable-trap"].arrivalOptions)
   );
   console.log(
-    "  実際: 以下の効果のうち1つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしているカードを1枚捨てる。\n"
+    "  実際: 以下の効果のうち1つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしている1枚を捨てる。\n"
   );
 
   console.log("[ザ・ギャンブル 到達効果]");
