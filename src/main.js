@@ -241,9 +241,9 @@ import { initPiecePets, registerPiecePetHelpers } from "./piece-pet.js";
 // 「ロック前・手札使用前」の確認モーダルを出すかどうかの設定（全デバイス共通、
 // 「今後表示しない」でオフ・オプションの基本設定でオンに戻せる）。
 import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confirm-prefs.js";
-import { isCellConfirmEnabled, confirmCellChoice, cancelOpenCellConfirm, isCellConfirmOpen } from "./cell-confirm.js";
+import { isCellConfirmEnabled, confirmCellChoice, cancelOpenCellConfirm, acceptOpenCellConfirm, isCellConfirmOpen } from "./cell-confirm.js";
 import { registerTutorialBattleUiHelpers } from "./tutorial-battle-ui.js";
-import { initTurnTimer, transferPriorityTo, isPseudoCpuTarget, notifyPlayerDecision, isTurnTimerEnabled } from "./turn-timer.js";
+import { initTurnTimer, transferPriorityTo, isPseudoCpuTarget, notifyPlayerDecision, isTurnTimerEnabled, getPriorityClockBudgetMs } from "./turn-timer.js";
 import { initIconRearrange } from "./icon-rearrange.js";
 import { initSelfStatusRearrange } from "./self-status-rearrange.js";
 import { initInteractionModeToggle } from "./interaction-mode.js";
@@ -4283,7 +4283,9 @@ async function delegateToPlayerForEffect(player, taskType) {
     // 見分けられない＝結局いちばん避けたい「寝ている隙に進める」をやってしまう。
     // タイマーが有効な対局では従来どおり90秒で諦める（時間切れの概念がある＝待ちに上限を
     // 付ける前提が成り立つため。続き454の教訓）。
-    const giveUpTimer = isTurnTimerEnabled() ? setTimeout(() => finish(false), 90000) : null;
+    const giveUpTimer = isTurnTimerEnabled()
+      ? setTimeout(() => finish(false), delegationCoordinatorGiveUpMs())
+      : null;
   });
   hideEffectPickerHint();
   logAction("diag-delegate", { phase: "resolved", player, taskType, result, returningPriorityTo: turnPlayer });
@@ -4309,20 +4311,103 @@ const processedDelegations = new Map(); // requestId -> result | "pending"
 // 頼んだ側の90秒より少し短くして、先にこちらの返事（置かなかった）が届くようにする。
 // 端末が眠っている間はタイマーが止まるが、戻った瞬間に遅れていたタイマーが走るので、
 // 起きた時にはすぐ閉じる（途中で選ばれても、下の isDelegationExpired で何も置かない）。
-const DELEGATION_RECEIVER_DEADLINE_MS = 85000;
+// 【2026-09-27】85秒→70秒に前倒しした。期限切れの後は「何も選ばずに閉じる」のではなく
+// 自動操縦でルールに則った行動を選んで実行する（closeExpiredDelegationUi 参照）ようになり、
+// その自動操縦にも時間が要る（選択は何段階かに分かれ、各段階で数秒の告知が入る）。
+// 頼んだ側が諦める90秒までに「選んで・実行して・返事を送る」まで終わらせる必要があるため、
+// 余地を 5秒から 20秒へ広げた。タイマーONの対局では本人の持ち時間（既定30秒）の方がずっと先に
+// 切れて performPriorityTimeoutAutoAction が動くので、70秒でも本物のプレイヤーを急かさない。
+// 【2026-09-27・ユーザー指示「基本時間に連動させよう」】固定値（85秒→70秒）をやめ、本人の
+// 持ち時間に連動させる。固定だと、管理者モードで基本時間を長く（最大120秒）していた時に
+// **本人がまだ考えられるのに保険が先に発火して自動で選ばれてしまう**（続き532の申し送り）。
+// 本人の持ち時間（基本時間＋砂時計の延長ぶん）が尽きた後に来るよう余白を足す。
+// 持ち時間が切れればその時点で turn-timer 側の performPriorityTimeoutAutoAction が
+// ルール通りに選ぶので、この保険が実際に働くのは「端末が眠っていて時計も動かなかった」等の
+// 例外的な場合だけになる。
+const DELEGATION_DEADLINE_MARGIN_MS = 10000; // 本人の持ち時間が尽きてから、保険が動くまでの余白
+const DELEGATION_DEADLINE_MIN_MS = 70000; // 短い設定でもこれより早くは諦めない
+function delegationReceiverDeadlineMs() {
+  return Math.max(DELEGATION_DEADLINE_MIN_MS, getPriorityClockBudgetMs() + DELEGATION_DEADLINE_MARGIN_MS);
+}
+// 頼んだ側が諦めるまで。受け手の期限＋自動操縦の時間より必ず後にする（そうしないと、受け手が
+// 自動で選んで返事を送る前に頼んだ側が先へ進んでしまい、#352 の「後から遅れて置かれる」になる）。
+const DELEGATION_COORDINATOR_EXTRA_MS = 5000;
+function delegationCoordinatorGiveUpMs() {
+  return delegationReceiverDeadlineMs() + DELEGATION_AUTOPILOT_MAX_MS + DELEGATION_COORDINATOR_EXTRA_MS;
+}
 let delegationDeadlineAt = 0; // 0 = 頼まれた選択は今走っていない
 function isDelegationExpired() {
   return delegationDeadlineAt > 0 && Date.now() >= delegationDeadlineAt;
 }
-function closeExpiredDelegationUi() {
-  logAction("diag-delegate", { phase: "receiver-expired", picker: activeEffectPicker?.type ?? null });
-  const picker = activeEffectPicker;
-  if (picker) {
-    activeEffectPicker = null;
-    try { picker.resolve(null); } catch (err) { /* 閉じられなくても期限切れの判定で何も置かない */ }
+// 【2026-09-27・ユーザー指示】期限切れでも「単に飛ばす」のはやめる——「その時は適当に何かしら
+// 選択して実行するようにはしてください。ゲームのルールにのっとった行動にします」。選択を
+// 無かったことにすると、置くはずのカードが置かれない＝本人がどう選んでもそうはならない、
+// ルール上あり得ない結果になってしまう（合同建設なら「全員が1枚置く」が守られない）。
+// 選び方そのものは performPriorityTimeoutAutoAction() が picker の種類ごと（マス・手札・相手・
+// 選択肢・複数枚）に、使える候補だけの中から選んでくれるのでそれに任せる。委任タスクは選択を
+// 何段階か重ねる（合同建設なら マス→山札か手札→どの札）ので、期限を過ぎたら「開いた選択を
+// 片端から自動で解決し続ける」自動操縦に入り、タスクが終わったら止める。
+const DELEGATION_AUTOPILOT_TICK_MS = 300;
+// 端末が眠っていると setTimeout は止まり、起きた瞬間にまとめて発火する。そこまで遅れていたら
+// 頼んだ側（90秒）はもう諦めて先へ進んでいるので、**ここで選んで置くと #352 の「後から遅れて
+// 置かれる」が再発する**。その場合だけは従来どおり何も選ばずに閉じる（頼んだ側と足並みが
+// 揃わない時に置くことだけが #352 の害で、待つこと自体は害ではない）。
+const DELEGATION_AUTOPILOT_TOO_LATE_MS = 8000;
+// 自動操縦を続ける上限。頼んだ側が諦める90秒より手前で必ず止まる。
+const DELEGATION_AUTOPILOT_MAX_MS = 15000;
+let delegationAutoPilotTimer = null;
+function stopDelegationAutoPilot() {
+  if (delegationAutoPilotTimer) {
+    clearInterval(delegationAutoPilotTimer);
+    delegationAutoPilotTimer = null;
   }
-  try { cancelOpenCellConfirm(); } catch (err) { /* 同上 */ }
 }
+function closeExpiredDelegationUi(expectedFireAt) {
+  const lateBy = expectedFireAt ? Date.now() - expectedFireAt : 0;
+  const tooLate = lateBy > DELEGATION_AUTOPILOT_TOO_LATE_MS;
+  logAction("diag-delegate", {
+    phase: "receiver-expired",
+    picker: activeEffectPicker?.type ?? null,
+    lateBy,
+    mode: tooLate ? "abandon" : "autopilot",
+  });
+  if (tooLate) {
+    // 従来の挙動。delegationDeadlineAt は 0 に戻さない＝この後の手順も期限切れの判定で止まる。
+    const picker = activeEffectPicker;
+    if (picker) {
+      activeEffectPicker = null;
+      try { picker.resolve(null); } catch (err) { /* 閉じられなくても期限切れの判定で何も置かない */ }
+    }
+    try { cancelOpenCellConfirm(); } catch (err) { /* 同上 */ }
+    return;
+  }
+  // 自動操縦へ。isDelegationExpired() を偽に戻して、タスク側の「期限切れなら何もしない」ガードで
+  // 止まらないようにする（止めてしまうと、せっかく自動で選んだ結果まで捨ててしまう）。
+  delegationDeadlineAt = 0;
+  // 万一タスクが終わらない場合に回り続けないよう上限を置く（頼んだ側の90秒より手前で止まる）。
+  // 止まればその後は頼んだ側の諦めに任せる＝従来と同じ結末に落ちるだけで、悪化はしない。
+  let ticksLeft = Math.ceil(DELEGATION_AUTOPILOT_MAX_MS / DELEGATION_AUTOPILOT_TICK_MS);
+  const tick = () => {
+    if (ticksLeft-- <= 0) {
+      logAction("diag-delegate", { phase: "autopilot-gave-up" });
+      stopDelegationAutoPilot();
+      return;
+    }
+    // 「このマスでいいですか？」が開いていたら承諾する。マスは既に本人が選び終わっているので、
+    // 取り消す（cancelOpenCellConfirm＝選ぶのをやめた）よりこちらがまっとうな行動になる。
+    try { if (isCellConfirmOpen()) acceptOpenCellConfirm(); } catch (err) { /* 承諾できなくても次の tick で拾う */ }
+    if (activeEffectPicker) {
+      try { performPriorityTimeoutAutoAction(); } catch (err) { console.error("delegation autopilot failed", err); }
+    }
+  };
+  tick();
+  stopDelegationAutoPilot();
+  delegationAutoPilotTimer = setInterval(tick, DELEGATION_AUTOPILOT_TICK_MS);
+}
+// 【2026-09-27】時間切れの告知を出した時刻。同じ選択が何段階かに分かれる時、同じ文言を
+// 続けて何度も出さないための間隔（performPriorityTimeoutAutoAction から参照）。
+let lastChoiceTimeoutAnnouncedAt = 0;
+const CHOICE_TIMEOUT_ANNOUNCE_GAP_MS = 8000;
 onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
   // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
   // これが無いとその席の本人として応答UIが出てしまう）。
@@ -4343,12 +4428,21 @@ onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
   // ではなく**片方だけが諦めたこと**だったので、ここを対称にするのは #352 の再発ではなく
   // その原因を消す方向である。
   const hasDeadline = isTurnTimerEnabled();
-  delegationDeadlineAt = hasDeadline ? Date.now() + DELEGATION_RECEIVER_DEADLINE_MS : 0;
-  const deadlineTimer = hasDeadline ? setTimeout(closeExpiredDelegationUi, DELEGATION_RECEIVER_DEADLINE_MS) : null;
+  // 【2026-09-27】1回だけ計算して使い回す（基本時間に連動＝呼ぶたびに設定が変わりうるため、
+  // 期限の時刻と setTimeout の長さがずれないように同じ値を使う）。
+  const deadlineMs = delegationReceiverDeadlineMs();
+  delegationDeadlineAt = hasDeadline ? Date.now() + deadlineMs : 0;
+  // 発火予定の時刻を渡す。実際の発火がこれより大きく遅れていたら「端末が眠っていた」＝頼んだ側は
+  // もう諦めている、と分かる（closeExpiredDelegationUi の TOO_LATE 参照）。
+  const expectedFireAt = Date.now() + deadlineMs;
+  const deadlineTimer = hasDeadline
+    ? setTimeout(() => closeExpiredDelegationUi(expectedFireAt), deadlineMs)
+    : null;
   runDelegatedArrivalTask(player, taskType)
     .finally(() => {
       clearTimeout(deadlineTimer);
       delegationDeadlineAt = 0;
+      stopDelegationAutoPilot(); // 【2026-09-27】タスクが終わったら自動操縦を止める
     })
     .then((result) => {
       processedDelegations.set(requestId, result);
@@ -6238,6 +6332,27 @@ export function performPriorityTimeoutAutoAction() {
     // パーティで2枚オープンを選ぶことがあったのはこれが原因。難易度の問題ではなかった）。
     // 実際に選ぶ席＝優先権を持つ席で判断する。
     const decisionSeat = (!isOnlineMode() && getState().priorityPlayer) || driveSeat;
+    // 【2026-09-27・ユーザー指示】時間切れで代わりに選んだ時は、必ず全員に知らせる
+    // （「○○さんの選択は時間切れになりましたを出すのは賛成」）。何が起きたのか誰にも
+    // 分からないまま盤面が進むのが一番困る、というのが趣旨。
+    // await しないのは、この関数が同期で picker を解決する作りのため。中央のお知らせは
+    // 数秒で自動的に閉じる短い告知（showAndAwaitEffectReason の非hold経路）で、既存の
+    // 非await呼び出し（試練の儀式・ザ・ギャンブル）と同じ扱いにしてある。
+    // 1つの選択が何段階かに分かれる（合同建設なら マス→山札か手札→どの札）ので、
+    // 同じことを何度も出さないよう少し間を置く。
+    // ただしCPUは除く。この関数は「持ち時間切れの代行」だけでなく**CPUが選ぶ時の本来の経路**
+    // でもあるため（上のコメント参照。CPUの選択モーダルは常にここで自動解決される）、素朴に
+    // 告知するとCPU戦でCPUが何か選ぶたび「時間切れになりました」と出てしまう。時間切れなのは
+    // 人間の席だけなので、疑似CPU対象（CPU席・AFK代行中の席）は黙って従来どおり解決する。
+    const timedOutSeat = picker.owner ?? decisionSeat;
+    const announceTimeout = timedOutSeat && !isPseudoCpuTarget(timedOutSeat);
+    if (announceTimeout && Date.now() - lastChoiceTimeoutAnnouncedAt > CHOICE_TIMEOUT_ANNOUNCE_GAP_MS) {
+      lastChoiceTimeoutAnnouncedAt = Date.now();
+      announceEffectReasonForEffect(
+        picker.cardId ?? null,
+        t("game.choiceTimedOut", { name: getPlayerName(timedOutSeat) })
+      );
+    }
     if (picker.type === "cell") {
       // #336: 「なるべく選ばないマス」を先に外す（他に候補が残る時だけ。全部外れるなら
       // 従来どおり全候補から選ぶ＝効果が不発にならない）。強さの設定に関わらず適用する——
@@ -10098,7 +10213,12 @@ async function playGateInvasionStealAnim__inner(attacker, defender, count, onDon
 // （続き454の教訓）に反していた。
 // 上限に達したら**奪う札を指定せずに**先へ進める＝サーバー側が無作為に1枚選ぶ。
 // ルール上「無作為に1枚奪う」なので、これは正しい決着であって取り消しではない。
-const CONTACT_PICK_WAIT_MAX_MS = 90000;
+// 【2026-09-27・ユーザー指示】ここも固定90秒をやめ、攻撃側本人の持ち時間に連動させる
+// （基本時間を長く設定していると、まだ考えられるのに90秒で無作為に決まってしまうため。
+// 上の delegationReceiverDeadlineMs と同じ考え方・同じ余白）。
+function contactPickWaitMaxMs() {
+  return Math.max(90000, getPriorityClockBudgetMs() + DELEGATION_DEADLINE_MARGIN_MS);
+}
 function waitForContactPickResolved(attacker, defender) {
   return new Promise((resolve) => {
     let settled = false;
@@ -10118,10 +10238,11 @@ function waitForContactPickResolved(attacker, defender) {
     // 時間切れで先へ進んだ場合に奪う札がサーバー側の無作為になるのはルール上正しい決着だが、
     // 攻撃側が「どれを奪うか」を考えている最中に取り上げてしまうことに変わりはない。
     // タイマーが有効なら従来どおり90秒で諦める。
+    const waitMs = contactPickWaitMaxMs();
     const giveUpTimer = isTurnTimerEnabled() ? setTimeout(() => {
-      logAction("diag-contact-pick-timeout", { attacker, defender, waitedMs: CONTACT_PICK_WAIT_MAX_MS });
+      logAction("diag-contact-pick-timeout", { attacker, defender, waitedMs: waitMs });
       finish(null);
-    }, CONTACT_PICK_WAIT_MAX_MS) : null;
+    }, waitMs) : null;
   });
 }
 

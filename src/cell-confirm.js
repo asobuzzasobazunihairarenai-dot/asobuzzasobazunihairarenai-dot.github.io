@@ -106,7 +106,7 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     const buttons = document.createElement("div");
     buttons.className = "contact-approval-buttons";
     const finish = (result) => {
-      if (cancelOpenConfirm === cancelThis) cancelOpenConfirm = null;
+      if (cancelOpenConfirm === cancelThis) { cancelOpenConfirm = null; acceptOpenConfirm = null; }
       if (unwatchTurn) { try { unwatchTurn(); } catch (err) { /* 解除できなくても閉じる方を優先 */ } unwatchTurn = null; }
       document.removeEventListener("pointerdown", onPointerDown, true);
       cellEl?.classList.remove("cell-confirm-target");
@@ -146,6 +146,7 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
 
     const cancelThis = () => finish(null);
     cancelOpenConfirm = cancelThis;
+    acceptOpenConfirm = () => finish(true); // 【2026-09-27】自動操縦用（acceptOpenCellConfirm）
     // 【#364】ユーザー報告「このマスでいいですかモーダルが出っ放しのままゲームが進行した」。
     // この確認は「今あなたが選んでいるマス」への問いなので、**ターンが進んだら意味を失う**
     // （答えても、もう自分の番ではない）。置き去りを画面に残さず、その時点で閉じる
@@ -184,6 +185,16 @@ function turnSignature() {
 let cancelOpenConfirm = null;
 export function cancelOpenCellConfirm() {
   cancelOpenConfirm?.();
+}
+
+// 【2026-09-27・ユーザー指示】開いている確認を「はい」で閉じる（結果は true＝そのマスでよい）。
+// 頼まれた選択の期限が切れて自動操縦に入った時に使う（main.js の closeExpiredDelegationUi）。
+// 取り消し（cancelOpenCellConfirm、結果 null＝選ぶのをやめた）と対になる——マスは既に本人が
+// 選び終わっているので、そこで取り消すと「選んだのに何も置かれない」という、ルール上あり得ない
+// 結果になる。承諾する方がまっとうな行動なのでこちらを使う。開いていなければ何もしない。
+let acceptOpenConfirm = null;
+export function acceptOpenCellConfirm() {
+  acceptOpenConfirm?.();
 }
 
 // 選んだマスの「すぐ右上」に出す。画面からはみ出す時だけ、右下→左上→左下 の順に回して

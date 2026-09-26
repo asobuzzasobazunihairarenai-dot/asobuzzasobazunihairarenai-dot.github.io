@@ -93,6 +93,21 @@ export function isTurnTimerEnabled() {
   const synced = isOnlineMode() && getSyncedTimerConfig();
   return synced ? !!synced.enabled : isTurnTimerEnabledLocal();
 }
+// 【2026-09-27・ユーザー指示「基本時間に連動させよう」】優先権を持つ席が「最大どれだけ考えて
+// いられるか」をミリ秒で返す。基本時間（既定30秒・設定で最大120秒）＋砂時計で伸ばせる分
+// （砂時計1個でロープは延長時間まで回復する＝最大 maxHourglassStock 個分。extensionDurationMsFor
+// / 上限 capMs の実装参照）。
+// なぜ要るか: 相手に選択を頼んだ時の「返事が来なければ諦める」期限（main.js の
+// delegationReceiverDeadlineMs / delegationCoordinatorGiveUpMs）は、**本人の持ち時間が尽きるより
+// 必ず後**に来なければならない。先に来ると、本人がまだ考えられるのに自動で選ばれてしまう
+// （基本時間を120秒に設定していると固定70秒の期限に追い越されていた）。
+// オンラインでは同期された timer_config を見るので、頼んだ側と頼まれた側で同じ値になる。
+export function getPriorityClockBudgetMs() {
+  const base = Number(getRopeBaseSeconds()) || 0;
+  const ext = Number(getRopeExtensionSeconds()) || 0;
+  const stock = Number(getMaxHourglassStock()) || 0;
+  return (base + Math.max(0, stock) * ext) * 1000;
+}
 function getInitialHourglassStock() {
   const synced = isOnlineMode() && getSyncedTimerConfig();
   return synced ? synced.initialHourglassStock : getInitialHourglassStockLocal();
