@@ -1057,16 +1057,23 @@ export function chooseSwapGiveCard(tokenIds, giverSeat, targetSeat) {
   const theirNeeded = neededColors(state, targetSeat);
   const tokens = ids.map((id) => state.tokens.find((t) => t.id === id)).filter(Boolean);
   if (tokens.length === 0) return ids[0];
+  // 【報告#363】「スリカエで、エイドスが私の未ロック色のカードを渡してきた。」
+  // 以前は「自分がまだ要る色」(-3/+2＝幅5)の方が「相手がまだ要る色」(-2/+1＝幅3)より重く、
+  //   ・自分はロック済み／相手はまだ要る色 → 0
+  //   ・自分がまだ要る色／相手はロック済み → -2
+  // となるため、**相手が欲しい色を進んで渡す**のが最善手になっていた。渡した1枚はそのまま
+  // 相手のロック＝勝利条件の1色になり得るので、これは他のどの損より重い。減点の大きさで
+  // 競わせるのをやめ、「①相手を助けない → ②自分の要る色を手放さない → ③貴重札を温存」の
+  // 順に必ず効く重みにする（①の100は②③をどれだけ足しても越えられない）。
   const giveability = (t) => {
     const color = getCardDefinition(t.cardId)?.color;
     let g = 0;
     if (color && COLORS.includes(color)) {
-      if (myNeeded.has(color)) g -= 3; // 自分がまだ要る色は渡したくない
+      if (theirNeeded.has(color)) g -= 100; // ①相手がまだ要る色は絶対に与えたくない（他に渡せる札があるなら必ず避ける）
+      if (myNeeded.has(color)) g -= 10; // ②自分がまだ要る色は渡したくない
       else g += 2; // 自分はロック済み＝手放してよい
-      if (theirNeeded.has(color)) g -= 2; // 相手がまだ要る色は与えたくない（助けない）
-      else g += 1; // 相手もロック済み＝与えても無害
     }
-    if (isPreciousCard(t.cardId)) g -= 4; // 強い/リアクション/虹/ファースト/エターナルは温存
+    if (isPreciousCard(t.cardId)) g -= 4; // ③強い/リアクション/虹/ファースト/エターナルは温存
     return g;
   };
   tokens.sort((a, b) => giveability(b) - giveability(a));

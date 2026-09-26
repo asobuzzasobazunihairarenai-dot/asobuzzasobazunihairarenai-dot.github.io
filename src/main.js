@@ -7359,8 +7359,13 @@ function playCardLiftToHand(sourceRect, player, tokenId, sourceImg = null) {
 // 「1枚ドロー」ボタンと同じ考え方をcount回・任意のplayer向けに一般化したもの）。
 // ユーザー要望「「●枚ドローします。」的なモーダルも欲しいです。全員に。」「山札から
 // 手札に加わるアニメが欲しい」「獲得ポップアップは1枚ずつではなくまとめて」への対応。
-async function drawCardsForEffect(player, count) {
-  if (count > 0) announceDrawCount(player, count, currentEffectReasonLabel());
+// opts.silentDrawNotice: 「●枚ドローします。」の予告お知らせを出さない。【報告#365】烙印の
+//   ★(a)ドローのように、呼び出し側が「何によって引いたか」を中央モーダルで別途知らせる場合、
+//   ここでも予告を出すと**1回のドローで「ドローします」が2つ**並び、烙印が2枚あると4つに
+//   なって「同じモーダルが何度も出る」ように見えていた（引いた中身を伝える獲得お知らせは別物
+//   なのでそのまま出す）。
+async function drawCardsForEffect(player, count, opts = {}) {
+  if (count > 0 && !opts.silentDrawNotice) announceDrawCount(player, count, currentEffectReasonLabel());
   const pickups = [];
   const drawnTokenIds = [];
   for (let i = 0; i < count; i++) {
@@ -10695,7 +10700,10 @@ async function offerContractBrandDrawIfNoLock(player) {
         cpuAutoResolveId: "yes",
       });
       if (!wantsDraw) continue;
-      await drawCardsForEffect(player, 1);
+      // 【報告#365】予告お知らせは出さない。この下の announceEffectReasonForEffect が
+      // 「ロックしなかったので烙印の効果で1枚ドローしました」と中央モーダルで知らせる
+      // （そちらはオンラインの相手にも中継される）ので、予告と二重になっていた。
+      await drawCardsForEffect(player, 1, { silentDrawNotice: true });
       render();
       // 行動ログに烙印ドローを明示（ユーザー要望2026-08-15）。マイデッキと違い烙印ドローは
       // 共有山札からなので pile:"deck"。indexを持たせて、複数枚の烙印ドローが友好ログ窓の
@@ -11429,17 +11437,15 @@ function getEffectiveFitRect(table) {
   // （手札は上の部分が少し見えていればよい）なので、幅/高さの初期見積もりには含めない。
   // 上端(top)・左右(left/right)は引き続き含める（手札が完全に画面外へ消えたり、
   // 扇が左右にはみ出すのを防ぐため）。
-  let top = tableRect.top;
-  let bottom = tableRect.bottom;
-  let left = tableRect.left;
-  let right = tableRect.right;
-  for (const card of table.querySelectorAll(".hand-card")) {
-    const r = card.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) continue;
-    top = Math.min(top, r.top);
-    left = Math.min(left, r.left);
-    right = Math.max(right, r.right);
-  }
+  // 【報告#361】「何か起こるたびに画角が少しズームしたり引いたりする」。手札のカードを
+  // ここに混ぜていたため、扇が1枚増減するだけで見積もりの幅が変わり、倍率＝画角が動いていた。
+  // 倍率は「盤面の箱」だけで決める（＝対局中は一切動かない）。手札が画面の外へ出そうな時は
+  // 盤面全体を縮めるのではなく、その手札だけを盤面側へ寄せて見えるようにする
+  // （nudgeHandsIntoStage）。
+  const top = tableRect.top;
+  const bottom = tableRect.bottom;
+  const left = tableRect.left;
+  const right = tableRect.right;
   // width/heightは差分（オフセットの影響を受けない）なので、ステージの倍率で割るだけで
   // ローカル座標系の値になる。
   return { width: (right - left) / currentStageScale, height: (bottom - top) / currentStageScale };
@@ -11550,27 +11556,18 @@ function applyNormalFit() {
   };
   applyScale(scale);
 
-  // ユーザー報告「タブレットで自分の手札が見えない」への対応（実測で根本原因を特定、
-  // getEffectiveFitRectのコメント参照）。rotateX+perspectiveが絡む3D変形の中では、
-  // 「変形前の矩形の比率」と「実際に画面上で必要な縮小率」が単純な比例関係にならない
-  // （transform-originが手札の実際の重心ではなく#game-table自身の中心にあるため）。
-  // このプロジェクトで繰り返し有効だった「3D越しの計算より実測」の方針に従い、上のscaleを
-  // 一旦適用した上で実際の手札の画面上の到達範囲を実測し、まだ画面外にはみ出していれば、
-  // 別のscaleでもう一度実測した2点から線形関係（scale3dの拡大率は常に線形）を逆算して
-  // ちょうど収まるscaleを直接求める。数回繰り返して精度を上げる（各回、境界からの誤差が
-  // 大幅に縮むため、3回もあれば十分収束する）。
-  //
-  // ハマりどころ（ユーザー報告「マウスホイールでズームインできなくなった」）: この補正を
-  // hasManualView（手動ズーム/パン中かどうか）を問わず常に実行していたため、ユーザーが
-  // ホイールでズームインしてmanualZoomを増やしても、直後にこの補正が「はみ出している」と
-  // 判定して即座に縮め戻してしまい、ズームインが効かなくなっていた（ズームアウトは
-  // 常に安全側なので影響を受けず、そちらだけ効いているように見えた）。自動フィット
-  // （hasManualViewがfalseの間）の時だけ補正するようにし、ユーザーが意図的にズーム/パン
-  // した後は、はみ出しを許容してでもその操作を尊重する。
+  // ユーザー報告「タブレットで自分の手札が見えない」への対応は、**倍率を下げる**のをやめて
+  // 「はみ出した手札だけを盤面側へ寄せる」方式（下の nudgeHandsIntoStage）に変えた【報告#361】。
+  // 以前は手札の実測到達範囲から倍率を逆算していたため、扇の広がりが手札の枚数で変わる分だけ
+  // 画角が動いていた（実測: 手札0→1枚で -12.5%、1→2枚で +11.0%、通算14.3%）。倍率はもう
+  // 手札を見ないので、対局中に画角が動くことは無い。
+  // ハマりどころ（ユーザー報告「マウスホイールでズームインできなくなった」）: 手動ズーム/パン中
+  // （hasManualView）は一切の自動補正をしない。ユーザーの操作を尊重する（はみ出しも許容する）。
   // 画角が変わる条件（ステージ倍率・カメラズーム・手動ズーム・2Dの倍率・平面かどうか）。
-  // これが前回と同じ間だけ、手札の増減による微小な倍率変化を据え置く（#2）。
   const fitKey = `${currentStageScale}|${zoom}|${manualZoom}|${scaleMultiplier}|${flat}|${tilt}`;
   if (hasManualView) {
+    // 手動ズーム/パン中は画角をユーザーに任せる（はみ出しも尊重する）。前回の寄せは戻す。
+    clearHandStageNudges(table);
     currentTableScale = scale;
     lastNormalFit = { key: fitKey, scale };
     return;
@@ -11583,60 +11580,6 @@ function applyNormalFit() {
     left: marginW,
     right: STAGE_WIDTH - marginW,
   };
-  // ユーザー要望「Aの手札は上の部分がちらっと見えていればよく、画面全体を遠景にしてまで
-  // 手札全体を収める必要はない」に対応するため、下端方向だけは手札の下端(e.bottom)ではなく
-  // 上端(e.top)を基準に判定する。つまり「手札の一番奥側（board寄り）の縁が画面下端の
-  // 余白より上に少しでも顔を出していればOK」という緩い基準にし、手札の残り（近側の大部分）が
-  // 画面下端の外へ大きくはみ出すのは許容する（元々「あえて画面下端から見切れる位置に
-  // 配置」していた意図的な見た目に近い状態）。タブレットで手札が完全に見えなくなる
-  // （e.topごと画面外に落ちる）不具合への対策はこれでも引き続き機能する。
-  const worstOverflow = (e) => Math.max(e.top - bounds.bottom, bounds.top - e.top, e.right - bounds.right, bounds.left - e.left);
-  for (let i = 0; i < 3 && scale > 0.05; i++) {
-    const e1 = measureHandFanExtent(table);
-    // ハマりどころ（ユーザー報告「セットアップ直後は遠景になり、ドローすると戻る」）:
-    // セットアップ直後は誰の手札もまだ0枚のことがあり、measureHandFanExtentが空のまま
-    // （top/leftがInfinity、bottom/rightが-Infinity）を返す。上のworstOverflowは
-    // 「下端方向だけe.topを見る」よう変更済みのため、e.topがInfinityのままだと
-    // Infinity - bounds.bottomが+Infinityになり「巨大なはみ出し」と誤判定されて
-    // scaleが際限なく縮められてしまっていた（手札が1枚も無い＝この判定自体が
-    // 無意味なので、そもそも判定しない）。
-    if (!Number.isFinite(e1.top)) break;
-    const overflow1 = worstOverflow(e1);
-    if (overflow1 <= 0.5) break;
-    const scale2 = scale * 0.85;
-    applyScale(scale2);
-    const e2 = measureHandFanExtent(table);
-    // はみ出しが最も大きかった辺について、2点(scale, 値)(scale2, 値)から線形補間し、
-    // ちょうど境界に収まるscaleを求める。
-    let edge1;
-    let edge2;
-    let bound;
-    if (e1.top - bounds.bottom === overflow1) {
-      edge1 = e1.top;
-      edge2 = e2.top;
-      bound = bounds.bottom;
-    } else if (bounds.top - e1.top === overflow1) {
-      edge1 = e1.top;
-      edge2 = e2.top;
-      bound = bounds.top;
-    } else if (e1.right - bounds.right === overflow1) {
-      edge1 = e1.right;
-      edge2 = e2.right;
-      bound = bounds.right;
-    } else {
-      edge1 = e1.left;
-      edge2 = e2.left;
-      bound = bounds.left;
-    }
-    const slope = (edge2 - edge1) / (scale2 - scale);
-    if (Number.isFinite(slope) && slope !== 0) {
-      const solvedScale = scale + (bound - edge1) / slope;
-      scale = Number.isFinite(solvedScale) && solvedScale > 0 ? Math.min(solvedScale, scale) : scale2;
-    } else {
-      scale = scale2;
-    }
-    applyScale(scale);
-  }
   // #2: 前回と同じ画角条件で、倍率の差が不感帯の中なら前回の倍率を据え置く（手札の増減で
   // 画角がカクッと動かないように）。差が大きい時（本当に収まらなくなった時）は普通に更新する。
   if (
@@ -11649,6 +11592,98 @@ function applyNormalFit() {
   }
   lastNormalFit = { key: fitKey, scale };
   currentTableScale = scale;
+  // 倍率が決まってから、画面の外へ出ている手札だけを内側へ寄せる。
+  nudgeHandsIntoStage(table, bounds);
+}
+
+// 【報告#361】手札が画面（ステージ）の外へ出そうな時、盤面全体を縮める代わりに
+// **その手札だけを盤面側へ寄せて**見える所に戻す。
+// ・ずらしはCSSの translate プロパティで行う。translate は transform とは別枠で
+//   transform より先に適用されるので、.hand-area の transform（PC用・タッチ用・2D表示用と
+//   4通りある）を1つも書き換えずに足せる。
+// ・動かすのは .hand-area 自身（＝カードのドロップ判定に使っている箱そのもの）なので、
+//   見た目と当たり判定がずれる、という以前踏んだ不具合（CLAUDE.mdの「ロックエリアと手札の
+//   干渉問題」）は起きない。
+// ・3D変形（perspective+rotateX）の中では「1px寄せたら画面上で何px動くか」が座席ごとに違う
+//   ので、計算では求めず2点を実測して比例で解く（撤去した倍率ループと同じ考え方）。
+const HAND_NUDGE_PROBE_PX = 24; // 反応の傾きを測るための試しずらし量
+function clearHandStageNudges(table) {
+  for (const area of table.querySelectorAll(".hand-area")) {
+    if (area.style.translate) area.style.translate = "";
+  }
+}
+// その座席の手札の、画面の内側かどうかを見る辺。A（手前）は扇の一番奥の縁(top)が画面下端の
+// 余白より上に顔を出していればよい（手前側は画面の外へ大きくはみ出す設計のまま。ユーザー要望
+// 「上の部分がちらっと見えていればよい」）。C（奥）は逆に下端、B/Dは左右の内側の縁を見る。
+function handStageEdgeValue(seat, e) {
+  if (seat === "A") return e.top;
+  if (seat === "C") return e.bottom;
+  if (seat === "B") return e.right;
+  return e.left; // D
+}
+function handStageAxis(seat) {
+  return seat === "A" || seat === "C" ? "y" : "x";
+}
+// その辺が収まっていなければならない範囲（[近い側, 遠い側]の順ではなく、超えたら戻す2つの境界）。
+function handStageLimits(seat, bounds) {
+  if (seat === "A") return { lo: bounds.top, hi: bounds.bottom };
+  if (seat === "C") return { lo: bounds.top, hi: bounds.bottom };
+  return { lo: bounds.left, hi: bounds.right };
+}
+// 破っている量（正ならはみ出し）と、その時に合わせるべき境界。
+function handStageViolation(seat, e, bounds) {
+  const v = handStageEdgeValue(seat, e);
+  const { lo, hi } = handStageLimits(seat, bounds);
+  if (v > hi) return { over: v - hi, bound: hi, value: v };
+  if (v < lo) return { over: lo - v, bound: lo, value: v };
+  return { over: 0, bound: null, value: v };
+}
+function measureHandCardsExtent(area) {
+  let top = Infinity;
+  let bottom = -Infinity;
+  let left = Infinity;
+  let right = -Infinity;
+  for (const card of area.querySelectorAll(".hand-card")) {
+    const rReal = card.getBoundingClientRect();
+    if (rReal.width === 0 && rReal.height === 0) continue;
+    const r = toStageLocalRect(rReal);
+    top = Math.min(top, r.top);
+    bottom = Math.max(bottom, r.bottom);
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+  }
+  return { top, bottom, left, right };
+}
+function nudgeHandsIntoStage(table, bounds) {
+  clearHandStageNudges(table); // 前回の寄せを戻してから測る（積み重なって暴走しないように）
+  for (const area of table.querySelectorAll(".hand-area")) {
+    const seat = area.dataset.player;
+    if (!seat) continue;
+    const axis = handStageAxis(seat);
+    const setNudge = (px) => {
+      area.style.translate = axis === "y" ? "0px " + px + "px" : px + "px 0px";
+    };
+    const e0 = measureHandCardsExtent(area);
+    if (!Number.isFinite(e0.top)) continue; // 手札0枚（測るものが無い）
+    const v0 = handStageViolation(seat, e0, bounds);
+    if (v0.over <= 0.5) continue; // 収まっている
+    setNudge(-HAND_NUDGE_PROBE_PX);
+    const e1 = measureHandCardsExtent(area);
+    const slope = (handStageEdgeValue(seat, e1) - v0.value) / -HAND_NUDGE_PROBE_PX;
+    if (!Number.isFinite(slope) || slope === 0) {
+      area.style.translate = "";
+      continue;
+    }
+    let need = (v0.bound - v0.value) / slope;
+    setNudge(need);
+    // perspectiveのせいで完全な比例ではないので、収まらなければもう1回だけ詰める。
+    const e2 = measureHandCardsExtent(area);
+    const v2 = handStageViolation(seat, e2, bounds);
+    if (v2.over > 0.5) {
+      const slope2 = (v2.value - v0.value) / need;
+      if (Number.isFinite(slope2) && slope2 !== 0) setNudge(need + (v2.bound - v2.value) / slope2);
+    }
+  }
 }
 
 // 「盤面拡大」: プレイヤーA（手前）のロックエリアが画面下端、プレイヤーC（奥）のロックエリアが

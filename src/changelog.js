@@ -28,10 +28,16 @@ export const CHANGELOG = [
   {
     date: "2026-09-26",
     items: [
+      "盤面の見え方（画角）が、カードを引いたり手札が増えたりするたびに少し大きくなったり小さくなったりしていたのを直しました。対局中は画角が動かなくなり、手札が画面の端で見えなくなりそうな時は、盤面ではなくその手札だけが少し内側へ寄ります。",
+      "誘惑の黒の烙印でドローする時、「ドローします」のお知らせが1回のドローにつき二重に出ていたのを直しました（烙印が2枚あると4回出ていました）。烙印のお知らせ1つにまとめました。",
+      "「手品師の技 -スリカエ-」で、CPUが相手のまだロックしていない色のカードを進んで渡してしまうことがあったのを直しました。渡す相手が欲しがっている色は、他に渡せる札がある限り選ばなくなります。",
       "カードの絵を新しいイラストに差し替えました。手札・盤面・拡大表示・山札一覧、どこを見ても新しい絵になります。",
       "カードの名前が、新しい絵の帯の上でも読めるように白字になりました。",
     ],
     itemsEn: [
+      "The board no longer zooms in and out slightly every time you draw a card or your hand changes size. The camera now stays put during a match; if a hand would slip off the edge of the screen, that hand alone shifts inward instead of the whole board shrinking.",
+      "Drawing with the Brand of the Tempting Contract announced \"drawing a card\" twice for a single draw (four times when you had two brands). It is now a single announcement from the brand itself.",
+      "In \"Magician's Trick -Sleight-\", the CPU could willingly hand you a colour you had not locked yet. It now avoids giving away a colour the recipient still needs, as long as it has anything else to give.",
       "All card art has been replaced with the new illustrations — your hand, the board, the zoomed view and the card list all use them now.",
       "Card titles are now drawn in white so they stay readable on the new, darker title bar.",
     ],
