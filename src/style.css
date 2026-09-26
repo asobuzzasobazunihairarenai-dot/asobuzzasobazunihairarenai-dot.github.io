@@ -19421,6 +19421,17 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type="first"] .card-face-subtitle,
 .card-face[data-card-type="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
 .card-face[data-card-type="first"] .card-face-effect-body { text-align: center; }
+/* 2026-09-26 の新しい絵から、タイトルの帯が「薄い色」→「濃い色」に変わった。
+   以前の絵では濃い文字が正しかったが、そのままだと濃い帯に濃い文字で読めない。
+   印字カードと同じく、通常・エターナルのタイトル（ふりがな含む）を白にする。
+   ファーストは元から全て白（上の規則）。 */
+.card-face[data-card-type=normal] .card-face-title,
+.card-face[data-card-type=normal] .card-face-title rt,
+.card-face[data-card-type=normal] .card-face-title .card-face-title-rt,
+.card-face[data-card-type=eternal] .card-face-title,
+.card-face[data-card-type=eternal] .card-face-title rt,
+.card-face[data-card-type=eternal] .card-face-title .card-face-title-rt { color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.55); }
+
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,
 .card-face.cf-outline .card-face-flavor,

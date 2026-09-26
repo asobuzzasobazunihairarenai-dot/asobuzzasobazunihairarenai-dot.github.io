@@ -26,6 +26,17 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-26",
+    items: [
+      "カードの絵を新しいイラストに差し替えました。手札・盤面・拡大表示・山札一覧、どこを見ても新しい絵になります。",
+      "カードの名前が、新しい絵の帯の上でも読めるように白字になりました。",
+    ],
+    itemsEn: [
+      "All card art has been replaced with the new illustrations — your hand, the board, the zoomed view and the card list all use them now.",
+      "Card titles are now drawn in white so they stay readable on the new, darker title bar.",
+    ],
+  },
+  {
     date: "2026-09-24",
     items: [
       "「手品師の技 -スリカエ-」「ゴメンナサイッ！」「選べる罠」「増殖する樹々」の文章を、実際のカードに印刷される文章に合わせました。効果の内容・処理は変わりません。",
