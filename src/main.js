@@ -4271,7 +4271,19 @@ async function delegateToPlayerForEffect(player, taskType) {
     const retryTimer = setInterval(() => broadcastArrivalDelegateRequest({ player, taskType, requestId }), 5000);
     // それでも一定時間応答が無ければ諦めて先へ進む（永久固着を防ぐ善処の原則。実際には
     // ここまで待つ前に再送で復帰するはず）。
-    const giveUpTimer = setTimeout(() => finish(false), 90000);
+    // 【#366】タイマーを切っている対局では、この期限そのものを付けない。ユーザー判断
+    // （2026-09-27）「タイマーが無いということは相手は友達で顔見知り。寝ていようが席を外して
+    // いようが、勝手に選択を飛ばすのは無し。全員で食事をしている時に勝手に進む方が問題」。
+    // 実際の被害もそちら側だった——#366 の実ログでは、タイマーが enabled:false の対局で、
+    // 本物の人（疑似CPUでない）が普通に考えていた85秒で「置かなかったこと」にされていた。
+    // 永久固着を心配しなくてよい理由: 待っている側はオプションメニューからいつでも降参・退出
+    // できる（resign.js に封じ条件は無い）。さらにサーバー側が last_seen の古い座席を掃除する。
+    // 在席の記録で「本当に居なくなった時だけ諦める」案は採らなかった——last_seen はブラウザの
+    // タイマーで更新するので**スマホが眠ると止まり**、「寝ている人」と「帰ってこない人」を
+    // 見分けられない＝結局いちばん避けたい「寝ている隙に進める」をやってしまう。
+    // タイマーが有効な対局では従来どおり90秒で諦める（時間切れの概念がある＝待ちに上限を
+    // 付ける前提が成り立つため。続き454の教訓）。
+    const giveUpTimer = isTurnTimerEnabled() ? setTimeout(() => finish(false), 90000) : null;
   });
   hideEffectPickerHint();
   logAction("diag-delegate", { phase: "resolved", player, taskType, result, returningPriorityTo: turnPlayer });
@@ -4323,8 +4335,16 @@ onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
     return;
   }
   processedDelegations.set(requestId, "pending");
-  delegationDeadlineAt = Date.now() + DELEGATION_RECEIVER_DEADLINE_MS;
-  const deadlineTimer = setTimeout(closeExpiredDelegationUi, DELEGATION_RECEIVER_DEADLINE_MS);
+  // 【#366】頼んだ側（delegateToPlayerForEffect の giveUpTimer）と必ず対称にする。タイマーを
+  // 切っている対局では期限を持たない＝選択画面を勝手に閉じない（delegationDeadlineAt = 0 が
+  // 「期限なし」を表す。isDelegationExpired() は 0 の時 false を返す）。
+  // 両方が諦めないので、#352「相手が寝てしまい、頼んだ側は先へ進んだのに頼まれた側の画面だけ
+  // 開いたまま残って後から遅れて置かれる」というズレ自体が起きえない——#352 の原因は待つこと
+  // ではなく**片方だけが諦めたこと**だったので、ここを対称にするのは #352 の再発ではなく
+  // その原因を消す方向である。
+  const hasDeadline = isTurnTimerEnabled();
+  delegationDeadlineAt = hasDeadline ? Date.now() + DELEGATION_RECEIVER_DEADLINE_MS : 0;
+  const deadlineTimer = hasDeadline ? setTimeout(closeExpiredDelegationUi, DELEGATION_RECEIVER_DEADLINE_MS) : null;
   runDelegatedArrivalTask(player, taskType)
     .finally(() => {
       clearTimeout(deadlineTimer);
@@ -10093,10 +10113,15 @@ function waitForContactPickResolved(attacker, defender) {
       if (payload.attacker !== attacker || payload.defender !== defender) return;
       finish(payload.stolenCardId ?? null);
     });
-    const giveUpTimer = setTimeout(() => {
+    // 【#366】これも「相手が考えている最中に、その選択を勝手に決める」側なので、タイマーを
+    // 切っている対局では期限を付けない（上の delegateToPlayerForEffect と同じ判断・同じ理由）。
+    // 時間切れで先へ進んだ場合に奪う札がサーバー側の無作為になるのはルール上正しい決着だが、
+    // 攻撃側が「どれを奪うか」を考えている最中に取り上げてしまうことに変わりはない。
+    // タイマーが有効なら従来どおり90秒で諦める。
+    const giveUpTimer = isTurnTimerEnabled() ? setTimeout(() => {
       logAction("diag-contact-pick-timeout", { attacker, defender, waitedMs: CONTACT_PICK_WAIT_MAX_MS });
       finish(null);
-    }, CONTACT_PICK_WAIT_MAX_MS);
+    }, CONTACT_PICK_WAIT_MAX_MS) : null;
   });
 }
 

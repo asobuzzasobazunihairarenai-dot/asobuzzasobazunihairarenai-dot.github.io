@@ -26,6 +26,25 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-27",
+    items: [
+      "タイマーを使わない対戦で、合同建設などの「相手が選ぶ」場面で、相手が少し考えているだけでその選択が勝手に飛ばされてしまうことがあったのを直しました。タイマーを切っている対戦では、相手が選び終わるまで待ちます（席を外していても、みんなで食事をしていても、勝手に進みません）。",
+      "同じように、接触でどのカードを奪うか選んでいる最中に、選ぶ前に勝手に決められてしまうことがあったのも直しました。こちらもタイマーを切っている対戦では待つようになります。",
+    ],
+    itemsEn: [
+      "Fixed an issue in matches played without the timer: when a choice was handed to another player (such as Joint Construction), it could be skipped just because they took a little time to think. With the timer off, the game now waits until they have finished choosing — it will not move on while someone is away from the table or eating together.",
+      "Fixed the same kind of issue when choosing which card to take on contact; the choice could be decided for you before you made it. With the timer off, the game now waits here too.",
+    ],
+    devItems: [
+      "#366 の原因は、#352 で入れた保険の期限（頼まれた側 DELEGATION_RECEIVER_DEADLINE_MS=85秒・頼んだ側90秒）がタイマー設定をまったく見ていなかったこと。実ログの経過85.211秒が85秒の期限と一致し、その対局は timerConfig.enabled=false、相手は isPseudoCpuTarget=false＝実プレイヤーだった。isTurnTimerEnabled() が偽なら期限を張らない形にし、頼んだ側・頼まれた側を対称にした。#352 の原因は待つことではなく片方だけが諦めたことだったので、対称化は再発ではなく原因の除去になる。接触ピックの CONTACT_PICK_WAIT_MAX_MS も同じ扱いにした。3か所すべて isOnlineMode() の中なのでローカル戦・スモークテストには影響しない。",
+      "直したはずの #361〜#365 が handled-bug-reports.js に入っておらず、ダッシュボードの対処済み表示が実態と合っていなかったので追記した。",
+    ],
+    devItemsEn: [
+      "Root cause of #366: the safety deadlines added for #352 (receiver DELEGATION_RECEIVER_DEADLINE_MS=85s, coordinator 90s) never consulted the timer setting. In the real log the elapsed time was 85.211s, matching the 85s deadline exactly, while that match had timerConfig.enabled=false and the other player was isPseudoCpuTarget=false, i.e. a real human. The deadlines are now only armed when isTurnTimerEnabled() is true, and the coordinator and receiver sides were made symmetric. Since #352 was caused by one side giving up while the other did not, making them symmetric removes its cause rather than reintroducing it. CONTACT_PICK_WAIT_MAX_MS for the contact pick got the same treatment. All three sites are inside isOnlineMode(), so local matches and the smoke test are unaffected.",
+      "#361 through #365 had been fixed but were missing from handled-bug-reports.js, so the dashboard's handled status did not match reality; added them.",
+    ],
+  },
+  {
     date: "2026-09-26",
     items: [
       "盤面の見え方（画角）が、カードを引いたり手札が増えたりするたびに少し大きくなったり小さくなったりしていたのを直しました。対局中は画角が動かなくなり、手札が画面の端で見えなくなりそうな時は、盤面ではなくその手札だけが少し内側へ寄ります。",
