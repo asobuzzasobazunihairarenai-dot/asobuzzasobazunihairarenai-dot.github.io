@@ -9591,6 +9591,62 @@ function getContactAnimSeconds(varName, fallback) {
   return Number.isNaN(seconds) ? fallback : seconds;
 }
 
+// 【報告#360】「エイドス戦の時、接触アニメがなんか不完全です」→ ユーザーに詳しく聞いたところ
+// **「駒が相手の駒に向かってスライドしなかった」**。原因は演出ではなく**描き方**だった。
+// 盤面のWebGL描画（board-3d.js）がONの時、駒の絵は .piece-face の位置から板を作り直して
+// 描いており、その作り直しは **500msに1回の合図（rebuildTimer）と render() の合図でしか
+// 走らない**。この助走(0.5秒)・タックル(0.5秒)はCSSのトランジションでDOMを動かすだけなので、
+// その間に作り直しが1回起きるかどうか——**絵は動かないまま終わる**。
+// 対策は board-3d-setting.js の冒頭に書いてあるルールと同じ考え方: 「render() を通らない
+// DOMの変化」は flushBoard3d() で即座に描き直す。トランジションの間は毎フレーム呼ぶ。
+// （WebGL描画がOFFの時は flushBoard3d() は何もしない空関数なので、従来どおりCSSだけで動く。）
+// 【#360】作り直しの回数に上限を付ける理由（実測に基づく）: flushBoard3d() の中身
+// （board-3d.js の flushNow）は **呼ばれるたびに盤面を丸ごと作り直す**（needsRebuild=true →
+// rebuild() → sortByDepth → render。条件付きではない）。ユーザーの実機のログでは
+// rebuildMs≈23.8ms・drawMs≈4.8ms＝1回あたり約28msで、通常のフレームが36ms。つまり毎フレーム
+// 呼ぶと負荷がほぼ倍になる。さらに iPhone は 60〜120Hz なので、120Hz機では毎秒120回
+// 作り直すことになる——#348「iPhoneの画面が熱い」（変化が無い間も毎フレーム描き直していた）
+// で得た教訓に逆行する。1秒あたり約33回まで（30ms間隔）に抑える。駒が滑って見えるには十分で、
+// 速い端末での無駄な作り直しだけを落とせる。
+const BOARD3D_ANIM_FLUSH_INTERVAL_MS = 30;
+// 【#360】**requestAnimationFrame はタブを裏に回すと止まる**。元の wait()（setTimeout）は裏でも
+// 完走したので、rAF だけで待つと「接触の最中に別のタブへ移ると演出が止まったまま対局が進まない」
+// という新しい不具合を作ってしまう（しかもこの待ちは接触の決着より前にあるので、オンラインでは
+// 相手まで待たせる）。そこでタイマー側の保険と競争させ、**どちらか先に来た方で必ず終わる**形にする
+// （少し余裕を足すのは、普通に見えている時は rAF 側で終わってほしいため）。
+const BOARD3D_ANIM_WAIT_SAFETY_MS = 250;
+function waitWhileFlushingBoard3d(ms) {
+  return new Promise((resolve) => {
+    const endAt = performance.now() + ms;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safety);
+      // 最後は必ず1回描き直して、行き着いた位置で絵とDOMを揃える（途中で間引いた分の
+      // ズレをここで解消する）。
+      flushBoard3d();
+      resolve();
+    };
+    const safety = setTimeout(finish, ms + BOARD3D_ANIM_WAIT_SAFETY_MS);
+    let lastFlushAt = 0;
+    const step = () => {
+      if (settled) return;
+      const now = performance.now();
+      if (now - lastFlushAt >= BOARD3D_ANIM_FLUSH_INTERVAL_MS) {
+        lastFlushAt = now;
+        flushBoard3d();
+      }
+      if (now >= endAt) {
+        finish();
+        return;
+      }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 // 接触のタックル（助走）の演出。再生中は「情報を見せるだけ」のモーダルを待たせる（#261）。
 async function playContactLunge(...args) {
   return withBoardAnimation(() => playContactLunge__inner(...args));
@@ -9621,13 +9677,13 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   const runupMs = getContactAnimSeconds("--contact-anim-runup-duration", 3) * 1000;
   attackerEl.style.transition = `transform ${runupMs}ms ease-in`;
   attackerEl.style.transform = `translate(${-ux * RUNUP_PX}px, ${-uy * RUNUP_PX}px)`;
-  await wait(runupMs);
+  await waitWhileFlushingBoard3d(runupMs); // #360: WebGL描画の駒の絵も一緒に動かす
 
   // ④タックル（前へ突進、衝突エフェクト）。
   const tackleMs = getContactAnimSeconds("--contact-anim-tackle-duration", 1) * 1000;
   attackerEl.style.transition = `transform ${tackleMs}ms cubic-bezier(0.3, 0, 0.7, 1)`;
   attackerEl.style.transform = `translate(${ux * LUNGE_PX}px, ${uy * LUNGE_PX}px)`;
-  await wait(tackleMs);
+  await waitWhileFlushingBoard3d(tackleMs); // #360: 同上
   playSound("arrivalEffect");
   const hostEl = table ? findLocationElement(table, defenderFromLocation) : null;
   if (hostEl) spawnArrivalBurst(hostEl, attackerColor);
@@ -9637,7 +9693,7 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   // DOMを作り直す前に、戻りきるまで待つ（途中で作り直すと戻りアニメが切れて見える）。
   attackerEl.style.transition = "transform 220ms ease-out";
   attackerEl.style.transform = "translate(0px, 0px)";
-  await wait(220);
+  await waitWhileFlushingBoard3d(220); // #360: 同上
 }
 
 // 駒が実際に移動した「後」に呼ぶ。相手の駒がゲートへ飛んでいく見た目を作る。render()で
