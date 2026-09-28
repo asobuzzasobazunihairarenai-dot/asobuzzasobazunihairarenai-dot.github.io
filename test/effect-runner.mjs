@@ -140,6 +140,30 @@ export async function runOneCase(spec) {
       if (options?.purpose) callLog.push(["pickHandCardsOrderedPurpose", options.purpose]);
       return order;
     },
+    // 【#357】盤面のカードを捨てる順に選ぶ（本物は main.js の requestBoardCardsOrderedForEffect）。
+    // 手札版と違い、候補は**トークンの配列**をそのまま受け取る（並びに意味がある＝ワイナウエアは
+    // マスの上から順）。テストの筋書きは「boardCardsOrdered」にトークンidの配列（捨てる順）を置く。
+    // 渡された候補の並びも記録する（上から順に渡せているかを検査できるように）。
+    pickBoardCardsOrdered: async (player, hint, tokens, options) => {
+      const list = (tokens || []).filter(Boolean);
+      callLog.push(["pickBoardCardsOrderedCandidates", list.map((tk) => tk.id).join(",")]);
+      const want = nextPick("boardCardsOrdered");
+      let order = [];
+      if (Array.isArray(want)) {
+        const ids = new Set(list.map((tk) => tk.id));
+        for (const w of want) {
+          const tok = findToken(w);
+          if (!tok) throw new Error("pickBoardCardsOrdered: " + w + " というトークンが無い");
+          if (!ids.has(tok.id)) throw new Error("pickBoardCardsOrdered: " + tok.id + " は候補に含まれていない");
+          order.push(tok);
+        }
+      } else {
+        order = list; // 筋書きに指定が無ければ、渡された並びのまま（＝順番を選ばない）
+      }
+      callLog.push(["pickBoardCardsOrdered", order.map((tk) => tk.id).join(",")]);
+      if (options?.purpose) callLog.push(["pickBoardCardsOrderedPurpose", options.purpose]);
+      return order;
+    },
     pickDiscardCost: async (candidates) => {
       // 追色コスト。engine は返り値の .id / .cardId を読む＝トークンを返す必要がある。
       const want = nextPick("discardCost");

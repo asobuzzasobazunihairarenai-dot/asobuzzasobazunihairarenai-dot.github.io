@@ -6444,9 +6444,11 @@ export function performPriorityTimeoutAutoAction() {
         // 選ばない。他に選べる物が無い時だけ残る（dropAvoidedOptions参照）。
         picker.resolve(pickRandomFrom(dropAvoidedOptions(picker.cardId, usable)));
       }
-    } else if (picker.type === "handMulti") {
+    } else if (picker.type === "handMulti" || picker.type === "boardMulti") {
       // #344: 順番を付けて複数枚捨てる選択。持ち時間が切れたら、まだ選んでいない分を
       // CPUと同じ決め方（手放してよい札から）で並べて確定する。既に押した順は尊重する。
+      // 【#357・2026-09-28】盤面のカード版（boardMulti、requestBoardCardsOrderedForEffect）も
+      // 同じ扱い——どちらも resolve() を呼ぶだけで、残りの並べ方はピッカー側が知っている。
       activeEffectPicker = null;
       picker.resolve();
     } else if (picker.type === "colors") {
@@ -7081,6 +7083,124 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
   });
 }
 
+
+// 【#357・2026-09-28】盤面のカードを「捨てる順」に選ぶモーダル。手札用
+// （requestHandCardsOrderedForEffect）と別に作った理由:
+//  ・ワイナウエアの対象は**1マスに積み重なったカード**で、盤面では一番上しか押せない
+//    ＝広げて並べないと選びようがない。
+//  ・白の意思の覚醒の対象は盤面じゅうに散らばる＝探して押して回るより一覧の方が楽。
+// 表示は「重なっているカードを見る」(#stack-modal) と同じ作りを流用し、**各カードは自分の
+// faceUp どおりに表示する**（裏向きは裏のまま＝一覧にしたことで中身が覗けてしまわないように）。
+// 並び順は呼び出し側が渡した順のまま＝ワイナウエアは**マスの上から順**（ユーザー要望「どの順番で
+// カードが重ねられてたかわかりやすく」）。**位置＝積まれていた順／押して付く番号＝捨てる順**と
+// 役割を分け、2種類の数字を混ぜない。
+// 「おまかせ」ボタンは置いていない: 選ばなかった分は「いま並んでいる順」で捨てるので、
+// **何も押さずに確定するのがそのままおまかせ**になる（手札用は残りをCPUの基準で並べ替えるため
+// 意味が違い、あちらにはボタンがある）。案内文でそのことを伝える。
+// このモーダルは3D盤面の外にあるので、当たり判定は普通の click で足りる（elementsFromPoint 不要）。
+function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
+  return new Promise((resolve) => {
+    const list0 = (tokens || []).filter(Boolean);
+    // 1枚以下は選ぶ意味が無い。
+    // 【2026-09-29】以前はここで「全部裏向きなら聞かない」もしていたが外した——**裏向き＝中身不明
+    // とは限らない**。カードを裏向きで盤面に置く効果（選べる罠・パーティー・収穫と種まき・合同建設）が
+    // あるので、プレイヤーは何がそこにあるか分かっていることがある（ユーザー指摘）。
+    if (list0.length <= 1) {
+      resolve(list0);
+      return;
+    }
+    // CPUが選ぶ番: 画面には出さず渡された順のまま返す（盤面の札は「手放してよいか」の評価が
+    // 手札とは違うので、手札用の chooseHandCardToken は使わない）。
+    if (isCpuSelectingNow(player)) {
+      resolve(list0);
+      return;
+    }
+    const picked = [];
+    const badgeOf = new Map();
+    const modal = document.createElement("div");
+    modal.id = "stack-modal";
+    modal.classList.add("is-order-picker");
+    // 必須の選択なので、✕・外クリックでは閉じない（山札切れの確認モーダルと同じ考え方）。
+    const backdrop = createBackdrop(() => {}, { dim: true, zIndex: 10001 });
+    const title = document.createElement("div");
+    title.className = "stack-modal-title";
+    title.textContent = hint;
+    const note = document.createElement("div");
+    note.className = "stack-modal-note";
+    note.textContent = options.note ? `${options.note} ${t("game.pick.boardDiscardNote")}` : t("game.pick.boardDiscardNote");
+    const list = document.createElement("div");
+    list.className = "stack-modal-list";
+    const cardEls = [];
+    const toggle = (id) => {
+      const i = picked.indexOf(id);
+      if (i >= 0) picked.splice(i, 1);
+      else picked.push(id);
+      paint();
+    };
+    for (const token of list0) {
+      const card = document.createElement("div");
+      card.className = "stack-modal-card is-pickable";
+      card.dataset.tokenId = token.id;
+      const imagePath = token.faceUp ? getCardImagePath(token.cardId) : cardBackImageForToken(token);
+      showCardFace(card, token.faceUp ? token.cardId : null, imagePath);
+      if (token.faceUp) attachModalCardPreview(card, token.cardId); // 裏向きは拡大させない（中身を明かさない）
+      card.addEventListener("click", () => toggle(token.id));
+      list.appendChild(card);
+      cardEls.push(card);
+    }
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "stack-modal-confirm";
+    const paint = () => {
+      for (const el of cardEls) {
+        const id = el.dataset.tokenId;
+        const idx = picked.indexOf(id);
+        el.classList.toggle("is-discard-picked", idx >= 0);
+        let badge = badgeOf.get(id);
+        if (idx >= 0) {
+          if (!badge) {
+            badge = document.createElement("div");
+            badge.className = "hand-card-discard-order";
+            el.appendChild(badge);
+            badgeOf.set(id, badge);
+          }
+          badge.textContent = String(idx + 1);
+        } else if (badge) {
+          badge.remove();
+          badgeOf.delete(id);
+        }
+      }
+      confirmBtn.textContent = t("game.pick.discardOrderConfirm", { n: picked.length, total: cardEls.length });
+    };
+    const finish = (ids) => {
+      hideCardPreview(); // 拡大表示中に閉じた時に取り残さない（#185と同じ）
+      backdrop.remove();
+      modal.remove();
+      const byId = new Map(list0.map((tk) => [tk.id, tk]));
+      resolve(ids.map((id) => byId.get(id)).filter(Boolean));
+    };
+    // 選ばなかった分は、渡された順（＝積まれていた順）のまま後ろへ付ける。
+    const autoOrder = () => [...picked, ...list0.map((tk) => tk.id).filter((id) => !picked.includes(id))];
+    confirmBtn.addEventListener("click", () => {
+      activeEffectPicker = null;
+      finish(autoOrder());
+    });
+    paint();
+    modal.appendChild(title);
+    modal.appendChild(note);
+    modal.appendChild(list);
+    modal.appendChild(confirmBtn);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    // 持ち時間切れの自動代行から解決できるようにする（handMulti と同じ扱い＝resolve を呼ぶだけ）。
+    activeEffectPicker = {
+      type: "boardMulti",
+      owner: player,
+      purpose: options.purpose ?? null,
+      resolve: () => finish(autoOrder()),
+    };
+  });
+}
 // 効果の対象マスをプレイヤーに選ばせる（候補マスをハイライトし、クリックを待つ）。
 // options.allowSkip=true の時は「これ以上選ばない」スキップボタンを出す（optionalな
 // 「してもよい」効果で早期終了できるように）。スキップされた場合は resolve(null)。
@@ -8353,6 +8473,7 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         pickLocation: requestCellChoiceForEffect,
         pickHandCard: requestHandCardChoiceForEffect,
         pickHandCardsOrdered: requestHandCardsOrderedForEffect, // #344: 順番を付けてまとめて選ぶ
+        pickBoardCardsOrdered: requestBoardCardsOrderedForEffect, // #357: 盤面のカードを捨てる順に選ぶ（モーダル）
         onCardAcquiredToHand: onEffectCardAcquiredToHand,
         markPlacementTarget: markEffectPlacementTarget,
         markPlacedLocation: markEffectJustPlaced,
@@ -8465,6 +8586,7 @@ async function runAutoArrivalEffect(cardId, location, player) {
       pickLocation: requestCellChoiceForEffect,
       pickHandCard: requestHandCardChoiceForEffect,
       pickHandCardsOrdered: requestHandCardsOrderedForEffect, // #344: 順番を付けてまとめて選ぶ
+        pickBoardCardsOrdered: requestBoardCardsOrderedForEffect, // #357: 盤面のカードを捨てる順に選ぶ（モーダル）
       onCardAcquiredToHand: onEffectCardAcquiredToHand,
       // 到達効果の既定動作でこのカード自身を手札へ加えた時のお知らせ。
       // 【#279】ユーザー報告「CPUが試練の儀式に到達して手に入れたのに、このターンの出来事に

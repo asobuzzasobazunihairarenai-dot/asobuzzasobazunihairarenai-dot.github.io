@@ -46,7 +46,8 @@ export const CASES = [
       piles: { deck: [], eternal: [], first: [], discard: [] },
     },
     ctx: { player: "A", cardId: "white-awakening", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
-    picks: {},
+    // 【#357】捨てる順番を選べる（対象が全部表向きなので2枚以上あれば必ず聞く）。up2→up1 の順で捨てる。
+    picks: { boardCardsOrdered: [["up2", "up1"]] },
     expect: [
       // 捨てられたカードはトークンが消えて piles.discard に cardId として積まれる。
       { kind: "tokenGone", id: "up1" },
@@ -54,6 +55,12 @@ export const CASES = [
       { kind: "pileContains", pile: "discard", cardId: "red-jump-pad" },
       { kind: "pileContains", pile: "discard", cardId: "blue-choosable-trap" },
       { kind: "tokenZone", id: "down1", zone: "cell" }, // 裏向きは対象外＝残る
+      // 【#357】順番を選ぶモーダルが1回だけ出て、選んだ順がそのまま返ること。
+      { kind: "called", name: "pickBoardCardsOrdered", arg: "up2,up1" },
+      // 捨て場は「先に捨てたものが下」＝選んだ順に積まれる。この効果は**自分自身も表向きの
+      // 盤面カード**なので対象に含まれ、選ばなかった分として最後に積まれる。
+      // （pileOrder は捨て場の**末尾N件**を見る作りなので、3枚とも書く。）
+      { kind: "pileOrder", pile: "discard", cards: ["blue-choosable-trap", "red-jump-pad", "white-awakening"] },
     ],
   },
   {
@@ -578,18 +585,55 @@ export const CASES = [
       piles: { deck: [], eternal: [], first: [], discard: [] },
     },
     ctx: { player: "A", cardId: "eternal-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
-    picks: { discardCost: ["cost"], location: [{ row: 0, col: 0 }] },
+    // 【#357】表向き(st1)と裏向き(st2)が混ざっている＝表向きが1枚でもあるので順番を聞く。
+    // 表向きの札をどの位置に置くかを決められるのが、混在時に聞く価値。ここでは st1 を先に捨てる。
+    picks: { discardCost: ["cost"], location: [{ row: 0, col: 0 }], boardCardsOrdered: [["st1", "st2"]] },
     expect: [
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // エターナルは使用時に捨てない
       { kind: "tokenGone", id: "cost" },
       { kind: "tokenGone", id: "st1" }, // そのマスのカードを全て捨てた
       { kind: "tokenGone", id: "st2" },
+      // 【#357】モーダルへ渡す並びは**マスの上から**（state.tokens では後ろほど上なので st2 が上）。
+      // ユーザー要望「どの順番でカードが重ねられてたかわかりやすく」。
+      { kind: "called", name: "pickBoardCardsOrderedCandidates", arg: "st2,st1" },
+      { kind: "called", name: "pickBoardCardsOrdered", arg: "st1,st2" },
       { kind: "boardCardCount", n: 0 },
       // 【#335】お知らせは中央が空くまで順番待ちするので、その間ずっと対象マスを光らせ続け
       // （20秒）、お知らせが終わってから短く畳む（1.2秒）。文面が「光っているマスの」と言うので、
       // 読む時に光っていないと何も指さない。
       { kind: "called", name: "markPlacedLocation", arg: 20000 },
       { kind: "called", name: "markPlacedLocation", arg: 1200 },
+    ],
+  },
+  {
+    // 【#357・2026-09-29 ユーザー指摘】**全部裏向きでも捨てる順番を聞く**。裏向き＝中身不明とは
+    // 限らないため——選べる罠・パーティー・収穫と種まき・合同建設のように**カードを裏向きで盤面に
+    // 置く効果**があるので、プレイヤーは「あのマスに何を置いたか」を覚えていることがある。
+    // （当初は「表向きが1枚以上ある時だけ聞く」にしていた。この検査はその誤りを繰り返さないため。）
+    name: "紅蓮の火山ワイナウエア/eternal-red(手札): 全部裏向きのマスでも捨てる順番を聞く（#357）",
+    kind: "hand",
+    cardId: "eternal-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-red", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "cost", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "dn1", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+        { id: "dn2", kind: "card", cardId: "blue-choosable-trap", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { discardCost: ["cost"], location: [{ row: 0, col: 0 }], boardCardsOrdered: [["dn1", "dn2"]] },
+    expect: [
+      { kind: "tokenGone", id: "dn1" },
+      { kind: "tokenGone", id: "dn2" },
+      // 候補は上から順（state.tokens では後ろほど上なので dn2 が上）。
+      { kind: "called", name: "pickBoardCardsOrderedCandidates", arg: "dn2,dn1" },
+      // 全部裏向きでも聞かれ、選んだ順で捨てられる。
+      { kind: "called", name: "pickBoardCardsOrdered", arg: "dn1,dn2" },
+      { kind: "pileOrder", pile: "discard", cards: ["green-growing-trees", "blue-choosable-trap"] },
     ],
   },
   {

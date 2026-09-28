@@ -2587,6 +2587,37 @@ body.is-phone-device .update-banner-close {
   flex-shrink: 0;
 }
 /* クリックで選べる版（pickStackedLockCard、ロック2枚重なりからハンド使用するカードを選ぶ）。 */
+/* 【#357・2026-09-28】盤面のカードを「捨てる順」に選ぶモーダル（requestBoardCardsOrderedForEffect）。
+   #stack-modal の見た目をそのまま使い、案内文と確定ボタンだけ足す。 */
+.stack-modal-note {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  opacity: 0.85;
+  text-align: center;
+}
+.stack-modal-confirm {
+  display: block;
+  margin: 0.9rem auto 0;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid rgba(250, 204, 21, 0.7);
+  border-radius: 0.5rem;
+  background: rgba(28, 16, 4, 0.95);
+  color: #fde68a;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.stack-modal-confirm:hover {
+  filter: brightness(1.12);
+}
+/* 選んだカードは、手札の時と同じ見た目（前へ出して縁取り）にする。 */
+.stack-modal-card.is-discard-picked {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+  transform: translateY(-0.3rem);
+}
 .stack-modal-card.is-pickable {
   cursor: pointer;
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;

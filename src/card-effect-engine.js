@@ -1011,7 +1011,28 @@ async function runAction(action, ctx, helpers) {
       const targetCell = { zone: "cell", row: chosen.row, col: chosen.col };
       helpers.markPlacementTarget?.(targetCell);
       const discardedCount = stack.length;
-      for (const token of stack) {
+      // 【#357・2026-09-28／2026-09-29 に条件を修正】2枚以上あれば、捨てる順番を本人に聞く。
+      // 捨て場は一番上から使われる（山札切れの補充は捨て場をそのまま裏返す＝シャッフルしない）ので、
+      // どの順で積むかがそのまま次の一手の価値を変える。
+      // **当初は「表向きが1枚以上ある時だけ聞く」にしていたが、これは誤りだった**（ユーザー指摘）——
+      // **裏向き＝中身不明とは限らない**。選べる罠・パーティー・収穫と種まき・合同建設のように
+      // **カードを裏向きで盤面に置く効果**があるため、プレイヤーは「あのマスに何を置いたか」を
+      // 覚えていることがある。全部裏向きでも、どれがどれか分かっていれば順番を選ぶ意味がある。
+      // 並べて見せる順は**マスの上から**（ユーザー要望「どの順番でカードが重ねられてたか
+      // わかりやすく」）。state.tokens の中では**後ろにあるものほど上**なので反転して渡す。
+      let orderedStack = [...stack].reverse(); // 上から順（聞けない時もこの順で捨てる＝物理的に自然）
+      if (stack.length >= 2 && helpers.pickBoardCardsOrdered) {
+        const topFirst = orderedStack;
+        const ordered = await helpers.pickBoardCardsOrdered(ctx.player, t("ce.pickDiscardOrder", { n: 1 }), topFirst, {
+          purpose: "discard",
+          note: t("game.pick.boardDiscardStackNote"),
+        });
+        if (Array.isArray(ordered) && ordered.length > 0) {
+          const seen = new Set(ordered.map((tk) => tk.id));
+          orderedStack = [...ordered, ...topFirst.filter((tk) => !seen.has(tk.id))];
+        }
+      }
+      for (const token of orderedStack) {
         await helpers.discardAndSync(token.id);
       }
       // 【#335】お知らせは中央が空くまで順番待ちする（実機で最大9秒）。既定の3秒で光が消えると
@@ -1609,7 +1630,20 @@ async function runAction(action, ctx, helpers) {
       // カード全てを対象にする）。
       const candidates = getState().tokens.filter((t) => t.kind === "card" && t.location.zone === "cell" && t.faceUp);
       if (candidates.length === 0) return false;
-      for (const token of candidates) {
+      // 【#357・2026-09-28】こちらは対象が**全部表向き**（効果の文が「場の全ての表向きのカード」）
+      // なので、2枚以上あれば必ず捨てる順番を聞く。盤面じゅうに散らばっているため、盤面を探して
+      // 押して回るのではなくモーダルに一覧で並べて選ばせる（requestBoardCardsOrderedForEffect）。
+      let orderedCandidates = candidates;
+      if (candidates.length >= 2 && helpers.pickBoardCardsOrdered) {
+        const ordered = await helpers.pickBoardCardsOrdered(ctx.player, t("ce.pickDiscardOrder", { n: 1 }), candidates, {
+          purpose: "discard",
+        });
+        if (Array.isArray(ordered) && ordered.length > 0) {
+          const seen = new Set(ordered.map((tk) => tk.id));
+          orderedCandidates = [...ordered, ...candidates.filter((tk) => !seen.has(tk.id))];
+        }
+      }
+      for (const token of orderedCandidates) {
         await helpers.discardAndSync(token.id);
       }
       // お知らせ（ユーザー要望）: 盤面一括変化の要約。
