@@ -4190,7 +4190,41 @@ async function runDelegatedArrivalTask(player, taskType) {
   if (taskType === "joint-construction") return runJointConstructionTask(player);
   if (taskType === "slum-official-discard") return runSlumOfficialDiscardTask(player);
   if (taskType === "party-option") return runPartyOptionTask(player);
+  if (taskType === "discard-hand-ordered") return runDiscardWholeHandOrderedTask(player);
   return false;
+}
+
+// 【#357・2026-09-28】色落ちキャット（ALL_PLAYERS_DISCARD_HAND_AND_DRAW）専用:
+// 「手札を全て捨てる」を、**その人自身に捨てる順番を選んでもらってから**実行する。
+// 使用者の画面で聞けない理由: オンラインでは相手の手札は cardId がマスクされていて中身が
+// 見えない（意図的な仕様）。そこで合同建設・スラム上がりの役人と同じ委任の仕組みに乗せ、
+// 対象プレイヤー本人の画面で聞く（engine 側の delegateToPlayer から呼ばれる）。
+// 2枚以下・CPUの番なら requestHandCardsOrderedForEffect 側が画面を出さずに決めるので、
+// ここで人間かどうかを気にしなくてよい。
+async function runDiscardWholeHandOrderedTask(player) {
+  const handTokens = getState().tokens.filter(
+    (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+  );
+  if (handTokens.length === 0) return false;
+  let ordered = handTokens;
+  if (handTokens.length >= 2) {
+    const picked = await requestHandCardsOrderedForEffect(
+      player,
+      t("ce.pickDiscardOrder", { n: 1 }),
+      new Set(handTokens.map((tk) => tk.id)),
+      { purpose: "discard" }
+    );
+    if (Array.isArray(picked) && picked.length > 0) {
+      // 選ばれなかった札も必ず捨てる（全部捨てる効果のため）。
+      const seen = new Set(picked.map((tk) => tk.id));
+      ordered = [...picked, ...handTokens.filter((tk) => !seen.has(tk.id))];
+    }
+  }
+  for (const token of ordered) {
+    // 選んでいる間に何らかの理由で無くなっている可能性もゼロではない（善処の原則）。
+    if (getState().tokens.some((t) => t.id === token.id)) await discardFromHandReveal(token.id);
+  }
+  return true;
 }
 
 // 合同建設・スラム上がりの役人・パーティー専用: 効果の使用者（コーディネーター）が

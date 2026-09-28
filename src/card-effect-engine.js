@@ -1626,8 +1626,13 @@ async function runAction(action, ctx, helpers) {
       // 色落ちキャット専用: 参加者全員が手札を全て捨ててから指定枚数ドローする
       // （処理順の原則に沿い、効果の使用者から時計回りに1人ずつ処理する）。
       for (const p of rotatedActivePlayersFrom(ctx.player)) {
-        const handTokens = getHandTokens(p);
-        for (const token of handTokens) {
+        // 【#357・2026-09-28】捨てる順番はその人自身に選んでもらう。**使用者の画面では聞けない**——
+        // オンラインでは相手の手札は cardId がマスクされていて中身が見えないため（意図的な仕様）。
+        // 合同建設・スラム上がりの役人と同じ delegateToPlayer に乗せて、本人の画面で聞く。
+        if (helpers.delegateToPlayer) await helpers.delegateToPlayer(p, "discard-hand-ordered");
+        // 委任が届かなかった／時間切れだった／委任の仕組みを持たない呼び出し元でも、
+        // 「手札を全て捨てる」というルールは必ず守る（残っていればここで捨てる。通常は空振り）。
+        for (const token of getHandTokens(p)) {
           await helpers.discardAndSync(token.id);
         }
         await helpers.drawCards(p, action.count);

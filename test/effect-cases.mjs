@@ -382,6 +382,11 @@ export const CASES = [
       { kind: "handCount", player: "A", n: 1 }, // 各1枚ドロー
       { kind: "handCount", player: "B", n: 1 },
       { kind: "deckLen", n: 0 },
+      // 【#357】捨てる順番は「その人自身」に聞く（相手の手札は使用者から見えないため、
+      // 合同建設と同じ委任に乗せる）。参加者の人数ぶん呼ばれること。
+      { kind: "called", name: "delegateToPlayer", arg: "discard-hand-ordered", n: 2 },
+      // 委任が空振り（このテストの擬似ヘルパーは false を返すだけ）でも「全て捨てる」は
+      // 守られること＝上の tokenGone(ha/hb) が通ることで担保されている。
     ],
   },
   {
