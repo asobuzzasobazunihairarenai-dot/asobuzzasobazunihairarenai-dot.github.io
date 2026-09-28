@@ -1025,7 +1025,7 @@ async function runAction(action, ctx, helpers) {
       return true;
     }
     case VERBS.PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: {
-      // 奇跡の森 マンズウッド専用: N枚公開ドローし、ターン終了時にそれらを捨てる。
+      // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる。
       // 「ターン終了時」の実現方法はmain.jsのmarkDiscardAtTurnEnd/
       // flushPendingTurnEndDiscards参照（新しいサーバーアクション・状態を増やさず、
       // ターン終了ボタンが実際にnextTurn()を呼ぶ直前に先回りして捨てる方式）。ここでは
@@ -1184,7 +1184,26 @@ async function runAction(action, ctx, helpers) {
       });
       if (hasOrange) {
         const handTokens = getHandTokens(ctx.player);
-        for (const token of handTokens) {
+        // 【#357】2枚以上まとめて捨てる時は、本人に順番を選んでもらう（ユーザー要望「複数枚捨てる時は
+        // 順番を指定できるように。総点検を！」）。捨て場は一番上から使われる（山札切れの補充は捨て場を
+        // そのまま裏返す＝シャッフルしない）ので、どの順で積むかがそのまま次の一手の価値を変える。
+        // ザ・ギャンブルの DISCARD_HAND_IF_REVEALED_MATCHES_DECLARED と同じ考え方・同じ部品。
+        // 1枚以下・CPUの番なら pickHandCardsOrdered 側が画面を出さずに決めるので、ここで人間かどうかを
+        // 気にしなくてよい。古い呼び出し元（helper が無い）でも不発にしない＝並び順のまま捨てる。
+        let orderedHand = handTokens;
+        if (handTokens.length >= 2 && helpers.pickHandCardsOrdered) {
+          const ordered = await helpers.pickHandCardsOrdered(
+            ctx.player,
+            t("ce.pickDiscardOrder", { n: 1 }),
+            new Set(handTokens.map((tk) => tk.id)),
+            { purpose: "discard" }
+          );
+          if (Array.isArray(ordered) && ordered.length > 0) {
+            const seen = new Set(ordered.map((tk) => tk.id));
+            orderedHand = [...ordered, ...handTokens.filter((tk) => !seen.has(tk.id))];
+          }
+        }
+        for (const token of orderedHand) {
           await helpers.discardAndSync(token.id);
         }
         // 「あなたはこのターン移動できない」を実際に強制する（不具合#57）。ムーブフェイズの

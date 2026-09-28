@@ -3710,7 +3710,7 @@ function declareColorsForEffect(requirement, cardId, player) {
 // 「公開ドロー」ボタン（buildPublicDrawButton）と同じ経路（drawFromPile("deck",
 // {zone:"publicDraw",player})）をcount回ループするだけの、効果専用の一般化版。
 // 山札が途中で尽きたらそこで打ち切る（善処の原則）。戻り値は実際に引けたcardIdの配列。
-// 【2026-09-07】公開ドロー（奇跡の森マンズウッド等）は、音は鳴るものの**山札から飛ばず
+// 【2026-09-07】公開ドロー（緑のキューブ ヴァーディアン等）は、音は鳴るものの**山札から飛ばず
 // その場に湧いていた**（ザ・ギャンブル／マルメゴは中央のじらしフリップがあるのに、
 // こちらだけ静かだった）。山札から公開エリアへ実際に飛ばす。
 // 手順は他の飛翔演出と同じ——①出発点（山札）の位置を先に測る ②実物を隠す
@@ -3865,7 +3865,7 @@ function endPublicDrawDeferForEffect(player, revealedCardIds) {
   render(); // ここで初めて、公開したカードを公開エリアに一斉に並べる。
 }
 
-// 奇跡の森 マンズウッド専用（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）:
+// 緑のキューブ ヴァーディアン(first-green)専用（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）:
 // publicDrawForEffectと同じ公開ドローを行うが、戻り値がcardIdの配列ではなく実際の
 // トークンid（あとで「このターン終了時にこれを捨てる」と覚えておくために必要、
 // publicDrawForEffect自体はザ・ギャンブルの色一致判定用にcardIdの配列を返す設計の
@@ -6886,6 +6886,35 @@ function hideEffectSkipButton() {
   effectSkipButtonEl?.classList.remove("show");
 }
 
+// 【2026-09-28・ユーザー要望】「複数枚捨てるとき、順番どうでもいいって思う人もいると思います。
+// そんな人のために『おまかせ』ボタンを実装しませんか？」。確定ボタン（上）のすぐ下に出す2つ目の
+// ボタン。押すと、既に選んだ分はその順のまま尊重し、残りをCPUと同じ基準（chooseHandCardToken＝
+// 手放してよい札から）で並べて即確定する＝持ち時間切れの自動代行とまったく同じ決め方。
+// 押すたびに中身が変わるので、リスナーは毎回付け替える（古いのが残ると前の対局の選択を確定して
+// しまう）。
+let effectAutoButtonEl = null;
+let effectAutoButtonHandler = null;
+function showEffectAutoButton(label, onClick) {
+  if (!effectAutoButtonEl) {
+    effectAutoButtonEl = document.createElement("button");
+    effectAutoButtonEl.id = "card-effect-auto-button";
+    effectAutoButtonEl.type = "button";
+    document.body.appendChild(effectAutoButtonEl);
+  }
+  if (effectAutoButtonHandler) effectAutoButtonEl.removeEventListener("click", effectAutoButtonHandler);
+  effectAutoButtonHandler = onClick;
+  effectAutoButtonEl.addEventListener("click", effectAutoButtonHandler);
+  effectAutoButtonEl.textContent = label;
+  effectAutoButtonEl.classList.add("show");
+}
+function hideEffectAutoButton() {
+  effectAutoButtonEl?.classList.remove("show");
+  if (effectAutoButtonEl && effectAutoButtonHandler) {
+    effectAutoButtonEl.removeEventListener("click", effectAutoButtonHandler);
+    effectAutoButtonHandler = null;
+  }
+}
+
 // 【#344・2026-09-09】手札から複数枚まとめて捨てる時の「順番を付けて選ぶ」ピッカー。
 // ユーザー要望「捨てる順に押して行って最後に確認がいいかも！毎回これでいいかの確認は大変。
 // またその際、選び済みのカードを再度クリックしたら選択解除とかが便利かな？」。
@@ -6968,9 +6997,28 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       document.body.classList.remove("card-effect-picking-hand");
       hideEffectPickerHint();
       hideEffectSkipButton();
+      hideEffectAutoButton();
       resolve(tokensOf(ids));
     };
+    // 【2026-09-28】「おまかせ」と持ち時間切れの自動代行で使う並べ方。既に押した分はその順の
+    // まま尊重し、残りをCPUと同じ基準で並べる（同じ決め方を2か所に書かないよう1つにまとめた）。
+    const autoOrder = () => {
+      const pool = new Set(cardEls.map((el) => el.dataset.tokenId).filter((id) => !picked.includes(id)));
+      const ids = [...picked];
+      while (pool.size > 0) {
+        const id = chooseHandCardToken(pool, player) ?? [...pool][0];
+        pool.delete(id);
+        ids.push(id);
+      }
+      return ids;
+    };
     paint();
+    // 順番にこだわらない人のための「おまかせ」。押したらその場で確定する。
+    showEffectAutoButton(t("game.pick.discardOrderAuto"), () => {
+      if (activeEffectPicker?.type !== "handMulti") return; // 既に別の場面へ進んでいたら何もしない
+      activeEffectPicker = null;
+      finish(autoOrder());
+    });
     activeEffectPicker = {
       type: "handMulti",
       owner: player,
@@ -6993,14 +7041,7 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       },
       // 持ち時間切れの自動代行から呼ぶ（順番はCPUと同じ決め方）。
       resolve: () => {
-        const pool = new Set(cardEls.map((el) => el.dataset.tokenId).filter((id) => !picked.includes(id)));
-        const ids = [...picked];
-        while (pool.size > 0) {
-          const id = chooseHandCardToken(pool, player) ?? [...pool][0];
-          pool.delete(id);
-          ids.push(id);
-        }
-        finish(ids);
+        finish(autoOrder()); // 【2026-09-28】「おまかせ」と同じ決め方（autoOrder に集約）
       },
     };
   });
@@ -8341,7 +8382,7 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         pickRandomFromOpponentHand: pickRandomFromOpponentHandForEffect,
         // 【#298】セレスティアで捨てさせた札を「捨てた後」に中央で公開する（上記参照）。
         showForcedDiscardReveal: showForcedDiscardRevealForEffect,
-        // 奇跡の森 マンズウッド（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）用。
+        // 緑のキューブ ヴァーディアン(first-green)（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）用。
         publicDrawReturningTokens: publicDrawReturningTokensForEffect,
         markDiscardAtTurnEnd,
       }
@@ -12544,7 +12585,7 @@ function hideCardPreview() {
   if (previewEl) previewEl.style.display = "none";
 }
 
-// ユーザー要望2026-09-02: 奇跡の森 ヴァーディアン（マンズウッド）の公開ドローで引いたカードは
+// ユーザー要望2026-09-02: 緑のキューブ ヴァーディアン(first-green)の公開ドローで引いたカードは
 // 「このターン使わなかったらターン終了時に捨てられる」。それが分かるよう、拡大プレビューに
 // 一行の注意書きを載せる。対象かどうかは pendingTurnEndDiscards（このターンの終了時に捨てる
 // トークンidの控え）で判定する。
@@ -15508,7 +15549,7 @@ function reconcileAutoEndTurn(shouldEmphasize) {
   }
 }
 
-// 奇跡の森 マンズウッド専用（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）:「ターン終了時、
+// 緑のキューブ ヴァーディアン(first-green)専用（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）:「ターン終了時、
 // それらを捨てる」の実現方法。公開ドロー（publicDrawゾーン）自体は、ターン終了時に
 // 自動で手札へ合流する（mergePublicDrawIntoHand、state.js/so7-apply-action.ts両方に
 // 実装済み、SHUFFLE_HAND/NEXT_TURN共通）設計のため、この効果専用に「合流ではなく
@@ -15530,9 +15571,29 @@ async function flushPendingTurnEndDiscards(player) {
   const set = pendingTurnEndDiscards.get(player);
   if (!set || set.size === 0) return;
   pendingTurnEndDiscards.delete(player);
-  for (const tokenId of set) {
-    // 既に何らかの理由で盤面/publicDrawゾーンから無くなっている可能性もゼロではない
-    // ため（善処の原則）、現存するトークンだけ捨てる。
+  // 既に何らかの理由で盤面/publicDrawゾーンから無くなっている可能性もゼロではないため
+  // （善処の原則）、現存するトークンだけを対象にする。
+  let ids = [...set].filter((id) => getState().tokens.some((t) => t.id === id));
+  // 【#357】2枚以上をまとめて捨てる時は、本人に順番を選んでもらう。ユーザー報告は
+  // 「ヴァディアンで引いたカードを2枚捨てる時、順番を指定できるように！」——ヴァーディアン
+  // （first-green）がこの経路。※マンズウッド（eternal-green）は「【追色１】１枚ドロー。」で
+  // この経路ではない——コードの古いコメントが「マンズウッド専用」のままで、実際に読み違えた
+  // （ユーザー指摘 2026-09-28）。この動詞を使うのはヴァーディアンだけ。捨て場は一番上から使われる（山札切れの補充は
+  // 捨て場をそのまま裏返す＝シャッフルしない）ので、どの順で積むかが次の一手の価値を変える。
+  // 1枚以下・CPUの番なら requestHandCardsOrderedForEffect 側が画面を出さずに決めるので、
+  // ここで人間かどうかを気にしなくてよい。
+  // ※この関数を呼ぶのは**ターンを終える本人の画面だけ**（pendingTurnEndDiscards は効果を
+  //   実行したクライアントのメモリ上にしか無い）。他人に順番を聞いてしまう経路は無い。
+  if (ids.length >= 2) {
+    const ordered = await requestHandCardsOrderedForEffect(player, t("ce.pickDiscardOrder", { n: 1 }), new Set(ids), {
+      purpose: "discard",
+    });
+    if (Array.isArray(ordered) && ordered.length > 0) {
+      const seen = new Set(ordered.map((tk) => tk.id));
+      ids = [...ordered.map((tk) => tk.id), ...ids.filter((id) => !seen.has(id))];
+    }
+  }
+  for (const tokenId of ids) {
     if (getState().tokens.some((t) => t.id === tokenId)) {
       await discardFromHandReveal(tokenId);
     }
@@ -15650,7 +15711,7 @@ function buildEndTurnButton() {
         endTurnActionInProgress = false;
       };
       try {
-      // 奇跡の森 マンズウッド専用: このターン中に「ターン終了時に捨てる」と予約された
+      // 緑のキューブ ヴァーディアン(first-green)専用: このターン中に「ターン終了時に捨てる」と予約された
       // トークンがあれば、実際にnextTurn()を呼ぶ前（＝publicDrawの手札合流処理が走る
       // より前）に先に捨てておく（markDiscardAtTurnEnd参照）。
       await flushPendingTurnEndDiscards(turnPlayerBeforeEnd);

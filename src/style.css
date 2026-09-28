@@ -15072,6 +15072,32 @@ body.reduce-glow #card-effect-picker-hint.show {
 #card-effect-skip-button:hover {
   filter: brightness(1.12);
 }
+/* 【2026-09-28】順番にこだわらない人のための「おまかせ」。確定ボタンのすぐ下に出す。
+   横に並べると確定ボタンの文言の長さで中央がズレる（枚数によって文字数が変わる）ので、
+   同じ中央寄せのまま真下に置く。色は控えめにして、主役（確定）と見分けが付くようにする。 */
+#card-effect-auto-button {
+  position: fixed;
+  top: 10.3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3201;
+  display: none;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 32, 0.95);
+  color: #cbd5e1;
+  font-family: sans-serif;
+  font-size: 0.78rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+#card-effect-auto-button.show {
+  display: block;
+}
+#card-effect-auto-button:hover {
+  filter: brightness(1.2);
+}
 /* ユーザー要望「収穫と種まきで獲得したカードを手札の中で効果が終わるまで光らせて
    ほしい」。既存のhas-mystic-auraとは別に、緑系の「獲得しました」を表す光。 */
 .hand-card.card-effect-just-acquired-glow {

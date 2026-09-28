@@ -42,15 +42,25 @@ export const CHANGELOG = [
   {
     date: "2026-09-28",
     items: [
+      "順番にこだわらない時のために「おまかせ」ボタンを付けました。捨てる順番を選ぶ画面で押すと、その場で自動的に順番が決まります。途中まで選んでいれば、その分はそのまま活かされます。",
+      "複数枚をまとめて捨てる場面で、捨てる順番を自分で選べるようになりました。カードを押した順に番号が付きます。ヴァーディアンで公開した札をターン終了時に捨てる時と、マルメゴで橙が出て手札を全部捨てる時が対象です（ザ・ギャンブル・選べる罠・スラム上がりの役人は以前から選べます）。",
       "このお知らせの見せ方を整えました。不具合の直しは「不具合を修正しました」の1行にまとめ、中身を知りたい時だけ「詳細」を押して開く形にしました。新しくできるようになったことや見え方の変化は、今までどおりそのまま並びます。",
     ],
     itemsEn: [
+      "Added an Auto button for when you do not care about the order: press it on the ordering screen and the order is decided for you. Anything you had already picked is kept as the start of that order.",
+      "When several cards are discarded at once, you can now choose the order yourself; tapping the cards numbers them as you go. This covers the cards revealed by Vardian being discarded at the end of your turn, and Marumego discarding your whole hand when an orange card appears (The Gamble, Choosable Trap and the Slum Official already let you choose).",
       "Tidied up how this news page reads. Bug fixes are now collapsed into a single line, and you can press Details to see them if you want to. New features and changes you can see are still listed as before.",
     ],
     devItems: [
+      "#357 の総点検。複数枚捨てる経路を全部洗い出したところ、engine 側は前回（#344）点検済みで、漏れていたのは2か所——(a) main.js の flushPendingTurnEndDiscards（ヴァーディアン first-green の PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END。Set の挿入順で捨てていた）※この動詞を使うのはヴァーディアンだけ。コード中の古いコメントが「奇跡の森マンズウッド専用」のままで最初そう書いてしまい、ユーザー指摘で気づいた（マンズウッド eternal-green は「【追色１】１枚ドロー。」）。紛らわしいコメント9か所も直した(b) engine の禁断の果実マルメゴ（橙が出たら手札を全捨て。手札の並び順だった）。どちらも既存の pickHandCardsOrdered を同じ形で挟んだ。残り: 色落ちキャットの ALL_PLAYERS_DISCARD_HAND_AND_DRAW は全員対象なので delegateToPlayer の新しい taskType が要る（未対応・ユーザー判断待ち）。ワイナウエア／白の意思の覚醒は盤面のカードを捨てるので手札ピッカーでは扱えない（同上）。DISCARD_OWN_HAND は効果変更で未使用。",
+      "落とし穴を1つ潰した: 自動処理モード（既定）では自分の公開ドローは .hand-reveal-area ではなく**手札の扇の中**に描かれる（inlineRevealTokens）。拾えていないとピッカーが対象0件で素通りし「直したつもりで何も起きない」になる。扇の中の札も className に hand-card が付いているため requestHandCardsOrderedForEffect の検索式で拾えることを実測で確認した（公開ドローに2枚置いて、扇の中2枚・公開エリア0枚・2枚とも検索式にヒット）。",
+      "マルメゴ側は常設テストに検査を足した（test/effect-cases.mjs、橙が出て手札全捨て→pickHandCardsOrdered が選んだ順で1回だけ呼ばれる）。A/Bで確認済み——engine 側の呼び出しを外すと 58/59 で落ちる。",
       "CHANGELOG の項目に fixes / fixesEn を追加した（items / itemsEn と同じ形）。表示は「不具合を修正しました」＋「詳細」ボタンの開閉で、件数は出さない（数が見えると結局「たくさんある」印象になる＝ユーザー判断）。管理者の devItems はこの詳細の中に続けて入れ、開く場所を1つにまとめた。fixes が無い回（過去の分）は従来どおり devItems をそのまま出す。generalEntries() と currentSignature() も fixes を見るように直した——items だけで判定したままだと「全部が不具合の直し」の回がその日付ごと消え、NEWも付かない。過去75件の振り分けはしない（itemsEn を足した時と同じ方針＝ユーザー判断）。",
     ],
     devItemsEn: [
+      "#357 sweep. Every path that discards several cards at once was reviewed: the engine had already been covered by #344, and two places had been missed — (a) flushPendingTurnEndDiscards in main.js (Vardian first-green, PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END, which discarded in Set insertion order; it is the only card using that verb — stale comments all over the code still called it Manzwood-only, which is what I wrote at first until the user caught it, since Manzwood eternal-green is simply a one-card draw; nine misleading comments were corrected) and (b) Marumego in the engine (discard the whole hand when an orange card appears, which used the hand's display order). Both now wrap the existing pickHandCardsOrdered the same way. Left open: the Faded Cat's ALL_PLAYERS_DISCARD_HAND_AND_DRAW targets everyone, so it would need a new delegateToPlayer task type (not done, pending the user's call); Winauea and the White Awakening discard cards on the board, which the hand picker cannot address (same).  DISCARD_OWN_HAND is unused since the card's effect changed.",
+      "One trap closed: in auto-processing mode (the default) your own public draws are rendered inside the hand fan, not in .hand-reveal-area (inlineRevealTokens). If they were not picked up, the picker would see zero candidates and silently do nothing. Measured that they are found by requestHandCardsOrderedForEffect's selector because the fan cards also carry the hand-card class (two cards placed in publicDraw: two in the fan, zero in the reveal area, both matched).",
+      "The Marumego side gained a permanent test (test/effect-cases.mjs: an orange card appears, the hand is discarded, and pickHandCardsOrdered is called once with the chosen order). Confirmed A/B — removing the engine call drops the suite to 58/59.",
       "Added fixes / fixesEn to each CHANGELOG entry (same shape as items / itemsEn). They render as a single line plus a Details toggle, with no count shown (a count would still read as \"lots of bugs\" — user's call). An admin's devItems now live inside that same Details box so there is only one thing to open; entries without fixes (the older ones) still show devItems directly as before. generalEntries() and currentSignature() now consider fixes too: judging by items alone would hide any entry that is entirely bug fixes, and it would not get the NEW badge. Past entries are not reclassified, matching how itemsEn was introduced (user's call).",
     ],
   },

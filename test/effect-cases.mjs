@@ -943,6 +943,34 @@ export const CASES = [
     ],
   },
   {
+    // 【#357】橙が出て手札を全部捨てる時、捨てる順番を本人が選べること。捨て場は一番上から
+    // 使われる（山札切れの補充は捨て場をそのまま裏返す＝シャッフルしない）ので、順番が効く。
+    // この検査を外す（engine側の pickHandCardsOrdered 呼び出しを消す）と落ちることをA/Bで確認済み。
+    name: "禁断の果実マルメゴ/eternal-orange(手札): 橙が出たら手札を全捨て。捨てる順番を選べる（#357）",
+    kind: "hand",
+    cardId: "eternal-orange",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "self", kind: "card", cardId: "eternal-orange", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "cost", kind: "card", cardId: "orange-harvest-sow", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "keep1", kind: "card", cardId: "blue-choosable-trap", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "keep2", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      // 橙（マスチェンジ）を含む4枚 → 手札全捨ての条件を満たす
+      piles: { deck: ["red-jump-pad", "blue-choosable-trap", "green-growing-trees", "orange-mass-change"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-orange", cardTokenId: "self" },
+    picks: { discardCost: ["cost"], handCardsOrdered: [["keep2", "keep1"]] },
+    expect: [
+      { kind: "tokenGone", id: "cost" },
+      // 順番付きで1回だけ呼ばれ、選んだ順がそのまま返ること。
+      { kind: "called", name: "pickHandCardsOrdered", arg: "keep2,keep1" },
+      { kind: "tokenGone", id: "keep1" },
+      { kind: "tokenGone", id: "keep2" },
+    ],
+  },
+  {
     name: "手品師の技スリカエ(到達): 相手と手札を1枚ずつ交換",
     kind: "arrival",
     cardId: "yellow-sleight-of-hand",

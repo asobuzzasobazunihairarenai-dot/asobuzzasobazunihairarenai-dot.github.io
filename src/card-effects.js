@@ -64,7 +64,7 @@ export const VERBS = {
   DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS: "discard_random_from_qualifying_opponents", // 青のキューブ セレスティア専用: 手札が指定枚数以上ある相手全員から無作為に1枚ずつ捨てる
   DISCARD_ALL_AT_CHOSEN_CELL: "discard_all_at_chosen_cell", // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
   // 続き44で新設。
-  PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 奇跡の森 マンズウッド専用: N枚公開ドローし、ターン終了時にそれらを捨てる
+  PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる
   MOVE_CHOSEN_OPPONENT_ADJACENT_TO_SELF: "move_chosen_opponent_adjacent_to_self", // 結ばれの一本桜 コノハナサクヤ専用: 相手を選び、その駒をあなたの「周囲」（縦横斜めの8マス。#224）へ移動させる（「移動」扱い）
   PUBLIC_DRAW_DISABLE_HAND_EFFECTS_CONDITIONAL_DISCARD: "public_draw_disable_hand_effects_conditional_discard", // 禁断の果実 マルメゴ専用: N枚公開ドロー、それらの手札効果は今ターン使用不可、橙が混ざっていたら手札全捨て＋今ターン移動不可
   ANNOUNCE_MOVEMENT_BOOST_THIS_TURN: "announce_movement_boost_this_turn", // 紫のキューブ ディメンション専用: このターンの通常の移動が2マス一気になる（このアプリは元々移動先を制限しないため、実際には案内のみ）
@@ -555,7 +555,10 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 奇跡の森 マンズウッド（緑、ファーストカード） 手札効果:
+  // 緑のキューブ ヴァーディアン（緑、ファーストカード） 手札効果:
+  // 【2026-09-28】この効果は元々「奇跡の森 マンズウッド」用に作られたが、マンズウッド
+  // （eternal-green）の効果は「【追色１】１枚ドロー。」に変わっており、いまこの動詞を使うのは
+  // **このヴァーディアンだけ**。コメントが「マンズウッド専用」のまま残っていて実際に読み違えた。
   // 「【追色１】２枚ドローして、それらをすべて公開する。ターン終了時、それらを
   // 捨てる。この効果は１ターンに１度のみ得られる。」
   "first-green": {
@@ -1216,7 +1219,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["eternal-red"].handEffect));
   console.log("  実際: 【追色１】任意の１マスのカードをすべて捨てる。\n");
 
-  console.log("[奇跡の森 マンズウッド 手札効果]");
+  console.log("[緑のキューブ ヴァーディアン 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["first-green"].handEffect));
   console.log("  実際: 【追色１】２枚ドローして、それらをすべて公開する。ターン終了時、それらを捨てる。この効果は１ターンに１度のみ得られる。\n");
 

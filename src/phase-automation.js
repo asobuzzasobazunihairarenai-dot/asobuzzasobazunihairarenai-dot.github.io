@@ -346,7 +346,7 @@ export function getHandEffectBusyStuckMs() {
   return handEffectBusy && handEffectBusySince ? Date.now() - handEffectBusySince : 0;
 }
 
-// #174（ユーザー報告）: 奇跡の森 マンズウッド（first-green）の手札効果で公開ドローした直後、
+// #174（ユーザー報告）: 緑のキューブ ヴァーディアン（first-green）の手札効果で公開ドローした直後、
 // ハンドフェイズが自動的に終了してしまい、引いたカードを見る/使う間が無かった。
 // 公開ドローは「引いたカードをこのターン使うため」にわざわざコストを払って行う行為なので、
 // 引いた直後に「今すぐ使える手札効果が無い」という自動判定でフェイズを閉じてしまうのは
