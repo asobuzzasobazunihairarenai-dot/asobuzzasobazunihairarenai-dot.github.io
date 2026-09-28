@@ -18,7 +18,21 @@
 //                              「CPUが収穫と種まきで自分自身を拾って置き直す空振りをしていた」等）。
 //   どちらも ja/en は同じ順番・同じ件数で書くこと。**事実を消すためのものではない**——
 //   詳しさの階層を分けるだけで、管理者の画面には今までどおり全部出る。
-//   items が空（devItems だけ）の回は、一般の画面ではその日付ごと出さない。
+//
+// ★2026-09-28（続き535）から: **不具合の直しは items ではなく fixes / fixesEn に書く**
+//   （ユーザー要望「『不具合を修正しました』だけにして、隣の『詳細』を押した人が見る形にしたい。
+//    その詳細も一般に見せるものはめちゃ簡単な内容に」）。
+//     items / itemsEn   … **良いニュース**だけ。新しくできるようになったこと・見え方や遊び方の
+//                         変化。畳まずそのまま並べる（ここを畳むと見てほしいものまで隠れる）。
+//     fixes / fixesEn   … **不具合の直し**。画面では「不具合を修正しました」の1行に畳まれ、
+//                         「詳細」を押した時だけ開く。**1件1行の、めちゃ簡単な言い方で書く**
+//                         （items より短く。原因・仕組みの話は devItems の方へ）。
+//     devItems / …      … 管理者だけ。上の「詳細」の中に続けて出る。
+//   **件数は出さない**（「不具合を修正しました（3件）」のようにしない。数が見えると結局
+//   「たくさんある」印象になるため＝ユーザー判断）。
+//   過去分（2026-09-27 より前）の振り分けはしない＝古い回は今までどおり items に不具合の直しが
+//   混ざったまま出る（itemsEn を足した時と同じ方針。ユーザー判断 2026-09-28）。
+//   items も fixes も空（devItems だけ）の回は、一般の画面ではその日付ごと出さない。
 
 import { createBackdrop } from "./ui-helpers.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -26,20 +40,31 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
-    date: "2026-09-27",
+    date: "2026-09-28",
     items: [
-      "接触の時、攻める駒が相手の駒に向かってスライドしていく動きが、絵だけ置いていかれて止まって見えていたのを直しました。助走からタックルまで、駒がちゃんと動いて見えます。",
-      "誰かの持ち時間が切れて代わりに自動で選ばれた時、「○○さんの選択が時間切れになりました」と全員にお知らせするようになりました。今までは何も出ないまま盤面が進んでいたので、何が起きたのか分かりませんでした。",
-      "相手に選んでもらう効果（合同建設など）で時間切れになった時、その選択を「無かったこと」にせず、ルールに沿って自動で選んで実行するようになりました。カードが置かれないまま先へ進んでしまうことがなくなります。",
-      "タイマーを使わない対戦で、合同建設などの「相手が選ぶ」場面で、相手が少し考えているだけでその選択が勝手に飛ばされてしまうことがあったのを直しました。タイマーを切っている対戦では、相手が選び終わるまで待ちます（席を外していても、みんなで食事をしていても、勝手に進みません）。",
-      "同じように、接触でどのカードを奪うか選んでいる最中に、選ぶ前に勝手に決められてしまうことがあったのも直しました。こちらもタイマーを切っている対戦では待つようになります。",
+      "このお知らせの見せ方を整えました。不具合の直しは「不具合を修正しました」の1行にまとめ、中身を知りたい時だけ「詳細」を押して開く形にしました。新しくできるようになったことや見え方の変化は、今までどおりそのまま並びます。",
     ],
     itemsEn: [
-      "Fixed the contact animation: the attacking piece appeared frozen because only its picture was left behind while it slid toward the defender. The run-up and the tackle now show the piece actually moving.",
-      "When someone runs out of time and a choice is made for them, everyone is now told whose choice timed out. Until now nothing was shown and the board simply moved on, so no one could tell what had happened.",
-      "When a choice handed to another player (such as Joint Construction) runs out of time, it is no longer treated as though nothing happened: a legal choice is made and carried out automatically, so play no longer continues with the card left unplaced.",
-      "Fixed an issue in matches played without the timer: when a choice was handed to another player (such as Joint Construction), it could be skipped just because they took a little time to think. With the timer off, the game now waits until they have finished choosing — it will not move on while someone is away from the table or eating together.",
-      "Fixed the same kind of issue when choosing which card to take on contact; the choice could be decided for you before you made it. With the timer off, the game now waits here too.",
+      "Tidied up how this news page reads. Bug fixes are now collapsed into a single line, and you can press Details to see them if you want to. New features and changes you can see are still listed as before.",
+    ],
+    devItems: [
+      "CHANGELOG の項目に fixes / fixesEn を追加した（items / itemsEn と同じ形）。表示は「不具合を修正しました」＋「詳細」ボタンの開閉で、件数は出さない（数が見えると結局「たくさんある」印象になる＝ユーザー判断）。管理者の devItems はこの詳細の中に続けて入れ、開く場所を1つにまとめた。fixes が無い回（過去の分）は従来どおり devItems をそのまま出す。generalEntries() と currentSignature() も fixes を見るように直した——items だけで判定したままだと「全部が不具合の直し」の回がその日付ごと消え、NEWも付かない。過去75件の振り分けはしない（itemsEn を足した時と同じ方針＝ユーザー判断）。",
+    ],
+    devItemsEn: [
+      "Added fixes / fixesEn to each CHANGELOG entry (same shape as items / itemsEn). They render as a single line plus a Details toggle, with no count shown (a count would still read as \"lots of bugs\" — user's call). An admin's devItems now live inside that same Details box so there is only one thing to open; entries without fixes (the older ones) still show devItems directly as before. generalEntries() and currentSignature() now consider fixes too: judging by items alone would hide any entry that is entirely bug fixes, and it would not get the NEW badge. Past entries are not reclassified, matching how itemsEn was introduced (user's call).",
+    ],
+  },
+  {
+    date: "2026-09-27",
+    fixes: [
+      "接触の時に、攻める駒が相手に向かって動いて見えるようになりました。",
+      "タイマーを切っている対戦で、相手が考えている途中に選択が飛ばされてしまうのを直しました。",
+      "持ち時間が切れて代わりに選ばれた時に、誰の選択が時間切れになったかをお知らせします。",
+    ],
+    fixesEn: [
+      "On contact, the attacking piece now visibly moves toward its target.",
+      "In matches played without the timer, a choice is no longer skipped while someone is still thinking.",
+      "When someone runs out of time and a choice is made for them, everyone is now told whose choice it was.",
     ],
     devItems: [
       "#360 の原因は、盤面のWebGL描画が「render() の合図と500msに1回のタイマー」でしか板を作り直さないこと。タックルはCSSトランジションでDOMを動かすだけなので絵が置いていかれる。A/B実測: タックルの5.4秒間に flushBoard3d() が走った回数は旧=0回／新=フレームごと。あわせて2つ穴を塞いだ——(a) flushNow は呼ばれるたびに盤面を丸ごと作り直す（実機で約28ms／通常フレーム36ms）ので毎フレームでは負荷がほぼ倍・120Hz機では毎秒120回になり #348 の教訓に逆行するため 30ms間隔（毎秒約33回）に制限 (b) requestAnimationFrame はタブを裏に回すと止まるので、rAF だけで待つと接触の最中にタブを移ると演出が止まって対局が進まない（オンラインでは相手も待たせる）。タイマーの保険（ms+250ms）と競争させた。実測: 保険なし=14秒経っても lunge-end が出ない／保険あり=5.2秒で完走。",
@@ -1800,14 +1825,19 @@ const CHANGELOG_READ_KEY = "so7-changelog-read";
 // **署名は管理者かどうかで変えない**——isAdminUser() はログインの読み込みが終わるまで false を
 // 返すので、署名に混ぜると起動直後だけ NEW が付いたり消えたりする。管理者向けの項目のために
 // NEW を出す必要も無い（開けば見える）。
+// 【2026-09-28】fixes（不具合の直し）だけの回も一般の画面に出す。ここを items だけで判定したままだと、
+// 今回のように「その回は全部が不具合の直し」だと**その日付ごと消えてしまう**。
 function generalEntries() {
-  return CHANGELOG.filter((e) => Array.isArray(e.items) && e.items.length > 0);
+  return CHANGELOG.filter(
+    (e) => (Array.isArray(e.items) && e.items.length > 0) || (Array.isArray(e.fixes) && e.fixes.length > 0)
+  );
 }
 function currentSignature() {
   const list = generalEntries();
   const top = list[0];
   if (!top) return "";
-  return `${top.date}|${top.items.length}|${list.length}`;
+  // 【2026-09-28】fixes も数に入れる（不具合の直しだけの回でも「NEW」が付くようにする）。
+  return `${top.date}|${(top.items?.length ?? 0) + (top.fixes?.length ?? 0)}|${list.length}`;
 }
 export function hasUnreadChangelog() {
   try {
@@ -1894,16 +1924,62 @@ export function openChangelogModal({ admin = false } = {}) {
         section.appendChild(ul);
       };
       appendList(useEn ? entry.itemsEn : entry.items, "changelog-items");
-      if (admin) {
-        const useDevEn = getLang() !== "ja" && Array.isArray(entry.devItemsEn) && entry.devItemsEn.length > 0;
-        const devTexts = useDevEn ? entry.devItemsEn : entry.devItems;
-        if (Array.isArray(devTexts) && devTexts.length > 0) {
-          const head = document.createElement("div");
-          head.className = "changelog-dev-head";
-          head.textContent = t("chg.devHead");
-          section.appendChild(head);
-          appendList(devTexts, "changelog-items changelog-dev-items");
+      // 【2026-09-28・ユーザー要望】不具合の直し（fixes）は一覧で並べず、「不具合を修正しました」の
+      // 1行に畳んで「詳細」で開く。理由は続き484 で devItems を分けたのと同じ——直した項目が列で
+      // 並ぶと「問題だらけのアプリ」に見えてしまう。ただし**深さではなく種類で分ける**のが肝で、
+      // 良いニュース（items＝新しくできること・見え方の変化）は畳まずそのまま見せる。畳んでしまうと
+      // 見てほしいものまで隠れるため。**件数は出さない**（数が見えると結局「たくさんある」印象に
+      // なる＝ユーザー判断 2026-09-28）。
+      // 管理者の「めちゃ詳細」（devItems）は、この詳細の中に続けて入れる（開く場所を1つにまとめる）。
+      const useFixEn = getLang() !== "ja" && Array.isArray(entry.fixesEn) && entry.fixesEn.length > 0;
+      const fixTexts = useFixEn ? entry.fixesEn : entry.fixes;
+      const useDevEn = getLang() !== "ja" && Array.isArray(entry.devItemsEn) && entry.devItemsEn.length > 0;
+      const devTexts = useDevEn ? entry.devItemsEn : entry.devItems;
+      const hasFixes = Array.isArray(fixTexts) && fixTexts.length > 0;
+      const hasDev = admin && Array.isArray(devTexts) && devTexts.length > 0;
+      const appendDev = () => {
+        const head = document.createElement("div");
+        head.className = "changelog-dev-head";
+        head.textContent = t("chg.devHead");
+        section.appendChild(head);
+        appendList(devTexts, "changelog-items changelog-dev-items");
+      };
+      if (hasFixes) {
+        const row = document.createElement("div");
+        row.className = "changelog-fixes-row";
+        const label = document.createElement("span");
+        label.className = "changelog-fixes-label";
+        label.textContent = t("chg.fixesLine");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "changelog-fixes-toggle";
+        btn.textContent = t("chg.fixesOpen");
+        row.appendChild(label);
+        row.appendChild(btn);
+        section.appendChild(row);
+        const box = document.createElement("div");
+        box.className = "changelog-fixes-detail";
+        box.hidden = true;
+        section.appendChild(box);
+        // appendList は section へ足す作りなので、box の中に入れ替えるために一旦作ってから移す。
+        const moveInto = (texts, className) => {
+          const before = section.childNodes.length;
+          appendList(texts, className);
+          while (section.childNodes.length > before) box.appendChild(section.childNodes[before]);
+        };
+        moveInto(fixTexts, "changelog-items changelog-fix-items");
+        if (hasDev) {
+          const before = section.childNodes.length;
+          appendDev();
+          while (section.childNodes.length > before) box.appendChild(section.childNodes[before]);
         }
+        btn.addEventListener("click", () => {
+          box.hidden = !box.hidden;
+          btn.textContent = box.hidden ? t("chg.fixesOpen") : t("chg.fixesClose");
+        });
+      } else if (hasDev) {
+        // 不具合の直しが無い回（過去の分など）は従来どおり、管理者向けの詳細をそのまま出す。
+        appendDev();
       }
       list.appendChild(section);
     }

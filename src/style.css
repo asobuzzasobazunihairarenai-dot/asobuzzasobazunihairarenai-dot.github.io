@@ -2272,6 +2272,43 @@ body.theme-light #changelog-back {
   opacity: 0.85;
   font-size: 0.78rem;
 }
+/* 【2026-09-28】不具合の直しを畳んだ1行と、その開閉ボタン（changelog.js参照）。項目の列と違って
+   「見出しっぽく」見えてほしいので、箇条書きの点は付けず1行に並べる。 */
+.changelog-fixes-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+/* 色は決め打ちしない。#changelog-modal 自体が明暗テーマで文字色を持っており、一般の項目
+   (.changelog-items li) も色を指定せず継承している。ここで薄い色を決め打ちすると、明るいテーマの
+   背景（羊皮紙）で文字が見えなくなる——実際に描いて撮ったら「不具合を修正しました」もボタンの文字も
+   消えていた（2026-09-28）。 */
+.changelog-fixes-label {
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.changelog-fixes-toggle {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.72rem;
+  color: inherit;
+  background: rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+.changelog-fixes-toggle:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+.changelog-fixes-detail {
+  margin-top: 0.3rem;
+}
+/* 畳んだ中身は「詳しい方」なので、一般向けの項目より少し控えめにする。 */
+.changelog-fix-items li {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+}
 /* 英語表示で、その回のお知らせに英訳(itemsEn)が無い時の一言（changelog.js参照）。 */
 .changelog-ja-only {
   color: #94a3b8;
@@ -20463,6 +20500,7 @@ body.theme-light .changelog-empty,
 body.theme-light .changelog-ja-only,
 body.theme-light .changelog-dev-head,
 body.theme-light .changelog-dev-items li,
+body.theme-light .changelog-fix-items li,
 body.theme-light .currency-about-title,
 body.theme-light .currency-award-float,
 body.theme-light .emote-mute-menu-btn,
