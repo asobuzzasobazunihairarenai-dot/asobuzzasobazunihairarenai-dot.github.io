@@ -12686,6 +12686,12 @@ function updatePileTooltip(el, clientX, clientY) {
 // 下端で見切れる、(2)反転してもパネルがカーソル位置より大きいと反対側にはみ出す、
 // という取りこぼしがあった。left/topを算出したうえで必ずステージ内に収まるよう
 // クランプして、どの端でも見切れないようにする。
+// 【#358・2026-09-29】スマホの長押し拡大は、**押した指と反対側**に出す（ユーザー要望
+// 「画面の右側のものをスマホで拡大するときは左側に拡大を表示。その逆も！」＝自分の手で
+// 拡大が隠れてしまうのを防ぐため）。マウスのホバーはこれまでどおりユーザー設定（右／左）に
+// 従う——マウスには「指で隠れる」問題が無いので、設定を上書きする理由が無い。
+// 長押しでプレビューを出した時に立て、指を離した時／ピンチ等で中断した時に下ろす。
+let previewFollowsTouch = false;
 function positionPreviewPanel(panel, clientX, clientY) {
   const offset = 20;
   const margin = 8;
@@ -12700,8 +12706,11 @@ function positionPreviewPanel(panel, clientX, clientY) {
 
   // 横: 既定の展開方向はユーザー設定（右／左、既定は右）。設定側にはみ出す場合だけ反対側へ
   // 反転し、最後にステージ内へクランプする（ユーザー要望2026-08-07: 右拡大/左拡大を選べる）。
+  // 【#358】長押し（指）の時は押した位置と反対側へ。ユーザー設定より優先する——指で隠れない
+  // ようにするのが目的なので、どちら側に出すかは「押した場所」で決まるべきだから。
+  const side = previewFollowsTouch ? (clientXLocal < STAGE_WIDTH / 2 ? "right" : "left") : getCardPreviewSide();
   let left;
-  if (getCardPreviewSide() === "left") {
+  if (side === "left") {
     left = clientXLocal - offset - panelWidthPx;
     if (left < 0) left = clientXLocal + offset; // 左がはみ出すなら右へ
   } else {
@@ -13715,6 +13724,7 @@ function startTouchHoldOrDrag(e, hit) {
     if (settled) return;
     settled = true;
     peeking = true;
+    previewFollowsTouch = true; // 【#358】この拡大は「押した指と反対側」へ出す
     updateHover(startX, startY); // 既存のホバー処理（ハイライト＋拡大プレビュー）をそのまま流用
   }, TOUCH_HOLD_MS);
 
@@ -13736,6 +13746,7 @@ function startTouchHoldOrDrag(e, hit) {
     clearTimeout(timer);
     cleanupListeners();
     if (peeking) {
+      previewFollowsTouch = false; // 【#358】指を離したら通常（マウス＝ユーザー設定）へ戻す
       clearHover();
       updatePreview(null);
     } else {
@@ -13764,6 +13775,7 @@ function startTouchHoldOrDrag(e, hit) {
     clearTimeout(timer);
     cleanupListeners();
     if (peeking) {
+      previewFollowsTouch = false; // 【#358】中断時も戻す（立てっぱなしにしない）
       clearHover();
       updatePreview(null);
     }
