@@ -23,6 +23,7 @@ import { openDeckViewer } from "./deck-viewer.js";
 import { canResignNow, requestResign } from "./resign.js";
 import { isLockAreaBarVisible, setLockAreaBarVisible } from "./lock-area-bar.js";
 import { isLockColorVisible, setLockColorVisible } from "./lock-color.js";
+import { getCinematicLevel, setCinematicLevel } from "./cinematic-camera.js";
 import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confirm-prefs.js";
 import { isCellConfirmEnabled, setCellConfirmEnabled } from "./cell-confirm.js";
 import { isBoardIllustOnly, setBoardIllustOnly } from "./board-card-display.js";
@@ -530,6 +531,66 @@ function buildCardPreviewSideRow() {
 // CPU戦（1人用）のCPUの速さ（ゆっくり／普通／早い）を選ぶセグメント。ユーザー要望
 // 「CPUが速すぎてザ・ギャンブル等のモーダルが読み取れない」。選ぶとその場で反映され、
 // 次のCPUの手から効く（cpu-battle-state.js、端末に保存）。
+// 【2026-09-29・続き547・ユーザー要望】「アグレッシブモード（仮）」。行動を決めた後に
+// カメラが駒や対象へ寄る。**通常の移動は毎ターン必ず起きる**ので、既定の「決め所だけ」では
+// 接触などに絞り、「全部」を選んだ人だけ移動にも寄る。既定は「切」（新しい見せ方なので、
+// まずは自分で入れてもらう）。
+function buildCinematicRow(onClose) {
+  const row = document.createElement("div");
+  row.className = "options-menu-volume-row";
+  const label = document.createElement("span");
+  label.textContent = t("opt.cinematic");
+  row.appendChild(label);
+  const group = document.createElement("div");
+  group.className = "options-menu-segment";
+  const buttons = [];
+  const refresh = () => {
+    const cur = getCinematicLevel();
+    for (const b of buttons) b.classList.toggle("is-selected", b.dataset.v === cur);
+  };
+  for (const [v, text] of [
+    ["off", t("opt.cinematic.off")],
+    ["highlights", t("opt.cinematic.highlights")],
+    ["all", t("opt.cinematic.all")],
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "options-menu-segment-btn";
+    btn.dataset.v = v;
+    btn.textContent = text;
+    btn.addEventListener("click", () => {
+      setCinematicLevel(v);
+      refresh();
+    });
+    group.appendChild(btn);
+    buttons.push(btn);
+  }
+  row.appendChild(group);
+  // 【続き548・ユーザー要望】「試しに見るのに一苦労」。接触の演出だけをその場で再生する。
+  // 盤面に駒が2つ以上ある（＝対戦中）時だけ押せる。押すとオプションを閉じてから再生する
+  // （このパネルが盤面を覆っているので、閉じないと見えない）。
+  const demo = document.createElement("button");
+  demo.type = "button";
+  demo.className = "options-menu-segment-btn options-menu-demo-btn";
+  demo.textContent = t("opt.cinematic.demo");
+  // 起動直後でも盤面には駒が置かれている（＝駒の数だけでは「対戦中」と判定できない。
+  // 続き548でこれを取り違えて検査が落ちた）。実際に手番が回っていることも条件にする。
+  const st = getState();
+  const piecesOnBoard = st.tokens.filter((tk) => tk.kind === "piece" && tk.location?.zone === "cell").length;
+  if (piecesOnBoard < 2 || !st.turnPlayer) {
+    demo.disabled = true;
+    demo.title = t("opt.cinematic.demoNeedGame");
+  }
+  demo.addEventListener("click", () => {
+    if (demo.disabled) return;
+    onClose?.();
+    window.dispatchEvent(new CustomEvent("so7:preview-contact"));
+  });
+  row.appendChild(demo);
+  refresh();
+  return row;
+}
+
 function buildCpuSpeedRow() {
   const row = document.createElement("div");
   row.className = "options-menu-volume-row";
@@ -1183,6 +1244,8 @@ export function initOptionsMenu() {
               saveMyPreference({ lock_area_bar_visible: checked });
             })
           );
+          // 【続き547・ユーザー要望】アグレッシブモード（仮）。行動のあとカメラが寄る。
+          content.appendChild(buildCinematicRow(close));
           content.appendChild(
             buildCheckboxRow(t("opt.chk.lockColor"), isLockColorVisible(), (checked) => {
               setLockColorVisible(checked);

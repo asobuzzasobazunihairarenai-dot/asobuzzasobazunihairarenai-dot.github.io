@@ -22582,3 +22582,12 @@ body.theme-light-ingame .ranking-choice-item {
 .modal-peek-return:hover {
   filter: brightness(1.12);
 }
+
+/* 【続き548】アグレッシブモードの「▶ 見本」。対戦中でないと押せない。 */
+.options-menu-demo-btn {
+  margin-left: 0.4rem;
+}
+.options-menu-demo-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

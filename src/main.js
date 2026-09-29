@@ -427,6 +427,9 @@ function cardDisplayName(cardId) {
 }
 import { isBoardIllustOnly } from "./board-card-display.js";
 import { invalidateBoard3d, flushBoard3d } from "./board-3d-setting.js";
+// 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
+// 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
+import { cinematicAllows, getCinematicCamera, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
 import { showCardFace } from "./card-face-display.js";
 import { onLangChange } from "./i18n.js";
 import { t } from "./ui-text.js";
@@ -1711,7 +1714,28 @@ async function addArrivedCardToHand(location, player) {
 // 満たすために使う。これをawaitしないと、露出到達と直後のPLACE（種まきの手札選択）が並行して走り、
 // 種まきのピッカーが宙に浮く（手札が全部トーンオフのまま固着）不具合になっていた。他の呼び出し元は
 // 従来通り撃ちっぱなし（false）で挙動を変えない。
-async function moveAndSyncForEffect(tokenId, location, soundName, suppressArrival, awaitExposedArrival = false, skipExposedArrival = false, animOpts = null) {
+// 【2026-09-29・続き547】アグレッシブモード: **効果による駒の移動**は決め所に入れる
+// （ユーザー要望「移動の瞬間にも寄るのはどう？効果での移動含む」）。ジャンプ台・強制移動・
+// 入れ替え・儀式のように「自分が動かしたわけではない移動」は、何が起きたか分かりにくいので、
+// カメラが寄ると演出だけでなく**説明**にもなる。自分でドラッグする通常の移動は毎ターン必ず
+// 起きるので、ここには含めない（「全部」を選んだ時だけ別経路で寄る）。
+// カードの移動（配置・手札行き）は対象外＝駒だけ。
+async function moveAndSyncForEffect(...args) {
+  const [tokenId, location] = args;
+  const token = getState().tokens.find((t) => t.id === tokenId);
+  const table = document.getElementById("game-table");
+  const useCamera =
+    token?.kind === "piece" && location?.zone === "cell" && cinematicAllows("highlight") && !!table;
+  if (!useCamera) return moveAndSyncForEffect__inner(...args);
+  const destEl = findLocationElement(table, location);
+  if (destEl) await focusCameraOnElement(destEl, { zoom: 1.28, ms: 360 });
+  try {
+    return await moveAndSyncForEffect__inner(...args);
+  } finally {
+    scheduleCameraHome(); // 続けて効果が動く時は取り消され、止まってから1回だけ戻る
+  }
+}
+async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppressArrival, awaitExposedArrival = false, skipExposedArrival = false, animOpts = null) {
   const movingToken = getState().tokens.find((t) => t.id === tokenId);
   const fromLocation = movingToken?.location ?? null;
   // #152: 露出到達コンボは「マスの“一番上”のカードがどいて別のカードが新しく一番上になった」
@@ -10989,7 +11013,12 @@ async function respondToContactInner(approve) {
     // respondContact()による状態変化で盤面が勝手に作り直されないようにする
     // （suppressGenericRenderForOnlineStartと同じパターン）。
     suppressGenericRenderForContactTackle = true;
+    // 【続き547】アグレッシブモード: 接触は最初の決め所。攻める駒に寄ってから突進を見せ、
+    // 終わったら必ず元の画角へ戻す（戻し忘れると盤面が寄ったままになる）。
+    const cameraOnContact = cinematicAllows("highlight");
+    if (cameraOnContact) await focusCameraOnElement(tackle.attackerEl, { zoom: 1.35, ms: 420 });
     await playContactLunge(tackle);
+    if (cameraOnContact) await cameraHome(420);
     logAction("diag-contact-tackle", { phase: "lunge-end" });
     // 【2026-09-06】ここで**いったん止める**のが要点。この後は「奪う札を選ぶ」という
     // 人の操作（相手の画面を待つこともある）が挟まるので、その間ずっと盤面の描き直しを
@@ -12178,12 +12207,10 @@ function applyNormalFit() {
   let scale = Math.min(availW / rect.width, availH / rect.height, 1.15) * zoom * manualZoom * scaleMultiplier;
 
   const applyScale = (s) => {
-    table.style.transform = tableTransform(
-      `translate(calc(${manualPanX}rem + ${flatOffsetX}), calc(var(--camera-offset-y) + ${manualPanY}rem + ${flatOffsetY}))`,
-      tilt,
-      s,
-      flat,
-    );
+    // 【続き547】カメラ演出（アグレッシブモード）の寄りも同じ式に乗せる。材料を覚えておき、
+    // カメラだけ動く時は測り直さずに writeTableTransform() で文字列だけ書き換える。
+    lastCameraFit = { tilt, flatOffsetX, flatOffsetY, flat, scale: s };
+    writeTableTransform();
   };
   applyScale(scale);
 
@@ -12225,6 +12252,105 @@ function applyNormalFit() {
   currentTableScale = scale;
   // 倍率が決まってから、画面の外へ出ている手札だけを内側へ寄せる。
   nudgeHandsIntoStage(table, bounds);
+}
+
+// 【2026-09-29・続き547】カメラ演出（アグレッシブモード）。
+// 直近のフィットの材料（傾き・倍率・2D用のずらし）を覚えておき、カメラだけ動く間は
+// **測り直さずにこの文字列だけ書き換える**。board-3d.js は #game-table の変形を1つの行列に
+// まとめて扱うので、ここを書き換えても**盤面の作り直しは起きない**（syncCamera が拾う）。
+let lastCameraFit = null;
+function writeTableTransform(override) {
+  const table = document.getElementById("game-table");
+  if (!table || !lastCameraFit) return;
+  const { tilt, flatOffsetX, flatOffsetY, flat, scale } = lastCameraFit;
+  const c = override || getCinematicCamera();
+  table.style.transform = tableTransform(
+    `translate(calc(${manualPanX + c.panX}rem + ${flatOffsetX}), calc(var(--camera-offset-y) + ${manualPanY + c.panY}rem + ${flatOffsetY}))`,
+    tilt,
+    scale * c.zoom,
+    flat,
+  );
+}
+setCinematicApplier(writeTableTransform);
+
+// 指定の要素が画面の中央へ来るように寄る。**目標の倍率を一瞬だけ当てて測ってから**動かす
+// （倍率と移動量の関係を式で解くより確実。1フレームも挟まないので画面には出ない）。
+async function focusCameraOnElement(el, { zoom = 1.3, ms = 500 } = {}) {
+  const scene = document.querySelector(".scene");
+  if (!el || !scene || !lastCameraFit) return;
+  const cur = getCinematicCamera();
+  writeTableTransform({ zoom, panX: cur.panX, panY: cur.panY });
+  const r = el.getBoundingClientRect();
+  const s = scene.getBoundingClientRect();
+  writeTableTransform(); // すぐ元へ戻す
+  const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const unit = rootFont * (currentStageScale || 1); // remの1単位が画面上で何pxか
+  if (!(unit > 0) || !(r.width > 0)) return;
+  const dx = (s.left + s.width / 2 - (r.left + r.width / 2)) / unit;
+  const dy = (s.top + s.height / 2 - (r.top + r.height / 2)) / unit;
+  const LIMIT = 24; // rem。寄せすぎて盤面が画面の外へ飛ばないように
+  const clamp = (v) => Math.max(-LIMIT, Math.min(LIMIT, v));
+  cancelScheduledCameraHome(); // 新しく寄るので、予約されていた戻りは取り消す
+  await cameraTo({ zoom, panX: clamp(cur.panX + dx), panY: clamp(cur.panY + dy) }, ms);
+}
+
+// 【2026-09-29・続き548・ユーザー要望】「タックルですが試しに見るのに一苦労です。プレビューを
+// 見れるようにできますか？」。実際に接触を起こさなくても、**いま盤面にいる駒2つで演出だけ**を
+// 再生する。**stateは一切変えない**——playContactLunge は突進した駒を元の位置へ戻し終える作りなので、
+// 見た目も元どおりになる。カメラの設定（アグレッシブモード）もそのまま効くので、
+// 「切／決め所だけ／全部」を切り替えながら見比べられる。
+async function playContactTacklePreview() {
+  const table = document.getElementById("game-table");
+  if (!table) return false;
+  const pieces = getState().tokens.filter((t) => t.kind === "piece" && t.location?.zone === "cell");
+  if (pieces.length < 2) return false; // 対戦中でないと駒が無い
+  const self = getSelfSeat();
+  const attackerToken = pieces.find((p) => p.player === self) || pieces[0];
+  const defenderToken = pieces.find((p) => p.id !== attackerToken.id);
+  const attackerEl = table.querySelector(`.piece[data-token-id="${attackerToken.id}"]`);
+  const defenderEl = table.querySelector(`.piece[data-token-id="${defenderToken.id}"]`);
+  if (!attackerEl || !defenderEl) return false;
+  const tackle = {
+    attackerEl,
+    defenderFromRect: defenderEl.getBoundingClientRect(),
+    attackerRect: attackerEl.getBoundingClientRect(),
+    defenderFromLocation: defenderToken.location,
+    attackerFromLocation: attackerToken.location,
+    attackerColor: attackerToken.color,
+  };
+  // 本番と同じく、演出の間は汎用の描き直しを止める（裏でCPU戦が動いていても崩れないように）。
+  suppressGenericRenderForContactTackle = true;
+  const cameraOn = cinematicAllows("highlight");
+  try {
+    if (cameraOn) await focusCameraOnElement(attackerEl, { zoom: 1.35, ms: 420 });
+    await playContactLunge(tackle);
+  } finally {
+    if (cameraOn) await cameraHome(420);
+    suppressGenericRenderForContactTackle = false;
+    render();
+  }
+  return true;
+}
+window.addEventListener("so7:preview-contact", () => {
+  void playContactTacklePreview();
+});
+
+// 効果が連鎖すると移動が何回も続く（試練の儀式・増殖する樹々など）。1回ごとに寄って戻ってを
+// 繰り返すと待ち時間だけ増えるので、**戻りは予約にして、次の寄りが来たら取り消す**。
+// 結果として「連続する間は寄ったまま、終わってから1回だけ戻る」動きになる。
+let cameraHomeTimer = null;
+function cancelScheduledCameraHome() {
+  if (cameraHomeTimer) {
+    clearTimeout(cameraHomeTimer);
+    cameraHomeTimer = null;
+  }
+}
+function scheduleCameraHome(delay = 700, ms = 420) {
+  cancelScheduledCameraHome();
+  cameraHomeTimer = setTimeout(() => {
+    cameraHomeTimer = null;
+    void cameraHome(ms);
+  }, delay);
 }
 
 // 【報告#361】手札が画面（ステージ）の外へ出そうな時、盤面全体を縮める代わりに
