@@ -1764,6 +1764,37 @@ async function runAction(action, ctx, helpers) {
       const drawPer = action.drawPer ?? 3;
       const side = SEAT_TO_SIDE[ctx.player];
       let discarded = 0;
+      // 【2026-09-29・続き546・ユーザー要望】まとめて選べるモーダル（ロックエリア風）で聞く。
+      // 枚数はプレイヤーが決める（0枚でもよい）ので「N枚選ぶ」ではなく、押した分だけ捨てる。
+      // **CPUの番とモーダルを持たない呼び出し元では null が返る**ので、その時は従来どおり
+      // 1枚ずつ聞く下のループへ落ちる（CPUの選び方をこの変更で変えないため）。
+      if (helpers.pickLockCardsOrdered) {
+        const lockedNow = getState().tokens.filter(
+          (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableByOtherCardEffects(t.cardId)
+        );
+        if (lockedNow.length > 0) {
+          const chosen = await helpers.pickLockCardsOrdered(
+            ctx.player,
+            t("ce.pickLockDiscardOptional", { n: drawPer }),
+            lockedNow,
+            { drawPer }
+          );
+          if (Array.isArray(chosen)) {
+            for (const token of chosen) {
+              await helpers.discardAndSync(token.id);
+              discarded++;
+            }
+            if (discarded > 0) {
+              await helpers.drawCards(ctx.player, discarded * drawPer);
+              await helpers.announceEffectReason?.(
+                ctx.cardId,
+                t("ce.lockDiscardedDrew", { n: discarded, draw: discarded * drawPer })
+              );
+            }
+            return true;
+          }
+        }
+      }
       for (let i = 0; i < 7; i++) {
         const lockedTokens = getState().tokens.filter(
           (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableByOtherCardEffects(t.cardId)

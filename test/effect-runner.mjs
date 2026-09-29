@@ -91,6 +91,26 @@ export async function runOneCase(spec) {
     // 続き479の教訓（スタブは本物と同じ引数の並び・同じ厳しさで書く）。本物は
     // (candidates, hint, options)。options.purpose / options.avoidCells は CPU の自動選択の
     // 切り替えに使われるので、渡っているかを callLog に残して検査できるようにする。
+    // 【続き546】ロックカードをまとめて捨てる（本物は main.js の requestLockCardsOrderedForEffect）。
+    // 筋書きは「lockCardsOrdered」にトークンidの配列（捨てる順）を置く。**指定が無ければ null**
+    // を返して従来の1枚ずつ経路へ落とす——本物も CPU の番では null を返し、engine がそちらへ
+    // 落ちる作りなので、その分岐そのものをテストでも通す。渡された候補に含まれない札を
+    // 指定したら例外にする（スタブが甘いと検査にならない＝続き479）。
+    pickLockCardsOrdered: async (player, hint, tokens, options) => {
+      const want = nextPick("lockCardsOrdered");
+      if (!Array.isArray(want)) return null;
+      const ids = new Set((tokens || []).map((tk) => tk.id));
+      const order = want.map((w) => {
+        const tok = findToken(w);
+        if (!tok) throw new Error("pickLockCardsOrdered: " + w + " というトークンが無い");
+        if (!ids.has(tok.id)) throw new Error("pickLockCardsOrdered: " + tok.id + " は候補に含まれていない");
+        return tok;
+      });
+      callLog.push(["pickLockCardsOrdered", order.map((tk) => tk.id).join(",")]);
+      if (Number.isFinite(options?.drawPer))
+        callLog.push(["pickLockCardsOrderedDrawPer", String(options.drawPer)]);
+      return order;
+    },
     pickLocation: async (candidates, hint, options) => {
       const r = resolveLocation(nextPick("location"), candidates);
       callLog.push(["pickLocation", r]);

@@ -7219,7 +7219,9 @@ function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
       }
       confirmBtn.textContent = t("game.pick.discardOrderConfirm", { n: picked.length, total: cardEls.length });
     };
+    const peek = attachPeekBoardButton(modal, backdrop);
     const finish = (ids) => {
+      peek.cleanup(); // 「選択に戻る」を画面に取り残さない
       hideCardPreview(); // 拡大表示中に閉じた時に取り残さない（#185と同じ）
       backdrop.remove();
       modal.remove();
@@ -7237,6 +7239,7 @@ function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
     modal.appendChild(note);
     modal.appendChild(list);
     modal.appendChild(confirmBtn);
+    modal.appendChild(peek.button);
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
     // 持ち時間切れの自動代行から解決できるようにする（handMulti と同じ扱い＝resolve を呼ぶだけ）。
@@ -7248,6 +7251,186 @@ function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
     };
   });
 }
+
+// 【2026-09-29・続き546・ユーザー要望】「モーダルに『盤面を見る』ボタンをつけて一時的に
+// モーダルをどかせるようにしておきたい」。カードを選ぶモーダルは盤面を覆うので、
+// 「いま盤面がどうなっているか」を見てから決めたい場面がある。
+// 押すとモーダルを透明にして、代わりに「選択に戻る」の小さなボタンを出す。
+// **背景の覆い（backdrop）は外さず、透明にするだけ**にしてある——選んでいる最中に盤面を
+// 触れてしまうと、選択の前提（どこに何があるか）が変わってしまうため。見るだけにする。
+// 呼び出し側は返り値の cleanup() を finish の中で必ず呼ぶこと（「選択に戻る」ボタンが
+// 画面に取り残されるため）。
+function attachPeekBoardButton(modal, backdrop) {
+  let returnBtn = null;
+  // 背景の覆いは createBackdrop が**インラインstyle**で背景色を書いているので、CSSのクラスでは
+  // 上書きできない。ここで直接付け外しする（要素自体は残すので、盤面のタップは今までどおり
+  // 止まったまま＝#225 の目印 .so7-modal-backdrop が効き続ける）。
+  const dimmed = backdrop ? backdrop.style.background : null;
+  const restore = () => {
+    modal.classList.remove("is-peeking");
+    if (backdrop) backdrop.style.background = dimmed;
+    returnBtn?.remove();
+    returnBtn = null;
+  };
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "modal-peek-board";
+  button.textContent = t("game.pick.peekBoard");
+  button.addEventListener("click", () => {
+    if (returnBtn) return; // 二重に押されても増やさない
+    modal.classList.add("is-peeking");
+    if (backdrop) backdrop.style.background = "transparent";
+    returnBtn = document.createElement("button");
+    returnBtn.type = "button";
+    returnBtn.className = "modal-peek-return";
+    returnBtn.textContent = t("game.pick.peekReturn");
+    returnBtn.addEventListener("click", restore);
+    document.body.appendChild(returnBtn);
+  });
+  return { button, cleanup: restore };
+}
+
+// 【2026-09-29・続き546・ユーザー要望】自分のロックカードを**任意の枚数**捨てる効果
+// （色落ちキャットの手札効果「捨てた1枚につき3枚ドロー」）用のモーダル。
+// 「モーダルにしようか？その代わり**ロックエリア風にしておいてほしい**」という指定どおり、
+// 7色のスロットを横一列に並べ、そこにロックされている札を置く（盤面のロックエリアと同じ
+// 並び・同じ色枠）。どの色を手放すことになるのかが一目で分かるようにするのが狙い。
+//
+// 手札用（requestHandCardsOrderedForEffect）・盤面用（requestBoardCardsOrderedForEffect）と
+// 違うのは**枚数をプレイヤーが決める**こと（0枚でもよい）。なので limit は無く、確定ボタンは
+// 最初から押せる（0枚のまま確定＝「捨てない」）。押した順に番号が付くのは他と同じ。
+//
+// CPUの番では画面を出さず **null を返す**。呼び出し側（engine）は null を受け取ったら
+// 従来の1枚ずつ選ぶ経路へ落ちる——CPUの選び方をこの変更で変えないため。
+function requestLockCardsOrderedForEffect(player, hint, tokens, options = {}) {
+  return new Promise((resolve) => {
+    const candidates = (tokens || []).filter(Boolean);
+    if (candidates.length === 0) {
+      resolve([]);
+      return;
+    }
+    if (isCpuSelectingNow(player)) {
+      resolve(null); // CPUは従来どおり1枚ずつ（engine 側の経路へ）
+      return;
+    }
+    const drawPer = Number.isFinite(options.drawPer) ? options.drawPer : 0;
+    const pickable = new Set(candidates.map((tk) => tk.id));
+    const side = SEAT_TO_SIDE[player];
+    // 盤面のロックエリアと同じ「7色スロット」を作る。候補でない札（ファースト・エターナルは
+    // 他のカードの効果の対象にならない）も**見えるけれど押せない**形で出す＝本物と同じ見た目。
+    const lockedByIndex = new Map();
+    for (const tk of getState().tokens) {
+      if (tk.kind !== "card" || tk.location.zone !== "lock" || tk.location.side !== side) continue;
+      lockedByIndex.set(tk.location.index, tk);
+    }
+    const picked = [];
+    const badgeOf = new Map();
+    const modal = document.createElement("div");
+    modal.id = "lock-pick-modal";
+    // 必須の選択ではないが、✕・外クリックで閉じると「捨てない」と区別が付かないので閉じない。
+    const backdrop = createBackdrop(() => {}, { dim: true, zIndex: 10001 });
+    const title = document.createElement("div");
+    title.className = "stack-modal-title";
+    title.textContent = hint;
+    const note = document.createElement("div");
+    note.className = "stack-modal-note";
+    note.textContent = t("game.pick.lockDiscardNote");
+    const row = document.createElement("div");
+    row.className = "lock-pick-row";
+    const cardEls = [];
+    const toggle = (id) => {
+      const i = picked.indexOf(id);
+      if (i >= 0) picked.splice(i, 1);
+      else picked.push(id);
+      paint();
+    };
+    COLORS.forEach((color, index) => {
+      const slot = document.createElement("div");
+      slot.className = "lock-pick-slot";
+      slot.dataset.index = String(index);
+      // 盤面と同じく、色の表示がオフなら色を付けない（基本設定に従う）。
+      if (isLockColorVisible()) {
+        slot.style.borderColor = `var(--color-${color})`;
+        slot.style.color = `var(--color-${color})`;
+      }
+      const token = lockedByIndex.get(index);
+      if (token) {
+        const card = document.createElement("div");
+        card.className = "lock-pick-card";
+        card.dataset.tokenId = token.id;
+        showCardFace(card, token.cardId, getCardImagePath(token.cardId));
+        attachModalCardPreview(card, token.cardId);
+        if (pickable.has(token.id)) {
+          card.classList.add("is-pickable");
+          card.addEventListener("click", () => toggle(token.id));
+          cardEls.push(card);
+        } else {
+          card.classList.add("is-locked-out"); // ファースト・エターナルは対象外
+        }
+        slot.appendChild(card);
+      }
+      row.appendChild(slot);
+    });
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "stack-modal-confirm";
+    const paint = () => {
+      for (const el of cardEls) {
+        const id = el.dataset.tokenId;
+        const idx = picked.indexOf(id);
+        el.classList.toggle("is-discard-picked", idx >= 0);
+        let badge = badgeOf.get(id);
+        if (idx >= 0) {
+          if (!badge) {
+            badge = document.createElement("div");
+            badge.className = "hand-card-discard-order";
+            el.appendChild(badge);
+            badgeOf.set(id, badge);
+          }
+          badge.textContent = String(idx + 1);
+        } else if (badge) {
+          badge.remove();
+          badgeOf.delete(id);
+        }
+      }
+      // 0枚のまま確定できる（＝捨てない）。何枚ドローになるかも出す。
+      confirmBtn.textContent =
+        picked.length === 0
+          ? t("game.pick.lockDiscardNone")
+          : t("game.pick.lockDiscardConfirm", { n: picked.length, draw: picked.length * drawPer });
+    };
+    const peek = attachPeekBoardButton(modal, backdrop);
+    const finish = (ids) => {
+      peek.cleanup(); // 「選択に戻る」を画面に取り残さない
+      hideCardPreview(); // 拡大表示中に閉じた時に取り残さない（#185と同じ）
+      backdrop.remove();
+      modal.remove();
+      const byId = new Map(candidates.map((tk) => [tk.id, tk]));
+      resolve(ids.map((id) => byId.get(id)).filter(Boolean));
+    };
+    confirmBtn.addEventListener("click", () => {
+      activeEffectPicker = null;
+      finish([...picked]);
+    });
+    paint();
+    modal.appendChild(title);
+    modal.appendChild(note);
+    modal.appendChild(row);
+    modal.appendChild(confirmBtn);
+    modal.appendChild(peek.button);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    // 持ち時間切れの自動代行: **何も捨てない**で確定する（0枚はこの効果のルール上ちゃんと
+    // 認められた選択なので、勝手に手札を減らすより安全）。
+    activeEffectPicker = {
+      type: "lockMulti",
+      owner: player,
+      purpose: options.purpose ?? null,
+      resolve: () => finish([]),
+    };
+  });
+}
+
 // 効果の対象マスをプレイヤーに選ばせる（候補マスをハイライトし、クリックを待つ）。
 // options.allowSkip=true の時は「これ以上選ばない」スキップボタンを出す（optionalな
 // 「してもよい」効果で早期終了できるように）。スキップされた場合は resolve(null)。
@@ -8520,6 +8703,7 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         pickLocation: requestCellChoiceForEffect,
         pickHandCard: requestHandCardChoiceForEffect,
         pickHandCardsOrdered: requestHandCardsOrderedForEffect, // #344: 順番を付けてまとめて選ぶ
+        pickLockCardsOrdered: requestLockCardsOrderedForEffect, // 続き546: ロックエリア風モーダル
         pickBoardCardsOrdered: requestBoardCardsOrderedForEffect, // #357: 盤面のカードを捨てる順に選ぶ（モーダル）
         onCardAcquiredToHand: onEffectCardAcquiredToHand,
         markPlacementTarget: markEffectPlacementTarget,
@@ -8633,6 +8817,7 @@ async function runAutoArrivalEffect(cardId, location, player) {
       pickLocation: requestCellChoiceForEffect,
       pickHandCard: requestHandCardChoiceForEffect,
       pickHandCardsOrdered: requestHandCardsOrderedForEffect, // #344: 順番を付けてまとめて選ぶ
+      pickLockCardsOrdered: requestLockCardsOrderedForEffect, // 続き546: ロックエリア風モーダル
         pickBoardCardsOrdered: requestBoardCardsOrderedForEffect, // #357: 盤面のカードを捨てる順に選ぶ（モーダル）
       onCardAcquiredToHand: onEffectCardAcquiredToHand,
       // 到達効果の既定動作でこのカード自身を手札へ加えた時のお知らせ。

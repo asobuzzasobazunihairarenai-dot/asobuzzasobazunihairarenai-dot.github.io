@@ -72,7 +72,7 @@ export function setBoard3dLitChangeHandler(fn) {
 // 別の軽い合図を持つ。
 const LIGHT_KEY = "so7-board-3d-light";
 export const BOARD3D_LIGHT_DEFAULT = {
-  hemi: 2.45, // 全体の明るさ（空と地面からの柔らかい下地）
+  hemi: 4, // 全体の明るさ（空と地面からの柔らかい下地）。2026-09-29、ユーザーが実機で見て決めた値
   key: 1.55, // 主光源の強さ
   fill: 0.55, // 反対側からの補助光
   dirX: -0.45, // 主光源の左右の向き（−で左から、＋で右から）

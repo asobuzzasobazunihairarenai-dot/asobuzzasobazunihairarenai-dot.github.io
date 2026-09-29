@@ -55,18 +55,26 @@ export const CHANGELOG = [
     summary: [
       "お知らせが短い1行になり、「詳細」を押すと詳しい説明が出るようになりました。",
       "スラム上がりの役人と選べる罠でも、捨てる順番をまとめて選べるようになりました。",
+      "ロックしているカードを捨てる効果も、まとめて選べるようになりました。",
+      "カードを選ぶ画面に「盤面を見る」ボタンが付きました。",
     ],
     summaryEn: [
       "Update notes are now short one-liners, with a Details button for the full text.",
       "The Slum-Born Official and Choosable Trap now let you choose the discard order all at once.",
+      "Discarding your locked cards is now done in one screen as well.",
+      "Card-choosing screens now have a \"Look at the board\" button.",
     ],
     items: [
       "ホーム画面のお知らせを、1件1行の短い見出しにまとめました。詳しい説明は「詳細」を押した時だけ出ます。これまでの長い文章は消していません——そのまま「詳細」の中に入っています。まずは直近の回（9月28日・26日・23日・21日）から新しい見せ方になっています。",
       "「スラム上がりの役人」で手札が3枚になるまで捨てる時と、「選べる罠」で手札を半分捨てる時も、他の複数枚捨てる効果と同じように、捨てる順にカードを押して最後に1回だけ確定する形になりました。これまでは1枚選ぶたびに確認が出ていたので、5枚捨てる場面では確認が4回出ていました。捨てる枚数は決まっているので、その枚数を選ぶまで確定ボタンは押せません。選び直したい時は、選んだカードをもう一度押すと外れて番号が繰り上がります。",
+      "色落ちキャットの手札効果（ロックしているカードを好きな枚数捨てて、1枚につき3枚ドロー）が、ロックエリアと同じ7色の並びで一覧に出るようになりました。捨てたいカードを押すと押した順に番号が付き、最後に1回だけ確定します。何枚捨てると何枚ドローになるかもボタンに出ます。1枚も選ばずに確定すれば、何も捨てません。ファーストカード・エターナルカードは他のカードの効果の対象にならないので、見えていますが選べません。",
+      "カードを選ぶ画面が盤面を覆ってしまうので、「盤面を見る」を押すと一時的に画面をどかして盤面を確かめられるようにしました。「選択に戻る」で元に戻ります。見ている間は盤面を触れません（選んでいる最中に盤面が変わってしまわないようにするためです）。",
     ],
     itemsEn: [
       "The news on the home screen is now a short one-line headline per item, and the fuller explanation appears only when you press Details. Nothing has been removed - the longer text you saw before now lives inside Details. The most recent entries (28, 26, 23 and 21 September) have been converted first.",
       "Discarding down to three cards with \"The Slum-Born Official\", and discarding half your hand with \"Choosable Trap\", now work like every other multi-card discard: tap the cards in the order you want to discard them, then confirm once at the end. Previously a confirmation appeared for every single card, so discarding five cards meant four confirmations. Because the rule fixes how many cards go, the confirm button stays inactive until you have chosen exactly that many; tapping a chosen card again removes it and renumbers the rest.",
+      "Fading Cat's hand effect (discard as many of your locked cards as you like, drawing three for each) now shows them laid out in the same seven colours as your lock area. Tap the cards you want to discard - they are numbered in the order you tap - and confirm once at the end; the button also tells you how many cards you will draw. Confirm without choosing any to discard nothing. First and Eternal cards cannot be targeted by other cards' effects, so they are shown but cannot be chosen.",
+      "Because a card-choosing screen covers the board, a \"Look at the board\" button now moves it out of the way so you can check the board, and \"Back to choosing\" brings it back. You cannot touch the board while looking, so nothing changes underneath you while you are choosing.",
     ],
     devItems: [
       "CHANGELOG に summary / summaryEn（短い1行の見出し）を足した。items / itemsEn と**同じ順番・同じ件数**で書く。画面では summary だけが並び、「詳細」を押すと items の本文が各見出しの下に開く（1つのボタンでその回の全項目をまとめて開閉）。**本文は書き換えず、上に見出しを足す形**にしたので、過去の回に後から付けても本文の意味がズレない（ユーザー判断で直近4回＝9/28・9/26・9/23・9/21 に付けた。それ以前は従来どおり本文がそのまま並ぶ）。件数が合っていない回は、対応を取り違えるより安全なので従来表示に落とす。文字色は決め打ちせず継承にした（続き535で明るいテーマだけ文字が消えた実害があるため）。",
@@ -74,6 +82,7 @@ export const CHANGELOG = [
       "残した判断: 色落ちキャットの手札効果「自分のロックカードを任意の枚数捨て、1枚につき3枚ドロー」は**枚数をプレイヤーが決める（0枚でもよい）**ので、1枚ずつ選んで「やめる」を押す今の形のままにした。ロックエリアのカードは全部見えていて1枚ずつ押せるため、モーダルにする理由（積み重なって押せない・確認が何度も出る）がどちらも当てはまらない。セレスティアの「相手全員から無作為に1枚ずつ」は選択そのものが無いので対象外。",
       "【管理者向け・試作】光の強さ・向きのつまみを追加しました（全体の明るさ／主な光の強さ／反対側からの弱い光／光の向き（左右）／光の高さ、の5本と「既定に戻す」）。ユーザーが実機で「暗い感じはありますね！光源を強くすればいいとか？」——そのとおりだが、こちらが数字を当てずっぽうで決めるより実機で見ながら回せる方が確実なので、つまみにした（管理者モードで調整→良い値をコードの既定へ反映、という既存の運用と同じ形）。動かすとその場で反映される（光の強さと向きを差し替えるだけで、材質の作り直しは要らないので軽い＝つまみを回すたびに盤面が消えることもない）。いまの値を読める行も出しているので、良い具合になったらその行をそのまま伝えてもらえば既定値に反映できる。実測: 既定(2.45/1.55)から 5.5/3.2 まで上げると明確に明るくなる（上げすぎるとロックエリアの札が白飛びするので、使える範囲はこの間）。",
       "【管理者向け・試作】管理者モードに「盤面に光を当てる（試作）」を追加しました。別プロジェクト「∞:EVEN」の3D卓の質感がPVに近い、という指摘から。調べたところ技術はまったく同じ（どちらもブラウザの three.js）で、違いは材質と光源だけだった——あちらは MeshStandardMaterial ＋ 光源3つ、こちらは MeshBasicMaterial ＋ 光源なし（#348「iPhoneが熱い」への対策）。既定はOFFで、押さない限り従来と1ミリも変わりません。踏んだ落とし穴: 光を足したら陰影が付くどころか盤面全体が暗くなり、光を強めたらもっと暗くなった。原因は、盤面の板は CSS の行列に Y 軸の反転が含まれるため**表がカメラと逆を向いている**こと（光が板の裏に当たり、見えている面はずっと影の中だった）。光源の Z を反転して解決し、平らに寝ているカードの明るさは元のまま・角度の違う面（駒の上面と側面）だけに差が出る形にした。重さはヘッドレスのソフトウェア描画では9秒に2〜3回しか描けず測れなかった（光ありの方が速いという、あり得ない数字が出た）ので、実機での体感を待つ。",
+      "【管理者向け・試作】盤面の光の「全体の明るさ」の既定を 2.45 → 4 にしました（ユーザーが実機で見て決めた値）。既定はOFFのままなので、「盤面に光を当てる（試作）」を入れない限り見え方は変わりません。",
     ],
     devItemsEn: [
       "Added summary / summaryEn to CHANGELOG entries: short one-line headlines written in the same order and count as items / itemsEn. The list shows only the summaries, and a single Details button per entry opens every item's full text beneath its headline. The existing long text was not rewritten - the headline is added above it - so entries can be converted after the fact without their wording drifting (per the user's call, the four most recent entries were converted; older ones still render as before). An entry whose counts do not line up falls back to the old rendering rather than risk pairing the wrong texts. No text colour is hard-coded; it inherits, because hard-coding it once made the light theme unreadable.",
@@ -81,6 +90,7 @@ export const CHANGELOG = [
       "Left as it is: Fading Cat's hand effect (discard any number of your locked cards, drawing three per card) lets the player decide how many, including none, so it keeps its one-at-a-time picker with a stop button. Locked cards are all visible and individually tappable, so neither reason for the modal applies. Celestia's \"one card at random from every qualifying opponent\" involves no choice at all.",
       "[Admin, prototype] Added sliders for the light's strength and direction (overall brightness, key light, fill light, horizontal direction and height, plus a reset). Trying it on a real device the user said it looked dark and asked whether the light should simply be stronger — it should, but guessing numbers from here is worse than turning a knob while looking at the board, which also matches how this project already works (tune in admin mode, then bake the good values into the defaults). Changes apply immediately: only the lights' intensity and position are swapped, with no material rebuild, so the board never blinks while dragging a slider. The current values are printed in a line that can be pasted back so they can become the new defaults. Measured: raising the default (2.45/1.55) to 5.5/3.2 brightens it clearly, though the lock-area cards blow out past that, so the usable range sits between the two.",
       "[Admin, prototype] Admin mode gained a Light the board switch. It came from noticing that the 3D table in a sibling project looks closer to the promo video: the technology turned out to be identical (three.js in the browser either way) and the only differences were the material and the lights — MeshStandardMaterial plus three lights there, MeshBasicMaterial and no lights here (the fix for #348, the overheating iPhone). It defaults to off, so nothing changes unless you turn it on. The trap encountered: adding light made the whole board darker rather than shaded, and turning the lights up made it darker still. The board's quads face away from the camera because the CSS matrix chain flips the Y axis, so the light was hitting their backs and every visible surface sat in shadow. Flipping the lights' Z fixed it: flat cards keep their original brightness and only surfaces at an angle (a piece's top versus its sides) differ. Cost could not be measured headlessly — software WebGL managed two or three redraws in nine seconds and reported the lit version as faster, which cannot be true — so it waits on a real device.",
+      "[Admin, prototype] The board light's overall brightness now defaults to 4 instead of 2.45, the value the user settled on while looking at a real device. The lighting itself is still off by default, so nothing changes unless the prototype switch is turned on.",
     ],
   },
   {

@@ -2558,7 +2558,9 @@ body.is-phone-device .update-banner-close {
 /* 「重なっているカードを見る」で開く、要クローズの一覧モーダル。ホバー式の横一列プレビューは
    「何枚も重なっていると表示が難しい」という理由で廃止し、これに置き換えた。
    flex-wrap + max-height + overflow-yで、枚数がいくら増えても画面内に収まるようにする。 */
-#stack-modal {
+#stack-modal,
+/* 【続き546】ロックカードを選ぶモーダルも同じ見た目・同じ縮小にする */
+#lock-pick-modal {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -16529,7 +16531,8 @@ body.theme-light .codex-section-heading {
    するだけで従来ダークへ即戻し。今後、実際に見て気になる面を順次追加していく。 */
 body.theme-light-ingame #phase-automation-turn-status,
 body.theme-light-ingame #pile-tooltip,
-body.theme-light-ingame #stack-modal {
+body.theme-light-ingame #stack-modal,
+body.theme-light-ingame #lock-pick-modal {
   background: rgba(255, 253, 247, 0.98);
   color: #3a3326;
   border-color: rgba(176, 141, 63, 0.5);
@@ -16954,6 +16957,7 @@ body.theme-light-ingame #ranked-result-modal .ranked-result-promote-line {
    その基準倍率を保ったまま追加で掛け合わせる（calc()での乗算）。 */
 body.is-phone-device #options-menu-card-preview-demo,
 body.is-phone-device #stack-modal,
+body.is-phone-device #lock-pick-modal,
 body.is-phone-device #confirm-modal,
 body.is-phone-device #contact-confirm-modal,
 body.is-phone-device #contact-result-modal,
@@ -22489,4 +22493,92 @@ body.theme-light-ingame .ranking-choice-item {
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(146, 118, 52, 0.35);
   color: #3a3326;
+}
+
+/* 【2026-09-29・続き546】ロックカードを捨てる順に選ぶモーダル（ユーザー要望「ロックエリア風に」）。
+   盤面のロックエリア（.lock-area / .lock-slot）と同じ7色の並び・同じ色枠にして、どの色を
+   手放すことになるのかが一目で分かるようにする。文字色は #lock-pick-modal から継承させる
+   （明暗2テーマあるので決め打ちしない＝続き535の実害）。 */
+.lock-pick-row {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+}
+.lock-pick-slot {
+  position: relative;
+  width: 5rem;
+  height: 5rem;
+  flex-shrink: 0;
+  border-radius: 0.2rem;
+  border: 2px solid rgba(226, 232, 240, 0.6);
+  /* 盤面のスロットと同じく、JS が color にその色を入れて currentColor で光らせる。 */
+  box-shadow: 0 0 0.2rem 0.05rem currentColor;
+}
+.lock-pick-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.2rem;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.lock-pick-card.is-pickable {
+  cursor: pointer;
+}
+.lock-pick-card.is-pickable:hover {
+  outline: 2px solid rgba(250, 204, 21, 0.75);
+}
+/* ファースト・エターナルは他のカードの効果の対象にならない＝見えるけれど押せない。 */
+.lock-pick-card.is-locked-out {
+  opacity: 0.45;
+}
+.lock-pick-card.is-discard-picked {
+  outline: 3px solid #facc15;
+}
+
+/* 【2026-09-29・続き546・ユーザー要望】「盤面を見る」——モーダルを一時的にどかす。
+   背景の覆いは**外さず透明にするだけ**（インラインstyleなのでJS側で切り替える）。見るだけに
+   して、選んでいる最中に盤面を触らせない＝選択の前提が変わらないようにする。 */
+.modal-peek-board {
+  display: block;
+  margin: 0.5rem auto 0;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 0.4rem;
+  background: rgba(148, 163, 184, 0.16);
+  color: inherit;
+  font-family: sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.modal-peek-board:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+#stack-modal.is-peeking,
+#lock-pick-modal.is-peeking {
+  opacity: 0;
+  pointer-events: none;
+}
+/* 戻るボタンはモーダル（z-index:10002）より手前に出す。 */
+.modal-peek-return {
+  position: fixed;
+  left: 50%;
+  bottom: 1.2rem;
+  transform: translateX(-50%);
+  z-index: 10003;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid rgba(250, 204, 21, 0.7);
+  border-radius: 0.5rem;
+  background: rgba(28, 16, 4, 0.95);
+  color: #fde68a;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.modal-peek-return:hover {
+  filter: brightness(1.12);
 }

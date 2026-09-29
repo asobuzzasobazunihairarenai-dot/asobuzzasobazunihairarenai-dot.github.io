@@ -418,6 +418,61 @@ export const CASES = [
     ],
   },
   {
+    // 【続き546】ロックカードは「ロックエリア風モーダル」でまとめて選ぶ。枚数はプレイヤーが
+    // 決める（0枚でもよい）ので limit は無く、押した順にそのまま捨てる。
+    // ファースト・エターナルは他のカードの効果の対象外＝候補に入らないことも検査する。
+    name: "色落ちキャット(手札): ロック2枚をまとめて選んで捨て→6枚ドロー（ファーストは対象外）",
+    kind: "hand",
+    cardId: "black-faded-cat",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "self", kind: "card", cardId: "black-faded-cat", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "la", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "lb", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "lfirst", kind: "card", cardId: "first-blue", faceUp: true, location: { zone: "lock", side: "bottom", index: 2 } },
+      ],
+      piles: { deck: ["yellow-gamble", "pink-present", "red-jump-pad", "green-growing-trees", "orange-harvest-sow", "blue-choosable-trap"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "black-faded-cat", cardTokenId: "self" },
+    picks: { lockCardsOrdered: [["lb", "la"]] },
+    expect: [
+      { kind: "called", name: "pickLockCardsOrderedDrawPer", arg: "3" },
+      { kind: "called", name: "pickLockCardsOrdered", arg: "lb,la" },
+      { kind: "tokenGone", id: "self" },
+      { kind: "tokenGone", id: "la" },
+      { kind: "tokenGone", id: "lb" },
+      // ファーストはロックに残る（対象外）
+      { kind: "tokenZone", id: "lfirst", zone: "lock" },
+      // 選んだ順に積まれる（捨て場は上から使うので順番に意味がある）
+      { kind: "pileOrder", pile: "discard", cards: ["green-growing-trees", "red-jump-pad"] },
+      { kind: "deckLen", n: 0 }, // 2枚×3＝6枚ドロー
+      { kind: "handCount", player: "A", n: 6 },
+    ],
+  },
+  {
+    // 【続き546】モーダルを持たない呼び出し元・CPUの番では null が返り、従来の1枚ずつ経路へ
+    // 落ちる。その分岐が生きていることを、筋書きに lockCardsOrdered を置かないことで確かめる。
+    name: "色落ちキャット(手札): まとめて選ぶ画面が無い時は従来どおり1枚ずつ聞く",
+    kind: "hand",
+    cardId: "black-faded-cat",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "self", kind: "card", cardId: "black-faded-cat", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "la", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+      ],
+      piles: { deck: ["green-growing-trees", "orange-harvest-sow", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "black-faded-cat", cardTokenId: "self" },
+    picks: { location: [{ zone: "lock", side: "bottom", index: 0 }] },
+    expect: [
+      { kind: "tokenGone", id: "la" },
+      { kind: "deckLen", n: 0 },
+      { kind: "handCount", player: "A", n: 3 },
+    ],
+  },
+  {
     name: "黒の契約の烙印(到達): 空いている自分のロックスロットにこれを表向きで置く",
     kind: "arrival",
     cardId: "black-contract-brand",
