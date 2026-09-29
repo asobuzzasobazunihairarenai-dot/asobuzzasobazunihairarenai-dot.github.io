@@ -2304,6 +2304,21 @@ body.theme-light #changelog-back {
 .changelog-fixes-detail {
   margin-top: 0.3rem;
 }
+/* 【2026-09-29・続き544】お知らせの良いニュースを「短い1行＋詳細」に畳む。
+   文字色は決め打ちしない——#changelog-modal 側が明暗テーマごとの色を持っており、
+   .changelog-items li も色を指定せず継承している（続き535で実害）。 */
+.changelog-summary-detail {
+  margin-top: 0.3rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid rgba(148, 163, 184, 0.45);
+  font-size: 0.92em;
+  opacity: 0.85;
+}
+.changelog-more-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.35rem;
+}
 /* 畳んだ中身は「詳しい方」なので、一般向けの項目より少し控えめにする。 */
 .changelog-fix-items li {
   color: #cbd5e1;
@@ -15102,6 +15117,16 @@ body.reduce-glow #card-effect-picker-hint.show {
 }
 #card-effect-skip-button:hover {
   filter: brightness(1.12);
+}
+/* 【続き545】捨てる枚数が決まっている場面で、枚数が揃うまで確定を薄く見せる。
+   実際に押せなくしているのは confirmOrder 側（このボタンは自前の当たり判定で拾うため）。 */
+#card-effect-skip-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+#card-effect-skip-button:disabled:hover {
+  filter: none;
 }
 /* 【2026-09-28】順番にこだわらない人のための「おまかせ」。確定ボタンのすぐ下に出す。
    横に並べると確定ボタンの文言の長さで中央がズレる（枚数によって文字数が変わる）ので、

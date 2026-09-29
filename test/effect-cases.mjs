@@ -680,6 +680,38 @@ export const CASES = [
     ],
   },
   {
+    // 【続き545】手札が4枚＝半分2枚の時は、1枚ずつ確認を繰り返すのではなく
+    // **順番を付けて最後に1回確定する**画面（pickHandCardsOrdered）で聞く。
+    // limit=2 が渡っていること（＝残りを勝手に捨てない）も検査する。
+    name: "選べる罠(到達・選択肢): 手札4枚なら半分2枚を、捨てる順を選んで捨てる",
+    kind: "arrival",
+    cardId: "blue-choosable-trap",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "blue-choosable-trap", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "h1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h3", kind: "card", cardId: "yellow-gamble", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h4", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "blue-choosable-trap", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["discard-half-hand"], handCardsOrdered: [["h3", "h1"]] },
+    expect: [
+      { kind: "called", name: "pickHandCardsOrderedLimit", arg: "2" },
+      { kind: "called", name: "pickHandCardsOrdered", arg: "h3,h1" },
+      { kind: "tokenGone", id: "h3" },
+      { kind: "tokenGone", id: "h1" },
+      // 選んだ順に積まれる（捨て場は上から使うので順番に意味がある）
+      { kind: "pileOrder", pile: "discard", cards: ["yellow-gamble", "red-jump-pad"] },
+      // 残りの2枚は捨てない（半分だけ）
+      { kind: "handCount", player: "A", n: 3 },
+    ],
+  },
+  {
     name: "プレゼント(到達): 一番少なくロックしている全員が1枚ドロー（Aのみ最少）",
     kind: "arrival",
     cardId: "pink-present",

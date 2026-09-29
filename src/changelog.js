@@ -33,6 +33,17 @@
 //   過去分（2026-09-27 より前）の振り分けはしない＝古い回は今までどおり items に不具合の直しが
 //   混ざったまま出る（itemsEn を足した時と同じ方針。ユーザー判断 2026-09-28）。
 //   items も fixes も空（devItems だけ）の回は、一般の画面ではその日付ごと出さない。
+//
+// ★2026-09-29（続き544）から: **良いニュースも「短い1行＋詳細」に畳む**（ユーザー要望
+//   「もっと要約して『詳細はこちら』スタイルにしませんか？」）。
+//     summary / summaryEn … 1件1行の**短い見出し**。items / itemsEn と**同じ順番・同じ件数**。
+//                           画面にはこれだけが並び、「詳細」を押すと items の本文が各見出しの
+//                           下に開く（1つのボタンでその回の全項目をまとめて開閉）。
+//   **items の本文は書き換えず、上に見出しを足す**こと（要約で書き直すと本文の意味がズレる。
+//   過去の回に後から付けられるのもこの形のおかげ）。件数が合っていない回は、対応を取り違える
+//   より安全なので従来どおり本文をそのまま並べる（黙って旧表示に落ちるので、書いたら
+//   scratchpad の照合スクリプトで件数を確かめること）。
+//   過去分は**直近だけ**付ける（ユーザー判断 2026-09-29。9/28・9/26・9/23・9/21 に付けた）。
 
 import { createBackdrop } from "./ui-helpers.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -41,17 +52,57 @@ import { getLang } from "./i18n.js";
 export const CHANGELOG = [
   {
     date: "2026-09-29",
+    summary: [
+      "お知らせが短い1行になり、「詳細」を押すと詳しい説明が出るようになりました。",
+      "スラム上がりの役人と選べる罠でも、捨てる順番をまとめて選べるようになりました。",
+    ],
+    summaryEn: [
+      "Update notes are now short one-liners, with a Details button for the full text.",
+      "The Slum-Born Official and Choosable Trap now let you choose the discard order all at once.",
+    ],
+    items: [
+      "ホーム画面のお知らせを、1件1行の短い見出しにまとめました。詳しい説明は「詳細」を押した時だけ出ます。これまでの長い文章は消していません——そのまま「詳細」の中に入っています。まずは直近の回（9月28日・26日・23日・21日）から新しい見せ方になっています。",
+      "「スラム上がりの役人」で手札が3枚になるまで捨てる時と、「選べる罠」で手札を半分捨てる時も、他の複数枚捨てる効果と同じように、捨てる順にカードを押して最後に1回だけ確定する形になりました。これまでは1枚選ぶたびに確認が出ていたので、5枚捨てる場面では確認が4回出ていました。捨てる枚数は決まっているので、その枚数を選ぶまで確定ボタンは押せません。選び直したい時は、選んだカードをもう一度押すと外れて番号が繰り上がります。",
+    ],
+    itemsEn: [
+      "The news on the home screen is now a short one-line headline per item, and the fuller explanation appears only when you press Details. Nothing has been removed - the longer text you saw before now lives inside Details. The most recent entries (28, 26, 23 and 21 September) have been converted first.",
+      "Discarding down to three cards with \"The Slum-Born Official\", and discarding half your hand with \"Choosable Trap\", now work like every other multi-card discard: tap the cards in the order you want to discard them, then confirm once at the end. Previously a confirmation appeared for every single card, so discarding five cards meant four confirmations. Because the rule fixes how many cards go, the confirm button stays inactive until you have chosen exactly that many; tapping a chosen card again removes it and renumbers the rest.",
+    ],
     devItems: [
+      "CHANGELOG に summary / summaryEn（短い1行の見出し）を足した。items / itemsEn と**同じ順番・同じ件数**で書く。画面では summary だけが並び、「詳細」を押すと items の本文が各見出しの下に開く（1つのボタンでその回の全項目をまとめて開閉）。**本文は書き換えず、上に見出しを足す形**にしたので、過去の回に後から付けても本文の意味がズレない（ユーザー判断で直近4回＝9/28・9/26・9/23・9/21 に付けた。それ以前は従来どおり本文がそのまま並ぶ）。件数が合っていない回は、対応を取り違えるより安全なので従来表示に落とす。文字色は決め打ちせず継承にした（続き535で明るいテーマだけ文字が消えた実害があるため）。",
+      "複数枚捨てる場面の総点検（続き537の再点検）。順番モーダルは**「全部捨てる」専用**の作りで、選ばなかった分を後ろに足して必ず全部捨てていたため、**捨てる枚数が決まっている効果には使えなかった**。requestHandCardsOrderedForEffect に options.limit（この枚数だけ選ぶ）を足し、スラム上がりの役人（main.js の runSlumOfficialDiscardTask）と選べる罠（engine の DISCARD_HALF_HAND）をそこへ載せた。1枚だけの時は順番が無いので従来の1枚選ぶ経路のまま。**確定ボタンは #game-table の自前の当たり判定で拾うので disabled 属性では止まらない**（教訓4）——薄くするのは見た目だけで、実際に弾くのは confirmOrder の中。CPUの番・「おまかせ」・持ち時間切れの自動代行も limit 枚で止まる。常設テストを1件追加（手札4枚→半分2枚を選んだ順に捨てる／limit=2 が渡っている／残り2枚は捨てない）。**A/Bで確認済み**——engine の呼び出しを旧経路に戻すと 60/61 で落ちる。実機でも直接確かめた: 0/2・1/2 では確定が弾かれ、3枚目を押しても増えず、選び直すと番号が繰り上がり、確定すると押した順の2枚だけが返る。",
+      "残した判断: 色落ちキャットの手札効果「自分のロックカードを任意の枚数捨て、1枚につき3枚ドロー」は**枚数をプレイヤーが決める（0枚でもよい）**ので、1枚ずつ選んで「やめる」を押す今の形のままにした。ロックエリアのカードは全部見えていて1枚ずつ押せるため、モーダルにする理由（積み重なって押せない・確認が何度も出る）がどちらも当てはまらない。セレスティアの「相手全員から無作為に1枚ずつ」は選択そのものが無いので対象外。",
       "【管理者向け・試作】光の強さ・向きのつまみを追加しました（全体の明るさ／主な光の強さ／反対側からの弱い光／光の向き（左右）／光の高さ、の5本と「既定に戻す」）。ユーザーが実機で「暗い感じはありますね！光源を強くすればいいとか？」——そのとおりだが、こちらが数字を当てずっぽうで決めるより実機で見ながら回せる方が確実なので、つまみにした（管理者モードで調整→良い値をコードの既定へ反映、という既存の運用と同じ形）。動かすとその場で反映される（光の強さと向きを差し替えるだけで、材質の作り直しは要らないので軽い＝つまみを回すたびに盤面が消えることもない）。いまの値を読める行も出しているので、良い具合になったらその行をそのまま伝えてもらえば既定値に反映できる。実測: 既定(2.45/1.55)から 5.5/3.2 まで上げると明確に明るくなる（上げすぎるとロックエリアの札が白飛びするので、使える範囲はこの間）。",
       "【管理者向け・試作】管理者モードに「盤面に光を当てる（試作）」を追加しました。別プロジェクト「∞:EVEN」の3D卓の質感がPVに近い、という指摘から。調べたところ技術はまったく同じ（どちらもブラウザの three.js）で、違いは材質と光源だけだった——あちらは MeshStandardMaterial ＋ 光源3つ、こちらは MeshBasicMaterial ＋ 光源なし（#348「iPhoneが熱い」への対策）。既定はOFFで、押さない限り従来と1ミリも変わりません。踏んだ落とし穴: 光を足したら陰影が付くどころか盤面全体が暗くなり、光を強めたらもっと暗くなった。原因は、盤面の板は CSS の行列に Y 軸の反転が含まれるため**表がカメラと逆を向いている**こと（光が板の裏に当たり、見えている面はずっと影の中だった）。光源の Z を反転して解決し、平らに寝ているカードの明るさは元のまま・角度の違う面（駒の上面と側面）だけに差が出る形にした。重さはヘッドレスのソフトウェア描画では9秒に2〜3回しか描けず測れなかった（光ありの方が速いという、あり得ない数字が出た）ので、実機での体感を待つ。",
     ],
     devItemsEn: [
+      "Added summary / summaryEn to CHANGELOG entries: short one-line headlines written in the same order and count as items / itemsEn. The list shows only the summaries, and a single Details button per entry opens every item's full text beneath its headline. The existing long text was not rewritten - the headline is added above it - so entries can be converted after the fact without their wording drifting (per the user's call, the four most recent entries were converted; older ones still render as before). An entry whose counts do not line up falls back to the old rendering rather than risk pairing the wrong texts. No text colour is hard-coded; it inherits, because hard-coding it once made the light theme unreadable.",
+      "Re-audited every place that can discard several cards at once. The ordered picker was built only for \"discard all of these\": whatever you did not pick was appended and discarded too, so it could not be used where the rule fixes the number of cards. requestHandCardsOrderedForEffect now takes options.limit, and the Slum-Born Official (runSlumOfficialDiscardTask in main.js) and the Choosable Trap (DISCARD_HALF_HAND in the engine) both use it. A single card still goes through the old one-card path, since there is no order to choose. The confirm button is picked up by the custom hit test on #game-table, so the disabled attribute cannot stop it - dimming is cosmetic and confirmOrder itself rejects an incomplete selection. The CPU's turn, the Auto button and the out-of-time stand-in all stop at the limit as well. One permanent test was added (four cards in hand, half of them discarded in the chosen order, limit=2 passed, the other two kept), and an A/B confirms it: restoring the old path drops the suite to 60/61.",
+      "Left as it is: Fading Cat's hand effect (discard any number of your locked cards, drawing three per card) lets the player decide how many, including none, so it keeps its one-at-a-time picker with a stop button. Locked cards are all visible and individually tappable, so neither reason for the modal applies. Celestia's \"one card at random from every qualifying opponent\" involves no choice at all.",
       "[Admin, prototype] Added sliders for the light's strength and direction (overall brightness, key light, fill light, horizontal direction and height, plus a reset). Trying it on a real device the user said it looked dark and asked whether the light should simply be stronger — it should, but guessing numbers from here is worse than turning a knob while looking at the board, which also matches how this project already works (tune in admin mode, then bake the good values into the defaults). Changes apply immediately: only the lights' intensity and position are swapped, with no material rebuild, so the board never blinks while dragging a slider. The current values are printed in a line that can be pasted back so they can become the new defaults. Measured: raising the default (2.45/1.55) to 5.5/3.2 brightens it clearly, though the lock-area cards blow out past that, so the usable range sits between the two.",
       "[Admin, prototype] Admin mode gained a Light the board switch. It came from noticing that the 3D table in a sibling project looks closer to the promo video: the technology turned out to be identical (three.js in the browser either way) and the only differences were the material and the lights — MeshStandardMaterial plus three lights there, MeshBasicMaterial and no lights here (the fix for #348, the overheating iPhone). It defaults to off, so nothing changes unless you turn it on. The trap encountered: adding light made the whole board darker rather than shaded, and turning the lights up made it darker still. The board's quads face away from the camera because the CSS matrix chain flips the Y axis, so the light was hitting their backs and every visible surface sat in shadow. Flipping the lights' Z fixed it: flat cards keep their original brightness and only surfaces at an angle (a piece's top versus its sides) differ. Cost could not be measured headlessly — software WebGL managed two or three redraws in nine seconds and reported the lit version as faster, which cannot be true — so it waits on a real device.",
     ],
   },
   {
     date: "2026-09-28",
+    summary: [
+      "スマホでの長押し拡大が、押した指と反対側に出るようになりました。",
+      "盤面のカードを捨てる効果（ワイナウエア・白の意思の覚醒）でも、捨てる順番を選べるようになりました。",
+      "ワイナウエアの一覧は、マスに積まれていた順に並びます。",
+      "色落ちキャットで全員が手札を捨てる時も、それぞれが順番を選べます。",
+      "順番にこだわらない人のために「おまかせ」ボタンを付けました。",
+      "複数枚をまとめて捨てる場面で、捨てる順番を自分で選べるようになりました。",
+      "このお知らせの見せ方を整えました。",
+    ],
+    summaryEn: [
+      "On a phone, press-and-hold now shows the enlarged card on the opposite side from your finger.",
+      "Effects that discard cards from the board (Winauea, Awakening of the White Will) now let you choose the order too.",
+      "Winauea's list is laid out in the order the cards were stacked on the square.",
+      "When Fading Cat makes everyone discard their hand, each player chooses their own order.",
+      "Added an \"Auto\" button for players who do not care about the order.",
+      "When several cards are discarded at once, you now choose the order yourself.",
+      "Tidied up how these update notes are presented.",
+    ],
     items: [
       "スマホでカードを長押しして拡大する時、拡大が「押した指と反対側」に出るようになりました。画面の右側のカードを押せば左に、左側のカードを押せば右に出るので、自分の手で隠れません（マウスでの拡大は今までどおり、設定した側に出ます）。",
       "盤面のカードを捨てる効果（ワイナウエア・白の意思の覚醒）でも、捨てる順番を選べるようになりました。対象のカードを一覧で広げて見せるので、マスに積み重なっていて盤面では押せないカードも選べます。裏向きのカードは裏向きのまま並ぶので、中身が見えてしまうことはありません。何も押さずに確定すれば、いま並んでいる順のまま捨てます。",
@@ -122,6 +173,20 @@ export const CHANGELOG = [
   },
   {
     date: "2026-09-26",
+    summary: [
+      "対局中に盤面の画角が勝手に動かないようにしました。",
+      "誘惑の黒の烙印でドローする時、お知らせが二重に出ていたのを直しました。",
+      "「手品師の技 -スリカエ-」で、CPUが相手の欲しい色を渡してしまうのを直しました。",
+      "カードの絵を新しいイラストに差し替えました。",
+      "カードの名前が、新しい絵の上でも読めるようになりました。",
+    ],
+    summaryEn: [
+      "The board no longer zooms in and out on its own during a match.",
+      "Drawing with the Brand of the Tempting Contract no longer announces the draw twice.",
+      "In \"Magician's Trick -Sleight-\", the CPU no longer hands you a colour you still need.",
+      "Replaced the card art with the new illustrations.",
+      "Card names are now readable on the new art.",
+    ],
     items: [
       "盤面の見え方（画角）が、カードを引いたり手札が増えたりするたびに少し大きくなったり小さくなったりしていたのを直しました。対局中は画角が動かなくなり、手札が画面の端で見えなくなりそうな時は、盤面ではなくその手札だけが少し内側へ寄ります。",
       "誘惑の黒の烙印でドローする時、「ドローします」のお知らせが1回のドローにつき二重に出ていたのを直しました（烙印が2枚あると4回出ていました）。烙印のお知らせ1つにまとめました。",
@@ -148,6 +213,16 @@ export const CHANGELOG = [
   },
   {
     date: "2026-09-23",
+    summary: [
+      "「このマスでいいですか？」に答えるまで、ゲームが先へ進まなくなりました。",
+      "複数枚捨てる時の順番の番号が、手札が重なっていても読めるようになりました。",
+      "CPU戦で、相手がカウンターロックした瞬間に画面が固まることがあったのを直しました。",
+    ],
+    summaryEn: [
+      "The game now waits until you answer \"Use this square?\".",
+      "The discard-order numbers are readable even when your cards overlap.",
+      "Fixed a freeze that could happen the moment a CPU counter-locked.",
+    ],
     items: [
       "「このマスでいいですか？」の確認を出している間は、ゲームの自動進行が待つようにしました（答えていないのにターンが進んでしまうのを防ぎます）。あわせて、答えないまま次のターンへ進んだ時に確認が画面に残り続けることがあったのも直し、確認が2つ同時に出ることもなくなりました。",
       "カードを複数枚捨てる時に付く順番の番号（①②③…）が、手札が重なっていると読めなかったのを直しました。選んだカードが手前に出て、番号もカードの上端に大きく表示されます。",
@@ -161,6 +236,22 @@ export const CHANGELOG = [
   },
   {
     date: "2026-09-21",
+    summary: [
+      "チュートリアルで、ドラッグしてロックしても案内が先へ進むようになりました。",
+      "対戦が始まった後も「開始を待っています…」が残ることがあったのを直しました。",
+      "満席の部屋を押した時は、観戦するかどうかをおたずねするようにしました。",
+      "観戦中に選択を求められることがあったのを直しました。",
+      "観戦中、誰の視点からでも盤面を見られるようになりました。",
+      "手札から1枚選ぶ最中に、別のカードの効果が始まってしまうのを直しました。",
+    ],
+    summaryEn: [
+      "In the tutorial, dragging a card into the lock area now advances the guide too.",
+      "Fixed the \"waiting to start...\" notice staying on screen after the match had begun.",
+      "Choosing a full room now asks whether you would like to spectate.",
+      "Spectators are no longer asked to make choices.",
+      "While spectating, you can now view the board from any player's seat.",
+      "Fixed another card's effect starting while you were choosing a card from your hand.",
+    ],
     items: [
       "チュートリアルで「紫のカードをロックしましょう」の場面のとき、カードをタップせずに自分でロックエリアへドラッグしてロックすると、案内がそこから先へ進まなくなっていたのを直しました。どちらのやり方でロックしても先へ進みます。",
       "対戦が始まった後も「◯◯さんがゲームを開始するのを待っています…」の案内が画面に出たままになることがあったのを直しました（席が足りず参加できなかった時や、観戦している時）。",
@@ -1958,7 +2049,54 @@ export function openChangelogModal({ admin = false } = {}) {
         }
         section.appendChild(ul);
       };
-      appendList(useEn ? entry.itemsEn : entry.items, "changelog-items");
+      // 【2026-09-29・ユーザー要望】良いニュース（items）も、長い本文が何行も並ぶと読む気が失せる
+      // （「もっと要約して『詳細はこちら』スタイルにしませんか？」）。そこで summary / summaryEn
+      // （短い1行の見出し）を足し、**今までの長い文はそのまま「詳細」の中身にした**。要約で本文を
+      // 書き直すのではなく上に見出しを足す形なので、過去の回に後から付けても本文の意味がズレない。
+      // summary は items と **同じ順番・同じ件数**で書く（1行が1項目の見出しになる）。件数が
+      // 合っていない回は、対応を取り違えるより安全なので従来どおり本文をそのまま並べる。
+      const itemTexts = useEn ? entry.itemsEn : entry.items;
+      const sumTexts = useEn ? entry.summaryEn : entry.summary;
+      const useSummary =
+        Array.isArray(itemTexts) &&
+        itemTexts.length > 0 &&
+        Array.isArray(sumTexts) &&
+        sumTexts.length === itemTexts.length;
+      if (useSummary) {
+        const ul = document.createElement("ul");
+        ul.className = "changelog-items changelog-summary-items";
+        const details = [];
+        for (let i = 0; i < sumTexts.length; i += 1) {
+          const li = document.createElement("li");
+          const head = document.createElement("div");
+          head.className = "changelog-summary-head";
+          head.textContent = sumTexts[i]; // textContentで安全に表示
+          li.appendChild(head);
+          const detail = document.createElement("div");
+          detail.className = "changelog-summary-detail";
+          detail.textContent = itemTexts[i];
+          detail.hidden = true;
+          li.appendChild(detail);
+          details.push(detail);
+          ul.appendChild(li);
+        }
+        section.appendChild(ul);
+        const row = document.createElement("div");
+        row.className = "changelog-more-row";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "changelog-fixes-toggle"; // 不具合側の「詳細」と同じ見た目に揃える
+        btn.textContent = t("chg.moreOpen");
+        btn.addEventListener("click", () => {
+          const open = details[0].hidden; // 1つのボタンでその回の全項目をまとめて開閉する
+          for (const d of details) d.hidden = !open;
+          btn.textContent = open ? t("chg.moreClose") : t("chg.moreOpen");
+        });
+        row.appendChild(btn);
+        section.appendChild(row);
+      } else {
+        appendList(itemTexts, "changelog-items");
+      }
       // 【2026-09-28・ユーザー要望】不具合の直し（fixes）は一覧で並べず、「不具合を修正しました」の
       // 1行に畳んで「詳細」で開く。理由は続き484 で devItems を分けたのと同じ——直した項目が列で
       // 並ぶと「問題だらけのアプリ」に見えてしまう。ただし**深さではなく種類で分ける**のが肝で、

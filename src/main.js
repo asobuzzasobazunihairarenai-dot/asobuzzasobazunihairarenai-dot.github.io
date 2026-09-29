@@ -4074,18 +4074,35 @@ async function runJointConstructionTask(player) {
 // 分もここでの枚数カウントに含める（続き55、card-effect-engine.jsのgetHandTokens()と
 // 同じ定義）。
 async function runSlumOfficialDiscardTask(player) {
-  let discardedAny = false;
-  while (true) {
-    const handCount = getState().tokens.filter(
-      (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
-    ).length;
-    if (handCount <= 3) break;
-    const chosen = await requestHandCardChoiceForEffect(player, t("game.slum.discardTo3", { n: handCount - 3 }));
-    if (!chosen || isDelegationExpired()) break; // 【#352】期限切れの後は捨てない
-    await discardFromHandReveal(chosen.id);
-    discardedAny = true;
+  const handIdsNow = () =>
+    getState()
+      .tokens.filter(
+        (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+      )
+      .map((t) => t.id);
+  const ids = handIdsNow();
+  const over = ids.length - 3;
+  if (over <= 0) return false;
+  // 【2026-09-29・続き545・ユーザー要望】2枚以上捨てる時は、1枚ずつ「これでいいですか？」を
+  // 繰り返すのをやめ、他の複数枚捨てと同じ**順番を付けて最後に1回確定する**画面にする
+  // （5枚捨てる場面では確認が4回出ていた＝#344 と同じ理由）。捨てる枚数は決まっているので
+  // limit を渡す。1枚だけの時は順番が無いので従来どおり1枚選ぶ形のまま。
+  if (over >= 2) {
+    const ordered = await requestHandCardsOrderedForEffect(player, t("game.slum.discardTo3Order", { n: over }), ids, {
+      limit: over,
+    });
+    let discardedAny = false;
+    for (const token of (ordered || []).slice(0, over)) {
+      if (isDelegationExpired()) break; // 【#352】期限切れの後は捨てない
+      await discardFromHandReveal(token.id);
+      discardedAny = true;
+    }
+    return discardedAny;
   }
-  return discardedAny;
+  const chosen = await requestHandCardChoiceForEffect(player, t("game.slum.discardTo3", { n: over }));
+  if (!chosen || isDelegationExpired()) return false; // 【#352】期限切れの後は捨てない
+  await discardFromHandReveal(chosen.id);
+  return true;
 }
 
 // パーティー専用のタスクハンドラ。3択（移動/拾う/2枚オープン）から1つ選んで実行する。
@@ -6908,7 +6925,7 @@ function hideEffectPickerHint() {
 // そのハンドラのstopPropagationで届かないため）。elementsFromPoint()で拾えるよう
 // pointer-events:auto（button既定）にしておく。
 let effectSkipButtonEl = null;
-function showEffectSkipButton(label) {
+function showEffectSkipButton(label, options = {}) {
   if (!effectSkipButtonEl) {
     effectSkipButtonEl = document.createElement("button");
     effectSkipButtonEl.id = "card-effect-skip-button";
@@ -6916,6 +6933,10 @@ function showEffectSkipButton(label) {
     document.body.appendChild(effectSkipButtonEl);
   }
   effectSkipButtonEl.textContent = label;
+  // 【続き545】枚数が揃うまで確定できない場面で薄くする。**押せなくする効果は無い**——
+  // このボタンは #game-table の自前の当たり判定で拾うので（教訓4）、実際に止めるのは
+  // 呼び出し側（confirmOrder）。ここは見た目だけ。
+  effectSkipButtonEl.disabled = !!options.disabled;
   effectSkipButtonEl.classList.add("show");
 }
 function hideEffectSkipButton() {
@@ -6972,6 +6993,18 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     ];
     const filterIds = tokenIdFilter ? (tokenIdFilter instanceof Set ? tokenIdFilter : new Set(tokenIdFilter)) : null;
     const cardEls = filterIds ? allCardEls.filter((el) => filterIds.has(el.dataset.tokenId)) : allCardEls;
+    // 【2026-09-29・続き545】options.limit ＝「この枚数だけ選ぶ」。
+    // これが無い時は従来どおり**全部捨てる**（選ばなかった分は並び順のまま後ろへ足す）。
+    // スラム上がりの役人（3枚になるまで）・選べる罠（手札の半分）のように**捨てる枚数が
+    // 決まっている**効果のために足した。候補の枚数以上を指定された時は「結局全部」なので
+    // limit 無しと同じ扱いにする（全部押させるのは手間が増えるだけで意味が無い）。
+    const limitRaw = Number.isFinite(options.limit) ? Math.max(0, Math.floor(options.limit)) : null;
+    if (limitRaw === 0) {
+      resolve([]);
+      return;
+    }
+    const limit = limitRaw != null && limitRaw < cardEls.length ? limitRaw : null;
+    const want = limit ?? cardEls.length; // 最終的に何枚返すか
     const tokensOf = (ids) => {
       const state = getState();
       return ids.map((id) => state.tokens.find((t) => t.id === id)).filter(Boolean);
@@ -6988,7 +7021,7 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     if (isCpuSelectingNow(player)) {
       const pool = new Set(cardEls.map((el) => el.dataset.tokenId));
       const order = [];
-      while (pool.size > 0) {
+      while (order.length < want && pool.size > 0) {
         const id = chooseHandCardToken(pool, player) ?? [...pool][0];
         pool.delete(id);
         order.push(id);
@@ -7024,7 +7057,11 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
           badgeOf.delete(id);
         }
       }
-      showEffectSkipButton(t("game.pick.discardOrderConfirm", { n: picked.length, total: cardEls.length }));
+      // limit があるうちは「まだ足りない」間だけ確定を薄くする（押しても confirmOrder 側で弾く。
+      // このボタンは自前の当たり判定で拾うので、disabled 属性だけでは止まらない＝教訓4）。
+      showEffectSkipButton(t("game.pick.discardOrderConfirm", { n: picked.length, total: want }), {
+        disabled: limit != null && picked.length !== limit,
+      });
     };
     const finish = (ids) => {
       for (const el of cardEls) el.classList.remove("card-effect-target-cell", "is-discard-picked");
@@ -7041,7 +7078,7 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     const autoOrder = () => {
       const pool = new Set(cardEls.map((el) => el.dataset.tokenId).filter((id) => !picked.includes(id)));
       const ids = [...picked];
-      while (pool.size > 0) {
+      while (ids.length < want && pool.size > 0) {
         const id = chooseHandCardToken(pool, player) ?? [...pool][0];
         pool.delete(id);
         ids.push(id);
@@ -7064,12 +7101,22 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       toggle: (id) => {
         const i = picked.indexOf(id);
         if (i >= 0) picked.splice(i, 1);
-        else picked.push(id);
+        // limit まで選んだ後に別の札を押しても増やさない（捨てる枚数はルールで決まっているため）。
+        // 選び直したい時は、選んだ札をもう一度押して外してから押す。
+        else if (limit == null || picked.length < limit) picked.push(id);
+        else return;
         paint();
       },
       // 「これで捨てる」＝選んでいない残りは、手札に並んでいる順のまま後ろへ付ける
       // （全部捨てる効果なので、選ばなかった札も必ず捨てる）。
       confirmOrder: () => {
+        // limit がある時は**枚数が揃うまで確定させない**（ボタンを薄くするだけでは止まらない＝教訓4）。
+        if (limit != null) {
+          if (picked.length !== limit) return;
+          activeEffectPicker = null;
+          finish([...picked]);
+          return;
+        }
         const rest = cardEls.map((el) => el.dataset.tokenId).filter((id) => !picked.includes(id));
         const ids = [...picked, ...rest];
         activeEffectPicker = null;

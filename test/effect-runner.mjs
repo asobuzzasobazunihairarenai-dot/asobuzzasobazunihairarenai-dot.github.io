@@ -136,6 +136,14 @@ export async function runOneCase(spec) {
         // 筋書きに指定が無ければ、渡された候補をそのままの並びで返す（＝順番を選ばない）。
         order = [...ids].map((id) => findToken(id)).filter(Boolean);
       }
+      // 【続き545】limit ＝「この枚数だけ選ぶ」（役人・選べる罠）。本物は limit を超えて
+      // 選べないので、スタブでも超えたら例外にする。筋書きが無い時は先頭から limit 枚。
+      if (Number.isFinite(options?.limit)) {
+        if (Array.isArray(want) && order.length !== options.limit)
+          throw new Error("pickHandCardsOrdered: limit=" + options.limit + " なのに " + order.length + " 枚指定された");
+        order = order.slice(0, options.limit);
+        callLog.push(["pickHandCardsOrderedLimit", String(options.limit)]);
+      }
       callLog.push(["pickHandCardsOrdered", order.map((tk) => tk.id).join(",")]);
       if (options?.purpose) callLog.push(["pickHandCardsOrderedPurpose", options.purpose]);
       return order;

@@ -1683,11 +1683,32 @@ async function runAction(action, ctx, helpers) {
       const discardCount = Math.floor(handTokens.length / 2);
       if (discardCount === 0) return false;
       const discardedNames = [];
-      for (let i = 0; i < discardCount; i++) {
-        const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount - i }));
-        if (!chosen) break;
-        discardedNames.push(cardDisplayName(chosen.cardId));
-        await helpers.discardAndSync(chosen.id);
+      // 【2026-09-29・続き545・ユーザー要望「総点検を」】2枚以上捨てる時は、1枚ずつ確認を
+      // 繰り返すのをやめ、順番を付けて最後に1回確定する画面にする（#344・役人と同じ形）。
+      // 捨てる枚数は「手札の半分」で決まっているので limit を渡す。
+      // 古い pickHandCardsOrdered を持たない呼び出し元でも動くよう、1枚ずつの経路は残す。
+      let ordered = null;
+      if (discardCount >= 2 && helpers.pickHandCardsOrdered) {
+        const picked = await helpers.pickHandCardsOrdered(
+          ctx.player,
+          t("ce.pickDiscardOrderN", { n: discardCount }),
+          handTokens.map((tk) => tk.id),
+          { limit: discardCount }
+        );
+        if (Array.isArray(picked) && picked.length > 0) ordered = picked.slice(0, discardCount);
+      }
+      if (ordered) {
+        for (const token of ordered) {
+          discardedNames.push(cardDisplayName(token.cardId));
+          await helpers.discardAndSync(token.id);
+        }
+      } else {
+        for (let i = 0; i < discardCount; i++) {
+          const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount - i }));
+          if (!chosen) break;
+          discardedNames.push(cardDisplayName(chosen.cardId));
+          await helpers.discardAndSync(chosen.id);
+        }
       }
       // お知らせ（ユーザー要望「選べる罠で何を捨てたか全員にモーダルで一覧表示したい」）:
       // 捨て札は公開情報のため、捨てたカードの一覧を全員へ告知する（effect_reasonモーダル）。
