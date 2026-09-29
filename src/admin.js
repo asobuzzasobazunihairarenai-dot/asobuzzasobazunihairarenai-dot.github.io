@@ -2161,6 +2161,67 @@ const TOGGLE_SECTIONS = [
       litRow.appendChild(litLabel);
       content.appendChild(litRow);
       content.appendChild(litInfo);
+      // 【2026-09-29】光の強さ・向きのつまみ。ユーザーから「暗い感じはありますね！光源を強くすれば
+      // いいとか？」——そのとおりだが、**私が数字を当てずっぽうで決めるより実機で見ながら回せる方が
+      // 確実**なので、つまみにした（このプロジェクトの既存の運用＝管理者モードで調整→良い値を
+      // コードの既定へ反映、と同じ形）。動かすとその場で反映される（材質の作り直しは要らないので軽い）。
+      const lightBox = document.createElement("div");
+      lightBox.style.cssText = "margin: 0.4rem 0 0 1.4rem;";
+      const lightOut = document.createElement("div");
+      lightOut.style.cssText = "font-size: 0.68rem; opacity: 0.8; margin-top: 0.3rem; line-height: 1.5; user-select: text;";
+      const SLIDERS = [
+        { key: "hemi", label: "全体の明るさ", min: 0, max: 8, step: 0.05 },
+        { key: "key", label: "主な光の強さ", min: 0, max: 8, step: 0.05 },
+        { key: "fill", label: "反対側からの弱い光", min: 0, max: 4, step: 0.05 },
+        { key: "dirX", label: "光の向き（左右）", min: -1, max: 1, step: 0.05 },
+        { key: "dirY", label: "光の高さ（−で上から）", min: -1, max: 1, step: 0.05 },
+      ];
+      const inputs = new Map();
+      const showValues = async () => {
+        const s = await import("./board-3d-setting.js");
+        const L = s.getBoard3dLight();
+        for (const [k, el] of inputs) el.value = String(L[k]);
+        lightOut.textContent =
+          "いまの値： " + SLIDERS.map((d) => `${d.label} ${L[d.key]}`).join(" ／ ") +
+          "　※良い具合になったら、この行をそのまま伝えてください（コードの既定値に反映します）";
+      };
+      for (const d of SLIDERS) {
+        const row = document.createElement("label");
+        row.style.cssText = "display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.15rem; font-size: 0.72rem;";
+        const name = document.createElement("span");
+        name.textContent = d.label;
+        name.style.cssText = "flex: 0 0 9.5rem;";
+        const range = document.createElement("input");
+        range.type = "range";
+        range.min = String(d.min);
+        range.max = String(d.max);
+        range.step = String(d.step);
+        range.style.cssText = "flex: 1;";
+        range.addEventListener("input", async () => {
+          const s = await import("./board-3d-setting.js");
+          s.setBoard3dLight({ [d.key]: Number(range.value) }); // 中で描き直しが走る
+          void showValues();
+        });
+        inputs.set(d.key, range);
+        row.appendChild(name);
+        row.appendChild(range);
+        lightBox.appendChild(row);
+      }
+      const resetBtn = document.createElement("button");
+      resetBtn.type = "button";
+      resetBtn.textContent = "光の設定を既定に戻す";
+      resetBtn.style.cssText =
+        "margin-top: 0.3rem; padding: 0.2rem 0.6rem; font-size: 0.7rem; background: #0f1520; color: #f1f5f9;" +
+        " border: 1px solid rgba(148,163,184,0.4); border-radius: 0.25rem; cursor: pointer;";
+      resetBtn.addEventListener("click", async () => {
+        const s = await import("./board-3d-setting.js");
+        s.setBoard3dLight({ ...s.BOARD3D_LIGHT_DEFAULT });
+        void showValues();
+      });
+      lightBox.appendChild(resetBtn);
+      lightBox.appendChild(lightOut);
+      content.appendChild(lightBox);
+      void showValues();
     },
   },
   {

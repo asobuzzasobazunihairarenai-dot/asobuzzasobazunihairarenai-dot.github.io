@@ -65,6 +65,48 @@ export function setBoard3dLitChangeHandler(fn) {
   litChangeHandler = typeof fn === "function" ? fn : null;
 }
 
+// --- 光の強さ・向き（管理者モードのつまみ 2026-09-29） -----------------------------------
+// ユーザーが実機で見ながら回せるようにする。私が数字を当てずっぽうで決めるより確実で、
+// このプロジェクトの既存の運用（管理者モードで調整→良い値をコードの既定へ反映）と同じ形。
+// **材質の作り直しは要らない**（光の強さ・向きを変えるだけ）ので、`litChangeHandler` とは
+// 別の軽い合図を持つ。
+const LIGHT_KEY = "so7-board-3d-light";
+export const BOARD3D_LIGHT_DEFAULT = {
+  hemi: 2.45, // 全体の明るさ（空と地面からの柔らかい下地）
+  key: 1.55, // 主光源の強さ
+  fill: 0.55, // 反対側からの補助光
+  dirX: -0.45, // 主光源の左右の向き（−で左から、＋で右から）
+  dirY: -1, // 主光源の高さ（CSSに合わせてY軸が反転しているので −が「上から」）
+};
+export function getBoard3dLight() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LIGHT_KEY) || "{}");
+    const out = { ...BOARD3D_LIGHT_DEFAULT };
+    for (const k of Object.keys(BOARD3D_LIGHT_DEFAULT)) {
+      if (Number.isFinite(raw?.[k])) out[k] = raw[k];
+    }
+    return out;
+  } catch (err) {
+    return { ...BOARD3D_LIGHT_DEFAULT };
+  }
+}
+export function setBoard3dLight(patch) {
+  try {
+    localStorage.setItem(LIGHT_KEY, JSON.stringify({ ...getBoard3dLight(), ...patch }));
+  } catch (err) {
+    /* 保存できなくてもそのセッションでは効く */
+  }
+  try {
+    lightChangeHandler?.();
+  } catch (err) {
+    /* 反映に失敗しても値自体は変わっている */
+  }
+}
+let lightChangeHandler = null;
+export function setBoard3dLightChangeHandler(fn) {
+  lightChangeHandler = typeof fn === "function" ? fn : null;
+}
+
 // --- 「盤面のDOMを描き直したので、WebGL側も作り直して」の合図 ---------------------------
 // 【#297「移動で移動先に着地するとき一瞬駒が消えます」】盤面のWebGL描画は
 // ①ゲーム状態が変わった時 ②500msごとの保険 の2つでしか作り直していなかった。ところが

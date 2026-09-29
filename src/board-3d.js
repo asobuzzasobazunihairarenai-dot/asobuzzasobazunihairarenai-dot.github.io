@@ -34,6 +34,8 @@ import {
   setBoard3dFlusher,
   isBoard3dLit,
   setBoard3dLitChangeHandler,
+  getBoard3dLight,
+  setBoard3dLightChangeHandler,
 } from "./board-3d-setting.js";
 // 【#324・2026-09-07】2D表示（body.diagnostic-flatten-3d）中はWebGL描画を止めるために見る。
 // tablet-2d-mode.js は board-3d.js を import しないので循環しない。
@@ -598,30 +600,48 @@ function makeQuadMaterial() {
 // 光源。ONの時だけ scene に足し、OFFに戻したら外す（置きっぱなしにすると、材質が
 // MeshBasicMaterial に戻っても計算の対象として残ってしまう）。
 let lightRig = null;
+let hemiLight = null;
+let keyLight = null;
+let fillLight = null;
 function applyLightRig() {
   if (!scene) return;
   const want = isBoard3dLit();
   if (want && !lightRig) {
     lightRig = new THREE.Group();
     // 空と地面の色を分けた柔らかい下地。これだけで真っ黒な影が出るのを防ぐ。
-    // 【調整 2026-09-29】最初 1.15 にしたら**陰影が付く前に全体が暗くなった**（実測: 同じ盤面で
-    // カードが一様に暗くなっただけ）。盤面のカードはどれも同じ向きに寝ているので、光源が弱いと
-    // 「差が出ずに暗くなる」だけになる。下地を強めて**平らな面の明るさは元のまま**にし、
-    // 向きの違う面（駒の上面と側面・山の側面）だけで差が出るようにする。
-    lightRig.add(new THREE.HemisphereLight(0xffffff, 0x8a8078, 2.45));
-    // 主光源。カメラは (ox, -oy, P) から原点を見ており、**CSSに合わせてY軸が反転**して
-    // いるので、「上から」は -Y になる。斜め上・手前からの1灯で上面と側面を分ける。
-    const key = new THREE.DirectionalLight(0xfff4e2, 1.55);
-    key.position.set(-0.45, -1, -0.85); // 【検証】板の表が光源と逆を向いている疑いがあるのでZを反転
-    lightRig.add(key);
+    hemiLight = new THREE.HemisphereLight(0xffffff, 0x8a8078, 1);
+    lightRig.add(hemiLight);
+    // 主光源。**Zが負**なのが肝——盤面の板はCSSの行列にY軸の反転が含まれるため
+    // **表がカメラと逆を向いている**。素直に手前(+Z)から当てると光が板の裏に当たり、
+    // 見えている面がずっと影の中になって「陰影が付く前に全体が暗くなる」（実測で判明）。
+    keyLight = new THREE.DirectionalLight(0xfff4e2, 1);
+    lightRig.add(keyLight);
     // 影になる側が潰れないよう、反対側から弱く1灯。
-    const fill = new THREE.DirectionalLight(0xdfe8ff, 0.55);
-    fill.position.set(0.7, 0.35, -0.6);
-    lightRig.add(fill);
+    fillLight = new THREE.DirectionalLight(0xdfe8ff, 1);
+    lightRig.add(fillLight);
     scene.add(lightRig);
+    updateLightRig();
   } else if (!want && lightRig) {
     scene.remove(lightRig);
     lightRig = null;
+    hemiLight = keyLight = fillLight = null;
+  }
+}
+
+// 【2026-09-29】管理者モードのつまみから呼ぶ。**材質の作り直しは要らない**ので、
+// 強さと向きだけを差し替えて描き直す（材質を捨てて作り直すと重いうえ、つまみを回すたびに
+// 盤面が一瞬消える）。
+function updateLightRig() {
+  if (!lightRig) return;
+  const L = getBoard3dLight();
+  if (hemiLight) hemiLight.intensity = L.hemi;
+  if (keyLight) {
+    keyLight.intensity = L.key;
+    keyLight.position.set(L.dirX, L.dirY, -0.85);
+  }
+  if (fillLight) {
+    fillLight.intensity = L.fill;
+    fillLight.position.set(-L.dirX, -L.dirY * 0.35, -0.6);
   }
 }
 
@@ -1182,6 +1202,11 @@ function reconcileBoard3dActive() {
       shapeMeshByElement.clear();
       applyLightRig();
       needsRebuild = true;
+      flushNow();
+    });
+    // 光の強さ・向きだけの変更（つまみ）。材質はそのままで良いので軽い。
+    setBoard3dLightChangeHandler(() => {
+      updateLightRig();
       flushNow();
     });
     // 保険: 状態変更を伴わない見た目の変化（管理者モードのスライダー等）にも追随する。
