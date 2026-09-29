@@ -2131,6 +2131,36 @@ const TOGGLE_SECTIONS = [
         if (!content.isConnected || importFailed) { clearInterval(timer); return; }
         void safeRefresh();
       }, 1000);
+      // 【試作 2026-09-29】「盤面に光を当てる」。別プロジェクト「∞:EVEN」の3D卓の質感が
+      // PVに近い、という指摘から。調べたところ技術はまったく同じ（どちらもブラウザの
+      // three.js）で、違いは材質と光源だけだった——あちらは MeshStandardMaterial ＋ 光源3つ、
+      // こちらは MeshBasicMaterial ＋ 光源なし。こちらが光を計算しないのは #348「iPhoneの
+      // 画面が熱い」への対策なので、**既定はOFF**にして見比べられる形で入れる。
+      // 見た目はユーザーが目で、重さは実測で判断する。
+      const litRow = document.createElement("label");
+      litRow.style.cssText = "display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin-top: 0.5rem;";
+      const litCb = document.createElement("input");
+      litCb.type = "checkbox";
+      const litInfo = document.createElement("div");
+      litInfo.style.cssText = "font-size: 0.7rem; opacity: 0.75; margin: 0.2rem 0 0 1.4rem; line-height: 1.5;";
+      litInfo.textContent = "駒の上面と側面に陰影が付きます。重くなる可能性があるので既定はOFFです。";
+      void (async () => {
+        try {
+          const s = await import("./board-3d-setting.js");
+          litCb.checked = s.isBoard3dLit();
+        } catch (err) { /* 読めなくてもチェックは触れる */ }
+      })();
+      litCb.addEventListener("change", async () => {
+        const s = await import("./board-3d-setting.js");
+        s.setBoard3dLit(litCb.checked); // 中で board-3d.js 側の作り直しが走る
+        setTimeout(safeRefresh, 400);
+      });
+      const litLabel = document.createElement("span");
+      litLabel.textContent = "盤面に光を当てる（試作・材質を光の当たるものに変える）";
+      litRow.appendChild(litCb);
+      litRow.appendChild(litLabel);
+      content.appendChild(litRow);
+      content.appendChild(litInfo);
     },
   },
   {

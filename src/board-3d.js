@@ -32,6 +32,8 @@ import {
   setBoard3dEnabledSetting,
   setBoard3dInvalidator,
   setBoard3dFlusher,
+  isBoard3dLit,
+  setBoard3dLitChangeHandler,
 } from "./board-3d-setting.js";
 // 【#324・2026-09-07】2D表示（body.diagnostic-flatten-3d）中はWebGL描画を止めるために見る。
 // tablet-2d-mode.js は board-3d.js を import しないので循環しない。
@@ -580,10 +582,53 @@ function effectiveVisual(el, root) {
 // --- 走査してメッシュを作る -----------------------------------------------------------
 const QUAD = new THREE.PlaneGeometry(1, 1);
 
+// 【試作 2026-09-29】板の材質。既定は MeshBasicMaterial（光を計算しない＝軽い。#348 の
+// 発熱対策）。「盤面に光を当てる」がONの時だけ MeshStandardMaterial にして、光源を置く。
+// 板はCSSの matrix3d をそのまま積んだ本物の3D行列で置かれているので（駒の5面が立方体に
+// なっている）、光を当てると上面と側面で陰影が分かれる＝∞:EVEN の3D卓と同じ見え方になる。
+// roughness を高め・metalness を0にしてあるのは、紙のカードと樹脂の駒が主役だから
+// （金属のようにギラつかせない）。
+function makeQuadMaterial() {
+  const common = { transparent: true, depthWrite: false, side: THREE.DoubleSide };
+  return isBoard3dLit()
+    ? new THREE.MeshStandardMaterial({ ...common, roughness: 0.72, metalness: 0.0 })
+    : new THREE.MeshBasicMaterial(common);
+}
+
+// 光源。ONの時だけ scene に足し、OFFに戻したら外す（置きっぱなしにすると、材質が
+// MeshBasicMaterial に戻っても計算の対象として残ってしまう）。
+let lightRig = null;
+function applyLightRig() {
+  if (!scene) return;
+  const want = isBoard3dLit();
+  if (want && !lightRig) {
+    lightRig = new THREE.Group();
+    // 空と地面の色を分けた柔らかい下地。これだけで真っ黒な影が出るのを防ぐ。
+    // 【調整 2026-09-29】最初 1.15 にしたら**陰影が付く前に全体が暗くなった**（実測: 同じ盤面で
+    // カードが一様に暗くなっただけ）。盤面のカードはどれも同じ向きに寝ているので、光源が弱いと
+    // 「差が出ずに暗くなる」だけになる。下地を強めて**平らな面の明るさは元のまま**にし、
+    // 向きの違う面（駒の上面と側面・山の側面）だけで差が出るようにする。
+    lightRig.add(new THREE.HemisphereLight(0xffffff, 0x8a8078, 2.45));
+    // 主光源。カメラは (ox, -oy, P) から原点を見ており、**CSSに合わせてY軸が反転**して
+    // いるので、「上から」は -Y になる。斜め上・手前からの1灯で上面と側面を分ける。
+    const key = new THREE.DirectionalLight(0xfff4e2, 1.55);
+    key.position.set(-0.45, -1, -0.85); // 【検証】板の表が光源と逆を向いている疑いがあるのでZを反転
+    lightRig.add(key);
+    // 影になる側が潰れないよう、反対側から弱く1灯。
+    const fill = new THREE.DirectionalLight(0xdfe8ff, 0.55);
+    fill.position.set(0.7, 0.35, -0.6);
+    lightRig.add(fill);
+    scene.add(lightRig);
+  } else if (!want && lightRig) {
+    scene.remove(lightRig);
+    lightRig = null;
+  }
+}
+
 function ensureMesh(el, url) {
   let mesh = meshByElement.get(el);
   if (!mesh) {
-    const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    const mat = makeQuadMaterial();
     mesh = new THREE.Mesh(QUAD, mat);
     meshByElement.set(el, mesh);
     rootGroup.add(mesh);
@@ -610,7 +655,7 @@ function ensureShapeMesh(el, spec) {
     "|" + (spec.glow ? glowColor + spec.glow.blur + "/" + spec.glow.spread : "");
   let mesh = shapeMeshByElement.get(el);
   if (!mesh) {
-    const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    const mat = makeQuadMaterial();
     mesh = new THREE.Mesh(QUAD, mat);
     shapeMeshByElement.set(el, mesh);
     rootGroup.add(mesh);
@@ -1041,6 +1086,7 @@ function ensureRenderer() {
   camera = new THREE.PerspectiveCamera();
   rootGroup = new THREE.Group();
   scene.add(rootGroup);
+  applyLightRig(); // 【試作】「盤面に光を当てる」がONなら光源を置く
   // iOSはWebGLの描画を打ち切ることがある（メモリ不足など）。その時は黙って
   // 従来のCSS描画へ戻す——真っ黒な盤面のまま操作不能、という状態を作らない。
   canvasEl.addEventListener("webglcontextlost", (e) => {
@@ -1122,6 +1168,22 @@ function reconcileBoard3dActive() {
     setBoard3dInvalidator(markDirty);
     // 【#301/#302】演出が実物を見せた瞬間に、その場で描き直せるようにする（上の flushNow）。
     setBoard3dFlusher(flushNow);
+    // 【試作 2026-09-29】「盤面に光を当てる」を切り替えたら、材質は板ごとに作って**使い回して
+    // いる**ので、全部捨てて作り直させる（次の rebuild() で makeQuadMaterial が新しい材質を
+    // 作る）。光源も足し外しする。
+    setBoard3dLitChangeHandler(() => {
+      try {
+        for (const mesh of allMeshes()) {
+          rootGroup?.remove(mesh);
+          mesh.material.dispose();
+        }
+      } catch (err) { /* 作り直しの途中で落ちても、描画が止まるだけにはしない */ }
+      meshByElement.clear();
+      shapeMeshByElement.clear();
+      applyLightRig();
+      needsRebuild = true;
+      flushNow();
+    });
     // 保険: 状態変更を伴わない見た目の変化（管理者モードのスライダー等）にも追随する。
     rebuildTimer = setInterval(markDirty, 500);
     rafId = requestAnimationFrame(frame);

@@ -29,6 +29,42 @@ export function setBoard3dEnabledSetting(on) {
   }
 }
 
+// --- 【試作 2026-09-29】盤面に光を当てる（材質を光の当たるものに変える） -----------------
+// ユーザー要望: 別プロジェクト「∞:EVEN」の3D卓の質感がPVに近い、こちらもああしたい。
+// 調べたところ**技術はまったく同じ**（どちらもブラウザの three.js）で、違いは2つだけだった:
+//   ・∞:EVEN … MeshStandardMaterial / MeshPhysicalMaterial（光を受ける）＋ 光源3つ
+//   ・こちら … MeshBasicMaterial（光を受けない）＋ 光源なし
+// こちらが光を計算しないのは #348「iPhoneの画面が熱い」への対策。だから**既定はOFFのまま**、
+// 管理者モードで切り替えて見比べられる試作として入れる（見た目はユーザーが目で、重さは実測で
+// 判断する）。板はCSSの matrix3d をそのまま積んだ**本物の3D行列**で置かれているので
+// （駒の5面がちゃんと立方体になっている）、光を当てれば上面と側面で陰影が分かれる。
+// アカウントに同期しない（端末の性能に依る設定なので、WebGL描画のON/OFFと同じ扱い）。
+const LIT_KEY = "so7-board-3d-lit";
+export function isBoard3dLit() {
+  try {
+    return localStorage.getItem(LIT_KEY) === "1";
+  } catch (err) {
+    return false;
+  }
+}
+export function setBoard3dLit(on) {
+  try {
+    localStorage.setItem(LIT_KEY, on ? "1" : "0");
+  } catch (err) {
+    /* 保存できなくてもそのセッションでは効く */
+  }
+  try {
+    litChangeHandler?.();
+  } catch (err) {
+    /* 切り替えの反映に失敗しても設定自体は変わっている */
+  }
+}
+// board-3d.js 側が「材質を作り直す」ために登録する。描画が止まっている時は空のまま。
+let litChangeHandler = null;
+export function setBoard3dLitChangeHandler(fn) {
+  litChangeHandler = typeof fn === "function" ? fn : null;
+}
+
 // --- 「盤面のDOMを描き直したので、WebGL側も作り直して」の合図 ---------------------------
 // 【#297「移動で移動先に着地するとき一瞬駒が消えます」】盤面のWebGL描画は
 // ①ゲーム状態が変わった時 ②500msごとの保険 の2つでしか作り直していなかった。ところが
