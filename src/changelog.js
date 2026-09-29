@@ -51,6 +51,27 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-09-30",
+    summary: [
+      "最後の1色をロックする瞬間に、カメラが大きく寄るようになりました（アグレッシブモード）。",
+    ],
+    summaryEn: [
+      "The camera now moves in hard when someone locks their seventh colour (cinematic mode).",
+    ],
+    items: [
+      "アグレッシブモードを「決め所だけ」以上にしていると、誰かが7色目をロックしようとした瞬間、そのロックエリアへカメラが大きく寄ります（接触より強く・ゆっくり寄ります）。承認が一瞬で終わる場面でも見せ場が残るように、最低1.8秒は寄ったままにしてあります。見本ボタンも「▶ 接触」と「▶ 最後の1色」の2つになりました。",
+    ],
+    itemsEn: [
+      "With the cinematic camera set to \"Big moments\" or higher, the camera now sweeps in on the lock area the moment someone goes for their seventh colour - closer and slower than for a contact. It holds for at least 1.8 seconds so the moment still lands even when everyone approves instantly. There are now two preview buttons: Contact and Final lock.",
+    ],
+    devItems: [
+      "最後の1色（#359「最後のロックをもっと派手に」）をアグレッシブモードに乗せた。**state（pendingFinalLock）を見て切り替える**のが肝——ロックの宣言はタップ経路・ドラッグ経路・オンラインの同期と入口が複数あり、入口ごとに書くと必ずどれかを書き忘れる（続き83・524と同じ形）。pendingFinalLock の tokenId が変わった時だけ動かし、消えたら戻す。**A/Bで因果を確定**: 同じ宣言を「切」と「決め所だけ」で1回ずつ起こすと、切＝寄り 1.000（まったく動かない）／決め所だけ＝寄り 1.5。**測って初めて分かった問題**: 最初は 1.356 までしか寄らなかった——CPU戦では承認が同じ処理の中で一瞬で解決するので、寄り切る前に戻りが始まっていた。最低1.8秒は寄ったままにする下限（FINAL_LOCK_CAMERA_MIN_MS）を入れて 1.5 まで届くようにした。",
+    ],
+    devItemsEn: [
+      "Hooked the final lock (#359, \"make the last lock more spectacular\") into the cinematic camera. The trigger reads state (pendingFinalLock) rather than each call site: a final lock can be declared from the tap path, the drag path or an online sync, and writing it per entry point guarantees missing one. It fires when pendingFinalLock's tokenId changes and returns when it clears. An A/B pins down the causality: the same declaration with the mode off never moves the camera (zoom 1.000) while \"Big moments\" reaches 1.5. Measuring also exposed a problem: at first it only reached 1.356, because in a CPU match the approval resolves synchronously and the pull-back began before the move-in finished. A minimum hold (FINAL_LOCK_CAMERA_MIN_MS, 1.8s) now lets it arrive.",
+    ],
+  },
+  {
     date: "2026-09-29",
     summary: [
       "お知らせが短い1行になり、「詳細」を押すと詳しい説明が出るようになりました。",

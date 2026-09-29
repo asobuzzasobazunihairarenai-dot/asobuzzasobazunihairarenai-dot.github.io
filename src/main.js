@@ -12335,6 +12335,54 @@ window.addEventListener("so7:preview-contact", () => {
   void playContactTacklePreview();
 });
 
+// 【2026-09-29・続き549】アグレッシブモード: **最後の1色**（#359「最後のロックをもっと派手に」）。
+// 7色目のロックが宣言されて**承認待ち**になった瞬間、そのロックスロットへ大きく寄る。
+// 承認・却下で待ちが消えたら戻す。
+// **state を見て切り替える**のが肝——ロックの宣言はタップ経路・ドラッグ経路・オンラインの
+// 同期と複数の入口から起きるので、入口ごとに書くと必ずどれかを書き忘れる（続き83・524と同じ形）。
+// 寄り方は接触より強く・ゆっくりにしてある（勝負が決まる瞬間なので）。
+let lastFinalLockKey = null;
+let finalLockCameraStartedAt = 0;
+// 見せ場の最低の長さ。承認が一瞬で終わる場面（CPU戦・全員が即承認）でも、寄り切る前に
+// 戻ってしまっては「最後の1色」が印象に残らない（実測: A/Bで 1.5 まで届かず 1.356 で戻った）。
+const FINAL_LOCK_CAMERA_MIN_MS = 1800;
+subscribe(() => {
+  const pending = getState().pendingFinalLock;
+  const key = pending ? pending.tokenId : null;
+  if (key === lastFinalLockKey) return;
+  lastFinalLockKey = key;
+  if (!cinematicAllows("highlight")) return;
+  if (!key) {
+    const held = performance.now() - finalLockCameraStartedAt;
+    scheduleCameraHome(Math.max(300, FINAL_LOCK_CAMERA_MIN_MS - held));
+    return;
+  }
+  finalLockCameraStartedAt = performance.now();
+  const table = document.getElementById("game-table");
+  const el = table && pending.location ? findLocationElement(table, pending.location) : null;
+  if (el) void focusCameraOnElement(el, { zoom: 1.5, ms: 700 });
+});
+
+// 「▶ 最後の1色」の見本。承認バナーまでは出さず、**カメラの寄り方だけ**を本番と同じ数字で見せる
+// （7色目まで実際に遊ばないと見られないため。ユーザー要望「試しに見るのに一苦労」の同じ趣旨）。
+async function playFinalLockCameraPreview() {
+  const table = document.getElementById("game-table");
+  const st = getState();
+  if (!table || !st.turnPlayer) return false;
+  const side = SEAT_TO_SIDE[getSelfSeat()];
+  if (!side) return false;
+  // 自分のロックエリアの真ん中あたりのスロットに寄る（どのスロットでも見え方は同じ）。
+  const el = findLocationElement(table, { zone: "lock", side, index: 3 });
+  if (!el) return false;
+  await focusCameraOnElement(el, { zoom: 1.5, ms: 700 });
+  await new Promise((r) => setTimeout(r, 1600));
+  await cameraHome(700);
+  return true;
+}
+window.addEventListener("so7:preview-final-lock", () => {
+  void playFinalLockCameraPreview();
+});
+
 // 効果が連鎖すると移動が何回も続く（試練の儀式・増殖する樹々など）。1回ごとに寄って戻ってを
 // 繰り返すと待ち時間だけ増えるので、**戻りは予約にして、次の寄りが来たら取り消す**。
 // 結果として「連続する間は寄ったまま、終わってから1回だけ戻る」動きになる。

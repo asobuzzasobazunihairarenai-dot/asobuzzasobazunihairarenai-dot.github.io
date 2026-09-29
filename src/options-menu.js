@@ -587,6 +587,22 @@ function buildCinematicRow(onClose) {
     window.dispatchEvent(new CustomEvent("so7:preview-contact"));
   });
   row.appendChild(demo);
+  // 【続き549】最後の1色（#359）の見本。7色目まで遊ばないと見られない場面なので、
+  // カメラの寄り方だけをその場で見せる。
+  const demoFinal = document.createElement("button");
+  demoFinal.type = "button";
+  demoFinal.className = "options-menu-segment-btn options-menu-demo-btn";
+  demoFinal.textContent = t("opt.cinematic.demoFinalLock");
+  if (demo.disabled) {
+    demoFinal.disabled = true;
+    demoFinal.title = demo.title;
+  }
+  demoFinal.addEventListener("click", () => {
+    if (demoFinal.disabled) return;
+    onClose?.();
+    window.dispatchEvent(new CustomEvent("so7:preview-final-lock"));
+  });
+  row.appendChild(demoFinal);
   refresh();
   return row;
 }
