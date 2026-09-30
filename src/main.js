@@ -429,7 +429,7 @@ import { isBoardIllustOnly } from "./board-card-display.js";
 import { invalidateBoard3d, flushBoard3d } from "./board-3d-setting.js";
 // 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
-import { cinematicAllows, getCinematicCamera, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
+import { cinematicAllows, getCinematicCamera, getCinematicTuning, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
 import { showCardFace } from "./card-face-display.js";
 import { onLangChange } from "./i18n.js";
 import { t } from "./ui-text.js";
@@ -11016,7 +11016,15 @@ async function respondToContactInner(approve) {
     // 【続き547】アグレッシブモード: 接触は最初の決め所。攻める駒に寄ってから突進を見せ、
     // 終わったら必ず元の画角へ戻す（戻し忘れると盤面が寄ったままになる）。
     const cameraOnContact = cinematicAllows("highlight");
-    if (cameraOnContact) await focusCameraOnElement(tackle.attackerEl, { zoom: 1.35, ms: 420 });
+    if (cameraOnContact) {
+      const tu = getCinematicTuning();
+      await focusCameraOnElement(tackle.attackerEl, {
+        zoom: tu.contactZoom,
+        ms: 420,
+        yaw: tu.contactYaw,
+        tilt: tu.contactTilt,
+      });
+    }
     await playContactLunge(tackle);
     if (cameraOnContact) await cameraHome(420);
     logAction("diag-contact-tackle", { phase: "lunge-end" });
@@ -12167,9 +12175,12 @@ function getFlatTableAdjustments() {
 // rotateX(θ)はperspective:none下では縦をcos(θ)倍する直交投影なので、2Dの scale(s, s*cosθ)で
 // 見た目を完全に等価に再現でき、3D合成レイヤーを一切作らない。flatではZ軸の奥行き(translateZ)
 // 自体が無い（フラット化されている）ので scale3d は不要。
-function tableTransform(translatePart, tilt, s, flat) {
+// 【続き550】yawDeg = カメラを左右に振る角度（アグレッシブモードの「斜めのアングル」）。
+// 2D表示（flat）では立体が無いのでアングルは付けない。
+function tableTransform(translatePart, tilt, s, flat, yawDeg = 0) {
   const head = translatePart ? `${translatePart} ` : "";
-  if (!flat) return `${head}rotateX(${tilt}) scale3d(${s}, ${s}, ${s})`;
+  const yaw = yawDeg ? `rotateY(${yawDeg}deg) ` : "";
+  if (!flat) return `${head}${yaw}rotateX(${tilt}) scale3d(${s}, ${s}, ${s})`;
   const deg = parseFloat(tilt) || 0;
   const cos = Math.cos((Math.abs(deg) * Math.PI) / 180);
   return `${head}scale(${s}, ${s * cos})`;
@@ -12264,22 +12275,26 @@ function writeTableTransform(override) {
   if (!table || !lastCameraFit) return;
   const { tilt, flatOffsetX, flatOffsetY, flat, scale } = lastCameraFit;
   const c = override || getCinematicCamera();
+  // 傾きは元の値（例 "42deg"）に足す。文字列のまま足せないので数値に直してから組み直す。
+  const tiltDeg = (parseFloat(tilt) || 0) + (c.tilt || 0);
   table.style.transform = tableTransform(
     `translate(calc(${manualPanX + c.panX}rem + ${flatOffsetX}), calc(var(--camera-offset-y) + ${manualPanY + c.panY}rem + ${flatOffsetY}))`,
-    tilt,
+    `${tiltDeg}deg`,
     scale * c.zoom,
     flat,
+    c.yaw || 0,
   );
 }
 setCinematicApplier(writeTableTransform);
 
 // 指定の要素が画面の中央へ来るように寄る。**目標の倍率を一瞬だけ当てて測ってから**動かす
 // （倍率と移動量の関係を式で解くより確実。1フレームも挟まないので画面には出ない）。
-async function focusCameraOnElement(el, { zoom = 1.3, ms = 500 } = {}) {
+async function focusCameraOnElement(el, { zoom = 1.3, ms = 500, yaw = 0, tilt = 0 } = {}) {
   const scene = document.querySelector(".scene");
   if (!el || !scene || !lastCameraFit) return;
   const cur = getCinematicCamera();
-  writeTableTransform({ zoom, panX: cur.panX, panY: cur.panY });
+  // 目標のアングルも当てた状態で測る（斜めにすると画面上の位置が変わるため）。
+  writeTableTransform({ zoom, panX: cur.panX, panY: cur.panY, yaw, tilt });
   const r = el.getBoundingClientRect();
   const s = scene.getBoundingClientRect();
   writeTableTransform(); // すぐ元へ戻す
@@ -12291,7 +12306,7 @@ async function focusCameraOnElement(el, { zoom = 1.3, ms = 500 } = {}) {
   const LIMIT = 24; // rem。寄せすぎて盤面が画面の外へ飛ばないように
   const clamp = (v) => Math.max(-LIMIT, Math.min(LIMIT, v));
   cancelScheduledCameraHome(); // 新しく寄るので、予約されていた戻りは取り消す
-  await cameraTo({ zoom, panX: clamp(cur.panX + dx), panY: clamp(cur.panY + dy) }, ms);
+  await cameraTo({ zoom, panX: clamp(cur.panX + dx), panY: clamp(cur.panY + dy), yaw, tilt }, ms);
 }
 
 // 【2026-09-29・続き548・ユーザー要望】「タックルですが試しに見るのに一苦労です。プレビューを
@@ -12322,7 +12337,10 @@ async function playContactTacklePreview() {
   suppressGenericRenderForContactTackle = true;
   const cameraOn = cinematicAllows("highlight");
   try {
-    if (cameraOn) await focusCameraOnElement(attackerEl, { zoom: 1.35, ms: 420 });
+    if (cameraOn) {
+      const tu = getCinematicTuning();
+      await focusCameraOnElement(attackerEl, { zoom: tu.contactZoom, ms: 420, yaw: tu.contactYaw, tilt: tu.contactTilt });
+    }
     await playContactLunge(tackle);
   } finally {
     if (cameraOn) await cameraHome(420);
@@ -12345,7 +12363,7 @@ let lastFinalLockKey = null;
 let finalLockCameraStartedAt = 0;
 // 見せ場の最低の長さ。承認が一瞬で終わる場面（CPU戦・全員が即承認）でも、寄り切る前に
 // 戻ってしまっては「最後の1色」が印象に残らない（実測: A/Bで 1.5 まで届かず 1.356 で戻った）。
-const FINAL_LOCK_CAMERA_MIN_MS = 1800;
+// 長さも管理者モードのつまみ（finalHoldMs）から取る。
 subscribe(() => {
   const pending = getState().pendingFinalLock;
   const key = pending ? pending.tokenId : null;
@@ -12354,13 +12372,14 @@ subscribe(() => {
   if (!cinematicAllows("highlight")) return;
   if (!key) {
     const held = performance.now() - finalLockCameraStartedAt;
-    scheduleCameraHome(Math.max(300, FINAL_LOCK_CAMERA_MIN_MS - held));
+    scheduleCameraHome(Math.max(300, getCinematicTuning().finalHoldMs - held));
     return;
   }
   finalLockCameraStartedAt = performance.now();
   const table = document.getElementById("game-table");
   const el = table && pending.location ? findLocationElement(table, pending.location) : null;
-  if (el) void focusCameraOnElement(el, { zoom: 1.5, ms: 700 });
+  const tu = getCinematicTuning();
+  if (el) void focusCameraOnElement(el, { zoom: tu.finalZoom, ms: 700, yaw: tu.finalYaw, tilt: tu.finalTilt });
 });
 
 // 「▶ 最後の1色」の見本。承認バナーまでは出さず、**カメラの寄り方だけ**を本番と同じ数字で見せる
@@ -12374,8 +12393,9 @@ async function playFinalLockCameraPreview() {
   // 自分のロックエリアの真ん中あたりのスロットに寄る（どのスロットでも見え方は同じ）。
   const el = findLocationElement(table, { zone: "lock", side, index: 3 });
   if (!el) return false;
-  await focusCameraOnElement(el, { zoom: 1.5, ms: 700 });
-  await new Promise((r) => setTimeout(r, 1600));
+  const tu = getCinematicTuning();
+  await focusCameraOnElement(el, { zoom: tu.finalZoom, ms: 700, yaw: tu.finalYaw, tilt: tu.finalTilt });
+  await new Promise((r) => setTimeout(r, tu.finalHoldMs));
   await cameraHome(700);
   return true;
 }

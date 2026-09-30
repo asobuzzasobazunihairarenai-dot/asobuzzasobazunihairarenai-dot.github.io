@@ -2225,6 +2225,76 @@ const TOGGLE_SECTIONS = [
     },
   },
   {
+    // 【2026-09-30・続き550・ユーザー要望】「駒の真後ろではなく、少し斜めからのアングルのが
+    // かっこいいかな？あともう少し近くてもいいかな？」。数字をこちらで当てずっぽうに決めるより、
+    // **「▶ 見本」を押しながら回してもらう**方が確実（盤面の光で同じやり方がうまくいった＝続き543）。
+    // 良い具合になったら「いまの値」の行をそのまま伝えてもらい、コードの既定へ反映する。
+    title: "🎬 アグレッシブモードの寄り方（試作）",
+    category: "effect",
+    buildContent: (content) => {
+      const note = document.createElement("div");
+      note.style.cssText = "font-size: 0.68rem; opacity: 0.85; margin-bottom: 0.4rem; line-height: 1.5;";
+      note.textContent = "⚙オプション →「詳細設定」→「アグレッシブモード（試作）」を「決め所だけ」以上にしてから、そこの「▶ 接触」「▶ 最後の1色」を押して見比べてください。ここを回すとその見本に反映されます。";
+      content.appendChild(note);
+      const out = document.createElement("div");
+      out.style.cssText = "font-size: 0.68rem; opacity: 0.8; margin-top: 0.3rem; line-height: 1.5; user-select: text;";
+      const SLIDERS = [
+        { key: "contactZoom", label: "接触：寄り", min: 1, max: 3, step: 0.05 },
+        { key: "contactYaw", label: "接触：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "contactTilt", label: "接触：傾きを足す", min: -15, max: 25, step: 1 },
+        { key: "finalZoom", label: "最後の1色：寄り", min: 1, max: 3.5, step: 0.05 },
+        { key: "finalYaw", label: "最後の1色：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "finalTilt", label: "最後の1色：傾きを足す", min: -15, max: 25, step: 1 },
+        { key: "finalHoldMs", label: "最後の1色：見せ場の長さ(ms)", min: 500, max: 5000, step: 100 },
+      ];
+      const inputs = new Map();
+      const showValues = async () => {
+        const c = await import("./cinematic-camera.js");
+        const T = c.getCinematicTuning();
+        for (const [k, el] of inputs) el.value = String(T[k]);
+        out.textContent =
+          "いまの値： " + SLIDERS.map((d) => `${d.label} ${T[d.key]}`).join(" ／ ") +
+          "　※良い具合になったら、この行をそのまま伝えてください（コードの既定値に反映します）";
+      };
+      for (const d of SLIDERS) {
+        const row = document.createElement("label");
+        row.style.cssText = "display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.15rem; font-size: 0.72rem;";
+        const name = document.createElement("span");
+        name.textContent = d.label;
+        name.style.cssText = "flex: 0 0 11rem;";
+        const range = document.createElement("input");
+        range.type = "range";
+        range.min = String(d.min);
+        range.max = String(d.max);
+        range.step = String(d.step);
+        range.style.cssText = "flex: 1;";
+        range.addEventListener("input", async () => {
+          const c = await import("./cinematic-camera.js");
+          c.setCinematicTuning({ [d.key]: Number(range.value) });
+          void showValues();
+        });
+        inputs.set(d.key, range);
+        row.appendChild(name);
+        row.appendChild(range);
+        content.appendChild(row);
+      }
+      const resetBtn = document.createElement("button");
+      resetBtn.type = "button";
+      resetBtn.textContent = "寄り方を既定に戻す";
+      resetBtn.style.cssText =
+        "margin-top: 0.3rem; padding: 0.2rem 0.6rem; font-size: 0.7rem; background: #0f1520; color: #f1f5f9;" +
+        " border: 1px solid rgba(148,163,184,0.4); border-radius: 0.25rem; cursor: pointer;";
+      resetBtn.addEventListener("click", async () => {
+        const c = await import("./cinematic-camera.js");
+        c.setCinematicTuning({ ...c.CINEMATIC_TUNING_DEFAULT });
+        void showValues();
+      });
+      content.appendChild(resetBtn);
+      content.appendChild(out);
+      void showValues();
+    },
+  },
+  {
     // ユーザー要望2026-09-01。自動処理モード中は公開カードを手札の扇の中に出しているので、
     // 下の公開エリアは常に空＝場所だけ取る。既定OFF（＝隠す）。
     title: "🃏 自動処理中の「自分の手札公開エリア」",

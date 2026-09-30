@@ -54,9 +54,51 @@ export function cinematicAllows(kind) {
   return kind === "highlight";
 }
 
+// --- 寄り方の調整値（管理者モードのつまみで回せる）------------------------------------
+// 【2026-09-30・続き550・ユーザー要望】「駒の真後ろではなく、少し斜めからのアングルのが
+// かっこいいかな？あともう少し近くてもいいかな？」。
+//   yaw  … 左右に振る角度（rotateY）。**斜めのアングルはこちらで作る**——盤面を寝かせる方向
+//          （tilt を深くする）だけで斜めにすると、奥側が潰れて平たいカードが薄い線になり
+//          読めなくなる。左右に振る方は読みやすさを保ったまま「正面から見ていない」感じが出る。
+//   tilt … 傾きに足す角度（rotateX へ加算）。少しだけ混ぜると立体感が出る。
+// 数字はここで決め打ちにせず、**管理者モードで回して良い値を既定へ反映する**運用にする
+// （盤面の光で同じやり方がうまくいった＝続き543）。
+const TUNING_KEY = "so7-cinematic-tuning";
+export const CINEMATIC_TUNING_DEFAULT = {
+  contactZoom: 1.55, // 接触の寄り（駒が動くので、寄せすぎると動いた駒が画面から出る）
+  contactYaw: 8, // 接触の左右の振り（度）
+  contactTilt: 5, // 接触の傾きの足し（度）
+  finalZoom: 1.85, // 最後の1色の寄り（駒が動かないので強く寄れる）
+  finalYaw: -8, // 最後の1色の左右の振り（度）
+  finalTilt: 8, // 最後の1色の傾きの足し（度）
+  finalHoldMs: 1800, // 最後の1色の見せ場の最低の長さ（ミリ秒）
+};
+let tuning = { ...CINEMATIC_TUNING_DEFAULT };
+try {
+  const raw = JSON.parse(localStorage.getItem(TUNING_KEY) || "null");
+  for (const k of Object.keys(CINEMATIC_TUNING_DEFAULT)) {
+    if (Number.isFinite(raw?.[k])) tuning[k] = raw[k];
+  }
+} catch (e) {
+  /* 壊れていたら既定のまま */
+}
+export function getCinematicTuning() {
+  return tuning;
+}
+export function setCinematicTuning(patch) {
+  tuning = { ...tuning, ...patch };
+  try {
+    localStorage.setItem(TUNING_KEY, JSON.stringify(tuning));
+  } catch (e) {
+    /* 保存できなくてもその場では効く */
+  }
+}
+
 // --- カメラの現在値（main.js が画角を組み立てる時に読む）--------------------------------
 // zoom: 画角の倍率に掛ける／panX・panY: 画面上の移動量（rem）
-const HOME = { zoom: 1, panX: 0, panY: 0 };
+// yaw: 左右に振る角度（度）／tilt: 傾きに足す角度（度）
+const HOME = { zoom: 1, panX: 0, panY: 0, yaw: 0, tilt: 0 };
+const AXES = Object.keys(HOME);
 let cam = { ...HOME };
 let applier = null;
 let animId = 0;
@@ -65,7 +107,7 @@ export function getCinematicCamera() {
   return cam;
 }
 export function isCinematicCameraHome() {
-  return cam.zoom === HOME.zoom && cam.panX === HOME.panX && cam.panY === HOME.panY;
+  return AXES.every((k) => cam[k] === HOME[k]);
 }
 // main.js が「今の値で transform だけを書き直す軽い処理」を登録する。
 export function setCinematicApplier(fn) {
@@ -76,7 +118,8 @@ const easeInOut = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2)
 
 // 現在値から to へ ms かけて動かす。後から呼ばれたら前の動きは捨てる（animId で判定）。
 export function cameraTo(to, ms = 600) {
-  const target = { zoom: to.zoom ?? cam.zoom, panX: to.panX ?? cam.panX, panY: to.panY ?? cam.panY };
+  const target = {};
+  for (const k of AXES) target[k] = Number.isFinite(to?.[k]) ? to[k] : cam[k];
   const id = ++animId;
   const from = { ...cam };
   const t0 = performance.now();
@@ -105,11 +148,9 @@ export function cameraTo(to, ms = 600) {
       }
       const p = Math.min(1, (performance.now() - t0) / span);
       const e = easeInOut(p);
-      cam = {
-        zoom: from.zoom + (target.zoom - from.zoom) * e,
-        panX: from.panX + (target.panX - from.panX) * e,
-        panY: from.panY + (target.panY - from.panY) * e,
-      };
+      const next = {};
+      for (const k of AXES) next[k] = from[k] + (target[k] - from[k]) * e;
+      cam = next;
       applier?.();
       if (p >= 1) finish();
       else requestAnimationFrame(step);
