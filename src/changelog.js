@@ -55,26 +55,32 @@ export const CHANGELOG = [
     summary: [
       "最後の1色をロックする瞬間に、カメラが大きく寄るようになりました（アグレッシブモード）。",
       "カメラが少し斜めから寄るようになり、寄り方も強くなりました。",
+      "ゲート侵攻とロック成立でもカメラが寄るようになりました。",
     ],
     summaryEn: [
       "The camera now moves in hard when someone locks their seventh colour (cinematic mode).",
       "The cinematic camera now comes in from an angle, and closer.",
+      "The camera now moves in for gate invasions and for locking a colour.",
     ],
     items: [
       "アグレッシブモードを「決め所だけ」以上にしていると、誰かが7色目をロックしようとした瞬間、そのロックエリアへカメラが大きく寄ります（接触より強く・ゆっくり寄ります）。承認が一瞬で終わる場面でも見せ場が残るように、最低1.8秒は寄ったままにしてあります。見本ボタンも「▶ 接触」と「▶ 最後の1色」の2つになりました。",
       "アグレッシブモードのカメラが、正面からではなく**少し斜め**から寄るようになりました。寄り方も強くしています（接触は1.55倍、最後の1色は1.85倍）。斜めは「左右に振る」方で作っています——盤面を寝かせる方向だけで斜めにすると、奥のカードが潰れて読めなくなるためです。少しだけ傾きも足して立体感を出しています。",
+      "アグレッシブモードを「決め所だけ」以上にしていると、**相手のゲートに乗った瞬間**と**色をロックした瞬間**にもカメラが寄ります。ロックは1試合で何度も起きるので、寄り方は控えめにしてあります。うるさく感じる場面があれば、管理者モードのつまみでその場面の「寄り」を1・角度を0にすると、**その場面だけ**カメラが動かなくなります。",
     ],
     itemsEn: [
       "With the cinematic camera set to \"Big moments\" or higher, the camera now sweeps in on the lock area the moment someone goes for their seventh colour - closer and slower than for a contact. It holds for at least 1.8 seconds so the moment still lands even when everyone approves instantly. There are now two preview buttons: Contact and Final lock.",
       "The cinematic camera now comes in from a slight angle rather than straight on, and moves in closer (1.55x for a contact, 1.85x for the final lock). The angle comes from swinging the camera sideways: tipping the board further would flatten the far cards until they cannot be read. A little extra tilt is mixed in for depth.",
+      "With the cinematic camera on \"Big moments\" or higher, it now also moves in the moment a piece lands on an opponent's gate, and the moment a colour is locked. Locking happens many times in a game, so that shot is deliberately gentle. If any one of these feels intrusive, set that shot's zoom to 1 and its angles to 0 in the admin sliders and only that shot stops moving.",
     ],
     devItems: [
       "最後の1色（#359「最後のロックをもっと派手に」）をアグレッシブモードに乗せた。**state（pendingFinalLock）を見て切り替える**のが肝——ロックの宣言はタップ経路・ドラッグ経路・オンラインの同期と入口が複数あり、入口ごとに書くと必ずどれかを書き忘れる（続き83・524と同じ形）。pendingFinalLock の tokenId が変わった時だけ動かし、消えたら戻す。**A/Bで因果を確定**: 同じ宣言を「切」と「決め所だけ」で1回ずつ起こすと、切＝寄り 1.000（まったく動かない）／決め所だけ＝寄り 1.5。**測って初めて分かった問題**: 最初は 1.356 までしか寄らなかった——CPU戦では承認が同じ処理の中で一瞬で解決するので、寄り切る前に戻りが始まっていた。最低1.8秒は寄ったままにする下限（FINAL_LOCK_CAMERA_MIN_MS）を入れて 1.5 まで届くようにした。",
       "【管理者向け】「🎬 アグレッシブモードの寄り方（試作）」のつまみを追加しました（✨演出の中）。接触・最後の1色それぞれの「寄り／左右に振る／傾きを足す」と、最後の1色の「見せ場の長さ」の7本＋既定に戻す＋いまの値の行。オプションの「▶ 接触」「▶ 最後の1色」を押しながら回して、良い値を伝えてもらえば既定へ反映します（盤面の光と同じ運用）。実装は cinematic-camera.js に yaw / tilt の軸を足し、tableTransform に rotateY を差し込む形（2D表示ではアングルを付けない）。**寄せる前に目標のアングルも当てた状態で測ってから動かす**ので、斜めにしても対象が画面の中央に来ます。実測: 既定で寄り1.85・ヨー8度・傾き8度、演出中だけ rotateY が入り終了後は残らない。つまみを 2.4 / 20度 にすると見本に即反映され localStorage にも保存される。",
+      "決め所を2つ追加（ゲート侵攻・ロック成立）。どちらも**入口ごとではなく state を見る**（移動もロックもドラッグ・タップ・効果・オンラインの再現と入口が複数あり、入口ごとに書くと必ずどれかを書き忘れる＝続き83・524・549 と同じ形）。ゲート侵攻は**駒が相手のゲートのマスに入った瞬間**で見る——侵攻の判定そのもの（gate-invasion.js）はターン終了時に走るが、見せたいのは乗った瞬間なので駒の位置の方を見る。ロック成立はロックゾーンのトークンidの集合が増えた時で、**配り始め（turnPlayer がまだ無い）と7色目（pendingFinalLock 中）は対象外**。管理者モードのつまみに6本追加（ゲート侵攻・ロック成立それぞれの寄り／左右に振る／傾き）。**「寄り1・角度0」にするとその決め所だけ止まる**ようにして、場面ごとのスイッチを増やさずに切れるようにした。実測: 配り始めの寄りは1.000（誤爆なし）／ゲート侵攻 1.6・ヨー8度／ロック成立 1.3・ヨー6度／つまみで切ると 1.000。例外0件。**勝利は今回入れていない**——勝利パネルが画面を覆ううえ、#349（勝利演出が途中で切れて見える）が「再現せず」で閉じたばかりで、ここに手を入れると切り分けが難しくなるため。",
     ],
     devItemsEn: [
       "Hooked the final lock (#359, \"make the last lock more spectacular\") into the cinematic camera. The trigger reads state (pendingFinalLock) rather than each call site: a final lock can be declared from the tap path, the drag path or an online sync, and writing it per entry point guarantees missing one. It fires when pendingFinalLock's tokenId changes and returns when it clears. An A/B pins down the causality: the same declaration with the mode off never moves the camera (zoom 1.000) while \"Big moments\" reaches 1.5. Measuring also exposed a problem: at first it only reached 1.356, because in a CPU match the approval resolves synchronously and the pull-back began before the move-in finished. A minimum hold (FINAL_LOCK_CAMERA_MIN_MS, 1.8s) now lets it arrive.",
       "[Admin] Added a \"cinematic camera framing (prototype)\" panel under Effects: seven sliders (zoom, sideways swing and extra tilt for both the contact and the final lock, plus the final lock's hold time), a reset, and a line showing the current values. Turn them while pressing the Contact and Final lock previews in the options, then send the values back to become the defaults - the same workflow as the board lighting. Implementation adds yaw and tilt axes to cinematic-camera.js and injects rotateY into tableTransform (no angle in 2D view). The target angle is applied before measuring, so the subject still ends up centred when the shot is angled. Measured: 1.85 zoom, 8 degrees of yaw and 8 of tilt by default, rotateY present only during the move and gone afterwards, and setting 2.4 / 20 degrees takes effect in the preview immediately and persists.",
+      "Added two more moments: the gate invasion and locking a colour. Both watch state rather than each call site, since moves and locks arrive from the drag path, the tap path, card effects and online replay, and writing them per entry point reliably misses one. The gate invasion triggers when a piece enters an opponent's gate square - the invasion itself is only evaluated at end of turn, but the moment worth showing is the landing. Locking watches the set of token ids in the lock zone growing, excluding the initial deal (no turnPlayer yet) and the seventh colour (which has its own shot). Six more admin sliders cover zoom, yaw and tilt for each; setting a shot's zoom to 1 with no angle disables just that shot, so no extra switches were needed. Measured: no false trigger during the deal (zoom 1.000), 1.6 and 8 degrees for the gate, 1.3 and 6 for the lock, and 1.000 once switched off. Victory was deliberately left out: the victory panel covers the screen, and #349 (victory celebration looking cut short) was only just closed as not reproducible, so touching it now would muddy any future diagnosis.",
     ],
   },
   {

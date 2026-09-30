@@ -429,7 +429,7 @@ import { isBoardIllustOnly } from "./board-card-display.js";
 import { invalidateBoard3d, flushBoard3d } from "./board-3d-setting.js";
 // 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
-import { cinematicAllows, getCinematicCamera, getCinematicTuning, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
+import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
 import { showCardFace } from "./card-face-display.js";
 import { onLangChange } from "./i18n.js";
 import { t } from "./ui-text.js";
@@ -12380,6 +12380,72 @@ subscribe(() => {
   const el = table && pending.location ? findLocationElement(table, pending.location) : null;
   const tu = getCinematicTuning();
   if (el) void focusCameraOnElement(el, { zoom: tu.finalZoom, ms: 700, yaw: tu.finalYaw, tilt: tu.finalTilt });
+});
+
+// 【2026-09-30・続き552】決め所その4: **ゲート侵攻**——相手のゲートに乗った瞬間。
+// 侵攻の判定そのもの（gate-invasion.js の findInvadedDefender）は**ターン終了時**に走るが、
+// 見せたいのは**乗った瞬間**なので駒の位置の方を見る。移動の入口はドラッグ・タップ・効果・
+// オンラインの再現と複数あるので、ここも入口ごとに書かず state を1か所で見る（続き549 と同じ）。
+function gateSideAt(loc) {
+  if (!loc || loc.zone !== "cell") return null;
+  for (const [side, g] of Object.entries(GATE_POSITIONS)) {
+    if (g.row === loc.row && g.col === loc.col) return side;
+  }
+  return null;
+}
+let lastGateInvaders = null;
+subscribe(() => {
+  const now = new Set();
+  for (const tk of getState().tokens) {
+    if (tk.kind !== "piece") continue;
+    const side = gateSideAt(tk.location);
+    if (!side) continue;
+    if (SIDE_TO_SEAT[side] === tk.player) continue; // 自分のゲートに戻るのは侵攻ではない
+    now.add(tk.id + "@" + side);
+  }
+  const prev = lastGateInvaders;
+  lastGateInvaders = now;
+  if (!prev) return; // 最初の観測は「増えた」と数えない
+  const fresh = [...now].filter((k) => !prev.has(k));
+  if (fresh.length === 0) return;
+  if (!cinematicAllows("highlight")) return;
+  const tu = getCinematicTuning();
+  if (cinematicShotOff(tu.gateZoom, tu.gateYaw, tu.gateTilt)) return;
+  const table = document.getElementById("game-table");
+  const side = fresh[0].split("@")[1];
+  const el = table ? findLocationElement(table, { zone: "cell", ...GATE_POSITIONS[side] }) : null;
+  if (!el) return;
+  void focusCameraOnElement(el, { zoom: tu.gateZoom, ms: 600, yaw: tu.gateYaw, tilt: tu.gateTilt }).then(() =>
+    scheduleCameraHome(1200)
+  );
+});
+
+// 【2026-09-30・続き552】決め所その5: **ロック成立**（7色目以外）。この中で**一番よく起きる**
+// （1試合で最大28回）ので、寄りは控えめにしてある。うるさければ管理者モードのつまみで
+// 「寄り1・角度0」にすれば**この決め所だけ**切れる。
+// 7色目は専用の見せ方（最後の1色）があるので、承認待ちの間はここでは動かさない。
+let lastLockIds = null;
+subscribe(() => {
+  const st = getState();
+  const ids = new Set(
+    st.tokens.filter((tk) => tk.kind === "card" && tk.location?.zone === "lock").map((tk) => tk.id)
+  );
+  const prev = lastLockIds;
+  lastLockIds = ids;
+  if (!prev) return; // 最初の観測は数えない
+  if (!st.turnPlayer || st.pendingFinalLock) return; // 配り始め・7色目は対象外
+  const added = [...ids].filter((id) => !prev.has(id));
+  if (added.length === 0) return;
+  if (!cinematicAllows("highlight")) return;
+  const tu = getCinematicTuning();
+  if (cinematicShotOff(tu.lockZoom, tu.lockYaw, tu.lockTilt)) return;
+  const token = st.tokens.find((tk) => tk.id === added[0]);
+  const table = document.getElementById("game-table");
+  const el = table && token ? findLocationElement(table, token.location) : null;
+  if (!el) return;
+  void focusCameraOnElement(el, { zoom: tu.lockZoom, ms: 380, yaw: tu.lockYaw, tilt: tu.lockTilt }).then(() =>
+    scheduleCameraHome(900)
+  );
 });
 
 // 「▶ 最後の1色」の見本。承認バナーまでは出さず、**カメラの寄り方だけ**を本番と同じ数字で見せる

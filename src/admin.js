@@ -2234,7 +2234,7 @@ const TOGGLE_SECTIONS = [
     buildContent: (content) => {
       const note = document.createElement("div");
       note.style.cssText = "font-size: 0.68rem; opacity: 0.85; margin-bottom: 0.4rem; line-height: 1.5;";
-      note.textContent = "⚙オプション →「詳細設定」→「アグレッシブモード（試作）」を「決め所だけ」以上にしてから、そこの「▶ 接触」「▶ 最後の1色」を押して見比べてください。ここを回すとその見本に反映されます。";
+      note.textContent = "⚙オプション →「詳細設定」→「アグレッシブモード（試作）」を「決め所だけ」以上にしてから、そこの「▶ 接触」「▶ 最後の1色」を押して見比べてください。ここを回すとその見本に反映されます。ある場面のカメラを使いたくない時は、その「寄り」を1にして角度を0にすればその場面だけ切れます。";
       content.appendChild(note);
       const out = document.createElement("div");
       out.style.cssText = "font-size: 0.68rem; opacity: 0.8; margin-top: 0.3rem; line-height: 1.5; user-select: text;";
@@ -2246,6 +2246,12 @@ const TOGGLE_SECTIONS = [
         { key: "finalYaw", label: "最後の1色：左右に振る", min: -30, max: 30, step: 1 },
         { key: "finalTilt", label: "最後の1色：傾きを足す", min: -15, max: 25, step: 1 },
         { key: "finalHoldMs", label: "最後の1色：見せ場の長さ(ms)", min: 500, max: 5000, step: 100 },
+        { key: "gateZoom", label: "ゲート侵攻：寄り", min: 1, max: 3, step: 0.05 },
+        { key: "gateYaw", label: "ゲート侵攻：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "gateTilt", label: "ゲート侵攻：傾きを足す", min: -15, max: 25, step: 1 },
+        { key: "lockZoom", label: "ロック成立：寄り", min: 1, max: 3, step: 0.05 },
+        { key: "lockYaw", label: "ロック成立：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "lockTilt", label: "ロック成立：傾きを足す", min: -15, max: 25, step: 1 },
       ];
       const inputs = new Map();
       const showValues = async () => {

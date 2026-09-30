@@ -72,6 +72,12 @@ export const CINEMATIC_TUNING_DEFAULT = {
   finalYaw: -8, // 最後の1色の左右の振り（度）
   finalTilt: 8, // 最後の1色の傾きの足し（度）
   finalHoldMs: 1800, // 最後の1色の見せ場の最低の長さ（ミリ秒）
+  gateZoom: 1.6, // ゲート侵攻（相手のゲートに乗った瞬間）
+  gateYaw: 8,
+  gateTilt: 6,
+  lockZoom: 1.3, // ロック成立（7色目以外）。この中で一番よく起きるので控えめ
+  lockYaw: 6,
+  lockTilt: 4,
 };
 let tuning = { ...CINEMATIC_TUNING_DEFAULT };
 try {
@@ -84,6 +90,11 @@ try {
 }
 export function getCinematicTuning() {
   return tuning;
+}
+// その決め所を「使わない」ことを、つまみだけで表せるようにする＝**寄りを1にして角度を0**に
+// すれば、その場面だけカメラが動かなくなる（決め所ごとのスイッチを増やさずに済む）。
+export function cinematicShotOff(zoom, yaw, tilt) {
+  return !(zoom > 1.001) && !yaw && !tilt;
 }
 export function setCinematicTuning(patch) {
   tuning = { ...tuning, ...patch };
