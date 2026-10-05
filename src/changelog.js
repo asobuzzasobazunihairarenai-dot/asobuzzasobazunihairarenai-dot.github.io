@@ -51,6 +51,25 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-06",
+    fixes: [
+      "カメラが寄ったまま選択画面が開いて、盤面がずれた位置で止まってしまうのを直しました。",
+      "カメラが寄っている間に、画面下のミニロックエリアが一瞬出てしまうのを直しました。",
+      "ロックの鎖の演出やゲートへの着地が、カメラの動きとずれて見えるのを直しました。",
+    ],
+    fixesEn: [
+      "The camera no longer stays zoomed in - leaving the board off-centre - while you are asked to choose something.",
+      "The mini lock area no longer flashes at the bottom of the screen while the camera moves in.",
+      "The lock chain effect and landings on a gate no longer appear misaligned because the camera was moving.",
+    ],
+    devItems: [
+      "アグレッシブモードが生んだ不具合4件（#370・#372・#373・#374）を直した。**原因は2つに集約**——①効果の移動で寄った後、戻りの予約を `finally`（＝効果が全部終わってから）に置いていたため、到達効果の途中でプレイヤーに選択を聞くと**答えるまで寄りっぱなし**になっていた（#370。報告の画像で確定。予約を効果の処理より前に移した）②画面に合わせる計算（手札の寄せ・ミニロックエリア）と、座標を測ってから重ねる演出（ロックの鎖・飛翔の着地）が、**カメラが動いている最中にも走っていた**（#372・#373・#374。前者はカメラが原点に居る時だけ計算し、戻った瞬間に1回測り直す。後者は `waitForBoardAnimation` で演出の終わりを待ってから寄る）。**A/Bが取れたのは #373 のみ**（守りなし＝寄っている間にミニロックが `flex`／あり＝`none`）。残り3件は実際の接触・侵攻・ロックを起こす必要があり手元で再現しきれていない＝実機での確認待ち。",
+    ],
+    devItemsEn: [
+      "Fixed four regressions introduced by the cinematic camera (#370, #372, #373, #374), which came down to two causes. First, the scheduled return home sat in a finally block - after the whole effect had resolved - so if an arrival effect asked the player to choose, the camera stayed zoomed, and the board stayed off-centre, until they answered (#370, confirmed from the report's screenshot; the return is now scheduled before the effect runs). Second, the viewport-fit reactions (hand nudging, mini lock area) and the overlays that measure screen coordinates before animating (the lock chain, flight landings) were all running while the camera was in motion (#372, #373, #374); the former now only run when the camera is home and re-measure once it returns, and the latter wait for waitForBoardAnimation before the camera moves. Only #373 has an A/B so far (without the guard the mini lock area shows as flex mid-zoom; with it, none); the other three need a real contact, invasion or lock and could not be reproduced here.",
+    ],
+  },
+  {
     date: "2026-09-30",
     summary: [
       "最後の1色をロックする瞬間に、カメラが大きく寄るようになりました（アグレッシブモード）。",

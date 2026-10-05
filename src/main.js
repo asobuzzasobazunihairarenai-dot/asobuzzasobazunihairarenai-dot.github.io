@@ -129,6 +129,7 @@ import {
   endBoardAnimation,
   setAnimGateLogger,
   isBoardAnimationPlaying,
+  waitForBoardAnimation,
   isNoticeQueueBusy,
   isPhaseAnnounceVisible,
   waitForNoticeSlot,
@@ -429,7 +430,7 @@ import { isBoardIllustOnly } from "./board-card-display.js";
 import { invalidateBoard3d, flushBoard3d } from "./board-3d-setting.js";
 // 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
-import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
+import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, isCinematicCameraHome, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
 import { showCardFace } from "./card-face-display.js";
 import { onLangChange } from "./i18n.js";
 import { t } from "./ui-text.js";
@@ -1729,11 +1730,13 @@ async function moveAndSyncForEffect(...args) {
   if (!useCamera) return moveAndSyncForEffect__inner(...args);
   const destEl = findLocationElement(table, location);
   if (destEl) await focusCameraOnElement(destEl, { zoom: 1.28, ms: 360 });
-  try {
-    return await moveAndSyncForEffect__inner(...args);
-  } finally {
-    scheduleCameraHome(); // 続けて効果が動く時は取り消され、止まってから1回だけ戻る
-  }
+  // 【#370・2026-10-06】**戻りの予約は、効果の処理を待たずにここで入れる**。
+  // 以前は finally（＝効果が全部終わってから）に置いていたが、到達効果の途中で
+  // プレイヤーに選択を聞くと**答えるまで寄りっぱなし**になり、盤面がずれた位置で
+  // 固まったまま選択させることになっていた（ユーザー報告 #370 の画像で確定）。
+  // 続けて効果が動く時は次の寄りが予約を取り消すので、連鎖中に戻ってしまうことはない。
+  scheduleCameraHome(1200);
+  return moveAndSyncForEffect__inner(...args);
 }
 async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppressArrival, awaitExposedArrival = false, skipExposedArrival = false, animOpts = null) {
   const movingToken = getState().tokens.find((t) => t.id === tokenId);
@@ -12038,7 +12041,10 @@ function fitTableToViewport() {
   }
   // ズーム/パン/リサイズ/再描画のたびに、自分のロックエリアが画面外へ出ていないか見て、
   // 出ていれば画面下中央のミニロックエリアを出す（ユーザー要望2026-08-07）。
-  updateMiniLockArea();
+  // 【#373・2026-10-06】**カメラで寄っている間は見ない**。相手の方へ寄ると自分のロックエリアが
+  // 画面から外れるので、この判定が働いて**ミニロックエリアが一瞬出てしまう**
+  // （ユーザー報告「カメラがズームする時、ミニロックエリアが一瞬表示されます」）。
+  if (isCinematicCameraHome()) updateMiniLockArea();
 }
 
 // ユーザー報告「タブレットで自分の手札が見えない」の根本原因（実測で特定）:
@@ -12262,7 +12268,11 @@ function applyNormalFit() {
   lastNormalFit = { key: fitKey, scale };
   currentTableScale = scale;
   // 倍率が決まってから、画面の外へ出ている手札だけを内側へ寄せる。
-  nudgeHandsIntoStage(table, bounds);
+  // 【#370・2026-10-06】**カメラで寄っている間は計算しない**。寄っている最中は手札が
+  // 画面の端に来るのが当たり前なので、この計算が「はみ出した」と判断して**手札を中央へ
+  // 押し込んでしまう**（ユーザー報告「カメラワークのせいか手札の位置が右に動いてしまっている」）。
+  // カメラが原点へ戻った時に writeTableTransform が1回だけ測り直す。
+  if (isCinematicCameraHome()) nudgeHandsIntoStage(table, bounds);
 }
 
 // 【2026-09-29・続き547】カメラ演出（アグレッシブモード）。
@@ -12284,7 +12294,21 @@ function writeTableTransform(override) {
     flat,
     c.yaw || 0,
   );
+  // 【2026-10-06】カメラが原点へ**戻り切った瞬間**に、画面に合わせる計算をやり直す。
+  // 寄っている間は手札の寄せとミニロックエリアを止めてあるので（#370・#373）、戻った時に
+  // 1回だけ正しい画角で測り直す必要がある。**ここが全てのカメラ変更が通る1か所**なので、
+  // 「切」にした時の自動復帰なども取りこぼさない。
+  if (!override) {
+    const home = isCinematicCameraHome();
+    if (home && cameraWasAway) {
+      cameraWasAway = false;
+      queueMicrotask(() => fitTableToViewport()); // 書き込みの最中に入り直さない
+    } else if (!home) {
+      cameraWasAway = true;
+    }
+  }
 }
+let cameraWasAway = false;
 setCinematicApplier(writeTableTransform);
 
 // 指定の要素が画面の中央へ来るように寄る。**目標の倍率を一瞬だけ当てて測ってから**動かす
@@ -12415,9 +12439,15 @@ subscribe(() => {
   const side = fresh[0].split("@")[1];
   const el = table ? findLocationElement(table, { zone: "cell", ...GATE_POSITIONS[side] }) : null;
   if (!el) return;
-  void focusCameraOnElement(el, { zoom: tu.gateZoom, ms: 600, yaw: tu.gateYaw, tilt: tu.gateTilt }).then(() =>
-    scheduleCameraHome(1200)
-  );
+  // 【#372・2026-10-06】**演出が終わってから寄る**。駒の移動（飛翔）演出は飛び先の座標を
+  // 先に測ってから動かすので、その最中にカメラが動くと**着地位置がズレて見える**
+  // （ユーザー報告「移動シーンが拡大されましたが、着地位置がゲートの左側のロックエリアに
+  // 一瞬着地しました」）。
+  void (async () => {
+    await waitForBoardAnimation(4000);
+    await focusCameraOnElement(el, { zoom: tu.gateZoom, ms: 600, yaw: tu.gateYaw, tilt: tu.gateTilt });
+    scheduleCameraHome(1200);
+  })();
 });
 
 // 【2026-09-30・続き552】決め所その5: **ロック成立**（7色目以外）。この中で**一番よく起きる**
@@ -12443,9 +12473,14 @@ subscribe(() => {
   const table = document.getElementById("game-table");
   const el = table && token ? findLocationElement(table, token.location) : null;
   if (!el) return;
-  void focusCameraOnElement(el, { zoom: tu.lockZoom, ms: 380, yaw: tu.lockYaw, tilt: tu.lockTilt }).then(() =>
-    scheduleCameraHome(900)
-  );
+  // 【#374・2026-10-06】**演出が終わってから寄る**。ロックの演出（刻印・鎖）は始まる時に
+  // 画面上の座標を測って重ねるので、その最中にカメラが動くと**測った位置とズレる**
+  // （ユーザー報告「ロックする時、ズームしますが、鎖のアニメーションがずれて表示されます」）。
+  void (async () => {
+    await waitForBoardAnimation(4000);
+    await focusCameraOnElement(el, { zoom: tu.lockZoom, ms: 380, yaw: tu.lockYaw, tilt: tu.lockTilt });
+    scheduleCameraHome(900);
+  })();
 });
 
 // 「▶ 最後の1色」の見本。承認バナーまでは出さず、**カメラの寄り方だけ**を本番と同じ数字で見せる
