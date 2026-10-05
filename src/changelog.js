@@ -52,6 +52,18 @@ import { getLang } from "./i18n.js";
 export const CHANGELOG = [
   {
     date: "2026-10-06",
+    summary: [
+      "「駒消し」「カード消し」ボタンを、既定では出さないようにしました。",
+    ],
+    summaryEn: [
+      "The \"hide pieces\" and \"hide cards\" buttons are no longer shown by default.",
+    ],
+    items: [
+      "タブレット・スマホの画面左下に出ていた「駒消し」「カード消し」のボタンを、**既定では出さない**ようにしました。操作しやすくなって要らなくなった、というご意見によるものです。使いたい時は ⚙オプション →「詳細設定」→「「駒消し」「カード消し」ボタンを出す」で戻せます（タッチ操作の端末でだけ出る項目です）。なお、駒やカードを消した状態のままボタンを隠すと戻せなくなるので、隠す時は必ず元の表示に戻します。",
+    ],
+    itemsEn: [
+      "The \"hide pieces\" and \"hide cards\" buttons in the lower left on tablets and phones are no longer shown by default, since handling the board has become easy enough without them. You can bring them back from Options, Advanced settings, \"Show the hide pieces and hide cards buttons\" (the setting only appears on touch devices). If either mode is active when you hide the buttons, it is turned off first, so you can never be left unable to touch the board.",
+    ],
     fixes: [
       "カメラが寄ったまま選択画面が開いて、盤面がずれた位置で止まってしまうのを直しました。",
       "カメラが寄っている間に、画面下のミニロックエリアが一瞬出てしまうのを直しました。",
@@ -64,9 +76,11 @@ export const CHANGELOG = [
     ],
     devItems: [
       "アグレッシブモードが生んだ不具合4件（#370・#372・#373・#374）を直した。**原因は2つに集約**——①効果の移動で寄った後、戻りの予約を `finally`（＝効果が全部終わってから）に置いていたため、到達効果の途中でプレイヤーに選択を聞くと**答えるまで寄りっぱなし**になっていた（#370。報告の画像で確定。予約を効果の処理より前に移した）②画面に合わせる計算（手札の寄せ・ミニロックエリア）と、座標を測ってから重ねる演出（ロックの鎖・飛翔の着地）が、**カメラが動いている最中にも走っていた**（#372・#373・#374。前者はカメラが原点に居る時だけ計算し、戻った瞬間に1回測り直す。後者は `waitForBoardAnimation` で演出の終わりを待ってから寄る）。**A/Bが取れたのは #373 のみ**（守りなし＝寄っている間にミニロックが `flex`／あり＝`none`）。残り3件は実際の接触・侵攻・ロックを起こす必要があり手元で再現しきれていない＝実機での確認待ち。",
+      "#371「駒消し、カード消しボタンは、デフォでは非表示でいいかと！操作性だいぶ上がったので！」。interaction-mode.js に `so7-interaction-toggle-visible`（既定 false）を足し、`updateVisibility()` の条件を「タッチ端末 **かつ** 出す設定」にした。**事故防止**: 隠す時に `piecesHidden`/`cardsHidden` を必ず false へ戻す——このトグルを解除できるのはこのボタン自身だけなので、消したまま隠すと**盤面に触れなくなる**。設定はタッチ端末の時だけ詳細設定に出す（PCでは意味が無い項目を増やさない）。実測（iPad相当で実際に押した）: 既定で両ボタンとも非表示／設定を入れると両方表示／消した状態で隠すと `pieces-interaction-hidden` が外れる／設定の行は幅489pxで画面内に見えていて初期はチェックなし／例外0件。",
     ],
     devItemsEn: [
       "Fixed four regressions introduced by the cinematic camera (#370, #372, #373, #374), which came down to two causes. First, the scheduled return home sat in a finally block - after the whole effect had resolved - so if an arrival effect asked the player to choose, the camera stayed zoomed, and the board stayed off-centre, until they answered (#370, confirmed from the report's screenshot; the return is now scheduled before the effect runs). Second, the viewport-fit reactions (hand nudging, mini lock area) and the overlays that measure screen coordinates before animating (the lock chain, flight landings) were all running while the camera was in motion (#372, #373, #374); the former now only run when the camera is home and re-measure once it returns, and the latter wait for waitForBoardAnimation before the camera moves. Only #373 has an A/B so far (without the guard the mini lock area shows as flex mid-zoom; with it, none); the other three need a real contact, invasion or lock and could not be reproduced here.",
+      "#371: the user asked for the hide-pieces and hide-cards buttons to be off by default now that the board is easy enough to handle. interaction-mode.js gained a so7-interaction-toggle-visible flag (default false) and updateVisibility now requires both a touch device and that flag. Safety matters here: hiding the buttons also clears piecesHidden and cardsHidden, because those modes can only be cleared from the buttons themselves - hiding them mid-mode would leave the board untouchable. The setting only appears in Advanced settings on touch devices. Measured on an iPad-like context: both buttons hidden by default, both shown once enabled, pieces-interaction-hidden cleared when hiding while active, and the settings row itself measured 489px wide and on screen with its checkbox unchecked. No exceptions.",
     ],
   },
   {

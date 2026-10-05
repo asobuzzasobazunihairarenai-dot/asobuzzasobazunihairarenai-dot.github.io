@@ -24,6 +24,8 @@ import { canResignNow, requestResign } from "./resign.js";
 import { isLockAreaBarVisible, setLockAreaBarVisible } from "./lock-area-bar.js";
 import { isLockColorVisible, setLockColorVisible } from "./lock-color.js";
 import { getCinematicLevel, setCinematicLevel } from "./cinematic-camera.js";
+import { isInteractionToggleVisible, setInteractionToggleVisible } from "./interaction-mode.js";
+import { isTouchPrimaryDevice } from "./device-detect.js";
 import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confirm-prefs.js";
 import { isCellConfirmEnabled, setCellConfirmEnabled } from "./cell-confirm.js";
 import { isBoardIllustOnly, setBoardIllustOnly } from "./board-card-display.js";
@@ -1260,6 +1262,15 @@ export function initOptionsMenu() {
               saveMyPreference({ lock_area_bar_visible: checked });
             })
           );
+          // 【#371・2026-10-06・ユーザー要望】「駒消し・カード消し」は既定で出さない。
+          // タッチ端末でだけ意味があるので、その時だけ選べるようにする。
+          if (isTouchPrimaryDevice()) {
+            content.appendChild(
+              buildCheckboxRow(t("opt.chk.interactionToggle"), isInteractionToggleVisible(), (checked) => {
+                setInteractionToggleVisible(checked);
+              })
+            );
+          }
           // 【続き547・ユーザー要望】アグレッシブモード（仮）。行動のあとカメラが寄る。
           content.appendChild(buildCinematicRow(close));
           content.appendChild(

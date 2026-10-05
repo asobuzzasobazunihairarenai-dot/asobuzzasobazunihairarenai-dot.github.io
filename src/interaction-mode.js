@@ -20,6 +20,37 @@ import { t } from "./ui-text.js"; // UI英語化フェーズ13
 let piecesHidden = false;
 let cardsHidden = false;
 
+// 【2026-10-06・#371・ユーザー要望】「駒消し、カード消しボタンは、デフォでは非表示でいいかと！
+// 操作性だいぶ上がったので！」。タッチ端末でも**既定では出さない**ことにして、使いたい人だけ
+// ⚙オプションの詳細設定で出す。
+const VISIBLE_KEY = "so7-interaction-toggle-visible";
+let toggleVisible = false; // 既定＝出さない
+try {
+  toggleVisible = localStorage.getItem(VISIBLE_KEY) === "1";
+} catch (e) {
+  /* localStorage が使えなくても既定で動く */
+}
+export function isInteractionToggleVisible() {
+  return toggleVisible;
+}
+export function setInteractionToggleVisible(v) {
+  toggleVisible = !!v;
+  try {
+    localStorage.setItem(VISIBLE_KEY, toggleVisible ? "1" : "0");
+  } catch (e) {
+    /* 保存できなくてもその場では効く */
+  }
+  // 【重要】隠す時は、グレー表示も必ず解除する。**消したままボタンが消えると、戻す手段が
+  // 無くなって盤面に触れなくなる**（この2つのトグルを解除できるのはこのボタンだけ）。
+  if (!toggleVisible) {
+    piecesHidden = false;
+    cardsHidden = false;
+    applyBodyClasses();
+    updateButtons();
+  }
+  updateVisibility();
+}
+
 let pieceBtnEl = null;
 let pieceTooltipEl = null;
 let cardBtnEl = null;
@@ -73,7 +104,8 @@ function toggleCards() {
 }
 
 function updateVisibility() {
-  const visible = isTouchPrimaryDevice();
+  // タッチ端末であることに加えて、**出す設定になっている時だけ**出す（#371）。
+  const visible = isTouchPrimaryDevice() && toggleVisible;
   if (pieceBtnEl) pieceBtnEl.style.display = visible ? "" : "none";
   if (cardBtnEl) cardBtnEl.style.display = visible ? "" : "none";
 }
