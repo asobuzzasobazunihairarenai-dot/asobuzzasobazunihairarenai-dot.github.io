@@ -493,6 +493,10 @@ function buildLockArea(side, steps = 0) {
     // 【ユーザー要望2026-09-05】6色ロック済み＝あと1色で勝ち、という場面の緊張感。
     // 残った1つの空きスロットだけを、ゆっくり呼吸するように光らせ続ける。
     if (oneAwayIndex === index) slot.classList.add("is-one-away");
+    // 【#375】ゴメンナサイで奪われて空いたスロットの印。**スロットは render のたびに
+    // createElement で作り直される**ので、クラスを直接付けるだけでは次の描き直しで消える
+    // （実測で消えた）。is-one-away と同じく「印を覚えて描画時に付け直す」形にしてある。
+    if (isRobbedSlot(side, index)) slot.classList.add("is-just-robbed");
     slot.dataset.side = side;
     slot.dataset.index = String(index);
     // オプションメニューの「基本設定」でオフにされていれば、色の上書きをせずCSS側の
@@ -5547,6 +5551,14 @@ function previewGomennasaiDeclaration() {
   void playGomennasaiDeclaration();
 }
 function playGomennasaiDeclaration() {
+  // 【#375・2026-10-06】ここでカメラを原点へ戻す。最後のロックが宣言されると
+  // アグレッシブモードが**そのロックスロットに寄ったまま承認を待つ**（続き549）ので、
+  // ゴメンナサイで止められた場合、止めた側の「防いだ！」の盾・捨てた追色・ロックから
+  // 引き抜かれる演出が**全部画面の外**で起きていた（報告: 何が起きたのか分かりづらい）。
+  // 寄ったままでは説明にならないので、説明が始まる前に引く。発動宣言は全経路
+  // （CPU・自分・オンラインの中継）がここを通るので、1か所で足りる。
+  cancelScheduledCameraHome();
+  void cameraHome(320);
   if (isArrivalEffectDisabled()) return Promise.resolve(); // 「演出をやめる」設定を尊重
   const root = document.createElement("div");
   root.className = "gomennasai-declare";
@@ -12406,6 +12418,103 @@ subscribe(() => {
   const el = table && pending.location ? findLocationElement(table, pending.location) : null;
   const tu = getCinematicTuning();
   if (el) void focusCameraOnElement(el, { zoom: tu.finalZoom, ms: 700, yaw: tu.finalYaw, tilt: tu.finalTilt });
+});
+
+// 【#375・2026-10-06】**最後のロックがゴメンナサイで止められた時、何が起きたか**を
+// 攻めた側の画面で分かるようにする。報告は「CPU2にゴメンナサイでロック阻止されたけど、
+// 何が起きたのか画面上で分かりづらかった」。
+//
+// ここが分かりにくい一番の理由は**ルールそのもの**にある——ゴメンナサイは宣言した
+// ロックを取り消さない。宣言したカードはそのままロックされ、代わりに**既にロックして
+// いた別の1枚を奪われる**。だから攻めた側の画面では「7色目のロックは成功したのに勝たない」
+// という、理屈を知らないと読み取れない絵になる。**どの色が抜けたのか**を指し示すのが
+// 一番効く説明なので、空になったスロットをその色で光らせ、短い一言を添える。
+//
+// **入口ごとに書かず state を見る**（続き549・552 と同じ）。ゴメンナサイはCPUの自動発動・
+// 自分の操作・オンラインの同期と入口が3つあり、入口ごとに書くと必ずどれかを書き忘れる。
+// 「承認待ちの間に、攻めた側のロックから札が消えた」という事実だけを見る。
+let robbedWatchKey = null;
+let robbedWatchLocks = null;
+let robbedWatchDone = false;
+function lockSnapshotOf(side) {
+  const m = new Map();
+  for (const tk of getState().tokens) {
+    if (tk.kind !== "card") continue;
+    if (tk.location.zone !== "lock" || tk.location.side !== side) continue;
+    m.set(tk.id, { index: tk.location.index, cardId: tk.cardId });
+  }
+  return m;
+}
+// 奪われて空いたスロットの印（side/index と、いつまで光らせるか）。描画で読む。
+let robbedSlotMark = null;
+const ROBBED_SLOT_MS = 2600;
+function isRobbedSlot(side, index) {
+  if (!robbedSlotMark) return false;
+  if (robbedSlotMark.side !== side || robbedSlotMark.index !== index) return false;
+  if (performance.now() >= robbedSlotMark.until) {
+    robbedSlotMark = null;
+    return false;
+  }
+  return true;
+}
+
+// 空いたスロットをその色で光らせ、結果を1行で出す。
+function playLockRobbedNotice(attackerSeat, side, index, cardId) {
+  const table = document.getElementById("game-table");
+  robbedSlotMark = { side, index, until: performance.now() + ROBBED_SLOT_MS };
+  const slot = table ? findLocationElement(table, { zone: "lock", side, index }) : null;
+  // いま在るスロットにも付けておく（描き直しが続かない経路のため）。ただし**実測では、
+  // この直付けだけでは何も見えない**——描き直しがこの直後に走ってスロットを作り直すので、
+  // 実際に効いているのは上の印＋描画側の付け直しの方（A/Bで確認: 付け直しを外すと
+  // 奪った瞬間から光らない）。
+  if (slot) slot.classList.add("is-just-robbed");
+  setTimeout(() => {
+    robbedSlotMark = null;
+    document.querySelectorAll(".lock-slot.is-just-robbed").forEach((e) => e.classList.remove("is-just-robbed"));
+  }, ROBBED_SLOT_MS);
+  const color = getCardDefinition(cardId)?.color;
+  // なないろの欠片のように色が7色のどれでもない札は、色名の代わりにカード名を出す。
+  const colorLabel = color && color !== "rainbow" ? t("game.color." + color) : cardDisplayName(cardId);
+  document.getElementById("lock-robbed-label")?.remove();
+  const label = document.createElement("div");
+  label.id = "lock-robbed-label";
+  label.className = "board-flash-label is-lock-robbed";
+  label.textContent = t("game.gomennasai.robbed", {
+    attacker: getPlayerName(attackerSeat),
+    color: colorLabel,
+  });
+  document.body.appendChild(label);
+  setTimeout(() => label.remove(), 2800);
+  logAction("diag-lock-robbed-notice", { attacker: attackerSeat, side, index, cardId, color: color || null });
+}
+subscribe(() => {
+  const pending = getState().pendingFinalLock;
+  const key = pending ? pending.tokenId : null;
+  if (key !== robbedWatchKey) {
+    robbedWatchKey = key;
+    robbedWatchDone = false;
+    robbedWatchLocks = key && pending.attacker ? lockSnapshotOf(SEAT_TO_SIDE[pending.attacker]) : null;
+    return; // 宣言された瞬間の姿を覚えるだけ
+  }
+  if (!key || robbedWatchDone || !robbedWatchLocks) return;
+  const side = SEAT_TO_SIDE[pending.attacker];
+  const now = lockSnapshotOf(side);
+  for (const [id, before] of robbedWatchLocks) {
+    if (now.has(id)) continue;
+    // 宣言そのものの札は除く。**却下されると宣言した札はロックから手札へ戻る**ので、
+    // これを数えると「却下された」を「奪われた」と誤って出してしまう。
+    if (id === pending.tokenId) continue;
+    // 行き先が手札であることまで確かめる。ロックから札が出る理由はゴメンナサイ以外にも
+    // あり得るので、「奪われて手札に入った」形だけを拾う。
+    const moved = getState().tokens.find((tk) => tk.id === id);
+    if (!moved || moved.location.zone !== "hand") continue;
+    // 承認待ちの間に、攻めた側のロックから札が1枚消えた＝奪われた。
+    robbedWatchDone = true;
+    robbedWatchLocks = now;
+    playLockRobbedNotice(pending.attacker, side, before.index, before.cardId);
+    return;
+  }
+  robbedWatchLocks = now;
 });
 
 // 【2026-09-30・続き552】決め所その4: **ゲート侵攻**——相手のゲートに乗った瞬間。

@@ -4681,6 +4681,30 @@ body.is-phone-device .priority-transfer-label .phase-guide-tooltip {
 body.reduce-glow .lock-slot.is-one-away {
   animation: none;
 }
+
+/* 【#375・2026-10-06】ゴメンナサイで奪われて**空になった**ロックスロット。
+   攻めた側の画面で「どの色が抜けたのか」を指し示すのが、この場面の一番の説明になる
+   （ゴメンナサイは宣言したロックを取り消さないので、盤面は『成功したのに勝たない』
+   という読み取りにくい絵になる）。is-one-away と同じ currentColor の光り方に揃えて
+   あるが、こちらは一度だけ強く点滅して消える。 */
+.lock-slot.is-just-robbed {
+  animation: lock-slot-just-robbed 0.65s ease-in-out 4;
+}
+@keyframes lock-slot-just-robbed {
+  0%, 100% {
+    box-shadow: 0 0 0.25rem currentColor;
+  }
+  50% {
+    box-shadow:
+      0 0 1.1rem currentColor,
+      0 0 2.4rem currentColor,
+      inset 0 0 1.2rem currentColor;
+  }
+}
+body.reduce-glow .lock-slot.is-just-robbed {
+  animation: none;
+  outline: 0.18rem dashed currentColor;
+}
 /* 【ユーザー要望2026-09-05】相手のゲートに乗った瞬間。乗られた側の色で輪が広がる。 */
 .gate-intrusion-ring {
   position: absolute;
@@ -22046,6 +22070,33 @@ body.reduce-glow .gomennasai-declare-card { box-shadow: none; }
 }
 /* 山札の作り直しは「新しい山ができた」お知らせなので、少し控えめ・少し下に出す。 */
 .board-flash-label.is-deck-refill { font-size: 2.3rem; top: 46%; letter-spacing: 0.1em; }
+/* 【#375】ゴメンナサイで奪われた色のお知らせ。「防いだ！」のような一語ではなく**文**なので、
+   小さく・画面の下寄りに・長めに出す（この行を読ませるのが目的。上に出ると中央のモーダルと
+   かぶる）。基底の 900ms の animation はすぐ消えてしまうので、専用の animation で上書きする。 */
+.board-flash-label.is-lock-robbed {
+  top: auto;
+  bottom: 13%;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  max-width: min(92vw, 44rem);
+  text-align: center;
+  line-height: 1.5;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.7rem;
+  background: rgba(16, 10, 26, 0.82);
+  border: 0.1rem solid var(--block-color, var(--color-purple, #a855f7));
+  text-shadow:
+    0 0 0.6rem var(--block-color, var(--color-purple, #a855f7)),
+    0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
+  animation: lock-robbed-label 2600ms ease-out forwards;
+}
+@keyframes lock-robbed-label {
+  0% { opacity: 0; transform: translate(-50%, 0.8rem) scale(0.94); }
+  8% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  86% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -0.4rem) scale(1); }
+}
 @keyframes block-flash-label {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
   16% { opacity: 1; transform: translate(-50%, -50%) scale(1.14); }
