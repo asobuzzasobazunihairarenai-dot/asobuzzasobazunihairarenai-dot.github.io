@@ -55,18 +55,26 @@ export const CHANGELOG = [
     summary: [
       "「駒消し」「カード消し」ボタンを、既定では出さないようにしました。",
       "ゴメンナサイで止められた時、どの色を奪われたのかが分かるようになりました",
+      "侵攻ボーナスの画面は、どこを押しても次に進められるようになりました",
+      "ディメンションで伸びた移動にカメラが寄るようになりました",
     ],
     summaryEn: [
       "The \"hide pieces\" and \"hide cards\" buttons are no longer shown by default.",
       "When So Sorry! stops your lock, you can now see which colour was taken",
+      "The Gate Invasion Bonus screens now advance when you tap anywhere",
+      "The camera now moves in on the long move granted by Dimension",
     ],
     items: [
       "タブレット・スマホの画面左下に出ていた「駒消し」「カード消し」のボタンを、**既定では出さない**ようにしました。操作しやすくなって要らなくなった、というご意見によるものです。使いたい時は ⚙オプション →「詳細設定」→「「駒消し」「カード消し」ボタンを出す」で戻せます（タッチ操作の端末でだけ出る項目です）。なお、駒やカードを消した状態のままボタンを隠すと戻せなくなるので、隠す時は必ず元の表示に戻します。",
       "最後の1色をロックしようとして「ゴメンナサイッ！」で止められた時、**どのスロットから、どの色を奪われたのか**がひと目で分かるようになりました。奪われて空になったロックスロットがその色で点滅し、画面の下に「〇〇のロックから△が奪われた！　7色が揃わない」と一行出ます。この場面は、宣言したロック自体は成功しているのに勝てない（ゴメンナサイは宣言を取り消すのではなく、すでにロックしている別の1枚を奪う効果）という、ルールを知らないと読み取りにくい形になっていました。抜けた色を名前と光で直接指し示すようにしてあります。",
+      "相手ゲート侵攻ボーナスのお知らせは段が何回も続くので、**画面の関係ない所（暗くなっている部分）を押しても次に進められる**ようにしました。小さな「OK」を狙って押す必要はありません。進み方はOKを押したときとまったく同じです。",
+      "**紫のキューブ ディメンション**で移動が伸びている時の「ワープ」する移動に、カメラが寄るようになりました（アグレッシブモードを「決め所だけ」以上にしている場合）。通常の移動は毎ターン起きるので寄りませんが、この移動は限られた場面の特別な動きなので、現れる側のマスに寄ります。",
     ],
     itemsEn: [
       "The \"hide pieces\" and \"hide cards\" buttons in the lower left on tablets and phones are no longer shown by default, since handling the board has become easy enough without them. You can bring them back from Options, Advanced settings, \"Show the hide pieces and hide cards buttons\" (the setting only appears on touch devices). If either mode is active when you hide the buttons, it is turned off first, so you can never be left unable to touch the board.",
       "When your attempt at the seventh colour is stopped by So Sorry!, you can now see at a glance which slot was emptied and which colour was taken. The robbed lock slot flashes in that colour, and a line appears near the bottom of the screen: \"<colour> was taken from <player>'s Lock Area — not seven colours any more\". This moment used to be hard to read, because the lock you declared does succeed — So Sorry! does not cancel it, it takes a different card you had already locked — so the board showed a successful lock with no victory. Now the missing colour is pointed out by name and by light.",
+      "The Gate Invasion Bonus notices come in several steps, so you can now advance them by tapping anywhere on the screen, including the darkened area - no need to aim for the small OK button. It does exactly what pressing OK does.",
+      "The warp-style move you get while Dimension is extending your movement now draws the camera in (when Aggressive Mode is set to key moments or higher). Ordinary moves happen every turn and are left alone, but this one is a special move in a limited situation, so the camera moves to the square you appear on.",
     ],
     fixes: [
       "カメラが寄ったまま選択画面が開いて、盤面がずれた位置で止まってしまうのを直しました。",
@@ -76,6 +84,7 @@ export const CHANGELOG = [
       "盤面の絵が突然すべて消えて、白い枠だけが残ってしまうことがあったのを直しました。",
       "ゴメンナサイで止められた時、画面が寄ったままで、止めた側の演出が見えなかったのを直しました。",
       "接触（タックル）で、助走してぶつかる動きが見えないことがあったのを直しました。",
+      "スマホで、画面の下に黒い余白が残ったまま自動で直らないことがあったのを直しました。",
     ],
     fixesEn: [
       "The camera no longer stays zoomed in - leaving the board off-centre - while you are asked to choose something.",
@@ -85,6 +94,7 @@ export const CHANGELOG = [
       "Fixed a case where every piece of board artwork could vanish at once, leaving only empty outlines.",
       "Fixed the camera staying zoomed in when So Sorry! stops a lock, which hid the blocking player's animation.",
       "Fixed the run-up and collision of a tackle sometimes not being visible.",
+      "Fixed a black band at the bottom of the screen on phones that would not correct itself.",
     ],
     devItems: [
       "アグレッシブモードが生んだ不具合4件（#370・#372・#373・#374）を直した。**原因は2つに集約**——①効果の移動で寄った後、戻りの予約を `finally`（＝効果が全部終わってから）に置いていたため、到達効果の途中でプレイヤーに選択を聞くと**答えるまで寄りっぱなし**になっていた（#370。報告の画像で確定。予約を効果の処理より前に移した）②画面に合わせる計算（手札の寄せ・ミニロックエリア）と、座標を測ってから重ねる演出（ロックの鎖・飛翔の着地）が、**カメラが動いている最中にも走っていた**（#372・#373・#374。前者はカメラが原点に居る時だけ計算し、戻った瞬間に1回測り直す。後者は `waitForBoardAnimation` で演出の終わりを待ってから寄る）。**A/Bが取れたのは #373 のみ**（守りなし＝寄っている間にミニロックが `flex`／あり＝`none`）。残り3件は実際の接触・侵攻・ロックを起こす必要があり手元で再現しきれていない＝実機での確認待ち。",
@@ -104,6 +114,11 @@ export const CHANGELOG = [
       "検証（ヘッドレス・`scratchpad/_c558probe2.mjs`）: 駒の面5枚について、開始前＝DOMの絵0枚・板205枚 → **動いている間＝5枚すべてに `board3d-skip` が付き・DOMの絵が5枚出て・板が200枚に減る**（＝面5枚ぶん取り下げられた）→ 終了後＝skip0・DOMの絵0・`!important`0・インライン指定は5枚のまま・板205枚に復帰。例外0件。**A/Bで確認済み**——引き渡しを外すと、動いている間もDOMの絵は0枚・板205枚のまま（＝WebGLの描き直し任せ）で FAIL になる。",
       "**正直な限界**: 「実機で滑らかに見えるか」はここでは測れない（ヘッドレスはWebGLをCPUで描くので毎秒数コマしか出ない＝続き542 と同じ）。測れたのは「DOMが描く側に替わった」ことと「動いている間の作り直しが要らなくなった」ことまで。実機の体感を待つ。",
       "**最初の切り分けで駒を取り違えた（記録）**: `#game-table .piece` の1つ目を見ていたが、見本（`playContactTacklePreview`）が動かすのは**自席の駒**。transform が1種類しか観測できず「動いていない」と出た。見本と同じ選び方で `data-token-id` を特定してから測り直したら、`\"\" → translate(5.6, 5.7) → translate(-18.1, -18.6) → translate(0,0)` と**4段階だけ**が観測できた（＝CSSは動いているが、拾える瞬間が少ない）。**「動いていない」と見えたら、まず見ている対象が合っているかを確かめる。**",
+      "#378「すまほでやってるけど、下の黒余白が自動で治りません。縦向き横向きを繰り返すと治ります」。ステージ（1600x900）を画面に収まる倍率へ縮めて**中央に置く**作りなので、合わせた時より見えている高さが広くなると、その差が下（と上）の余白として残る。報告3件の `screen` が **932x318 / 932x371 / 932x430** とバラバラで、430-318＝112px がちょうど余白になる。自己修復（0.5秒ごとの `ensureViewportStageFresh`）は入っていたのに効かなかった理由は、**比べていたのが `window.innerHeight` だけ**だったこと。iOSはブラウザの下のバーが出入りしても `window.innerHeight` が変わらないことがあり、代わりに `visualViewport` の高さだけが変わる。`visualViewport` の resize は購読していたが、その先で比べるのが `window.innerHeight` だったので**「変わっていない」と判断して何もしていなかった＝購読が空振りしていた**。`viewportSize()`（visualViewport を正とし、文字入力中と拡大中だけ `window.inner*` に落とす）を1か所に作り、**合わせる時・控える時・食い違いを見る時の3か所すべてを同じ物差しに**した。`visualViewport` の scroll も合図に足した。",
+      "#378 の検証（ヘッドレス・`scratchpad/_c559probe.mjs`）: 報告の形をそのまま作った——`window.innerHeight` を 318 に固定して嘘をつかせ、`visualViewport` の高さだけを 318→430 に動かす。**直す前は盤面の高さ318・下の余白112pxのまま変わらない**（A/Bで確認）。直した後は**430に合わせ直し・余白0**。例外0件。",
+      "#380「この侵攻モーダルの時、画面の関係ないところを押して飛ばせるやつにしたい！」。背景（backdrop）を押したら**既にある進め方と同じこと**をするようにした——ローカル（CPU戦）の `showBonusStepModal` は「OK」と同じ＝この段を進める、オンラインの告知列（`gate-invasion-modal.js`）は「スキップ」「×」と同じ＝列を終える。新しい意味を足していないので、押し間違いで想定外のことは起きない。オンライン側は同じ処理が3か所（スキップ・×・背景）に散るので `skipAll` にまとめた。検証: 実際にゲート侵攻を起こしてモーダルを出し、**背景を押したら段が進んで消えた**（A/Bで確認——背景の押下を外すと本文が変わらず残る）。",
+      "#379「ディメンションでの移動もカメラ寄りがいいかも！」。通常の移動は毎ターン起きるので決め所に入れていない（続き547）が、**ディメンションで伸びた移動は見た目も「ワープ」に変わる特別な移動**なので、ここだけ寄る。寄せ先は**現れる側のマス**（他の決め所と同じく結果の側を見せる）。つまみ（`warpZoom` / `warpYaw` / `warpTilt`）を管理者モードに足したので、「寄り1・角度0」にすればこの場面だけ切れる（続き552 と同じ仕組み）。検証: 実測で**寄り1.5・ヨー -6度**、終わると原点に戻る。**A/Bで確認済み**——ディメンションが効いていない通常移動では**寄り1.000（まったく動かない）**。",
+      "**測り方で詰まった所（記録）**: #380 の検証で、駒をゲートへ動かす `moveToken` を `page.evaluate` の中で待つと**プローブ側が「promise was garbage collected」で落ちた**（ページの再読み込みもエラーも起きていない＝アプリ側の異常ではない）。`setTimeout` で投げっぱなしにして**外で待つ**形に変えたら通った。もう1つ、背景を `body > div` の中から「z-index が 10001 の最初のもの」で探していたが**別の層のものを掴んでいた**（`cursor` が空で出た）。モーダルの**直前の兄弟**を見る形に直して解決（作る順が「背景→モーダル」なので確実）。**「探し方」が雑だと、直っているものまで落ちる。**",
     ],
     devItemsEn: [
       "Fixed four regressions introduced by the cinematic camera (#370, #372, #373, #374), which came down to two causes. First, the scheduled return home sat in a finally block - after the whole effect had resolved - so if an arrival effect asked the player to choose, the camera stayed zoomed, and the board stayed off-centre, until they answered (#370, confirmed from the report's screenshot; the return is now scheduled before the effect runs). Second, the viewport-fit reactions (hand nudging, mini lock area) and the overlays that measure screen coordinates before animating (the lock chain, flight landings) were all running while the camera was in motion (#372, #373, #374); the former now only run when the camera is home and re-measure once it returns, and the latter wait for waitForBoardAnimation before the camera moves. Only #373 has an A/B so far (without the guard the mini lock area shows as flex mid-zoom; with it, none); the other three need a real contact, invasion or lock and could not be reproduced here.",
@@ -123,6 +138,11 @@ export const CHANGELOG = [
       "Verification (headless): for the piece's five faces, before the motion the DOM artwork count is 0 and there are 205 quads; during the motion all five faces carry board3d-skip, all five show DOM artwork, and the quad count falls to 200; afterwards everything is restored - no skip classes, no DOM artwork, no !important, the five inline declarations intact, and 205 quads again. No exceptions. An A/B confirms causality: with the handover disabled, the DOM artwork stays at 0 and the quads stay at 205 during the motion, and the check fails.",
       "Honest limit: whether it actually looks smooth on the device cannot be measured here, because headless draws WebGL on the CPU and manages only a few frames per second. What was measured is that the DOM took over the drawing and that no rebuilds are needed while the piece moves. Waiting on the device for the feel.",
       "A note on process: the first attempt at diagnosis watched the wrong piece - the first .piece in the DOM, while the preview moves the piece of the local seat. Only one transform value was observed, which read as \"nothing is moving\". Selecting the piece the same way the preview does showed four discrete transform values, i.e. the CSS was animating but few moments could be sampled. When something looks motionless, first check that you are watching the right thing.",
+      "#378 (\"on my phone the black band at the bottom does not correct itself; repeating portrait and landscape fixes it\"). The stage (1600x900) is scaled to fit and centred, so when the visible height grows after a fit, the difference remains as a band at the bottom (and top). The three reports carry screen values of 932x318, 932x371 and 932x430, and 430-318 = 112px is exactly the band. Self-healing was already in place on a 500ms interval, but it compared only window.innerHeight. On iOS that value can stay unchanged when the browser's bottom bar hides, while only visualViewport's height changes; the visualViewport resize event was subscribed, but the comparison behind it used window.innerHeight, so it concluded nothing had changed and did nothing. A single viewportSize() now treats visualViewport as authoritative, falling back to window.inner* only while text is being entered or the page is pinch-zoomed, and all three places - fitting, recording and comparing - use that one measure. visualViewport's scroll event was added as another trigger.",
+      "#378 verification (headless): the reported situation was reproduced by pinning window.innerHeight at 318 and moving only visualViewport's height from 318 to 430. Before the fix the stage stays 318 tall with a 112px band (confirmed by A/B); after the fix it refits to 430 with no band. No exceptions.",
+      "#380 (\"I would like to be able to skip the invasion modal by pressing an unrelated part of the screen\"). Clicking the backdrop now does exactly what the existing control does: in the local CPU-battle modal it is the same as OK, advancing one step; in the online notice queue it is the same as Skip and the close X, ending the queue. No new meaning was introduced, so a stray tap cannot do something unexpected. On the online side the same three handlers were collapsed into one skipAll. Verified by triggering a real gate invasion and clicking the backdrop, which advanced and dismissed the step; an A/B without the listener leaves the same text on screen.",
+      "#379 (\"a camera move for the Dimension move would be nice too\"). Ordinary moves happen every turn and are deliberately not key moments, but the move extended by Dimension also changes its look to a warp, so this one gets a shot, aimed at the square the piece appears on, as the other shots show the result side. Knobs (warpZoom, warpYaw, warpTilt) were added to the admin panel, so setting zoom to 1 and the angles to 0 switches off just this one. Measured: 1.5 zoom and -6 degrees of yaw, returning home afterwards; an A/B with Dimension inactive shows a flat 1.000, i.e. no camera movement at all.",
+      "Measurement notes: awaiting moveToken inside page.evaluate made the probe fail with \"promise was garbage collected\" even though no navigation or error occurred in the page, so it is not an app fault; firing it via setTimeout and waiting outside worked. Also, the backdrop was being located as the first body child with z-index 10001, which picked up a different layer (its cursor read as empty); looking at the modal's immediately preceding sibling fixed it, since the creation order is backdrop then modal. A sloppy lookup makes working code look broken.",
     ],
   },
   {

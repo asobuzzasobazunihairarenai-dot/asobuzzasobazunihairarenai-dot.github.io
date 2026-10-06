@@ -309,8 +309,18 @@ function showStep(step) {
       /* 見た目だけなので握りつぶす */
     }
   }
+  // この告知の列を終える（スキップ・×・背景の押下で共通）。3か所に同じ処理を散らすと
+  // どれかだけ直し忘れる。
+  const skipAll = () => {
+    queue = [];
+    closeCurrent();
+    notifyQueueDrained();
+  };
   backdropEl = document.createElement("div");
-  backdropEl.style.cssText = "position: fixed; inset: 0; z-index: 10001; background: rgba(0, 0, 0, 0.55);";
+  backdropEl.style.cssText = "position: fixed; inset: 0; z-index: 10001; background: rgba(0, 0, 0, 0.55); cursor: pointer;";
+  // 【#380】背景（画面の関係ない所）を押したら、×ボタン・スキップと**同じこと**をする。
+  // こちらの告知は自動で進むので「次へ」は無く、できるのは列を終えること。
+  backdropEl.addEventListener("click", () => skipAll());
 
   modalEl = document.createElement("div");
   const size = getComputedStyle(document.documentElement).getPropertyValue("--gate-invasion-modal-size").trim() || "28rem";
@@ -333,17 +343,9 @@ function showStep(step) {
   skipBtn.textContent = t("game.gate.skip");
   skipBtn.style.cssText =
     `padding: 0.4rem 1.4rem; ${skin.btn} border: none; border-radius: 0.25rem; cursor: pointer; margin-top: 0.4rem;`;
-  skipBtn.addEventListener("click", () => {
-    queue = [];
-    closeCurrent();
-    notifyQueueDrained();
-  });
+  skipBtn.addEventListener("click", () => skipAll());
 
-  modalEl.appendChild(createModalCloseX(() => {
-    queue = [];
-    closeCurrent();
-    notifyQueueDrained();
-  }));
+  modalEl.appendChild(createModalCloseX(() => skipAll()));
   modalEl.appendChild(title);
   modalEl.appendChild(body);
   if (step.cardsHtml) {

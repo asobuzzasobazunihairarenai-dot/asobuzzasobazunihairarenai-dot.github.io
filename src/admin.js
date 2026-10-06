@@ -2252,6 +2252,9 @@ const TOGGLE_SECTIONS = [
         { key: "lockZoom", label: "ロック成立：寄り", min: 1, max: 3, step: 0.05 },
         { key: "lockYaw", label: "ロック成立：左右に振る", min: -30, max: 30, step: 1 },
         { key: "lockTilt", label: "ロック成立：傾きを足す", min: -15, max: 25, step: 1 },
+        { key: "warpZoom", label: "ディメンション移動：寄り", min: 1, max: 3, step: 0.05 },
+        { key: "warpYaw", label: "ディメンション移動：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "warpTilt", label: "ディメンション移動：傾きを足す", min: -15, max: 25, step: 1 },
       ];
       const inputs = new Map();
       const showValues = async () => {

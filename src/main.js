@@ -6097,7 +6097,20 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     // 【ユーザー要望2026-09-05】紫のキューブ ディメンションで移動範囲が伸びている時は、
     // ただ大きく跳ぶのではなく「ワープしている感じ」にする（効果の異質さが伝わるように）。
     const moveStyle = isMovementBoostActiveThisTurn(player) ? "warp" : "hop";
+    // 【#379】ディメンションで伸びた移動（ワープ）だけはカメラが寄る。通常の移動は毎ターン
+    // 起きるので決め所に入れていない（続き547）が、こちらは限られた場面の特別な移動。
+    // 現れる側（移動先のマス）に寄せる。つまみで「寄り1・角度0」にすればここだけ切れる。
+    if (moveStyle === "warp" && cinematicAllows("highlight")) {
+      const tu = getCinematicTuning();
+      if (!cinematicShotOff(tu.warpZoom, tu.warpYaw, tu.warpTilt)) {
+        const table = document.getElementById("game-table");
+        const destEl = table ? findLocationElement(table, location) : null;
+        if (destEl) await focusCameraOnElement(destEl, { zoom: tu.warpZoom, ms: 380, yaw: tu.warpYaw, tilt: tu.warpTilt });
+      }
+    }
     await playPieceMoveAnimation(piece.id, moveFrom, { style: moveStyle });
+    // 戻りは予約にする（続けて到達効果が動くなら、その寄りが取り消す＝寄ったまま繋がる）。
+    if (moveStyle === "warp") scheduleCameraHome(900);
     const card = findTopCardAt(location);
     if (!card) return;
     if (!card.faceUp) {
@@ -12963,10 +12976,40 @@ let currentStageOffsetX = 0;
 let currentStageOffsetY = 0;
 
 let lastStageViewport = { w: 0, h: 0 };
+// 【#378・2026-10-06】**「いま実際に見えている大きさ」を1か所で決める。**
+// 報告は「すまほでやってるけど、下の黒余白が自動で治りません。縦向き横向きを繰り返すと
+// 治ります」。ステージは 1600x900 を画面に収まる倍率へ縮めて**中央に置く**作りなので、
+// 合わせた時より画面が縦に広くなると、その差がそのまま**下（と上）の余白**として残る。
+// 自己修復（0.5秒ごとの ensureViewportStageFresh）は入っていたのに効かなかった理由は、
+// **比べていたのが `window.innerHeight` だけ**だったこと。iOSはブラウザの下のバーが
+// 出入りしても `window.innerHeight` が変わらないことがあり、代わりに `visualViewport` の
+// 高さだけが変わる。`visualViewport` の resize は購読していたが、その先で比べるのが
+// `window.innerHeight` だったので**「変わっていない」と判断して何もしていなかった**
+// （＝購読が空振りしていた）。向きを変えると `innerHeight` が動くので治る、という報告の
+// 症状とも一致する。
+//
+// `visualViewport` を使わない場合を2つ除いてある。①文字入力中（スマホのキーボードが
+// 出ると visualViewport が縮むので、盤面まで小さくしてしまう）②拡大表示中
+// （`user-scalable=no` を入れてあるがiOSは指で広げられる）。
+function viewportSize() {
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  const vv = window.visualViewport;
+  if (vv && vv.width > 0 && vv.height > 0 && !(vv.scale > 1.01)) {
+    const ae = document.activeElement;
+    const typing = !!ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable === true);
+    if (!typing) {
+      w = Math.round(vv.width);
+      h = Math.round(vv.height);
+    }
+  }
+  return { w, h };
+}
 function applyViewportStage() {
-  const scale = Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT);
-  const offsetX = (window.innerWidth - STAGE_WIDTH * scale) / 2;
-  const offsetY = (window.innerHeight - STAGE_HEIGHT * scale) / 2;
+  const { w: vw, h: vh } = viewportSize();
+  const scale = Math.min(vw / STAGE_WIDTH, vh / STAGE_HEIGHT);
+  const offsetX = (vw - STAGE_WIDTH * scale) / 2;
+  const offsetY = (vh - STAGE_HEIGHT * scale) / 2;
   document.body.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
   currentStageScale = scale;
   currentStageOffsetX = offsetX;
@@ -12978,7 +13021,9 @@ function applyViewportStage() {
   // （#mini-lock-area(-top)のtransformで参照。倍率が十分大きい通常窓では補正1＝従来通り）。
   document.documentElement.style.setProperty("--stage-scale", String(scale));
   // #204: 「このサイズに合わせた」を必ず控える（起動時の呼び出しも含む）。ensureViewportStageFresh参照。
-  lastStageViewport = { w: window.innerWidth, h: window.innerHeight };
+  // 【#378】控えるのは**合わせるのに使った値そのもの**にする（別の物差しで控えると、
+  // 下の食い違い判定が永久に成立せず、自己修復が空振りする）。
+  lastStageViewport = { w: vw, h: vh };
 }
 
 // マウス/タッチイベントのclientX/clientYは常に「実画面のピクセル」で、ステージの
@@ -13017,7 +13062,8 @@ function refitViewportStage() {
 }
 // 今のビューポートと最後に合わせたサイズが違っていたら合わせ直す（合っていれば何もしない）。
 function ensureViewportStageFresh() {
-  if (lastStageViewport.w !== window.innerWidth || lastStageViewport.h !== window.innerHeight) refitViewportStage();
+  const { w, h } = viewportSize();
+  if (lastStageViewport.w !== w || lastStageViewport.h !== h) refitViewportStage();
 }
 window.addEventListener("resize", refitViewportStage);
 // iOSは向きの変更直後だとまだ古いサイズを返すことがあるので、直後と少し後の2回見る。
@@ -13027,6 +13073,9 @@ window.addEventListener("orientationchange", () => {
   setTimeout(ensureViewportStageFresh, 900);
 });
 window.visualViewport?.addEventListener("resize", ensureViewportStageFresh);
+// 【#378】下のバーが出入りする時、resize ではなく scroll だけが飛ぶ場面があるので両方見る
+// （どちらも「食い違っていたら合わせ直す」だけなので、空振りしても軽い）。
+window.visualViewport?.addEventListener("scroll", ensureViewportStageFresh);
 window.addEventListener("pageshow", ensureViewportStageFresh); // 復帰（bfcache）時
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) ensureViewportStageFresh();

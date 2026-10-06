@@ -67,7 +67,7 @@ const CPU_BONUS_MODAL_MS = 1000; // CPUが告知モーダルを読ませてか�
 
 function showBonusStepModal(text, onOk, attacker) {
   const backdrop = document.createElement("div");
-  backdrop.style.cssText = "position: fixed; inset: 0; z-index: 10001; background: rgba(0, 0, 0, 0.55);";
+  backdrop.style.cssText = "position: fixed; inset: 0; z-index: 10001; background: rgba(0, 0, 0, 0.55); cursor: pointer;"; // #380: 押せることを見た目でも示す
   const modal = document.createElement("div");
   const skin = neutralModalSkin();
   modal.style.cssText = `
@@ -93,6 +93,11 @@ function showBonusStepModal(text, onOk, attacker) {
     onOk();
   };
   okBtn.addEventListener("click", proceed);
+  // 【#380・2026-10-06】ユーザー要望「この侵攻モーダルの時、画面の関係ないところを押して
+  // 飛ばせるやつにしたい！」。侵攻ボーナスは段が何回も続くので、そのたびにOKを狙って
+  // 押すのが手間だった（スマホでは特に）。**背景を押したらOKと同じ**にする——新しい意味を
+  // 足さず、既にある進め方に合流させる（別の意味にすると、押し間違いで情報が飛ぶ）。
+  backdrop.addEventListener("click", proceed);
   modal.appendChild(title);
   modal.appendChild(body);
   modal.appendChild(okBtn);
