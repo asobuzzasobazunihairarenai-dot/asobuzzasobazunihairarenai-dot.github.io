@@ -87,6 +87,8 @@ import { openBugReportModal } from "./bug-report.js";
 // リロードを跨ぐ“ブラックボックス”（「スマホでたまに落ちてタイトルに戻る」原因追跡用）。
 // import した時点で自己初期化（心拍・エラー捕捉開始＋前回セッションの不審終了判定）される。
 import { getBlackboxBootReport, setBlackboxContext } from "./crash-blackbox.js";
+// 【#377・2026-10-06】対戦中の「戻る」でアプリを抜けてしまうのを防ぐ。
+import { setBackGuardActive, setBackGuardNotice } from "./back-guard.js";
 // アプリ内スモークテスト（タイトル右下・管理者のみ。ユーザー要望2026-08-14）。
 import { openSmokeTestPanel } from "./smoke-test-runner.js";
 // オンライン対戦開始時に一度だけ出す「不具合報告のお願い」案内（開始告知が閉じた直後に表示）。
@@ -18310,6 +18312,10 @@ subscribe(() => {
     const started = Boolean(getState().turnPlayer);
     const mode = !started ? "title" : isOnlineMode() ? "online" : isCpuBattleActive() ? "cpu" : "local";
     setBlackboxContext({ inGame: started, mode });
+    // 【#377】対局中だけ「戻る」を止める。判定はブラックボックスと同じものを使う
+    // （2つの場所で別々に「対局中か」を書くとズレるため）。
+    setBackGuardNotice(t("game.backGuard"));
+    setBackGuardActive(started);
   } catch {
     /* ignore */
   }

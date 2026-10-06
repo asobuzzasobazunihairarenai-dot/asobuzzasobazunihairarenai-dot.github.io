@@ -22591,3 +22591,28 @@ body.theme-light-ingame .ranking-choice-item {
   opacity: 0.4;
   cursor: default;
 }
+
+/* 【#377・2026-10-06】対戦中に「戻る」を押した時の案内。黙って握り潰すと「戻るが壊れている」と
+   思われるので、短く理由を出す。盤面の当たり判定には関わらせない（pointer-events: none）。 */
+#back-guard-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 4.5rem;
+  transform: translateX(-50%);
+  z-index: 10050;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid rgba(250, 204, 21, 0.7);
+  border-radius: 0.5rem;
+  background: rgba(28, 16, 4, 0.95);
+  color: #fde68a;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  font-weight: bold;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+#back-guard-notice.show {
+  opacity: 1;
+}
