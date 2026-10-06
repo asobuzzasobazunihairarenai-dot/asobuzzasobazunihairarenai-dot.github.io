@@ -704,6 +704,11 @@ function rebuild() {
     const shape = shapeSpecs.get(el);
     const url = backgroundImageUrl(el);
     if (!url && !shape) continue;
+    // 【#381】`board3d-skip` が付いている間は板を作らない（既にある板は下の後片付けで
+    // 取り下げられる）。CSSのtransitionで動かしたい要素を、一時的にDOM描画へ戻すための
+    // 目印。全体の作り直しは実機で56〜280ms掛かるので、動いている間ずっと追いかけるのは
+    // 無理がある（#381: 接触のタックル中は毎秒3回しか描けていなかった）。
+    if (el.classList.contains("board3d-skip")) continue;
     const cs = getComputedStyle(el);
     if (cs.display === "none" || cs.visibility === "hidden") continue;
     const vis = effectiveVisual(el, table);

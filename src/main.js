@@ -10121,6 +10121,52 @@ function waitWhileFlushingBoard3d(ms) {
 async function playContactLunge(...args) {
   return withBoardAnimation(() => playContactLunge__inner(...args));
 }
+// 【#381・2026-10-06】**助走・突進の間だけ、攻める駒の絵をDOM描画に戻す。**
+// 報告は「接触の時助走してぶつかるアニメ描画されてないです」。アニメ自体は走っていた
+// （ログに lunge-start → 5.09秒後に lunge-end）。見えないのは**駒の絵をWebGLが描いている**
+// ためで、CSSでDOMを動かしてもWebGLが描き直さないと絵は動かない。#360 で「動いている間は
+// 30msごとに描き直す」（waitWhileFlushingBoard3d）を入れてあったが、**実機では1回の
+// 作り直しに56〜280ms掛かる**ので追いつかない——報告のログでは、まさにタックル中の
+// 描き直しが**毎秒3.2回**だった。助走8px・突進26pxが2〜3コマで終われば、見えないに等しい。
+//
+// 直し方: 動かす駒だけ `board3d-skip` を付けてWebGLの板を取り下げ、同時にDOM側の絵を
+// 復活させる（WebGL描画中はCSSが `background-image: none !important` で剥がしているので、
+// インラインに `!important` で付け直して勝つ）。こうすると**ブラウザの合成が60コマで
+// 滑らかに動かしてくれる**上に、動いている間の作り直しが**0回**になる（＝#348 の発熱にも有利）。
+// 絵の読み取りはインラインstyleから行われているので（board-3d.js の backgroundImageUrl）、
+// `!important` を足してもWebGL側の読み取りは壊れない。
+//
+// 接触の後半（相手の駒がゲートへ飛ぶ playContactFlight）は元からDOMの影武者を飛ばす
+// 作りで、WebGLの描き直しに頼っていない。**前半だけが取り残されていた**という形。
+function handLungeToDom(pieceEl) {
+  const faces = pieceEl ? [...pieceEl.querySelectorAll(".piece-face")] : [];
+  if (faces.length === 0) {
+    // 駒の面が見つからない時は従来どおり（30msごとに描き直して追いかける）。
+    return { waitStep: waitWhileFlushingBoard3d, restore() {}, handedOver: false };
+  }
+  const before = faces.map((f) => f.style.backgroundImage);
+  for (const f of faces) {
+    f.classList.add("board3d-skip");
+    const url = f.style.backgroundImage;
+    if (url && url !== "none") f.style.setProperty("background-image", url, "important");
+  }
+  invalidateBoard3d();
+  flushBoard3d(); // ここで1回だけ作り直して、WebGLの板を取り下げる
+  return {
+    waitStep: wait,
+    handedOver: true,
+    restore() {
+      faces.forEach((f, i) => {
+        f.classList.remove("board3d-skip");
+        f.style.removeProperty("background-image"); // !important ごと外す
+        if (before[i]) f.style.backgroundImage = before[i]; // 元のインライン指定に戻す
+      });
+      invalidateBoard3d();
+      flushBoard3d();
+    },
+  };
+}
+
 async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerRect, defenderFromLocation, attackerFromLocation, attackerColor }) {
   const table = document.getElementById("game-table");
   const dx = defenderFromRect.left + defenderFromRect.width / 2 - (attackerRect.left + attackerRect.width / 2);
@@ -10142,18 +10188,21 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   if (attackerHostEl) spawnArrivalBurst(attackerHostEl, attackerColor);
   await wait(1400);
 
+  // 【#381】ここから駒が動く。動く間だけ、この駒の絵をDOM描画に戻す（上の説明）。
+  const lunge = handLungeToDom(attackerEl);
+  try {
   // ③助走（後ろに引く）。駒本体はこの後respondContact()→render()でDOMごと作り直される
   // ため、ここで付けたtransform/transitionの後片付けは不要。
   const runupMs = getContactAnimSeconds("--contact-anim-runup-duration", 3) * 1000;
   attackerEl.style.transition = `transform ${runupMs}ms ease-in`;
   attackerEl.style.transform = `translate(${-ux * RUNUP_PX}px, ${-uy * RUNUP_PX}px)`;
-  await waitWhileFlushingBoard3d(runupMs); // #360: WebGL描画の駒の絵も一緒に動かす
+  await lunge.waitStep(runupMs);
 
   // ④タックル（前へ突進、衝突エフェクト）。
   const tackleMs = getContactAnimSeconds("--contact-anim-tackle-duration", 1) * 1000;
   attackerEl.style.transition = `transform ${tackleMs}ms cubic-bezier(0.3, 0, 0.7, 1)`;
   attackerEl.style.transform = `translate(${ux * LUNGE_PX}px, ${uy * LUNGE_PX}px)`;
-  await waitWhileFlushingBoard3d(tackleMs); // #360: 同上
+  await lunge.waitStep(tackleMs);
   playSound("arrivalEffect");
   const hostEl = table ? findLocationElement(table, defenderFromLocation) : null;
   if (hostEl) spawnArrivalBurst(hostEl, attackerColor);
@@ -10163,7 +10212,12 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   // DOMを作り直す前に、戻りきるまで待つ（途中で作り直すと戻りアニメが切れて見える）。
   attackerEl.style.transition = "transform 220ms ease-out";
   attackerEl.style.transform = "translate(0px, 0px)";
-  await waitWhileFlushingBoard3d(220); // #360: 同上
+  await lunge.waitStep(220);
+  } finally {
+    // どの経路（例外・中断含む）でも必ず戻す。戻し忘れると、その駒だけWebGLに描かれない
+    // ままになる（＝盤面の他の駒と見た目が違う状態が残る）。
+    lunge.restore();
+  }
 }
 
 // 駒が実際に移動した「後」に呼ぶ。相手の駒がゲートへ飛んでいく見た目を作る。render()で
