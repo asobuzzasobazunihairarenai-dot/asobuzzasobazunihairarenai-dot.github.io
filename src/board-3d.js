@@ -1035,6 +1035,9 @@ function markDirty() {
 // 戻ってきたら作り直して再開する。失われ続ける端末で無限に往復しないよう回数の上限を設け、
 // 上限に達したらCSS描画のまま静かに諦める（＝以前と同じ振る舞い）。
 const CONTEXT_LOST_RETRY_MAX = 4;
+// 復帰の後、本当に描けたかを確かめるまでの待ち時間。rAFのループと500msの保険が
+// 一巡するだけの余裕を見る（#369）。
+const RECOVERY_VERIFY_MS = 1800;
 let contextLostCount = 0;
 let contextRecoveryTimer = null;
 function disposeRenderer() {
@@ -1066,6 +1069,36 @@ function handleContextLost() {
   disposeRenderer();
   if (contextLostCount <= CONTEXT_LOST_RETRY_MAX) scheduleContextRecovery(1200 * contextLostCount);
 }
+// 【#369・2026-10-06】**「復帰したつもり」で実際には描けていない**ことがある。
+// 報告 #369「なんかこんな画面になっちゃってる」は、盤面のカード・駒・山・プレイマットが
+// 全部消えて白い枠だけが浮いた画面だった。ログには文脈が失われた記録が1回と復帰の記録が1回。
+// つまり復帰は「成功した」ことになっていたのに描けていない。これが致命的なのは、
+// **`body.board-3d-on` が戻ると CSS 側が盤面の絵を隠す**（.board-card / .piece-face /
+// .stack-top / .lock-area-bar-image / .playmat-bg / .table-background-bg）ためで、
+// WebGLが描かない＋CSSも隠される＝**何も見えない盤面**になる。
+// このモジュールの元々の意図は「黙って従来のCSS描画へ戻す＝真っ黒な盤面のまま操作不能に
+// しない」なので、復帰の後に**本当に描けたか**を確かめ、だめならCSS描画へ戻す。
+function verifyRecovery() {
+  setTimeout(() => {
+    if (!active) return; // 既に他の理由でOFFになっていれば何もしない
+    let lost = false;
+    try {
+      lost = renderer?.getContext?.()?.isContextLost?.() === true;
+    } catch (err) {
+      lost = true;
+    }
+    const quads = meshByElement.size + shapeMeshByElement.size;
+    if (!lost && quads > 0) return; // ちゃんと描けている
+    try {
+      logAction("diag-board3d-context-recover-failed", { lost, quads, count: contextLostCount });
+    } catch (err) {}
+    console.warn("board-3d: 復帰したが描けていないので、CSS描画へ戻します (lost=" + lost + ", quads=" + quads + ")");
+    // CSS描画へ戻す＝body.board-3d-on が外れ、盤面の絵が見えるようになる。
+    // 設定そのものは変えない（次に開いた時はまたWebGLで試す）。
+    try { setBoard3dActive(false); } catch (err) {}
+  }, RECOVERY_VERIFY_MS);
+}
+
 function scheduleContextRecovery(delayMs) {
   if (contextRecoveryTimer) return;
   contextRecoveryTimer = setTimeout(() => {
@@ -1074,11 +1107,23 @@ function scheduleContextRecovery(delayMs) {
     if (!isBoard3dEnabled()) return; // 設定でOFFにされていたら戻さない
     const ok = setBoard3dActive(true);
     try { logAction("diag-board3d-context-recover", { ok, count: contextLostCount }); } catch (err) {}
+    if (ok) verifyRecovery();
   }, Math.max(0, delayMs));
 }
 
 function ensureRenderer() {
-  if (renderer) return true;
+  // 【#369】文脈が失われた renderer を使い回すと、作り直したつもりで何も描けない。
+  // 生きているかを確かめ、死んでいたら捨ててから作り直す。
+  if (renderer) {
+    let dead = false;
+    try {
+      dead = renderer.getContext?.()?.isContextLost?.() === true;
+    } catch (err) {
+      dead = true;
+    }
+    if (!dead) return true;
+    disposeRenderer();
+  }
   const sceneEl = getScene();
   if (!sceneEl) return false;
   canvasEl = document.createElement("canvas");
