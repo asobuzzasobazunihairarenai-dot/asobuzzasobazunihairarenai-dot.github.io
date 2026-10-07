@@ -135,7 +135,8 @@ async function runInAppSmokeTest(onLog, { runToCompletion = false, playerCount =
     admin.setPseudoCpuModeEnabled?.(true);
     await cpu.startCpuBattle(pc);
     admin.setPseudoCpuIncludeSelf?.(true); // setup前に：A席も自動化（でないとturn1で停滞する）
-    await cpu.runCpuBattleSetup({ count: pc });
+    // 【#382】自己対戦なので、デッキを選ぶ画面は出さない（誰も押さないので止まってしまう）。
+    await cpu.runCpuBattleSetup({ count: pc, askDeck: false });
     admin.setPseudoCpuIncludeSelf?.(true);
 
     // 設定直後のカード総数を baseline に記録（以後、総数が変われば「カードが増減した」＝バグ）。

@@ -138,6 +138,30 @@ export async function teardownCpuBattle() {
   }
 }
 
+// 【#382】デッキを選ぶ画面を出して、確定した「解決済みデッキ」
+// （{cards, firstColor, pieceSkinIndex, petIndex, cardBackSetIndex}）を返す。
+// 1人用なのでカウントダウンは無し（durationSec: 0）＝好きなだけ選べる。「ホームへ」は
+// 渡さない——通常のCPU戦では盤面がもう出ているので、ここから家に帰す意味が薄く、
+// 出口は「選ぶ／おまかせ／新規作成」の3つで足りる。
+async function askMyDeckForCpuBattle() {
+  try {
+    const mod = await import("./my-deck-select.js");
+    if (mod.isDeckSelectOpen?.()) return null; // 既に開いているなら二重に出さない
+    return await new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => {
+        if (done) return;
+        done = true;
+        resolve(v);
+      };
+      mod.openDeckSelect({ durationSec: 0, onResolved: (r) => finish(r ?? null) });
+    });
+  } catch (err) {
+    console.error("openDeckSelect for CPU battle failed", err);
+    return null; // 画面が出せなくても対局は始める（従来どおりの選び方へ落ちる）
+  }
+}
+
 // オープニングを閉じて盤面を見せた「後」に呼ぶ。空の盤面の上で、2人対戦(A/C)のセットアップ
 // を演出付き（quickStartのファースト配布・盤面配置アニメ）で実際に見せながら開始する。
 export async function runCpuBattleSetup({
@@ -151,6 +175,9 @@ export async function runCpuBattleSetup({
   boost = isCpuBoostEnabled(),
   myDeckA = null,
   count = getCpuPlayerCount(),
+  // 【#382】デッキを選ぶ画面を出すか。人が始めた対局では出す。スモークテスト（自己対戦）は
+  // 誰も押さないので false を渡す。
+  askDeck = true,
 } = {}) {
   // noirSeat: エイドス物語戦で相手(C)のファースト・駒を黒(noir)にする（配布アニメーションの前に
   // 適用されるので最初から黒く見える）。通常のCPU戦ではnull（＝差し替えなし）。
@@ -162,6 +189,18 @@ export async function runCpuBattleSetup({
   //   {cards, firstColor, pieceSkinIndex, petIndex, cardBackSetIndex} を渡す。無ければ従来通り
   //   「現在選択中のマイデッキ」→おまかせランダムにフォールバックする。
   //
+  // 【#382・2026-10-07】ユーザー報告「CPU戦でマイデッキありでやってるけど、マイデッキ選べない」。
+  // マイデッキ戦をONにしても**デッキを選ぶ画面が出ず**、「いま選択中のデッキ」か、無ければ
+  // おまかせランダムで黙って始まっていた。選ぶ画面（openDeckSelect）を出していたのは
+  // **本気エイドス戦とオンラインのランク戦だけ**で、通常のCPU戦だけが取り残されていた。
+  //
+  // ここ（runCpuBattleSetup）で出すのが肝: CPU戦の入口は複数ある（ホーム画面・オープニング・
+  // 対局後パネル・ランク待機中の練習）ので、入口ごとに書くと必ずどれかを書き忘れる
+  // （続き549・552・557・560 と同じ考え方＝入口を1か所にする）。配布（quickStart）より
+  // 前でなければ開始色・駒スキン・裏面が反映できないので、必ずこの位置で聞く。
+  if (myDeck && !myDeckA && askDeck) {
+    myDeckA = await askMyDeckForCpuBattle();
+  }
   // まず A のデッキを確定する（開始色を quickStart へ渡す必要があるので配布前に決める）。
   let deckA = null;
   if (myDeck) {
