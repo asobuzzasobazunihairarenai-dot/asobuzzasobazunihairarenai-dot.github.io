@@ -51,6 +51,31 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-07",
+    summary: [],
+    summaryEn: [],
+    items: [],
+    itemsEn: [],
+    fixes: [
+      "ゴメンナサイで奪うカードを選ぶ時、盤面が寄ったままで選べないカードがあったのを直しました。",
+      "接触の助走と体当たりの動きが、スマホだと小さすぎて見えなかったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed cards being unreachable when choosing what to take with So Sorry!, because the board stayed zoomed in.",
+      "Fixed the run-up and body-slam of a contact being too small to see on a phone.",
+    ],
+    devItems: [
+      "#384「ゴメンナサイで奪うカードを選ぶ時、カメラがアップのままで選べないカードがあった」。**続き557 の直しが届いていなかった**——カメラを引くのを**発動宣言の所**に入れたが、**自分でゴメンナサイを使う場合は「奪う札を選ぶ」が宣言より先**に来る。寄ったままだと画面の外に出た札に手が届かず**遊べなくなる**。入口ごとに足すのをやめ、**「触って選ぶ」ための共通の入口**（マスを選ぶ `requestCellChoiceForEffect` ／ 手札を選ぶ `requestHandCardChoiceForEffect`）でカメラを原点へ戻すようにした。こうすれば今後どの効果から呼ばれても同じ事故が起きない。モーダルの中で押して選ぶ画面は画面全体に重なるので対象外だが、その「盤面を見る」ボタンだけは同じ理由で戻す。検証: 1.85倍に寄せた状態から選択を始めると、**寄り1・原点**に戻ってから候補が出る。",
+      "#387「やはり、接触の時の助走と体当たりのアニメが描画されません」。**続き558 の見立ては的を外していた。訂正する。** 報告と同じ画面（932x318＝iPhoneの横持ち。画面が極端に低いのでステージ倍率0.353）で実測すると、**駒そのものが画面上12.5px**で、助走8pxは**2.8px**、突進26pxは**9.2px**しか動いていなかった。「WebGLの描き直しが毎秒3回だから見えない」と書いたが、**それ以前に動く距離が数ピクセルしか無く、何コマ描けても見えない**。距離を**固定ピクセルから「相手までの間隔に対する割合」**（突進は相手の8割まで詰める／助走は3割下がる）へ変え、駒の大きさでも上限を掛けた。実測で**突進が画面上9.2px → 28.2px**（駒の幅14.1pxの2倍）、助走が**2.8px → 9.9px**になった。続き558 の「動く間はDOMが描く」は滑らかさと軽さには効くので残してある。",
+      "**上限を足したのは実測で気づいた（記録）**。割合だけにしたところ、見本（▶ 接触）で駒が**232px＝盤面を横切って飛んでいった**。見本は「いま盤面にいる駒2つ」を使うので**相手が隣にいない**（本番の接触は必ず隣のマス）。駒の大きさで上限を掛けて解決した。**本番だけを考えて割合を決めると、見本が壊れる。**",
+    ],
+    devItemsEn: [
+      "#384 (\"when choosing the card to take with So Sorry!, the camera stayed zoomed in and some cards could not be selected\"). The previous fix did not reach this case: the camera was brought home at the declaration, but when the local player uses So Sorry! the card selection comes before the declaration. Staying zoomed puts cards off screen and makes the game unplayable at that point. Rather than patching each entry point, the camera is now brought home inside the shared entry points for picking by touch - choosing a square and choosing a hand card - so no future effect can hit the same problem. Modal pickers cover the whole screen and are exempt, except that their \"look at the board\" button brings the camera home for the same reason. Verified: starting a selection while zoomed to 1.85 returns the camera to 1 and home before the candidates appear.",
+      "#387 (\"the run-up and body-slam animation on contact still is not drawn\"). The earlier diagnosis was wrong and is corrected here. Measured on the reported viewport (932x318, an iPhone in landscape, where the stage scale is 0.353), the piece itself is 12.5 screen pixels wide, the 8px run-up moves 2.8 pixels and the 26px lunge moves 9.2 pixels. The claim that the WebGL redraw rate was the cause missed the point: the distance was a handful of pixels, which no frame rate can make visible. The distances are now a proportion of the gap to the opponent - the lunge closes 80% of it, the run-up backs off 30% - with an upper bound based on the piece size. Measured afterwards: the lunge went from 9.2 to 28.2 screen pixels (twice the 14.1px piece width) and the run-up from 2.8 to 9.9. The earlier change that hands the drawing to the DOM while the piece moves is kept, since it does help smoothness and cost.",
+      "The upper bound came from a measurement: with a plain proportion, the preview sent the piece 232 pixels across the board, because the preview uses whatever two pieces are on the board and they are not adjacent, whereas a real contact always is. Bounding by the piece size fixed it. Designing a proportion around the real case alone broke the preview.",
+    ],
+  },
+  {
     date: "2026-10-06",
     summary: [
       "「駒消し」「カード消し」ボタンを、既定では出さないようにしました。",

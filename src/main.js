@@ -7314,7 +7314,10 @@ function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
 // 触れてしまうと、選択の前提（どこに何があるか）が変わってしまうため。見るだけにする。
 // 呼び出し側は返り値の cleanup() を finish の中で必ず呼ぶこと（「選択に戻る」ボタンが
 // 画面に取り残されるため）。
+// 【#384】「盤面を見る」も同じ理由で原点へ戻してから見せる（寄ったままの盤面を覗いても
+// 見たい所が入っていない）。
 function attachPeekBoardButton(modal, backdrop) {
+  void cameraHomeForPicking();
   let returnBtn = null;
   // 背景の覆いは createBackdrop が**インラインstyle**で背景色を書いているので、CSSのクラスでは
   // 上書きできない。ここで直接付け外しする（要素自体は残すので、盤面のタップは今までどおり
@@ -7499,7 +7502,27 @@ function requestLockCardsOrderedForEffect(player, hint, tokens, options = {}) {
 // とっくに切れているので）すぐまた自動代行が選ぶ→また確認…と無限に繰り返してしまう。
 let cellPickAutoResolved = false;
 
-async function requestCellChoiceForEffect(candidates, hint, options = {}) {
+// 【#384・2026-10-06】**盤面や手札を実際に触って選ぶ場面では、必ずカメラを原点へ戻す。**
+// 報告は「ゴメンナサイで奪うカードを選ぶ時、カメラがアップのままで選べないカードがあった」。
+// 最後のロックが宣言されるとアグレッシブモードがそのスロットに寄ったまま承認を待つ
+// （続き549）。続き557 で**発動宣言の時**にカメラを引くようにしたが、**自分でゴメンナサイを
+// 使う場合は「奪う札を選ぶ」が宣言より先**に来るので、選んでいる間はまだ寄ったままだった。
+// 寄っていると画面の外に出た札に手が届かない＝**遊べなくなる**。
+//
+// 入口ごとに足すのではなく、**「触って選ぶ」ための共通の入口**（マスを選ぶ・手札を選ぶ）で
+// 戻す。こうすると、今後どの効果から呼ばれても同じ事故が起きない（続き549・552・557 と
+// 同じ考え方＝入口を1か所にする）。モーダルの中で押して選ぶ画面は画面全体に重なるので
+// 対象外だが、その「盤面を見る」ボタンだけは同じ理由で戻す。
+async function cameraHomeForPicking() {
+  if (isCinematicCameraHome()) return;
+  cancelScheduledCameraHome(); // 予約されていた戻りは要らなくなる
+  await cameraHome(260);
+}
+async function requestCellChoiceForEffect(...args) {
+  await cameraHomeForPicking();
+  return requestCellChoiceForEffect__inner(...args);
+}
+async function requestCellChoiceForEffect__inner(candidates, hint, options = {}) {
   for (;;) {
     // 【#352】相手に頼まれた選択の期限が切れていたら、選び直しでもハイライトを出し直さない。
     if (isDelegationExpired()) return null;
@@ -7580,7 +7603,11 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
 // ゾーン）にある分も選択候補に含める（続き55、card-effect-engine.jsのgetHandTokens()と
 // 同じ定義。ヴァーディアンの効果で公開ドローされた2枚が選べる罠の「手札を半分捨てる」で
 // 選べなかった不具合の対応）。
-function requestHandCardChoiceForEffect(player, hint, tokenIdFilter, options = {}) {
+async function requestHandCardChoiceForEffect(...args) {
+  await cameraHomeForPicking();
+  return requestHandCardChoiceForEffect__inner(...args);
+}
+function requestHandCardChoiceForEffect__inner(player, hint, tokenIdFilter, options = {}) {
   return new Promise((resolve) => {
     const handArea = document.querySelector(`.hand-area[data-player="${player}"]`);
     const revealArea = document.querySelector(`.hand-reveal-area[data-player="${player}"]`);
@@ -10187,8 +10214,24 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   const dist = Math.hypot(dx, dy) || 1;
   const ux = dx / dist;
   const uy = dy / dist;
-  const LUNGE_PX = 26;
-  const RUNUP_PX = 8;
+  // 【#387・2026-10-06】距離を**固定ピクセルから「相手までの間隔に対する割合」へ**変えた。
+  // 報告「やはり、接触の時の助走と体当たりのアニメが描画されません」。報告と同じ画面
+  // （932x318＝iPhoneの横持ち。画面が極端に低いのでステージ倍率は0.353）で実測すると、
+  // **駒そのものが画面上12.5px**で、助走8pxは**2.8px**、突進26pxは**9.2px**しか動いて
+  // いなかった。**続き558 の「WebGLの描き直しが毎秒3回だから見えない」という見立ては
+  // 的を外していた**——それ以前に動く距離が数ピクセルしか無く、何コマ描けても見えない。
+  // （続き558 で入れた「動く間はDOMが描く」は滑らかさと軽さには効くので残す。）
+  //
+  // `dist` は画面のピクセルなので、**ステージのローカル単位へ直してから**割合を掛ける
+  // （transform はローカル単位で効く）。従来の値を下限にしてあるので、どんな配置でも
+  // 今より小さくはならない。割合は「相手の8割まで詰める」＝体当たりに見える距離。
+  const gapLocal = dist / (currentStageScale || 1);
+  // 相手が遠い時に突進が画面を横切ってしまわないよう、**駒の大きさでも上限を掛ける**
+  // （本番の接触は必ず隣のマスなので上限には当たらないが、見本は離れた駒を相手に選ぶため
+  // ここが無いと駒が盤面を飛んでいく＝実測で232px動いた）。
+  const pieceLocal = (attackerRect.width || 0) / (currentStageScale || 1) || 36;
+  const LUNGE_PX = Math.max(26, Math.min(gapLocal * 0.8, pieceLocal * 2));
+  const RUNUP_PX = Math.max(8, Math.min(gapLocal * 0.3, pieceLocal * 0.7));
 
   // ①承認されてから演出が始まるまでの「間」。
   await wait(getContactAnimSeconds("--contact-anim-pre-delay", 2) * 1000);
