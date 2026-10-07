@@ -7545,6 +7545,36 @@ async function requestCellChoiceForEffect__inner(candidates, hint, options = {})
   }
 }
 
+// 【#383・2026-10-07】ユーザー要望「マスチェンジで対象のコマを選ぶ時、そのコマが
+// わかりやすくハイライトされているといい」。駒を選ばせる効果（マスチェンジ・強制移動等）は
+// **マスの枠だけ**を光らせていたので、「このマスを選ぶ」のか「この駒を選ぶ」のかが
+// 見た目で分からなかった。効果側は既に `pickTarget: "piece"` を渡しているので
+// （確認文の切り替えに使っている）、それを見て駒自身も光らせる。
+//
+// **印を覚えて描画時に付け直す**形にしてある——`.piece` は render のたびに createElement で
+// 作り直されるため、クラスを直接付けるだけでは次の描き直しで消える（#375 で実測した）。
+let effectTargetPieceIds = new Set();
+function setEffectTargetPieces(ids) {
+  effectTargetPieceIds = ids instanceof Set ? ids : new Set(ids || []);
+  const table = document.getElementById("game-table");
+  if (!table) return;
+  for (const el of table.querySelectorAll(".piece.is-effect-target-piece")) {
+    if (!effectTargetPieceIds.has(el.dataset.tokenId)) el.classList.remove("is-effect-target-piece");
+  }
+  for (const id of effectTargetPieceIds) {
+    const el = table.querySelector(`.piece[data-token-id="${id}"]`);
+    if (el) el.classList.add("is-effect-target-piece");
+  }
+}
+// 候補のマスの上に乗っている駒のidを集める（相手の駒を選ばせる効果のため）。
+function pieceIdsOnCells(locs) {
+  const ids = new Set();
+  for (const tk of getState().tokens) {
+    if (tk.kind !== "piece" || tk.location?.zone !== "cell") continue;
+    if (locs.some((l) => l.zone === "cell" && l.row === tk.location.row && l.col === tk.location.col)) ids.add(tk.id);
+  }
+  return ids;
+}
 function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
   return new Promise((resolve) => {
     const table = document.getElementById("game-table");
@@ -7562,6 +7592,8 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
     if (!cpuSelecting) {
       for (const entry of entries) entry.el.classList.add("card-effect-target-cell");
       document.body.classList.add("card-effect-picking-cells");
+      // 【#383】駒を選ばせる効果では、その駒自身も光らせる。
+      if (options.pickTarget === "piece") setEffectTargetPieces(pieceIdsOnCells(candidates));
     }
     if (hint) showEffectPickerHint(hint); // showEffectPickerHint内でCPU中は自動スキップ
     if (options.allowSkip && !cpuSelecting) showEffectSkipButton(options.skipLabel ?? t("game.pick.noMore"));
@@ -7582,6 +7614,7 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
       resolve: (loc) => {
         for (const entry of entries) entry.el.classList.remove("card-effect-target-cell");
         document.body.classList.remove("card-effect-picking-cells");
+        setEffectTargetPieces(null); // 【#383】駒の光も必ず消す（どの経路でもここを通る）
         hideEffectPickerHint();
         hideEffectSkipButton();
         resolve(loc);
@@ -11823,6 +11856,8 @@ function renderBoardTokens(table) {
     // セットアップ配布演出中、まだ登場させたくないトークンは最初からopacity:0にしておく
     // （setup-animation.jsのanimateFirstCardsDealt/animateBoardFilled参照）。
     if (setupPendingTokenIds.has(token.id)) el.classList.add("is-setup-pending");
+    // 【#383】選択中の対象の駒。`.piece` は毎回作り直されるので、印から付け直す（#375 と同じ）。
+    if (token.kind === "piece" && effectTargetPieceIds.has(token.id)) el.classList.add("is-effect-target-piece");
     // 手番プレイヤーの駒だけを、その駒自身の色でゆっくり柔らかく発光させる
     // （ロックエリア/名前ラベルの手番演出とは別に、盤面上でも手番の駒がすぐ分かるように）。
     // 「自分」に限定していたのは誤りで、B/C/Dのターンでもそれぞれの駒が光る必要がある。

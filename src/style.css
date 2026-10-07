@@ -4705,6 +4705,38 @@ body.reduce-glow .lock-slot.is-just-robbed {
   animation: none;
   outline: 0.18rem dashed currentColor;
 }
+
+/* 【#383・2026-10-07】駒を選ばせる効果（マスチェンジ・強制移動等）で、対象になれる駒自身を
+   光らせる。ユーザー要望「マスチェンジで対象のコマを選ぶ時、そのコマがわかりやすく
+   ハイライトされているといい」。マスの枠（.card-effect-target-cell）だけだと「マスを選ぶのか
+   駒を選ぶのか」が見た目で分からなかった。
+   光らせるのは **.piece-face**（駒の各面）で、.piece 自身ではない——.piece は box-shadow を
+   既に持っており、box-shadow は後のルールで丸ごと上書きになるため（教訓10）。また WebGL 描画中は
+   .piece-face の box-shadow を剥がすルールがあるが、あれは !important を付けていない
+   （ハイライトの光は3D描画中でも見せたいという意図）ので、詳細度の高いこちらが勝つ。 */
+.piece.is-effect-target-piece .piece-face {
+  box-shadow:
+    0 0 0.55rem #ffd54a,
+    0 0 1.3rem #ffd54a;
+  animation: effect-target-piece 1.1s ease-in-out infinite;
+}
+@keyframes effect-target-piece {
+  0%, 100% {
+    box-shadow:
+      0 0 0.45rem #ffd54a,
+      0 0 1rem #ffd54a;
+  }
+  50% {
+    box-shadow:
+      0 0 0.9rem #ffd54a,
+      0 0 2.1rem #ffd54a,
+      0 0 3.2rem #ffd54a;
+  }
+}
+body.reduce-glow .piece.is-effect-target-piece .piece-face {
+  animation: none;
+  box-shadow: 0 0 0.5rem #ffd54a;
+}
 /* 【ユーザー要望2026-09-05】相手のゲートに乗った瞬間。乗られた側の色で輪が広がる。 */
 .gate-intrusion-ring {
   position: absolute;
