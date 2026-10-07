@@ -475,7 +475,7 @@ function buildCardPreviewSizeRow() {
   const slider = document.createElement("input");
   slider.type = "range";
   slider.min = "8";
-  slider.max = "36";
+  slider.max = "52"; // 【#358】上限を広げた（card-preview-size.js の MAX と合わせる）
   slider.step = "0.5";
   slider.value = String(Number.isFinite(current) ? current : 20);
   const valueLabel = document.createElement("span");

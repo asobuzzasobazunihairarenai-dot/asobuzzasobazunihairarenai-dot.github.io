@@ -10,8 +10,13 @@
 import { registerSyncedPref } from "./pref-registry.js";
 
 const KEY = "so7-card-preview-size-rem";
+// 【#358・2026-10-07・ユーザー要望「設定でサイズを調整できるようにして」】上限を 36→52rem に
+// 広げた。設定は元から長押しの拡大にも効いていた（同じ #card-preview・同じCSS変数を使う）が、
+// **上限が足りていなかった**——実測（報告者と同じ 932x430＝iPhoneの横持ち。ステージ倍率0.478）で、
+// 8rem＝画面の高さの14%／既定の32rem＝57%／当時の上限36rem＝64% にしかならなかった。
+// 52rem なら 92% まで出せる（ステージの高さ900pxに収まる範囲＝これ以上はみ出して切れる）。
 const MIN = 8;
-const MAX = 36;
+const MAX = 52;
 
 function clamp(v) {
   return Math.min(MAX, Math.max(MIN, v));

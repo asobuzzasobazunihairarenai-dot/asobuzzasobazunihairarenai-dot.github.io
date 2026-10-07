@@ -22699,3 +22699,11 @@ body.theme-light-ingame .ranking-choice-item {
 #back-guard-notice.show {
   opacity: 1;
 }
+
+/* 【#389】手札の「捨てる順」モーダルの「おまかせ」。確定ボタンと同じ形だが、主役ではない
+   ので少し控えめにする（色は決め打ちせず、既存の確定ボタンの指定をそのまま継ぐ）。 */
+#stack-modal .stack-modal-confirm.is-auto {
+  margin-top: 0.35rem;
+  opacity: 0.85;
+  font-size: 0.85em;
+}

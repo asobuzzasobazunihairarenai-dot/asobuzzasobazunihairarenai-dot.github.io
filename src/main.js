@@ -7037,6 +7037,20 @@ function hideEffectAutoButton() {
 // 候補が1枚しかない時は選ぶ意味が無いのでそのまま確定する（1枚ずつ選ぶ時の既存の
 // 「候補が1枚なら確認を出さない」と同じ考え方）。CPUが選ぶ番なら、盤面には何も出さずに
 // その場で順番を決めて返す（CPUの手札選びと同じ chooseHandCardToken を繰り返す）。
+// 【#389・2026-10-07・ユーザー判断】**モーダルにする。**
+// それまでは「実際の手札を順番に押させる」ハイライト方式だった（マスの枠と同じ仕組み）。
+// 報告「色落ちキャットでカードを捨てる時、捨てる順選択モーダルが出ない」を調べたところ、
+// **出てはいた**——が、報告者の画面（932x430＝iPhoneの横持ち）で測ると、案内は y=35、
+// 確定ボタンは y=57・**高さ17px・幅89px**＝画面最上部の細い帯で、肝心の手札は y=346＝
+// 画面の一番下。**出ているのに気づけない**状態だった。ロックカード・盤面のカードは
+// 既にモーダルにしてあり（続き546・#357）、ユーザーが見ているのもそちら。見せ方を
+// 揃える方が迷いが無いので、手札もモーダルにした。
+//
+// 作りは `requestBoardCardsOrderedForEffect`（盤面のカード版）と同じ `#stack-modal` を流用する。
+// **候補の集め方と返し方は変えていない**——候補はDOMの手札から拾う（＝手札の並び順をそのまま
+// 使えるので「押さなかったぶんは今の並び順で捨てる」の意味が保てる）。`activeEffectPicker` も
+// 同じ形（type: "handMulti"／toggle／confirmOrder／resolve）で登録したままにしてある——
+// 持ち時間切れの自動代行と「おまかせ」がここを通るため。
 function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options = {}) {
   return new Promise((resolve) => {
     const handArea = document.querySelector(`.hand-area[data-player="${player}"]`);
@@ -7049,9 +7063,7 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     const cardEls = filterIds ? allCardEls.filter((el) => filterIds.has(el.dataset.tokenId)) : allCardEls;
     // 【2026-09-29・続き545】options.limit ＝「この枚数だけ選ぶ」。
     // これが無い時は従来どおり**全部捨てる**（選ばなかった分は並び順のまま後ろへ足す）。
-    // スラム上がりの役人（3枚になるまで）・選べる罠（手札の半分）のように**捨てる枚数が
-    // 決まっている**効果のために足した。候補の枚数以上を指定された時は「結局全部」なので
-    // limit 無しと同じ扱いにする（全部押させるのは手間が増えるだけで意味が無い）。
+    // 候補の枚数以上を指定された時は「結局全部」なので limit 無しと同じ扱いにする。
     const limitRaw = Number.isFinite(options.limit) ? Math.max(0, Math.floor(options.limit)) : null;
     if (limitRaw === 0) {
       resolve([]);
@@ -7071,9 +7083,10 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       resolve(tokensOf([cardEls[0].dataset.tokenId]));
       return;
     }
+    const ids0 = cardEls.map((el) => el.dataset.tokenId);
     // CPUが選ぶ番: 画面には出さず、その場で順番を決めて返す。
     if (isCpuSelectingNow(player)) {
-      const pool = new Set(cardEls.map((el) => el.dataset.tokenId));
+      const pool = new Set(ids0);
       const order = [];
       while (order.length < want && pool.size > 0) {
         const id = chooseHandCardToken(pool, player) ?? [...pool][0];
@@ -7083,17 +7096,44 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       resolve(tokensOf(order));
       return;
     }
-    for (const el of cardEls) {
-      el.classList.add("card-effect-target-cell");
-      el.classList.remove("hand-card-effect-unusable");
-    }
-    document.body.classList.add("card-effect-picking-hand");
-    if (hint) showEffectPickerHint(hint);
 
+    const list0 = tokensOf(ids0);
+    // 自分の手札なら中身を見せる。ローカル対戦で他人の手札を代わりに選ぶ場合は、
+    // 盤面と同じく裏のまま出す（一覧にしたことで中身が覗けてしまわないように）。
+    const mine = player === getSelfSeat();
     const picked = []; // 押した順のトークンid
-    const badgeOf = new Map(); // tokenId -> バッジ要素
+    const badgeOf = new Map();
+    const modal = document.createElement("div");
+    modal.id = "stack-modal";
+    modal.classList.add("is-order-picker");
+    // 必須の選択なので、✕・外クリックでは閉じない（盤面のカード版と同じ）。
+    const backdrop = createBackdrop(() => {}, { dim: true, zIndex: 10001 });
+    const title = document.createElement("div");
+    title.className = "stack-modal-title";
+    title.textContent = hint;
+    const note = document.createElement("div");
+    note.className = "stack-modal-note";
+    note.textContent =
+      limit != null ? t("game.pick.handDiscardNoteLimit", { n: limit }) : t("game.pick.boardDiscardNote");
+    const list = document.createElement("div");
+    list.className = "stack-modal-list";
+    const els = [];
+    for (const token of list0) {
+      const card = document.createElement("div");
+      card.className = "stack-modal-card is-pickable";
+      card.dataset.tokenId = token.id;
+      const shown = mine || token.faceUp;
+      showCardFace(card, shown ? token.cardId : null, shown ? getCardImagePath(token.cardId) : cardBackImageForToken(token));
+      if (shown) attachModalCardPreview(card, token.cardId);
+      card.addEventListener("click", () => toggle(token.id));
+      list.appendChild(card);
+      els.push(card);
+    }
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "stack-modal-confirm";
     const paint = () => {
-      for (const el of cardEls) {
+      for (const el of els) {
         const id = el.dataset.tokenId;
         const idx = picked.indexOf(id);
         el.classList.toggle("is-discard-picked", idx >= 0);
@@ -7111,26 +7151,31 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
           badgeOf.delete(id);
         }
       }
-      // limit があるうちは「まだ足りない」間だけ確定を薄くする（押しても confirmOrder 側で弾く。
-      // このボタンは自前の当たり判定で拾うので、disabled 属性だけでは止まらない＝教訓4）。
-      showEffectSkipButton(t("game.pick.discardOrderConfirm", { n: picked.length, total: want }), {
-        disabled: limit != null && picked.length !== limit,
-      });
+      confirmBtn.textContent = t("game.pick.discardOrderConfirm", { n: picked.length, total: want });
+      // limit があるうちは「まだ足りない」間だけ薄くする。実際に弾くのは confirmOrder の中
+      // （見た目だけで止めてはいけない＝教訓4）。
+      confirmBtn.style.opacity = limit != null && picked.length !== limit ? "0.45" : "1";
     };
+    const peek = attachPeekBoardButton(modal, backdrop);
     const finish = (ids) => {
-      for (const el of cardEls) el.classList.remove("card-effect-target-cell", "is-discard-picked");
-      for (const badge of badgeOf.values()) badge.remove();
-      badgeOf.clear();
-      document.body.classList.remove("card-effect-picking-hand");
-      hideEffectPickerHint();
-      hideEffectSkipButton();
-      hideEffectAutoButton();
+      peek.cleanup(); // 「選択に戻る」を画面に取り残さない
+      hideCardPreview(); // 拡大表示中に閉じた時に取り残さない（#185と同じ）
+      backdrop.remove();
+      modal.remove();
       resolve(tokensOf(ids));
     };
-    // 【2026-09-28】「おまかせ」と持ち時間切れの自動代行で使う並べ方。既に押した分はその順の
-    // まま尊重し、残りをCPUと同じ基準で並べる（同じ決め方を2か所に書かないよう1つにまとめた）。
+    const toggle = (id) => {
+      const i = picked.indexOf(id);
+      if (i >= 0) picked.splice(i, 1);
+      // limit まで選んだ後に別の札を押しても増やさない（捨てる枚数はルールで決まっているため）。
+      else if (limit == null || picked.length < limit) picked.push(id);
+      else return;
+      paint();
+    };
+    // 「おまかせ」と持ち時間切れの自動代行で使う並べ方。既に押した分はその順のまま尊重し、
+    // 残りをCPUと同じ基準で並べる（同じ決め方を2か所に書かないよう1つにまとめてある）。
     const autoOrder = () => {
-      const pool = new Set(cardEls.map((el) => el.dataset.tokenId).filter((id) => !picked.includes(id)));
+      const pool = new Set(ids0.filter((id) => !picked.includes(id)));
       const ids = [...picked];
       while (ids.length < want && pool.size > 0) {
         const id = chooseHandCardToken(pool, player) ?? [...pool][0];
@@ -7139,51 +7184,53 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       }
       return ids;
     };
-    paint();
+    const confirmOrder = () => {
+      // limit がある時は**枚数が揃うまで確定させない**。
+      if (limit != null) {
+        if (picked.length !== limit) return;
+        activeEffectPicker = null;
+        finish([...picked]);
+        return;
+      }
+      // 「これで捨てる」＝選んでいない残りは、手札に並んでいる順のまま後ろへ付ける
+      // （全部捨てる効果なので、選ばなかった札も必ず捨てる）。
+      const rest = ids0.filter((id) => !picked.includes(id));
+      activeEffectPicker = null;
+      finish([...picked, ...rest]);
+    };
+    confirmBtn.addEventListener("click", confirmOrder);
     // 順番にこだわらない人のための「おまかせ」。押したらその場で確定する。
-    showEffectAutoButton(t("game.pick.discardOrderAuto"), () => {
-      if (activeEffectPicker?.type !== "handMulti") return; // 既に別の場面へ進んでいたら何もしない
+    const autoBtn = document.createElement("button");
+    autoBtn.type = "button";
+    autoBtn.className = "stack-modal-confirm is-auto";
+    autoBtn.textContent = t("game.pick.discardOrderAuto");
+    autoBtn.addEventListener("click", () => {
       activeEffectPicker = null;
       finish(autoOrder());
     });
+    paint();
+    modal.appendChild(title);
+    modal.appendChild(note);
+    modal.appendChild(list);
+    modal.appendChild(confirmBtn);
+    modal.appendChild(autoBtn);
+    modal.appendChild(peek.button);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    // 持ち時間切れの自動代行・外からの「おまかせ」はここを通る（形は従来どおり）。
     activeEffectPicker = {
       type: "handMulti",
       owner: player,
       purpose: options.purpose ?? null,
-      tokenIds: new Set(cardEls.map((el) => el.dataset.tokenId)),
-      // 1枚押すたびに呼ばれる（クリック経路とスキップボタンから）。
-      toggle: (id) => {
-        const i = picked.indexOf(id);
-        if (i >= 0) picked.splice(i, 1);
-        // limit まで選んだ後に別の札を押しても増やさない（捨てる枚数はルールで決まっているため）。
-        // 選び直したい時は、選んだ札をもう一度押して外してから押す。
-        else if (limit == null || picked.length < limit) picked.push(id);
-        else return;
-        paint();
-      },
-      // 「これで捨てる」＝選んでいない残りは、手札に並んでいる順のまま後ろへ付ける
-      // （全部捨てる効果なので、選ばなかった札も必ず捨てる）。
-      confirmOrder: () => {
-        // limit がある時は**枚数が揃うまで確定させない**（ボタンを薄くするだけでは止まらない＝教訓4）。
-        if (limit != null) {
-          if (picked.length !== limit) return;
-          activeEffectPicker = null;
-          finish([...picked]);
-          return;
-        }
-        const rest = cardEls.map((el) => el.dataset.tokenId).filter((id) => !picked.includes(id));
-        const ids = [...picked, ...rest];
-        activeEffectPicker = null;
-        finish(ids);
-      },
-      // 持ち時間切れの自動代行から呼ぶ（順番はCPUと同じ決め方）。
+      tokenIds: new Set(ids0),
+      toggle,
+      confirmOrder,
       resolve: () => {
-        finish(autoOrder()); // 【2026-09-28】「おまかせ」と同じ決め方（autoOrder に集約）
+        finish(autoOrder());
       },
     };
   });
 }
-
 
 // 【#357・2026-09-28】盤面のカードを「捨てる順」に選ぶモーダル。手札用
 // （requestHandCardsOrderedForEffect）と別に作った理由:

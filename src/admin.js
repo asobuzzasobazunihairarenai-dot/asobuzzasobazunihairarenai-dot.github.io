@@ -225,7 +225,7 @@ const GROUPS = [
     title: "カード拡大プレビュー",
     category: "position-board",
     controls: [
-      { key: "--card-preview-size", label: "サイズ", unit: "rem", min: 8, max: 36, step: 0.5, default: 32 },
+      { key: "--card-preview-size", label: "サイズ", unit: "rem", min: 8, max: 52, step: 0.5, default: 32 },
     ],
   },
   {
