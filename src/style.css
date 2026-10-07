@@ -11808,6 +11808,8 @@ body.reduce-glow .cell.card-effect-just-placed {
   --vic-flash-speed: 1;    /* 白飛びが広がる速さ */
   --vic-white: 0.88;       /* 白オーバーレイの濃さ（0.5〜0.98） */
   --vic-residue: 2;        /* 白い画面の中の七色残光の量。既定=派手版 */
+  --vic-rings: 1.2;        /* 【#385】脈動ごとの七色の衝撃波（0で切れる） */
+  --vic-rays: 1;           /* 【#385】VICTORYの背後の七色の光芒（0で切れる） */
   /* 脈動している疑似キューブの「白い芯」の強さ。0にすると白い丸が完全に消えて、
      勝者の色のにじみだけになる（ユーザー要望2026-08-31「脈動中の白丸いらないかも」）。 */
   --vic-cube-white: 0;
@@ -22706,4 +22708,93 @@ body.theme-light-ingame .ranking-choice-item {
   margin-top: 0.35rem;
   opacity: 0.85;
   font-size: 0.85em;
+}
+
+/* 【#385・2026-10-07】勝利演出を派手にする追加2つ。どちらも DOM＋CSS だけで描くので、
+   キャンバスの描画量（＝#348 の発熱の主因）を増やさない。数値は --vic-rings / --vic-rays
+   から読むので、管理者モードのシミュレーター（victory-preview.js）でそのまま詰められる。 */
+
+/* ① 脈動のたびにキューブから広がる七色の衝撃波。 */
+.vic-pulse-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2rem;
+  height: 2rem;
+  margin-left: -1rem;
+  margin-top: -1rem;
+  border-radius: 50%;
+  border: 0.22rem solid rgba(var(--vic-ring-rgb, 255, 255, 255), 0.95);
+  box-shadow:
+    0 0 1.2rem rgba(var(--vic-ring-rgb, 255, 255, 255), 0.8),
+    inset 0 0 1.2rem rgba(var(--vic-ring-rgb, 255, 255, 255), 0.55);
+  pointer-events: none;
+  opacity: 0;
+  animation: vic-pulse-ring var(--vic-ring-ms, 900ms) cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+@keyframes vic-pulse-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotateX(var(--table-tilt, 42deg));
+  }
+  12% {
+    opacity: calc(0.9 * var(--vic-ring-power, 1));
+  }
+  100% {
+    opacity: 0;
+    transform: scale(calc(22 * var(--vic-ring-power, 1))) rotateX(var(--table-tilt, 42deg));
+  }
+}
+
+/* ② VICTORY の文字の背後でゆっくり回る七色の光芒。文字より奥に置く。 */
+.vic-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 170vmax;
+  height: 170vmax;
+  margin-left: -85vmax;
+  margin-top: -85vmax;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 64, 92, 0.5) 0deg 6deg, transparent 6deg 26deg,
+    rgba(255, 138, 50, 0.5) 26deg 32deg, transparent 32deg 52deg,
+    rgba(255, 216, 74, 0.5) 52deg 58deg, transparent 58deg 78deg,
+    rgba(66, 229, 138, 0.5) 78deg 84deg, transparent 84deg 104deg,
+    rgba(73, 168, 255, 0.5) 104deg 110deg, transparent 110deg 130deg,
+    rgba(255, 116, 200, 0.5) 130deg 136deg, transparent 136deg 156deg,
+    rgba(168, 117, 255, 0.5) 156deg 162deg, transparent 162deg 180deg,
+    rgba(255, 64, 92, 0.5) 180deg 186deg, transparent 186deg 206deg,
+    rgba(255, 138, 50, 0.5) 206deg 212deg, transparent 212deg 232deg,
+    rgba(255, 216, 74, 0.5) 232deg 238deg, transparent 238deg 258deg,
+    rgba(66, 229, 138, 0.5) 258deg 264deg, transparent 264deg 284deg,
+    rgba(73, 168, 255, 0.5) 284deg 290deg, transparent 290deg 310deg,
+    rgba(255, 116, 200, 0.5) 310deg 316deg, transparent 316deg 336deg,
+    rgba(168, 117, 255, 0.5) 336deg 342deg, transparent 342deg 360deg
+  );
+  /* 中心ほど薄く＝文字の下が濁らないように抜く。 */
+  mask-image: radial-gradient(circle, transparent 0%, transparent 14%, #000 42%, #000 100%);
+  -webkit-mask-image: radial-gradient(circle, transparent 0%, transparent 14%, #000 42%, #000 100%);
+  animation: vic-rays-in 900ms ease-out forwards, vic-rays-spin 26s linear infinite;
+}
+@keyframes vic-rays-in {
+  from { opacity: 0; }
+  to { opacity: calc(0.5 * var(--vic-rays-power, 1)); }
+}
+@keyframes vic-rays-spin {
+  from { rotate: 0deg; }
+  to { rotate: 360deg; }
+}
+/* 【重さ対策】見せ場が終わって結果画面の背景になったら、回し続けるのをやめる
+   （既存の .is-settled と同じ考え方＝数分間残る画面で重い装飾を続けない）。 */
+#victory-celebration.is-settled .vic-rays {
+  animation: vic-rays-in 1ms linear forwards;
+  opacity: calc(0.28 * var(--vic-rays-power, 1));
+}
+body.reduce-glow .vic-pulse-ring,
+body.reduce-glow .vic-rays {
+  display: none;
 }

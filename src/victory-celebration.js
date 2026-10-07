@@ -74,13 +74,24 @@ function readSettings() {
     speed: Math.max(0.3, num("--vic-speed", 1)), // 大きいほど速い
     colorStep: num("--vic-color-step", 1), // 1色ごとの間隔の倍率
     gatherSpeed: Math.max(0.3, num("--vic-gather-speed", 1)),
-    stream: num("--vic-stream", 1) * (mobile ? 0.5 : 1), // 光の帯・霧の量
+    // 【#385・2026-10-07】ユーザー要望「なんかもっと派手な凝ったアニメーション演出がいい」。
+    // 報告のログ（`diag-victory-celebration`）で**演出は全段そろって10.3秒走っていた**ことは
+    // 確認できた（`light:false` / `reducedMotion:false` ＝短縮版でもない）。そのうえで物足りない
+    // という評価なので、足す方向で直す。まず効くのが**スマホの減衰**——`mobile:true` だったので、
+    // 光の帯は**半分**、振動と残光は6割に落ちていた＝一番「派手さ」に効く所を削っていた。
+    // 減衰を入れた理由は #348（iPhoneが熱い）だが、あれは**変化が無い間も描き続けていた**件で、
+    // こちらは**10秒で終わる一度だけの見せ場**なので事情が違う。0に戻さず 0.85 まで戻す。
+    stream: num("--vic-stream", 1) * (mobile ? 0.85 : 1), // 光の帯・霧の量
     pulseCount: Math.max(1, Math.round(num("--vic-pulse-count", 3))),
     pulsePower: num("--vic-pulse-power", 1),
-    shake: num("--vic-shake", 1) * (mobile ? 0.6 : 1),
+    shake: num("--vic-shake", 1) * (mobile ? 0.8 : 1),
     flashSpeed: Math.max(0.3, num("--vic-flash-speed", 1)),
     white: Math.min(0.98, Math.max(0.5, num("--vic-white", 0.88))), // 白の濃さ
-    residue: num("--vic-residue", 1) * (mobile ? 0.6 : 1), // 白の中の七色残光
+    residue: num("--vic-residue", 1) * (mobile ? 0.85 : 1), // 白の中の七色残光
+    // 【#385】脈動のたびに七色の衝撃波を広げる（0で切れる）。DOM＋CSSなので安い。
+    rings: num("--vic-rings", 1),
+    // 【#385】VICTORY の文字の背後に回る七色の光芒（0で切れる）。
+    rays: num("--vic-rays", 1),
     avatarSize: num("--vic-avatar-size", 16), // vmin
     fan: num("--vic-fan", 1) >= 0.5, // ロックした7枚の扇を見せるか
     hold: num("--vic-hold", 1), // 勝利表示を見せる長さの倍率
@@ -297,6 +308,8 @@ export async function playVictoryCelebration(player, opts = {}) {
     for (let i = 0; i < s.pulseCount; i++) {
       const power = ((i + 1) / s.pulseCount) * s.pulsePower;
       pulseOnce(root, ghost, power, s.shake, ms(BASE.pulse));
+      // 【#385】脈動のたびに七色の衝撃波。--vic-rings が 0 なら出さない。
+      if (s.rings > 0) spawnPulseRing(root, cube, power * s.rings, i, ms(BASE.pulse));
       playSound("piecePlace");
       playPulseThump(power); // 後ろの脈動ほど強く響かせる
       await step(ms(BASE.pulse));
@@ -576,6 +589,25 @@ function spawnCubeEcho(ghost, power) {
   setTimeout(() => echo.remove(), 1200);
 }
 
+// 【#385】脈動に合わせてキューブから広がる七色の衝撃波。1回ごとに色を変える
+// （赤→橙→黄…の順＝COLORS の並びと同じにして、7色の話だと分かるようにする）。
+// DOM 1枚＋CSSアニメーションなので、キャンバスの描画量を増やさない。
+function spawnPulseRing(root, cube, power, colorIndex, durMs) {
+  // 疑似キューブと同じ層（幕より手前。幕の backdrop-filter の裏だと色が沈む）。
+  const layer = root.querySelector(".vic-cubes") || root;
+  const ring = document.createElement("div");
+  ring.className = "vic-pulse-ring";
+  const hex = VIVID[COLORS[colorIndex % COLORS.length]] || "#ffffff";
+  const rgb = hexToRgb(hex);
+  ring.style.left = `${cube.x}px`;
+  ring.style.top = `${cube.y}px`;
+  ring.style.setProperty("--vic-ring-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+  ring.style.setProperty("--vic-ring-power", String(power));
+  ring.style.setProperty("--vic-ring-ms", `${Math.max(240, durMs * 2.4)}ms`);
+  layer.appendChild(ring);
+  setTimeout(() => ring.remove(), Math.max(240, durMs * 2.4) + 120);
+}
+
 // キューブの脈動1回分（疑似キューブの拡大・発光＋残像＋ごく小さな画面振動）。
 function pulseOnce(root, ghost, power, shake, durMs) {
   root.style.setProperty("--vic-pulse-power", String(power));
@@ -599,6 +631,14 @@ function pulseOnce(root, ghost, power, shake, durMs) {
 function buildVictoryText(root, player, s) {
   const box = root.querySelector(".vic-text");
   box.innerHTML = "";
+  // 【#385】文字の背後にゆっくり回る七色の光芒。白い光の中に「何かが起きた」感を足す。
+  // 文字より奥（CSS側で z-index を下げてある）。--vic-rays が 0 なら出さない。
+  if (s.rays > 0) {
+    const rays = document.createElement("div");
+    rays.className = "vic-rays";
+    rays.style.setProperty("--vic-rays-power", String(s.rays));
+    box.appendChild(rays);
+  }
   const avatar = document.createElement("div");
   avatar.className = "vic-avatar";
   avatar.style.fontSize = `${s.avatarSize}vmin`;

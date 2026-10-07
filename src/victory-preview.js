@@ -34,6 +34,9 @@ const SLIDERS = [
   ["--vic-flash-speed", "白飛びが広がる速さ", 0.4, 2.5, 0.05, 1],
   ["--vic-white", "白の濃さ（背景の残り具合）", 0.5, 0.98, 0.01, 0.88],
   ["--vic-residue", "白の中の七色残光", 0, 3, 0.05, 2],
+  // 【#385】足した2つ。0にすればその飾りだけ切れる。
+  ["--vic-rings", "脈動ごとの七色の衝撃波", 0, 3, 0.05, 1.2],
+  ["--vic-rays", "VICTORYの背後の光芒", 0, 2, 0.05, 1],
   ["--vic-avatar-size", "勝者アバターの大きさ(vmin)", 8, 30, 0.5, 16],
   ["--vic-hold", "勝利表示を見せる長さ", 0.3, 3, 0.05, 1],
   ["--vic-fan", "ロックした7枚を扇状に見せる（0=出さない / 1=出す）", 0, 1, 1, 1],
@@ -47,7 +50,7 @@ const PRESETS = {
   標準版: {},
   短縮版: { "--vic-speed": 2.2, "--vic-hold": 0.5, "--vic-fan": 0 },
   控えめ版: { "--vic-stream": 1, "--vic-pulse-power": 1, "--vic-residue": 1, "--vic-shake": 1, "--vic-speed": 1 },
-  軽量版: { "--vic-stream": 0.35, "--vic-residue": 0.3, "--vic-shake": 0, "--vic-speed": 1.6, "--vic-fan": 0 },
+  軽量版: { "--vic-stream": 0.35, "--vic-residue": 0.3, "--vic-shake": 0, "--vic-speed": 1.6, "--vic-fan": 0, "--vic-rings": 0, "--vic-rays": 0 },
 };
 
 const STAGES = ["WAIT", "COLORS", "GATHER", "PULSE", "FLASH", "VICTORY", "RESULT"];
