@@ -54,15 +54,19 @@ export const CHANGELOG = [
     date: "2026-10-08",
     summary: [
       "試遊ページから、クラウドファンディングのページへ行けるようにしました",
+      "起動中に「読み込み中」を出すようにしました",
     ],
     summaryEn: [
       "The trial page now has a link to the crowdfunding page",
+      "A loading screen now appears while the app starts up",
     ],
     items: [
       "登録なしで遊べる**試遊ページ**のメニューに、**クラウドファンディングのページを見る**リンクを足しました。これまでは試遊ページに来ると、ブラウザの「戻る」以外で戻る道がありませんでした。リンクは別のタブで開くので、遊んでいる途中でも試遊ページはそのまま残ります。",
+      "アプリを開いた直後に**「読み込み中…」の画面**が出るようになりました。これまでは最初の読み込みが終わるまで**画面が真っ黒なまま**で、初めて開く方には「壊れている」ように見えていました（実測で、何も出ない時間が**7.7秒**ありました）。「最初の読み込みに10秒ほどかかることがあります」という案内も添えています。読み込みが終わると自動で消えます。",
     ],
     itemsEn: [
       "The menu on the trial page - the one you can play without signing up - now has a link to the crowdfunding page. Until now, once you arrived on the trial page there was no way back except the browser's Back button. The link opens in a new tab, so the trial page stays where it is even mid-game.",
+      "A loading screen now appears as soon as the app is opened. Until now the screen stayed black until the first load finished, which looked broken to anyone opening it for the first time - measured, there were 7.7 seconds with nothing on screen. A note explains that the first load can take about ten seconds. It disappears on its own once loading finishes.",
     ],
     fixes: [
     ],
@@ -77,6 +81,9 @@ export const CHANGELOG = [
       "切り替えの時刻を **0時 → 正午**へ遅らせた（司令塔の指摘）。本公開は 10/17 の**朝7時台**の予定なので、0時で切り替えると**朝まで約7時間 `/view` が404のまま**になる。実測でも、裸の `/projects/967235` は301で `/view` に落ちるため、**どちらの状態でも生きるURLは無い**。しかも**間違える向きが対称ではない**——早すぎれば「支援したい人がいちばん熱いときに404で弾かれる」が、遅すぎても「公開後に古いアイデアのページへ着く」だけで済む。だから遅めに倒す。公開予約の画面はCAMPFIREの審査通過後にしか出ない（10/5提出・承認待ち）ため、7時台に本当に設定できるかも確定していない＝その不確かさも正午で吸収する。検証: 10/17 06:00 と 11:59 は `/idea`、12:00 と翌日は `/view`（時計を進めて実測）。",
       "切り替えの時刻が **10/17 10:35** で確定（正本 `共通の事実.md` 第14節が更新され、公開は **10/17（土）10:30**＝2026-10-07 の本人決定。本人の言葉「時間は10:30でいい。問題があれば11時までに対処」）。そこに**5分の余裕**を足した値で、根拠はCAMPFIREの自動公開が1〜2分遅れることがあるという正本の記録。0時→正午→10:35 と2回動かしている。検証: 時計を進めて **10:29・10:34 は `/idea`、10:35・11:00・翌日は `/view`**。",
       "**食い違いの正体（記録）**: 司令塔2つが逆のことを言い、正本にも 10:30 が無い状態が一時あった。原因は**2つの別の話が混ざっていた**こと——「**何時に公開するか**」は 10/07 に決定済み、「**CAMPFIREの予約画面にその時刻を入力できるか**」は審査承認待ちで未了。後者を指して「まだ決まっていない」と言われたため、前者も未確定だと読めてしまった。加えて、最初の「朝・7時台」は正本の「**7時台の開始は問題なく設定できます**」（＝設定できるかという**可能性**の話）を**決定として読んだ**誤りだった。**自分で正本を grep して「10:30 は0件」と確かめ、どちらにも寄せずに両方へ照会したのが効いた**（事実は正本だけに置き、食い違いは司令塔へ上げる運用）。",
+      "**起動中の「読み込み中」画面を入れた**（`index.html` 内に、インラインのCSS＋スクリプトで完結）。実測（本番・iPhone横持ち相当）で**画面が完全に真っ白なまま7.7秒**かかっていた——HTML自体は2.5秒で使える状態になるが、**191個のファイル**を読み終えてオープニングが組まれるまで何も出ない。10/17にクラウドファンディングから来た人が最初に見るのがこれなので、**何も出ないと「壊れている」と判断されて閉じられる**。**置き場所が肝**: `src/*.js` のモジュールに書くと**そのモジュールが読み終わるまで出ない**（＝遅れている当のものを待つことになる）ので、`index.html` に直接書いた。",
+      "**絶対に取り残さないための三重の保険**: ①`pointer-events: none`＝万一消えなくても操作を邪魔しない ②オープニングか盤面の中身が出たのを0.12秒ごとに見て消す ③それでも消えなければ**25秒で強制的に消す**。検証: 出てから消えるまでを追い、**1.7秒で出て・6.6秒でオープニングが出た直後に消え・DOMから除去され・`pointer-events` は none**。例外0件。",
+      "**残っている穴（正直な限界）**: 真っ白な時間は**全部は消せていない**。`<head>` に**ブロッキングの外部スクリプト2本**（Tailwind CDN・Supabase UMD）と `src/style.css` があり、本文が描かれるのはそれらの後なので、**最初の1〜2秒はまだ黒いまま**。消すには読み込み方を変える（`defer` 等）ことになり、見た目の崩れや初期化順の事故が起きうる**別の変更**なので、クラファン直前にはやらない。読み込み自体の短縮（191個のうちオープニングに要らない絵を後回しにする）も同じ理由で**クラファン後**に回す。",
     ],
     devItemsEn: [
       "A single text link back to CAMPFIRE was added at the end of the trial panel on the trial page (?trial). The crowdfunding page already linked to the trial page, but there was no way back at all, even though it had been agreed in September that the trial screens must carry a link back to CAMPFIRE. Nothing elaborate was wanted, so it is a quiet text link rather than a button, to avoid competing with the play options. It opens in a new tab with noopener noreferrer, and it is registered with the language-switch list so its text changes with the language; its colour is inherited rather than hard-coded, because the app has light and dark themes.",
@@ -87,6 +94,9 @@ export const CHANGELOG = [
       "The switch moved from midnight to noon, at the commander's prompting. The launch is planned for the 7 o'clock hour on 17 October, so switching at midnight would leave /view returning 404 for about seven hours of that morning. Measured, the bare project URL also redirects to /view, so there is no single URL that works in both states. The two failure directions are not symmetric either: switching too early turns supporters away with a 404 at the hottest moment, while switching too late merely lands them on the older idea page. Hence erring late. The scheduling screen only appears after CAMPFIRE approves the project, which was submitted on 5 October and is still pending, so even the 7 o'clock plan is not certain - noon absorbs that uncertainty too. Verified by moving the clock: 06:00 and 11:59 on 17 October give /idea, while 12:00 and the following day give /view.",
       "The switch time is settled at 10:35 on 17 October. The shared facts file now records the launch as 10:30 on Saturday 17 October, decided by the owner on 7 October in their own words. Five minutes of margin are added because the facts file notes that CAMPFIRE's scheduled publishing can run one or two minutes late. The value has moved twice: midnight, then noon, now 10:35. Verified by moving the clock: 10:29 and 10:34 give /idea, while 10:35, 11:00 and the next day give /view.",
       "What the disagreement actually was: two commanders said opposite things and the facts file carried no 10:30 for a while, because two separate questions had been conflated - what time to launch, decided on 7 October, versus whether that time can yet be entered into CAMPFIRE's scheduler, which waits on approval. A remark about the latter read as though the former were unsettled. On top of that, the original \"7 a.m.\" came from reading a line about whether 7 a.m. could be set - a statement of possibility - as though it were the decision. Grepping the facts file directly, finding zero hits for 10:30, and querying both commanders rather than picking a side is what resolved it: facts live in the shared file, and discrepancies go up to the commanders rather than being patched locally.",
+      "A startup loading screen was added, written inline in index.html so it does not depend on any module. Measured on production in a phone-sized landscape viewport, the screen stayed completely blank for 7.7 seconds: the HTML is interactive after 2.5 seconds, but nothing appears until 191 files have loaded and the opening screen is built. This is the first thing anyone arriving from the crowdfunding page will see, and a blank screen reads as broken. Where it lives matters: putting it in a module would mean waiting for the very thing that is slow, so it goes directly in the HTML.",
+      "Three safeguards keep it from ever being left behind: pointer-events none so it cannot block input even if it stays, a check every 0.12 seconds that removes it once the opening screen or the board has content, and a hard timeout that removes it after 25 seconds regardless. Verified end to end: it appears at 1.7 seconds, disappears right after the opening screen at 6.6 seconds, is removed from the DOM, and reports pointer-events none throughout. No exceptions.",
+      "An honest limit: the blank period is not fully covered. The head carries two parser-blocking external scripts, Tailwind's CDN build and the Supabase UMD bundle, plus the stylesheet, and the body cannot paint until those resolve - so the first one to two seconds are still black. Removing that means changing how those load, which risks unstyled flashes and initialisation-order faults, so it is not something to attempt days before the campaign. Shortening the load itself, by deferring the images among those 191 files that the opening screen does not need, is deferred for the same reason.",
     ],
   },
   {

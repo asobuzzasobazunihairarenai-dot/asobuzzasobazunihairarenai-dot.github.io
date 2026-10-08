@@ -112,6 +112,88 @@
   />
 </head>
 <body class="bg-black text-white">
+  <!-- 【2026-10-08】起動中の「読み込み中」画面。
+       実測（本番・iPhone横持ち相当）で、**画面が完全に真っ白なまま7.7秒**かかっていた
+       （HTML自体は2.5秒で使える状態になるが、191個のファイルを読み終えてオープニングが
+       組まれるまで何も出ない）。クラウドファンディングから来た人が最初に見るのがこれなので、
+       **何も出ないのは「壊れている」と判断されて閉じられる**。
+
+       置き場所が肝: **index.html の中に、インラインのCSSとスクリプトで書く。**
+       src/*.js のモジュールに書くと、そのモジュールが読み終わるまで出ない（＝遅れている
+       当のものを待つことになる）。ここなら最初のフレームで描かれる。
+
+       絶対に取り残さないための三重の保険:
+       ① pointer-events:none ＝ **何も邪魔しない**（万一消えなくても操作は通る）
+       ② 盤面かオープニングが出たのを見たら消す（0.12秒ごとに確認）
+       ③ それでも消えなければ25秒で強制的に消す -->
+  <style>
+    #boot-loading {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #e8edf5;
+      font-family: sans-serif;
+      text-align: center;
+      pointer-events: none; /* 何も邪魔しない（保険①） */
+      transition: opacity 320ms ease;
+    }
+    #boot-loading.is-gone { opacity: 0; }
+    .boot-loading-inner { padding: 1.5rem; max-width: 86vw; }
+    .boot-loading-spinner {
+      width: 2.6rem;
+      height: 2.6rem;
+      margin: 0 auto 1rem;
+      border-radius: 50%;
+      border: 0.26rem solid rgba(232, 237, 245, 0.22);
+      border-top-color: #ffd54a;
+      animation: boot-loading-spin 900ms linear infinite;
+    }
+    @keyframes boot-loading-spin { to { transform: rotate(360deg); } }
+    .boot-loading-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.08em; }
+    .boot-loading-sub { margin-top: 0.6rem; font-size: 0.82rem; line-height: 1.7; opacity: 0.8; }
+    .boot-loading-en { margin-top: 0.35rem; font-size: 0.74rem; line-height: 1.6; opacity: 0.6; }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-loading-spinner { animation-duration: 2.4s; }
+    }
+  </style>
+  <div id="boot-loading" aria-hidden="true">
+    <div class="boot-loading-inner">
+      <div class="boot-loading-spinner"></div>
+      <div class="boot-loading-title">読み込み中…</div>
+      <div class="boot-loading-sub">最初の読み込みに10秒ほどかかることがあります。<br>そのままお待ちください。</div>
+      <div class="boot-loading-en">Loading. The first load can take about ten seconds.</div>
+    </div>
+  </div>
+  <script>
+    // 読み込みが終わったら消す。アプリ側のモジュールに依存しないよう、ここで完結させる。
+    (function () {
+      var el = document.getElementById("boot-loading");
+      if (!el) return;
+      var done = false;
+      function hide() {
+        if (done) return;
+        done = true;
+        el.classList.add("is-gone");
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 400);
+      }
+      window.__so7HideBootLoading = hide; // アプリ側から早めに消したい時のための出口
+      // 保険②: オープニング画面か盤面の中身が出たのを見たら消す。
+      var iv = setInterval(function () {
+        try {
+          var op = document.getElementById("opening-screen");
+          var tbl = document.getElementById("game-table");
+          var ready = (op && op.getBoundingClientRect().height > 1) || (tbl && tbl.children.length > 0);
+          if (ready) { clearInterval(iv); hide(); }
+        } catch (e) { clearInterval(iv); hide(); }
+      }, 120);
+      // 保険③: 何があっても25秒で消す（出たままにして盤面を隠さない）。
+      setTimeout(function () { clearInterval(iv); hide(); }, 25000);
+    })();
+  </script>
   <div id="scene" class="scene">
     <div id="game-table" class="game-table"></div>
   </div>
