@@ -22817,3 +22817,15 @@ body.reduce-glow .vic-rays {
 .opening-trial-cf:focus-visible {
   opacity: 1;
 }
+/* 【重要・2026-10-08】スマホでは**これも大きくする**。このアプリは1600x900を縮めて描くので
+   1remが実画面で7px前後にしかならず、上の 0.82rem は実機で**6.3px**しか無かった（実測）。
+   同じ画面のボタンはスマホ用に 2.5rem（実機19px）へ拡大され、小さい説明文（.opening-trial-desc）は
+   **非表示**にする作りになっている——その仕組みにこのリンクを入れ忘れていた。10/17の公開で
+   支援者候補が通る導線なので、読めないままにはできない。ボタンより控えめ・説明文より大きい
+   位置づけにし、指で押せるように当たり判定も広げる。 */
+body.is-phone-device .opening-trial-cf {
+  font-size: 1.7rem;
+  padding: 0.5rem 1.2rem;
+  margin-top: 0.5rem;
+  opacity: 0.95;
+}
