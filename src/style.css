@@ -22798,3 +22798,22 @@ body.reduce-glow .vic-pulse-ring,
 body.reduce-glow .vic-rays {
   display: none;
 }
+
+/* 【2026-10-08】試遊ページからクラウドファンディングのページへ戻るテキストリンク
+   （opening-screen.js の試遊パネルの最後）。ボタン3つより控えめにして、
+   「遊ぶ」導線の邪魔をしない。色は決め打ちせず、周りから継ぐ（明暗2テーマがあるため＝教訓15）。 */
+.opening-trial-cf {
+  display: block;
+  margin: 0.9rem auto 0;
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  opacity: 0.85;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+.opening-trial-cf:hover,
+.opening-trial-cf:focus-visible {
+  opacity: 1;
+}

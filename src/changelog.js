@@ -51,6 +51,35 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-08",
+    summary: [
+      "試遊ページから、クラウドファンディングのページへ行けるようにしました",
+    ],
+    summaryEn: [
+      "The trial page now has a link to the crowdfunding page",
+    ],
+    items: [
+      "登録なしで遊べる**試遊ページ**のメニューに、**クラウドファンディングのページを見る**リンクを足しました。これまでは試遊ページに来ると、ブラウザの「戻る」以外で戻る道がありませんでした。リンクは別のタブで開くので、遊んでいる途中でも試遊ページはそのまま残ります。",
+    ],
+    itemsEn: [
+      "The menu on the trial page - the one you can play without signing up - now has a link to the crowdfunding page. Until now, once you arrived on the trial page there was no way back except the browser's Back button. The link opens in a new tab, so the trial page stays where it is even mid-game.",
+    ],
+    fixes: [
+    ],
+    fixesEn: [
+    ],
+    devItems: [
+      "試遊ページ（`?trial`）の試遊パネルの末尾に、CAMPFIRE へ戻るテキストリンクを1本足した（`opening-trial-cf` ／ i18n `trial.campfire`）。**クラファンのページ側から試遊ページへのリンクは先に入っていて、こちらから戻る道が1本も無かった**（2026-09-08 に「体験版の画面にはCAMPFIREへ戻るリンクを必ず置く」と決めてあったのに実装が漏れていた）。凝ったものは不要という判断なので、ボタンにはせず**控えめなテキストリンク**にして「遊ぶ」導線の邪魔をしない。`target=\"_blank\"` ＋ `rel=\"noopener noreferrer\"`。言語切替で文字が入れ替わるよう `trialTexts` にも登録した（ここに入れ忘れると日本語のまま固まる）。文字色は決め打ちせず周りから継ぐ（明暗2テーマがあるため）。",
+      "**URLは日付で自動的に切り替える**ようにした（`campfireProjectUrl()`）。CAMPFIRE はアイデア公開中が `/idea`・本公開後が `/view` で、**どちらを指すかで公開前に押した人が404を見るかが決まる**。実際に確かめたところ **`/idea` は 200・`/view` は 404**（2026-10-08 時点）だったので、`/view` を決め打ちすると公開日まで9日間ずっと死んだリンクになる。公開日に人が差し替えるのを忘れると事故になるので、**2026-10-17 の0時を境に自動で切り替える**形にした。端末の時計が狂っていても行き先はどちらか一方の正しいURLに収まる。延期・前倒しがあれば `LAUNCH` の1行だけ直せばよい。",
+      "検証（ヘッドレス・報告者と同じ 932x430）: `?trial` でリンクが**1本だけ**出て、見えていて画面内にある／**公開前は `/idea`**／**時計を 2026-10-17 09:00 に進めると `/view`**／`target` と `rel` が付いている／英語では「▸ View the crowdfunding page」になる。例外0件。`npm test` 63/63 PASS、`check-undeclared` 0件、smoke PASS、CSSブレース平衡。",
+    ],
+    devItemsEn: [
+      "A single text link back to CAMPFIRE was added at the end of the trial panel on the trial page (?trial). The crowdfunding page already linked to the trial page, but there was no way back at all, even though it had been agreed in September that the trial screens must carry a link back to CAMPFIRE. Nothing elaborate was wanted, so it is a quiet text link rather than a button, to avoid competing with the play options. It opens in a new tab with noopener noreferrer, and it is registered with the language-switch list so its text changes with the language; its colour is inherited rather than hard-coded, because the app has light and dark themes.",
+      "The URL switches automatically by date. CAMPFIRE uses /idea while a project is in idea stage and /view once it launches, and which one is linked decides whether someone clicking before launch sees a 404. Checking directly showed /idea returning 200 and /view returning 404 as of 8 October, so hard-coding /view would have meant a dead link for nine days. Relying on a person to swap it on launch day is the kind of thing that gets forgotten, so the link switches on its own at midnight on 17 October. A wrong device clock still lands on one of the two valid URLs, and a change of date needs only the one LAUNCH line edited.",
+      "Verified headless at 932x430: exactly one link appears on ?trial, visible and within the viewport; before launch it points at /idea; moving the clock to 17 October 09:00 makes it point at /view; target and rel are set; and in English it reads \"View the crowdfunding page\". No exceptions.",
+    ],
+  },
+  {
     date: "2026-10-07",
     summary: [
       "駒を選ぶ効果では、選べる駒そのものが光るようになりました",

@@ -449,6 +449,12 @@ export function initOpeningScreen() {
   // ログイン済みの人（テスターが同じボタンから来た場合）には、従来どおり「オンラインで続ける」の
   // カードが自動で開く（showCard がこのパネルを隠す）ので、今までの遊び方は変わらない。
   let trialPanel = null;
+  // 本公開の日（この日の0時から `/view` を指す）。延期・前倒しがあればここだけ直す。
+  function campfireProjectUrl() {
+    const BASE = "https://camp-fire.jp/projects/967235";
+    const LAUNCH = new Date(2026, 9, 17); // 2026-10-17（月は0始まり）
+    return BASE + (Date.now() >= LAUNCH.getTime() ? "/view" : "/idea");
+  }
   const trialTexts = [];
   if (isTrialEntry()) {
     trialPanel = document.createElement("div");
@@ -478,6 +484,24 @@ export function initOpeningScreen() {
     // 以前は下線付きの小さな文字だった。
     const loginLink = addTrialEl("button", "opening-screen-menu-btn opening-trial-btn opening-trial-login", "trial.login");
     addTrialEl("div", "opening-trial-desc", "trial.loginDesc");
+    // 【2026-10-08】**クラウドファンディングのページへ戻る導線。**
+    // クラファンのページから試遊ページへのリンクが先に入っていて、こちらから戻る道が
+    // 1本も無かった（2026-09-08 に「体験版の画面にはCAMPFIREへ戻るリンクを必ず置く」と
+    // 決めてあったのに実装が漏れていた）。凝ったものは要らないという判断なので、
+    // **テキストリンク1本**だけ置く。
+    //
+    // 【URLが公開前後で変わる】CAMPFIRE は**アイデア公開中は `/idea`・本公開後は `/view`**。
+    // どちらを指すかで、公開前に押した人が404を見るかが決まる。公開日に差し替えるのを
+    // 忘れると事故になるので、**日付で自動的に切り替える**（人の記憶に頼らない）。
+    // 端末の時計が狂っていても、行き先はどちらか一方の正しいURLに収まる。
+    const trialCfLink = document.createElement("a");
+    trialCfLink.className = "opening-trial-cf";
+    trialCfLink.href = campfireProjectUrl();
+    trialCfLink.target = "_blank";
+    trialCfLink.rel = "noopener noreferrer";
+    trialCfLink.textContent = t("trial.campfire");
+    trialTexts.push([trialCfLink, "trial.campfire"]);
+    trialPanel.appendChild(trialCfLink);
     let trialStarting = false; // 続けて押されて2回始まらないように
     storyBtn.addEventListener("click", async () => {
       if (trialStarting) return;
