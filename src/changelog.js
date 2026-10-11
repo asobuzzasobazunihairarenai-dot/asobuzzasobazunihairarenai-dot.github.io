@@ -61,6 +61,7 @@ export const CHANGELOG = [
       "最初に「言語」と「ホーム画面への追加」を案内するようになりました",
       "スマホの文字が小さすぎた所をまとめて大きくしました",
       "ホーム画面とヘルプまわりの文字も読める大きさにしました",
+      "マイページがスマホで読める大きさになりました",
     ],
     summaryEn: [
       "A notice now appears while the language is being switched",
@@ -71,6 +72,7 @@ export const CHANGELOG = [
       "A first-run guide now covers language and adding to your home screen",
       "Text that was far too small on phones has been enlarged",
       "The home screen and surrounding text are now readable too",
+      "My Page is now readable on a phone",
     ],
     items: [
       "言語を切り替えると**1秒前後かかる**ことがあり（初回はとくに）、押しても何も起きないように見えていました。押した直後に**「言語を切り替えています…」**と出して、終わると消えるようにしました。オープニングの左上のボタンからでも、⚙オプションの言語選択からでも出ます。",
@@ -81,6 +83,7 @@ export const CHANGELOG = [
       "スマホ・タブレットで開いた時、最初に**言語**と**ホーム画面への追加**を案内するようになりました。このゲームは**横向きの全画面**で遊ぶ作りで、ホーム画面に追加してその印から開くと**全画面・横向きで始まります**（ブラウザのままだと画面が狭く、下に黒い余白が出たり「端末を横向きにしてください」が出続けたりします）。Androidなどは**ボタン1つで追加**でき、iPhone・iPadは手順をその場に出します。全画面に対応している端末では「いますぐ全画面にする」も選べます。「このまま遊ぶ」でそのまま始められ、「もう出さない」で次から出なくなります（ホーム画面から起動している人には最初から出ません）。",
       "スマホ・タブレットで**文字が小さすぎた所をまとめて大きく**しました。直したのは、**お知らせ／更新情報**（全体。見出し・日付・本文・「詳細」・「戻る」）、**サウンドの初回設定**、**オープニングの物語の文章**、**対局中の表示**（ターン／ラウンド、手札の枚数、自分の名前、「自分のターンです」、アイコンの下の文字、自動送りのON/OFF）、**「今回のメンバー」**、**「スタートプレイヤー決定」**、**オープニングの言語の切り替え**、**モーダルを閉じる✕**です。押しやすさも一緒に上げています（✕や「詳細」などの当たり判定を大きくしました）。パソコンの表示は変わりません。",
       "スマホ・タブレットで、**ホーム画面**（タイルの名前・「次にやること」・各バッジ・「ホーム画面に追加」の案内）と**マイページの着せ替えまわり**、**α版のお知らせ**の文字を読める大きさにしました。あわせて、前回の調整で**大きすぎになっていた所を元に戻しました**（ヘルプ・マイページの名前・フェイズ案内板の文字・自分の名前など。これらは元から十分な大きさでした）。パソコンの表示は変わりません。",
+      "スマホ・タブレットで**マイページ**の文字が読める大きさになり、パネルも広くなりました（これまでは中の文字が実画面で6.5px、幅も画面の2割ほどしかありませんでした）。",
     ],
     itemsEn: [
       "Switching the language can take about a second, especially the first time, and until now pressing the button looked as if nothing had happened. A notice reading \"switching language\" now appears immediately and disappears once the switch is done. It shows whether you use the button at the top left of the opening screen or the language selector in the options.",
@@ -91,6 +94,7 @@ export const CHANGELOG = [
       "When you open the game on a phone or tablet, a short guide now covers your language and adding the game to your home screen. This game is built for full screen in landscape: opened from a home-screen icon it starts full screen and locked to landscape, whereas a browser tab gives a smaller view, sometimes a black band at the bottom, and the repeated \"please rotate your device\" notice. On Android and similar it can be added with one tap; on iPhone and iPad the steps are shown. Devices that support full screen also get a \"go full screen now\" option. You can play as it is, or switch the guide off for good, and it never appears if you already launched from the home screen.",
       "Text that was far too small on phones and tablets has been enlarged across the app: the news and updates page in full, the first-run sound settings, the opening story text, the in-game readouts (turn and round, hand count, your name, whose turn it is, the icon labels, the auto-advance on/off badge), the match intro, the start-player announcement, the opening language switch, and the close buttons on dialogs. Tap targets grew with them. The desktop layout is unchanged.",
       "On phones and tablets the home screen (tile names, the next-step card, the badges and the add-to-home prompt), the cosmetics area of My Page and the alpha notice are now readable. At the same time, items that the previous pass had made too large were returned to their original size, because they were already big enough. The desktop layout is unchanged.",
+      "My Page is now readable on phones and tablets, and the panel itself is wider. Until now its text rendered at about 6.5 real pixels and the panel used only a fifth of the screen width.",
     ],
     fixes: [
       "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
@@ -155,6 +159,9 @@ export const CHANGELOG = [
       "**「はみ出し」が出たらまず元の値でも出るか試す（記録）**: ホームのタイルの名前が `scrollHeight > clientHeight` で8個中8個はみ出していたが、**A/Bで文字を元の1remに戻しても8個中8個で出た**（21>19。1.5remで61>58、1.8remで74>69＝倍率に比例するだけ）。行の高さの丸め誤差で、私の変更のせいではなかった。行間を詰める対策を入れたが効かず、無意味な規則になるので撤去した。",
       "**まだ直していない（申し送り）**: ①マイページの「マイページ」「ログインする」等は **inline style で font-size を書いている**ため CSS から上書きできない（JS側を直す必要がある。実測6.5px）②**ショップ・デッキ構築・ランキング**はログインが要るので今回も開けず未点検③`max-height: Nvh` の罠（続き575 の★）は20か所以上残っている。",
       "**測り方の道具**: `scratchpad/_c576fix.mjs` が正しい式で測る版。画面を足す時はここに `run(名前, 準備, ルート)` を足す。",
+      "マイページは**パネルの大きさと文字サイズが `my-page.js` の inline style に書かれていた**ため CSS から上書きできなかった（`!important` を使わない限り）。`#my-page-panel` の見た目を **style.css へ移した**（PCの値は一字も変えていない）。`display: none` だけ inline に残す——開閉が `style.display` の書き換えで行われているため。中の行が持っていた `font-size: 0.85rem` はパネルと同じ値なので外して継承させた。",
+      "**⚠ パネル全体の font-size を上げてはいけなかった（記録）**: スマホ用に `#my-page-panel { font-size: 1.6rem }` としたら、**中の「元から拡大されている部分」が巨大化した**（名前が実画面36.8px・説明が23px）。マイページは部分ごとに実効倍率が違う（0.478／0.726／0.899／1.438）ので、**継承で一括して上げると拡大済みの所が壊れる**。小さいのは拡大されていない題名だけだったので、そこだけクラスを付けて個別に上げた。結果 11px未満0種・22px超0種。",
+      "**残っている問題（ユーザー判断待ち）**: マイページの「🎨 着せ替え」の見出しと「ランク戦の段位」の行が**スマホで重なっている**。**A/Bで確かめたところ、文字を元の大きさに戻しても重なりは出る**（元から2件、私の拡大で1件増えて3件）。元からこの辺りの配置が崩れているので、直すなら**この区画の並べ方そのものを作り直す**話になる（文字サイズの調整では解けない）。",
     ],
     devItemsEn: [
       "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
@@ -209,6 +216,9 @@ export const CHANGELOG = [
       "An overflow that looked like a regression turned out to exist at the original size too, confirmed by an A/B at three font sizes.",
       "Still open: My Page sets some font sizes inline so CSS cannot override them, the shop, deck builder and rankings need a login to measure, and the vh-based max-height trap remains in over twenty places.",
       "The corrected measuring probe lives in the scratchpad; new screens are added to it as one more entry.",
+      "My Page had its panel size and font size written as inline styles, which CSS cannot override, so the panel's appearance was moved into the stylesheet with its desktop values unchanged.",
+      "Raising the panel's font size turned out to be wrong: parts of My Page are additionally transformed, so inheritance pushed those to 23-37 real pixels. Only the unscaled title needed its own rule.",
+      "Still open for a decision: the cosmetics heading and the rank rows overlap on a phone, and an A/B confirmed the overlap exists at the original font sizes too, so fixing it means reworking that section's layout rather than adjusting text sizes.",
     ],
   },
   {

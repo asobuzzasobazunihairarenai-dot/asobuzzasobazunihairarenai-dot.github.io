@@ -146,7 +146,8 @@ function buildEditableNameRow(seat) {
   // ライトテーマ(body.theme-light)から色を上書きするためのクラス（既定ダークの見た目は
   // インラインstyleのまま変わらない。style.cssの .my-page-row* 参照）。
   row.className = "my-page-row";
-  row.style.cssText = "display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12); font-size: 0.85rem;";
+  // 【続き577】font-size はパネルと同じ値だったので外した（継承させる＝スマホ用の指定が届く）。
+  row.style.cssText = "display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12);";
 
   // ユーザー要望2026-08-16「『プレイヤー名○○』の『プレイヤー名』表記を無くす」。ラベルは
   // 出さず、名前（＋鉛筆）だけを表示する。左寄せにして名前が主役になるようにする。
@@ -223,7 +224,7 @@ function buildEditableNameRow(seat) {
 function buildStatRow(label, value) {
   const row = document.createElement("div");
   row.className = "my-page-row";
-  row.style.cssText = "display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12); font-size: 0.85rem;";
+  row.style.cssText = "display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12);";
   const labelEl = document.createElement("span");
   labelEl.textContent = label;
   labelEl.className = "my-page-row-label";
@@ -240,17 +241,16 @@ function buildStatRow(label, value) {
 function buildPanel(close) {
   const panel = document.createElement("div");
   panel.id = "my-page-panel";
-  panel.style.cssText = `
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: min(24rem, 92vw); max-height: 85vh; overflow-y: auto;
-    background: rgba(15, 23, 32, 0.98); border: 1px solid rgba(148, 163, 184, 0.4);
-    border-radius: 0.6rem; padding: 1.2rem; z-index: 2301;
-    font-family: sans-serif; font-size: 0.85rem; color: #e2e8f0;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-    display: none;
-  `;
+  // 【続き577】**見た目は style.css の `#my-page-panel` に移した。**
+  // ここに inline で書いてあると CSS から `!important` 無しに上書きできず、スマホ用の
+  // 文字サイズを足せなかった（実測で中の文字が6.5px＝読めない）。PCの値は変えていない。
+  // `display: none` だけ inline に残す——開閉は style.display の書き換えで行っているため。
+  panel.style.display = "none";
 
   const titleEl = document.createElement("div");
+  // 【続き577】スマホで実測6.5px。この題名は拡大されていない場所にあるので個別に上げる
+  // （パネル全体の font-size を上げると、中の3倍に拡大されている部分が36pxになる）。
+  titleEl.className = "my-page-panel-title";
   titleEl.textContent = t("mypage.L252");
   titleEl.style.cssText = "font-weight: bold; margin-bottom: 0.6rem; padding-right: 1.6rem;";
   panel.appendChild(titleEl);
