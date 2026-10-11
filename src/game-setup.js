@@ -126,7 +126,11 @@ export function showStartPlayerModal(player, { onClose = null, autoDismissMs = 8
   // 全体ではなく、この発表モーダルだけをライト化の対象にするためのクラス（style.css参照）。
   modal.classList.add("start-player-announce");
   const title = document.createElement("div");
-  title.style.cssText = "font-weight: bold; margin-bottom: 0.6rem; font-size: 0.95rem;";
+  // 【続き575】文字サイズは inline style ではなくクラスで持つ——スマホでは 1rem が実画面で
+  // 7.6px にしかならず、0.95rem は実画面7.3pxで読めなかった。inline style は CSS から
+  // `!important` なしに上書きできないので、スマホ用の大きさを足せるようにクラスへ移す。
+  title.className = "start-player-title";
+  title.style.cssText = "font-weight: bold; margin-bottom: 0.6rem;";
   title.textContent = t("setup.step3Title");
 
   // 誰から始まるかが一目で分かるよう、アバターと名前を大きく見せる
@@ -143,7 +147,8 @@ export function showStartPlayerModal(player, { onClose = null, autoDismissMs = 8
   nameEl.textContent = getPlayerName(player);
 
   const body = document.createElement("div");
-  body.style.cssText = "font-size: 0.9rem; line-height: 1.6; text-align: center;";
+  body.className = "start-player-body"; // 文字サイズはCSS側（上の title と同じ理由）
+  body.style.cssText = "line-height: 1.6; text-align: center;";
   body.textContent = t("setup.step3Body");
 
   modal.appendChild(title);

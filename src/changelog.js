@@ -59,6 +59,7 @@ export const CHANGELOG = [
       "不具合報告の画面が、スマホでも読める大きさになりました",
       "試遊の画面が、いまログインしているかを教えてくれるようになりました",
       "最初に「言語」と「ホーム画面への追加」を案内するようになりました",
+      "スマホの文字が小さすぎた所をまとめて大きくしました",
     ],
     summaryEn: [
       "A notice now appears while the language is being switched",
@@ -67,6 +68,7 @@ export const CHANGELOG = [
       "The problem report is now readable on a phone",
       "The trial screen now tells you whether you are signed in",
       "A first-run guide now covers language and adding to your home screen",
+      "Text that was far too small on phones has been enlarged",
     ],
     items: [
       "言語を切り替えると**1秒前後かかる**ことがあり（初回はとくに）、押しても何も起きないように見えていました。押した直後に**「言語を切り替えています…」**と出して、終わると消えるようにしました。オープニングの左上のボタンからでも、⚙オプションの言語選択からでも出ます。",
@@ -75,6 +77,7 @@ export const CHANGELOG = [
       "スマホで不具合報告を開いた時の**文字とボタンが大きく**なりました。これまでは文字が実画面で**6〜7px**（送信ボタンの高さ19px）しかなく、読むのも押すのも難しい状態でした。見出し・説明・入力欄・ボタンをまとめて2倍前後に拡大しました（パソコンの表示は変わりません）。",
       "試遊の入口（遊び方を教わる／CPUと対戦する／ログインする、が並ぶ画面）が、**いまログインしているかどうか**を出すようになりました。この画面はログインしていても出るのに、ボタンにはいつも「ログインしてすべてを使う」と書いてあったため、**ログイン中なのに未ログインだと読めてしまう**状態でした。ログイン中は誰で入っているかを表示し、ボタンも「アカウントの画面を開く」に変わります。",
       "スマホ・タブレットで開いた時、最初に**言語**と**ホーム画面への追加**を案内するようになりました。このゲームは**横向きの全画面**で遊ぶ作りで、ホーム画面に追加してその印から開くと**全画面・横向きで始まります**（ブラウザのままだと画面が狭く、下に黒い余白が出たり「端末を横向きにしてください」が出続けたりします）。Androidなどは**ボタン1つで追加**でき、iPhone・iPadは手順をその場に出します。全画面に対応している端末では「いますぐ全画面にする」も選べます。「このまま遊ぶ」でそのまま始められ、「もう出さない」で次から出なくなります（ホーム画面から起動している人には最初から出ません）。",
+      "スマホ・タブレットで**文字が小さすぎた所をまとめて大きく**しました。直したのは、**お知らせ／更新情報**（全体。見出し・日付・本文・「詳細」・「戻る」）、**サウンドの初回設定**、**オープニングの物語の文章**、**対局中の表示**（ターン／ラウンド、手札の枚数、自分の名前、「自分のターンです」、アイコンの下の文字、自動送りのON/OFF）、**「今回のメンバー」**、**「スタートプレイヤー決定」**、**オープニングの言語の切り替え**、**モーダルを閉じる✕**です。押しやすさも一緒に上げています（✕や「詳細」などの当たり判定を大きくしました）。パソコンの表示は変わりません。",
     ],
     itemsEn: [
       "Switching the language can take about a second, especially the first time, and until now pressing the button looked as if nothing had happened. A notice reading \"switching language\" now appears immediately and disappears once the switch is done. It shows whether you use the button at the top left of the opening screen or the language selector in the options.",
@@ -83,6 +86,7 @@ export const CHANGELOG = [
       "The problem report is now much larger on a phone. Its text used to render at only 6-7 real pixels, with a 19px tall send button, which was hard to read and hard to tap. The heading, description, text box and buttons are now about twice the size (the desktop layout is unchanged).",
       "The trial entry screen now shows whether you are signed in. It appears even when you are signed in, yet its button always read \"log in to use every feature\", which made it look as though you were not. When you are signed in it now names the account and the button reads \"open the account screen\" instead.",
       "When you open the game on a phone or tablet, a short guide now covers your language and adding the game to your home screen. This game is built for full screen in landscape: opened from a home-screen icon it starts full screen and locked to landscape, whereas a browser tab gives a smaller view, sometimes a black band at the bottom, and the repeated \"please rotate your device\" notice. On Android and similar it can be added with one tap; on iPhone and iPad the steps are shown. Devices that support full screen also get a \"go full screen now\" option. You can play as it is, or switch the guide off for good, and it never appears if you already launched from the home screen.",
+      "Text that was far too small on phones and tablets has been enlarged across the app: the news and updates page in full, the first-run sound settings, the opening story text, the in-game readouts (turn and round, hand count, your name, whose turn it is, the icon labels, the auto-advance on/off badge), the match intro, the start-player announcement, the opening language switch, and the close buttons on dialogs. Tap targets grew with them. The desktop layout is unchanged.",
     ],
     fixes: [
       "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
@@ -131,6 +135,15 @@ export const CHANGELOG = [
       "**寸法は実画面のpxで測ってから決めた**（続き566・572 と同じ手順）。最初の実測で説明文が10.3px・「もう出さない」が9.6pxだったので、**説明文を短くしてから字を大きくした**（長いまま大きくすると縦に伸びて画面に収まらない）。結果 11.5px / 10.7px。",
       "**測り方のミス（記録）**: 「閉じた後に覆いが残っている」と出たが、**私のプローブの探し方が雑だっただけ**だった——`.so7-modal-backdrop` はデッキ一覧・マイページ・ヘルプ等の**非表示のパネルが元から持っている**ので、7個が常に居る。z-index で特定し直したら、自分の覆い（100060）は正しく消えていた。**「直っていない」と出たら、まず探し方を疑う**（続き560・579 と同じ形）。",
       "**申し送り（未着手・ユーザー判断）**: サウンドの初回設定モーダル（`first-run-bgm.js`）も**スマホ用の拡大規則が無い**ので、スマホでは文字が6〜7pxのままのはず（今回の案内モーダルの直後に出る）。試遊の入口からは出ないので 10/17 の人は見ないが、通常の入口で初めて遊ぶ人は見る。直すならCSSだけで済む。",
+      "**ユーザー「スマホだと文字が小さいと感じるものが多くあります。総点検して！」**。**全部を実画面のpxで測ってから**直した（1600x900のステージを縮めて描くので、iPhone 横持ち=932x430 ではステージ倍率0.478＝**1rem が実画面7.6px**。CSSの0.85remは実画面6.5px）。目安は「読ませるもの13px以上／押すもの高さ28px以上／補助的な文字も11px以上」。**一律に rem を増やす方法は採れない**——盤面・ロックエリア・手札の寸法まで一緒に大きくなって崩れるため、部品ごとに `body.is-phone-device` / `is-tablet-device` の規則を足した（PCは一切変えていない）。",
+      "**前後を同じ検査で測った**（`scratchpad/_c575check.mjs`。実画面px＋**はみ出し・画面外・重なり**まで見る）。結果: お知らせ **11px未満30件→0件**（最小5.5px→11.1px）／サウンドの初回設定 **9件→0件**（最小6.5px→11.5px、はみ出し・重なり0）／物語テロップ 5件→0件（7.6px→13px）／対局中の盤面 **18件→3件**、はみ出し4→1・画面外2→0・**重なり9→1**。主な数字: アイコンの下の文字5.0→11.1px／ターン・ラウンド5.0→11.1px／自分の名前6.5→11.5px／手札の枚数5.7→11.5px／「自分のターンです」6.1→12.2px／✕ 8.4→12.4px／「詳細」5.5→11.5px／お知らせの見出し8.8→18px。",
+      "**自分で2つ不具合を作って、測って気づいて直した（記録）**: ①✕を3.2remにしたら**モーダルの見出しの箱に被る量が増えた**（11x11→21x11。見出し側は padding-right 1.6rem しか空けていないものが多い）→2.6remに抑えた ②自動送りのON/OFFバッジを大きくしたら**⏭アイコンの半分以上を覆った**（16x10）→小さくして丸の外へ出したら、今度は**下の「自動送り」の文字に乗った**（32x7）→**丸の上の角**へ移して決着（上には何も無い）。**「大きくする」は必ず「どこへ伸びるか」と一緒に考える。**",
+      "**物語テロップは見立てを1回外した（記録）**: 字を大きくすると文章が高くなり、`@keyframes` の移動量 -160rem（＝文章の高さ85rem＋ステージ56.25remから決め打ち）では**上まで抜けきらなくなる**。最初は「横幅を広げれば行数が減って高さが戻る」と考えたが、**実測で幅60/70/76/82/90remのどれでも高さ156.3remのまま**＝**行が折り返していない**（高さ＝行数×行間）ことが分かり、見立ては外れだった。スマホ用の `@keyframes`（-216rem）を作って解決。**字1.7倍・距離1.35倍なので1秒あたりに流れる行数はむしろ減る**（2.0行/秒→1.59行/秒）＝読みやすくなる方向。",
+      "**★ついでに見つけた罠: `max-height: 90vh` はスマホの実画面では43%しか無い。** `vh` はビューポート基準なのに、描かれる大きさにはステージ倍率（0.478）が掛かるため。ステージ基準の **rem**（ステージの高さ=56.25rem）で書くのが正しい。`max-height: Nvh` は style.css に**20か所以上**あり、**今回触った2つ（サウンドの初回設定・スタートプレイヤー決定）だけ rem に直した**。残りは未対応。",
+      "**管理者モードのつまみを壊さないようにした**: `--turn-round-counter-font-size` と `--match-intro-seat-size` はPC用の値なので、スマホ用に別の変数（`-phone`）を用意し、**admin.js にもスマホ用のつまみを足した**。単に body 側で上書きすると、管理者が調整した値をスマホでだけ黙って無視することになる（続き570 の「既定を変える時に人の設定を踏まない」と同じ考え方）。",
+      "**inline style の文字サイズはクラスへ移した**（`game-setup.js` のスタートプレイヤー発表の見出し・本文）。inline style は CSS から `!important` 無しに上書きできないため。幅と高さの上限は `buildSimpleModal` が cssText で当てているので、そこだけ `!important` で上書きしている（幅は実画面153px→**min(56rem,94vw)**）。",
+      "**まだ見ていない画面がある（正直な限界）**: 今回測ったのは オープニング／試遊メニュー／起動時の案内／物語テロップ／対局中の盤面／基本設定／お知らせ／サウンドの初回設定／「今回のメンバー」／スタートプレイヤー決定 まで。**ホーム画面・マイページ・ショップ・ヘルプ・デッキ構築・ランキング・戦績・オンラインのロビー・各カード効果のモーダルは未点検**で、同じ病気の可能性が高い。",
+      "**直さないと決めたもの（判断の記録）**: ①**盤面のカードの文字**（実測1.1〜2.6px）＝長押しで拡大して読む設計で、大きくすると札の中に収まらない（拡大サイズの上限は続き563 で52remまで広げてある）②**左上の題字**（7.3px）＝装飾で読む必要がない。③自動送りのON/OFFバッジ（7.6px）と⏭（9.2px）は、**枠の色（緑=ON／赤=OFF）でも分かる**ので「読めれば十分」の位置づけ。",
     ],
     devItemsEn: [
       "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
@@ -169,6 +182,15 @@ export const CHANGELOG = [
       "Sizes were set by measuring, not guessing: the explanation was shortened before enlarging it, because enlarging the long version pushed the dialog past the screen height.",
       "A measurement mistake of mine: a leftover backdrop appeared to remain, but the selector was matching the hidden backdrops that several panels keep in the DOM at all times.",
       "Noted for later: the first-run sound modal has no phone-specific sizes either, so its text is still tiny on a phone.",
+      "At the owner's request for a full audit of small text on phones, every item was measured in real screen pixels first: the stage is scaled to 0.478 on a landscape iPhone, so 1rem renders as 7.6 real pixels. A global rem increase is impossible because the board and hand dimensions would grow too, so per-component phone rules were added and the desktop layout is untouched.",
+      "The same check was run before and after, covering real pixel sizes plus overflow, off-screen and overlap detection. The news page went from 30 items under 11px to none, the first-run sound dialog from 9 to none, the opening crawl from 7.6px to 13px, and the in-game readouts from 18 to 3, with overlaps falling from 9 to 1.",
+      "Two regressions were introduced and then caught by measuring: enlarging the close button made it cover more of dialog titles, and enlarging the auto-advance badge first covered the icon and then the label below it, so it was moved to the top corner.",
+      "The opening crawl needed its scroll distance rebuilt: a first guess that widening the column would restore the height was wrong, because the lines do not wrap at all.",
+      "A systemic trap was found: a vh-based max-height renders at only 43% of the screen on a phone, because vh is viewport-based while the rendered size is scaled. Only the two dialogs touched here were converted to rem; over twenty other places remain.",
+      "Admin sliders were preserved by adding separate phone variables and matching sliders rather than silently overriding the tuned desktop values.",
+      "Inline font sizes in the start-player announcement were moved to classes so CSS can override them without !important.",
+      "An honest limit: the home screen, my page, shop, help, deck builder, rankings, stats and lobby were not audited and likely share the same problem.",
+      "Deliberately left alone: the card face text, which is meant to be read by long-pressing to enlarge and would not fit if grown, and the decorative title in the corner.",
     ],
   },
   {

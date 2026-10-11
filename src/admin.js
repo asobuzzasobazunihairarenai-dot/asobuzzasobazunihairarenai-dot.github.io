@@ -569,6 +569,8 @@ const GROUPS = [
       { key: "--match-intro-pet-pos-y", label: "ペットの位置（上下・マイナスで上へ）", unit: "rem", min: -16, max: 16, step: 0.1, default: 0.7, previewOnInteract: () => matchIntroPreviewFn?.() },
       { key: "--match-intro-name-size", label: "名前の大きさ", unit: "rem", min: 0.8, max: 5, step: 0.05, default: 2, previewOnInteract: () => matchIntroPreviewFn?.() },
       { key: "--match-intro-seat-size", label: "「あなた／対戦相手」の大きさ", unit: "rem", min: 0.4, max: 2.5, step: 0.05, default: 0.85, previewOnInteract: () => matchIntroPreviewFn?.() },
+      // 【続き575】スマホは 1rem が実画面7.6pxなので別の既定を持つ（上の値だと実画面6.5px）。
+      { key: "--match-intro-seat-size-phone", label: "「あなた／対戦相手」の大きさ（スマホ）", unit: "rem", min: 0.6, max: 4, step: 0.05, default: 1.5, previewOnInteract: () => matchIntroPreviewFn?.() },
       { key: "--match-intro-title-size", label: "見出し「今回のメンバー」の大きさ", unit: "rem", min: 0.6, max: 4, step: 0.05, default: 1.5, previewOnInteract: () => matchIntroPreviewFn?.() },
       { key: "--match-intro-title-pos-y", label: "見出しの位置（上下・マイナスで上へ）", unit: "rem", min: -4, max: 8, step: 0.1, default: 0, previewOnInteract: () => matchIntroPreviewFn?.() },
       { key: "--match-intro-emoji-size", label: "絵文字アバターの大きさ（画像には効かない）", unit: "rem", min: 3, max: 20, step: 0.25, default: 9, previewOnInteract: () => matchIntroPreviewFn?.() },
@@ -680,6 +682,10 @@ const GROUPS = [
       { key: "--turn-round-counter-top", label: "Y位置（画面上端からの距離）", unit: "rem", min: 0, max: 20, step: 0.1, default: 3.1 },
       { key: "--turn-round-counter-right", label: "X位置（画面右端からの距離）", unit: "rem", min: 0, max: 30, step: 0.1, default: 1.6 },
       { key: "--turn-round-counter-font-size", label: "文字サイズ", unit: "rem", min: 0.4, max: 3, step: 0.05, default: 0.65 },
+      // 【続き575】スマホは 1rem が実画面で7.6pxにしかならないので、別の既定を持つ
+      // （上のPC用の値をそのまま使うと実画面5pxで読めない。style.css の
+      //  body.is-phone-device #turn-round-counter 参照）。
+      { key: "--turn-round-counter-font-size-phone", label: "文字サイズ（スマホ）", unit: "rem", min: 0.6, max: 4, step: 0.05, default: 1.45 },
     ],
   },
   {

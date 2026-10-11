@@ -14384,12 +14384,14 @@ body.is-phone-device .opening-version-badge {
   color: #f8fafc;
   background: rgba(255, 255, 255, 0.18);
 }
+/* 【続き575】実測で選んでいない側が7.3px・選んでいる側が10.3px。どちらも押すものなので、
+   指で押せる大きさにする（「English」が読めないと切り替えられない）。 */
 body.is-phone-device .opening-lang-toggle-seg {
-  font-size: 0.95rem;
-  padding: 0.28rem 0.7rem;
+  font-size: 1.5rem;
+  padding: 0.45rem 1rem;
 }
 body.is-phone-device .opening-lang-toggle-seg.is-current {
-  font-size: 1.35rem;
+  font-size: 1.7rem;
 }
 @keyframes opening-screen-fade-in {
   from { opacity: 0; }
@@ -20503,6 +20505,251 @@ body.theme-light .my-page-name-cancel:hover {
 #changelog-modal {
   padding-top: var(--page-top-safe);
   box-sizing: border-box;
+}
+
+/* ===========================================================================
+   【続き575・2026-10-11】スマホの文字サイズの総点検（第1弾）
+   ユーザー「スマホだと文字が小さいと感じるものが多くあります。総点検して！」
+
+   前提: 1600x900 のステージを画面に収まる倍率へ縮めて表示するので、iPhone の横持ち
+   （932x430）では倍率 0.478 ＝ **1rem が実画面で 7.6px** にしかならない。だから
+   「CSSで0.85rem」は実画面では 6.5px になる。**実画面のpxで測ってから決める。**
+   目安: 読ませるものは13px以上／押すものは高さ28px以上／補助的な文字も11px以上。
+   PCの見え方は変えない（すべて body.is-phone-device / is-tablet-device の中）。
+
+   ★ついでに見つけた罠: `max-height: 90vh` は**実画面の43%しか無い**。`vh` はビューポート
+   基準なのに、描かれる大きさはステージ倍率（0.478）が掛かるため。ステージ基準の **rem**
+   （ステージの高さ = 56.25rem）で書くのが正しい。ここで直す2つのモーダルはそうした。
+   =========================================================================== */
+
+/* ① お知らせ／更新情報（全画面ページ。中身は .changelog-list が縦に巻ける＝字を大きくしても
+      はみ出さない）。横幅も広げる——50rem（実画面382px）だと画面の41%しか使えず、字を
+      大きくすると折り返しばかりになる。 */
+body.is-phone-device .changelog-list,
+body.is-tablet-device .changelog-list {
+  width: min(86rem, 100%);
+}
+body.is-phone-device .changelog-modal-title,
+body.is-tablet-device .changelog-modal-title {
+  font-size: 2.35rem;
+  margin-bottom: 1.4rem;
+  padding-right: 3rem;
+}
+body.is-phone-device .changelog-date,
+body.is-tablet-device .changelog-date {
+  font-size: 1.45rem;
+  margin-bottom: 0.7rem;
+}
+body.is-phone-device .changelog-items,
+body.is-tablet-device .changelog-items {
+  padding-left: 2rem;
+}
+body.is-phone-device .changelog-items li,
+body.is-tablet-device .changelog-items li {
+  font-size: 1.7rem;
+  margin-bottom: 0.5rem;
+}
+body.is-phone-device .changelog-fixes-label,
+body.is-tablet-device .changelog-fixes-label {
+  font-size: 1.7rem;
+}
+body.is-phone-device .changelog-fixes-toggle,
+body.is-tablet-device .changelog-fixes-toggle {
+  font-size: 1.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.5rem;
+}
+body.is-phone-device #changelog-back,
+body.is-tablet-device #changelog-back {
+  font-size: 1.7rem;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.7rem;
+}
+
+/* ② サウンドの初回設定モーダル（first-run-bgm.js）。初めて遊ぶ人が最初に触る画面なのに
+      実測 説明6.5px／ラベル6.5px／「次へ」7.3px だった。縦の上限も vh から rem へ。 */
+body.is-phone-device #first-run-bgm-modal,
+body.is-tablet-device #first-run-bgm-modal {
+  width: min(60rem, 94vw);
+  padding: 2rem 2.2rem 1.8rem;
+  border-radius: 1rem;
+  max-height: 50rem; /* 90vh では実画面の43%しか無い（上の★参照） */
+}
+body.is-phone-device .first-run-bgm-title,
+body.is-tablet-device .first-run-bgm-title {
+  font-size: 2.2rem;
+  margin-bottom: 1.1rem;
+}
+body.is-phone-device .first-run-bgm-desc,
+body.is-tablet-device .first-run-bgm-desc {
+  font-size: 1.5rem;
+  line-height: 1.7;
+  margin-bottom: 1.1rem;
+}
+body.is-phone-device .first-run-bgm-label,
+body.is-tablet-device .first-run-bgm-label,
+body.is-phone-device .first-run-bgm-value,
+body.is-tablet-device .first-run-bgm-value {
+  font-size: 1.6rem;
+}
+/* つまみも指で動かせる太さにする。 */
+body.is-phone-device .first-run-bgm-row input[type="range"],
+body.is-tablet-device .first-run-bgm-row input[type="range"] {
+  height: 2.6rem;
+}
+body.is-phone-device .first-run-bgm-preview,
+body.is-tablet-device .first-run-bgm-preview {
+  font-size: 1.6rem;
+  padding: 0.7rem 1.3rem;
+  border-radius: 0.6rem;
+}
+body.is-phone-device .first-run-bgm-ok,
+body.is-tablet-device .first-run-bgm-ok {
+  font-size: 1.9rem;
+  padding: 0.9rem 2rem;
+  border-radius: 0.7rem;
+}
+
+/* ③ オープニングの物語テロップ（初めての人が最初に読む文章なのに実測7.6px）。
+      **字を大きくするより先に横幅を広げる**のが肝: 移動量 -160rem は「文章の高さ+ステージの
+      高さ」から決め打ちしてあるので（@keyframes opening-story-crawl-scroll のコメント参照）、
+      字だけ大きくすると文章が高くなって**上まで抜けきらない**。横幅を 34rem→86rem（2.5倍）に
+      広げてから字を1.7倍にすれば、行数が減るので全体の高さはほぼ変わらない。実測で確認する。 */
+body.is-phone-device .opening-story-crawl-text,
+body.is-tablet-device .opening-story-crawl-text {
+  width: min(86rem, 94vw);
+  font-size: 1.7rem;
+  /* 字を大きくすると文章が高くなるので、**移動量も作り直す**（下の @keyframes）。
+     横幅を広げても高さは変わらなかった——実測で幅60/70/76/82/90rem のどれでも 156.3rem で、
+     **行が折り返していない**（高さ＝行数×行間）ことが分かった。最初は「幅を広げれば行数が
+     減って高さが戻る」と考えたが、それは外れだった。 */
+  animation-name: opening-story-crawl-scroll-phone;
+}
+/* スマホ用の移動量: 文章の高さ156.3rem ＋ ステージの高さ56.25rem ＝ 212.6rem 必要
+   （PC用の -160rem では上まで抜けきらず、最後の数行が画面に残る＝実測で確認）。
+   余裕を見て216rem。時間は40秒のままなので速くはなるが、**1秒あたりに流れる行数は減る**
+   （字1.7倍・距離1.35倍）＝読みやすくなる方向。文章を増減したらこの値も調整が必要。 */
+@keyframes opening-story-crawl-scroll-phone {
+  from { transform: translateX(-50%) translateY(0); opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  to { transform: translateX(-50%) translateY(-216rem); opacity: 0; }
+}
+body.is-phone-device .opening-story-crawl-skip-hint,
+body.is-tablet-device .opening-story-crawl-skip-hint {
+  font-size: 1.6rem;
+}
+
+/* 【続き575・第2弾】対局中ずっと目に入る表示と、押すものの文字（実測値は下の各コメント）。 */
+
+/* アイコンの下の小さな文字（ロック／ハンド／ムーブ／自動送り／盤面拡大 等）。実測5.0px。
+   `white-space: nowrap` で横に伸びるので、隣のアイコンの文字と重なり得る。当てた後に
+   重なりを測って確かめる。 */
+body.is-phone-device .icon-action-button-caption,
+body.is-tablet-device .icon-action-button-caption {
+  font-size: 1.45rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.5rem;
+}
+
+/* 自動送りのON/OFFバッジ。実測3.8px。丸アイコンの右下に重ねる小さな印で、枠の色
+   （緑=ON／赤=OFF）でも分かるようにはなっているが、3.8pxは何が書いてあるか読めない。 */
+body.is-phone-device .phase-auto-skip-toggle .phase-auto-skip-toggle-state,
+body.is-tablet-device .phase-auto-skip-toggle .phase-auto-skip-toggle-state {
+  /* 1rem まで大きくしたら **⏭アイコンの半分以上を覆った**（実測16x10の重なり）。
+     少し小さくして、丸の外側へ押し出す。ON/OFFは枠の色（緑／赤）でも分かるので、
+     ここは「読めれば十分」。 */
+  /* 右下へ逃がしたら、今度は下の「自動送り」の文字に乗った（実測32x7の重なり）。
+     丸の**上の角**へ移す——上には何も無い（ターン表示はバーの0.6rem上で、しかも右寄せ）。 */
+  font-size: 1rem;
+  padding: 0.05rem 0.3rem;
+  bottom: auto;
+  top: -0.6rem;
+  right: -0.5rem;
+}
+
+/* ターン数・ラウンド数（画面右上）。実測5.0px。管理者モードのスライダー
+   （--turn-round-counter-font-size）はPC用の値なので、スマホ用の変数を別に用意して
+   既定を大きくする（続き570 で「既定を変える時に人の設定を踏まないように」と学んだ形）。
+   行間が1だと文字の上下が切れていた（実測 113x13 > 113x10 のはみ出し）ので直す。 */
+body.is-phone-device #turn-round-counter,
+body.is-tablet-device #turn-round-counter {
+  font-size: var(--turn-round-counter-font-size-phone, 1.45rem);
+  line-height: 1.4;
+}
+
+/* 自分の名前と手札の枚数（自席のステータス）。実測6.5px／5.7px。
+   どちらも inline-block で自前の帯を持つので、大きくすると帯も一緒に広がる。 */
+body.is-phone-device .self-status-name,
+body.is-tablet-device .self-status-name {
+  font-size: 1.5rem;
+  padding: 0.1rem 0.6rem;
+}
+body.is-phone-device .self-status-hand-count,
+body.is-tablet-device .self-status-hand-count {
+  font-size: 1.5rem;
+  padding: 0.1rem 0.6rem;
+}
+
+/* 「自分のターンです」「相手のターンです」。実測6.1px。案内板バーの真上に浮いていて
+   右端基準で左へ伸びる作りなので、大きくしても画面の外へは出ない方向に伸びる。 */
+body.is-phone-device #phase-automation-turn-status,
+body.is-tablet-device #phase-automation-turn-status {
+  font-size: 1.6rem;
+  padding: 0.6rem 1.1rem;
+}
+
+/* モーダルを閉じる ✕。実測8.4px・当たり判定も小さい（1.8rem＝実画面14px）。
+   指で押せる大きさにする。 */
+body.is-phone-device .modal-close-x,
+body.is-tablet-device .modal-close-x {
+  /* 3.2rem まで大きくしたら、モーダルの見出しの箱に被る量が増えた（実測 11x11 → 21x11）。
+     見出し側は padding-right 1.6rem 程度しか空けていないものが多いので 2.6rem に抑える
+     （実画面20px。文字は12.4pxで読める）。 */
+  width: 2.6rem;
+  height: 2.6rem;
+  font-size: 1.6rem;
+}
+
+/* 【続き575・第3弾】「今回のメンバー」と「スタートプレイヤー決定」。 */
+
+/* 「あなた／対戦相手」。実測6.5px。管理者モードのつまみ（--match-intro-seat-size）は
+   PC用の値なので、スマホ用の変数を別に用意する（つまみも admin.js に足した）。 */
+body.is-phone-device .match-intro-seat,
+body.is-tablet-device .match-intro-seat {
+  font-size: var(--match-intro-seat-size-phone, 1.5rem);
+}
+/* 「画面をタップすると飛ばせます」。実測4.6px＝ほぼ読めない。 */
+body.is-phone-device .match-intro-hint,
+body.is-tablet-device .match-intro-hint {
+  font-size: 1.4rem;
+  bottom: 1rem;
+}
+
+/* 「３：スタートプレイヤー決定」の発表モーダル（game-setup.js の showStartPlayerModal）。
+   見出し7.3px・本文6.9px、しかも幅が min(20rem, 92vw) ＝ **実画面153px** しか無く、
+   10文字ほどで折り返していた。文字サイズはクラスへ移したので素直に指定できる。
+   幅と高さの上限は inline style で書かれているため `!important` でないと上書きできない
+   （buildSimpleModal が cssText で当てている）。 */
+.start-player-title {
+  font-size: 0.95rem;
+}
+.start-player-body {
+  font-size: 0.9rem;
+}
+body.is-phone-device .start-player-title,
+body.is-tablet-device .start-player-title {
+  font-size: 1.8rem;
+}
+body.is-phone-device .start-player-body,
+body.is-tablet-device .start-player-body {
+  font-size: 1.6rem;
+}
+body.is-phone-device .start-player-announce,
+body.is-tablet-device .start-player-announce {
+  width: min(56rem, 94vw) !important;
+  max-height: 46rem !important; /* 85vh は実画面の41%しか無い（vhの罠。上の★参照） */
+  padding: 1.6rem !important;
 }
 
 /* ── マイページ: 名前の上のお気に入り称号（続き317）────────────────────────
