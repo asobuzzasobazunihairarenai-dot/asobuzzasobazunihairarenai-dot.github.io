@@ -1515,7 +1515,7 @@ $$;
 -- 追加機能: アプリ内「不具合報告」（ユーザー要望）。オプションから誰でもコメントを送れ、
 -- その時点のアクションログ・コンソールログ・状況（バージョン/UA/部屋ID等）を自動で添付する。
 -- 生ログは管理者だけが読めるようにし（RLSでSELECTは誰にも開けず、so7_get_admin_bug_reports
--- 経由の管理者だけが見られる）、INSERTは認証済みユーザーなら誰でも可（自分のuser_idで）。
+-- 経由の管理者だけが見られる）、INSERTはログインしていない人も可（下のポリシー参照）。
 create table if not exists so7_bug_reports (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
@@ -1529,7 +1529,17 @@ create table if not exists so7_bug_reports (
 alter table so7_bug_reports enable row level security;
 -- SELECTポリシーは作らない（誰も直接は読めない。管理者は下のSECURITY DEFINER関数経由で読む）。
 drop policy if exists "so7_bug_reports_insert" on so7_bug_reports;
-create policy "so7_bug_reports_insert" on so7_bug_reports for insert to authenticated
+-- 【2026-10-11・続き572】**anon（ログインしていない人）も書けるようにした。**
+-- 以前は `to authenticated` だけだったので、試遊の入口（?trial。ログインを一切しない）から
+-- 報告を送ると、ここで弾かれて「送信に失敗しました」としか出なかった。10/17 のクラファン
+-- 公開で来る人は**まさにこの経路**で遊ぶので、不具合に当たっても1件も届かない状態だった。
+-- 訪問記録（so7_visit_log）は元から anon に開けてあり、それと同じ扱いにする。
+--
+-- トレードオフ（承知の上）: 公開鍵があれば誰でも書き込める＝いたずらで行が増やせる。ただし
+-- ①SELECTポリシーは無いので**書いた本人にも読めない**（情報は漏れない）②溜まっても管理者
+-- ダッシュボードの「全部対処済みにする」で畳める③元に戻すのは `to anon, authenticated` を
+-- `to authenticated` に戻すだけ。届かない方が痛いので開ける側に倒した。
+create policy "so7_bug_reports_insert" on so7_bug_reports for insert to anon, authenticated
   with check (user_id = auth.uid() or user_id is null);
 
 -- 管理者（メール一致）だけが不具合報告の一覧を読める。so7_get_admin_visit_log等と同じ方式。
