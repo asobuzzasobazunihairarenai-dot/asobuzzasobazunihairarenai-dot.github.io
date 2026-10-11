@@ -22867,6 +22867,21 @@ body.reduce-glow .vic-rays {
 /* 【2026-10-08】試遊ページからクラウドファンディングのページへ戻るテキストリンク
    （opening-screen.js の試遊パネルの最後）。ボタン3つより控えめにして、
    「遊ぶ」導線の邪魔をしない。色は決め打ちせず、周りから継ぐ（明暗2テーマがあるため＝教訓15）。 */
+/* 【続き573】試遊パネルの「いま誰でログインしているか」の1行。色は決め打ちせず周りから
+   継ぐ（明暗2テーマがあるため＝教訓15）。**スマホでは他の文字と同じく拡大する**
+   ——続き566 で CAMPFIRE リンクをこの拡大規則に入れ忘れて 6.3px のままだった。 */
+.opening-trial-auth {
+  margin: 0.2rem 0 0.1rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+body.is-phone-device .opening-trial-auth {
+  font-size: 1.5rem;
+  line-height: 1.6;
+  margin: 0.4rem 0 0.2rem;
+}
+
 .opening-trial-cf {
   display: block;
   margin: 0.9rem auto 0;

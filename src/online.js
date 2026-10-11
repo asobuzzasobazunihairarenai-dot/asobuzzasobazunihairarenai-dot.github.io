@@ -242,6 +242,45 @@ export async function signOut() {
   if (!client) return;
   // 別のアカウントで入り直した時に、前の人の設定をそのまま書き戻してしまわないように。
   resetSyncedPrefTracking();
+  // 【続き573】**ログアウトしたら、名前・アバター・物語の進み具合も端末から消す。**
+  // ユーザー報告「試遊版でログイン無しでやろうとしたら、名前がログインした時の名前で、
+  // エイドス戦も本気のエイドスからになった」。この3つは**端末（localStorage）が基本の
+  // 保存先**で、アカウントはその上に重ねる層という作りだった（未ログインでも遊べるように
+  // するための設計で、そこは正しい）。足りていなかったのは**区切り**——ログアウトしても
+  // 端末が前の人を忘れなかった。
+  //
+  // 消して困らない根拠: 名前・アバターは so7_user_profiles、物語の進み具合は
+  // so7_user_profiles.eidos_progress に**アカウント側にも保存されている**ので、入り直せば
+  // 戻る（進み具合は startEidosStory が読む前に必ず syncEidosProgressFromAccount() を
+  // await しているので、空のまま上書きしてしまう事故も起きない）。
+  // **音量・テーマ・2D表示などの「この端末の好み」は消さない**——あれは人ではなく端末に
+  // 属する設定で、消すと次に使う人にとっても不便なだけ。
+  //
+  // **通信の前に掃除する**のが肝: `auth.signOut()` は失敗することがあり（セッションが既に
+  // 切れている等）、後ろに置くと例外でこの掃除が丸ごと走らない。消しているのは入り直せば
+  // 戻る情報だけなので、先にやって困らない。
+  try {
+    localStorage.removeItem("so7-eidos-progress-v1"); // eidos-story.js の PROGRESS_KEY
+  } catch {
+    /* 消せなくてもログアウト自体は成立させる */
+  }
+  try {
+    // 名前・アバターは player-identity.js が**起動時に読み込んだ値をメモリにも持っている**
+    // ので、localStorage を消すだけでは足りない（消さないと、ログアウトのボタンは
+    // ページを再読み込みしないため**前の人の名前が画面に出たまま**になる）。
+    //
+    // **動的 import にしてある理由（実際に落ちた）**: player-identity.js は online.js を
+    // import しており、しかも online.js → admin.js →（中継）→ player-identity.js という
+    // 経路があるので、**player-identity.js の本体が online.js より先に走ることがある**。
+    // 最初は「向こうから掃除用の関数を登録してもらう」形にしたが、登録の呼び出しが
+    // online.js の `let` 宣言に届く前に走り、初期化前アクセス（TDZ）で落ちた。
+    // 動的 import は読み込みの輪に入らないので循環にならず、ここに来る時点では
+    // 既に読み込み済みなので待ち時間も無い。
+    const { clearLocalIdentity } = await import("./player-identity.js");
+    clearLocalIdentity();
+  } catch (err) {
+    console.error("clearLocalIdentity failed", err);
+  }
   await client.auth.signOut();
   leaveGame();
 }

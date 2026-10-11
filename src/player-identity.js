@@ -182,6 +182,23 @@ function saveLocalAvatars() {
   }
 }
 
+// 【続き573・2026-10-11】**ログアウトしたら、この端末に残る名前・アバターも捨てる。**
+// online.js の signOut() が**動的 import で**呼ぶ（静的 import では循環になる。経緯は
+// あちらのコメント参照）。localStorage を消すだけでは足りない——このモジュールは起動時に
+// 読み込んだ値を customNames / avatars に持っているので、消さないと**再読み込みするまで
+// 前の人の名前が画面に出たまま**になる（ログアウトのボタンはページを再読み込みしない）。
+// 消して困らない根拠と、何を消さないかは online.js の signOut() のコメントに書いた。
+export function clearLocalIdentity() {
+  customNames = {};
+  avatars = { ...DEFAULT_AVATARS };
+  try {
+    localStorage.removeItem(STORE_NAMES);
+    localStorage.removeItem(STORE_AVATARS);
+  } catch {
+    /* 消せなくても、上の2行でこの場の値は既定に戻っている */
+  }
+}
+
 // 名前を設定していない座席の既定表示名。board-layout.jsのSEAT_LABELSは「日本語の原文」で、
 // 座席の識別子としてコード内でも使われているため、そちらは触らずここで表示用に翻訳する
 // （英語なら "Player A"）。プレイヤーが自分で付けた名前(customNames/同期値)はそのまま尊重する。

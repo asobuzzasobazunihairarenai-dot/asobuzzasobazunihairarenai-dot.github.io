@@ -25,6 +25,7 @@ import {
   signInWithGoogle,
   signInWithMagicLink,
   getCurrentUser,
+  getCachedUser,
   signOut,
   onAuthChange,
   getAccountDisplayLabel,
@@ -471,6 +472,8 @@ export function initOpeningScreen() {
     return BASE + (Date.now() >= LAUNCH.getTime() ? "/view" : "/idea");
   }
   const trialTexts = [];
+  // 試遊パネルの「ログイン中かどうか」の行を描き直す関数（言語切替・ログイン状態の変化で呼ぶ）。
+  let refreshTrialAuth = null;
   if (isTrialEntry()) {
     trialPanel = document.createElement("div");
     trialPanel.className = "opening-trial-panel";
@@ -498,7 +501,39 @@ export function initOpeningScreen() {
     // ユーザー要望「ログインしてすべてを利用する的なボタンをほかの試遊のボタンと同等に目立たせよう」。
     // 以前は下線付きの小さな文字だった。
     const loginLink = addTrialEl("button", "opening-screen-menu-btn opening-trial-btn opening-trial-login", "trial.login");
-    addTrialEl("div", "opening-trial-desc", "trial.loginDesc");
+    const loginDesc = addTrialEl("div", "opening-trial-desc", "trial.loginDesc");
+    // 【続き573・2026-10-11】**この画面が「ログインしているかどうか」を言わなかった。**
+    // ユーザー報告「試遊版でログイン無しでやろうとしたら、名前がログインした時の名前で…」の
+    // もう半分がこれ——`?trial` はログイン状態に一切触らない（trial-entry.js は URL を見るだけ）
+    // ので、**ログインしたままでもこのパネルは出る**。しかもボタンは常に「ログインして
+    // すべてを使う」と書いてあったため、**ログイン中なのに未ログインだと読めてしまう**。
+    // ログイン中は、誰で入っているかを出し、ボタンの文字も変える。
+    const trialAuth = document.createElement("div");
+    trialAuth.className = "opening-trial-auth";
+    trialPanel.insertBefore(trialAuth, loginLink);
+    refreshTrialAuth = () => {
+      const u = (() => {
+        try {
+          return getCachedUser();
+        } catch {
+          return null;
+        }
+      })();
+      if (u) {
+        trialAuth.textContent = t("trial.signedInAs", { name: getAccountDisplayLabel(u) });
+        trialAuth.style.display = "";
+        loginLink.textContent = t("trial.account");
+        loginDesc.textContent = t("trial.accountDesc");
+      } else {
+        trialAuth.textContent = "";
+        trialAuth.style.display = "none";
+        loginLink.textContent = t("trial.login");
+        loginDesc.textContent = t("trial.loginDesc");
+      }
+    };
+    refreshTrialAuth();
+    // ログイン・ログアウトはこの画面を開いている間にも起こる（カードからログアウトできる）。
+    onAuthChange(() => refreshTrialAuth?.());
     // 【2026-10-08】**クラウドファンディングのページへ戻る導線。**
     // クラファンのページから試遊ページへのリンクが先に入っていて、こちらから戻る道が
     // 1本も無かった（2026-09-08 に「体験版の画面にはCAMPFIREへ戻るリンクを必ず置く」と
@@ -1151,6 +1186,7 @@ export function initOpeningScreen() {
     updateOpeningLangToggle();
     loginToggleBtn.textContent = t("opening.loginToggle");
     for (const [el, key] of trialTexts) el.textContent = t(key);
+    refreshTrialAuth?.(); // ログイン中の行とボタンの文字は trialTexts の後に上書きする
     testModeBtn.textContent = t("opening.testMode");
     testModeBtn.title = t("opening.testMode.tip");
     adminBtn.textContent = t("opening.adminPanel");
