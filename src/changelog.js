@@ -51,6 +51,51 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-11",
+    summary: [
+      "言語を切り替えている間、「切り替えています」と出るようになりました",
+      "盤面に光が当たり、見せ場でカメラが寄るようになりました（既定で入りました）",
+    ],
+    summaryEn: [
+      "A notice now appears while the language is being switched",
+      "Lighting on the board and camera moves at key moments are now on by default",
+    ],
+    items: [
+      "言語を切り替えると**1秒前後かかる**ことがあり（初回はとくに）、押しても何も起きないように見えていました。押した直後に**「言語を切り替えています…」**と出して、終わると消えるようにしました。オープニングの左上のボタンからでも、⚙オプションの言語選択からでも出ます。",
+      "これまで**自分でスイッチを入れた人だけ**が使えていた2つの見せ方を、**最初から入った状態**にしました。①**盤面に光が当たります**（駒の面ごとに陰影が付き、立体感が出ます）②**見せ場でカメラが寄ります**——接触（タックル）、効果による移動、相手ゲートへの侵攻、ロックの成立、そして最後の1色。**通常の移動では寄りません**（毎ターン起きるので、うるさくならないように）。どちらも⚙オプションや管理者モードで**切れます**。**すでに自分で選んでいた方の設定は変わりません**（切っていた方は切ったまま、「全部」にしていた方は全部のまま）。",
+    ],
+    itemsEn: [
+      "Switching the language can take about a second, especially the first time, and until now pressing the button looked as if nothing had happened. A notice reading \"switching language\" now appears immediately and disappears once the switch is done. It shows whether you use the button at the top left of the opening screen or the language selector in the options.",
+      "Two presentation features that previously had to be switched on by hand are now on from the start. The board is lit, so the faces of the pieces catch light and read as solid; and the camera moves in at key moments - a tackle, a move caused by a card effect, an invasion of an opponent's gate, a lock being completed, and the final colour. It deliberately does not move for ordinary moves, which happen every turn. Both can still be turned off in the options or the admin panel, and anyone who had already made a choice keeps it: off stays off, and \"all\" stays \"all\".",
+    ],
+    fixes: [
+      "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the serious Eidos battle starting with the opponent lock area set up incorrectly when blank cards were enabled.",
+    ],
+    devItems: [
+      "#391「本気のエイドスがノアールを2枚ロックでスタートしてます。正しいのはノワール1枚、その両側に誘惑の烙印を1枚ずつです」。**原因**: `APPLY_SEAT_NOIR` は「その辺のロックエリアにある `first-` で始まる札を全部ノワールに変える」作りだが、**ブースト（無色あり）はファーストの左右隣へ `first-blank-{色}` を置く**ので、**それらも一緒に変換されていた**。実測（本気エイドス戦の引数＋ブーストON）: `first-noir` が**3枚**（index 0・1・6）になり、さらに `noirIndex` が最後に見つかった札（index 1）になるので**烙印が間違った両隣**（0と2）に置かれ、index 0 では烙印とノワールが重なっていた。直し方は①**本物のファーストだけ**をノワールにする（`first-blank-` を先に除く）②ノワールの席のブースト札は**取り除く**（残すと烙印と重なるし、ユーザーの示した正しい形にならない）。7色勝利の数え方は変わらない（変換後はどれも placed＝数えない札だったため）。検証: ブーストON・OFF の両方で**ノワール1枚＋両側に烙印1枚ずつ**（ONは index 2・3・4）。npm test 63/63 PASS、smoke PASS、例外0件。",
+      "**⚠ この件は一度「仕様どおり」として閉じた（#386）が、それが誤りだった。** 再現時に**ブーストをONにしていなかった**ため、正しい形（ノワール1枚＋烙印2枚）が出てしまい、ユーザーの「2枚見える」と噛み合わなかった。**設定で置かれる札が増減する所は、設定を変えて両方試す。** ユーザーが2回目の報告で**正しい形を具体的に書いてくれた**ことで、私の再現が実機と違うと気づけた。",
+      "#390「オープニングで左上の言語切り替えボタンを押した後、反映されるまでが長い。押した後すぐに切り替えています的なモーダルが出ると嬉しい」。**実測**（スマホ相当・オープニング）: **1回目の切り替えは同期処理だけで1085ms**（描画込み1293ms）、2回目以降は180〜200ms。**ここが肝: `setLang` は同期で、その間ブラウザは1フレームも描けない**ので、案内を足すだけでは**出ないまま終わる**。案内を置いたあとに**わざと1フレーム描かせてから**切り替えを始める形にした（`requestAnimationFrame` 2回）。入口は「オープニングのボタン」と「基本設定の言語選択」の2つあるので、**共通の入口**（`setLangWithNotice`）を1つ作って両方そこを通す（アカウントからの自動復元は人が押していないので対象外）。文言は**日英併記**——切り替えの途中なのでどちらで出すかを決める意味が無い。取り残さない保険として `finally` と8秒の強制撤去を入れた。検証: 実際にボタンを押すと**76msで案内が見え**、1520msまで出ていて、終わると消え、言語は ja→en に変わっている。例外0件。",
+      "**import 漏れを今回もやった（記録）**: `setLangWithNotice` を2ファイルで使ったのに import を書き忘れ、**`check-undeclared` は今回も0件と報告した**（この道具は import 漏れを見ない＝続き554 と同じ）。自分で grep して気づいた。**他のファイルの関数を新しく使ったら、import 行を自分の目で確かめる。**",
+      "**ユーザー判断「派手な魅せ方はONにします」**。10/17 のクラウドファンディング公開で**初めて触る人が素の見え方のまま遊ぶ**ことになるため、2つの既定を変えた。①アグレッシブモード（`cinematic-camera.js` の `LEVEL_DEFAULT`）を `\"off\"` → **`\"highlights\"`**。②盤面の光（`board-3d-setting.js` の `isBoard3dLit()`）を**未設定なら true** に。明るさの既定は 4（続き546 でユーザーが実機で決めた値）のまま。",
+      "**`\"all\"` にはしていない（判断の記録）**: `\"all\"` は**通常の移動でも寄る**ので1ターンに必ず1回以上カメラが動き、うるさい上に**自分で動かしたものには情報が無い**（続き547 でユーザーと合意した線）。`\"highlights\"` なら接触・効果による移動・ゲート侵攻・ロック成立・最後の1色だけに絞られる。",
+      "**実装の肝**: 光の方は `localStorage.getItem(LIT_KEY) === \"1\"` のままでは既定を変えられないが、**単に反転させると「自分でOFFにした人のOFF」まで無視してしまう**。**未設定（null）だけを true** にして、明示的な `\"0\"` は尊重する形にした。検証: ①触っていない端末＝`highlights` ＋ 光ON（決め所で寄る・通常移動では寄らない）②自分でOFFにした端末＝両方OFFのまま ③「全部」にした端末＝`all` のまま（通常移動でも寄る）。例外0件。**カメラ演出と光がONの状態で smoke も通した**（8ターンまで自己対戦して PASS）。",
+      "⚠ **申し送り**: 光の計算をやめていた元の理由は **#348「iPhoneの画面が熱い」**。ユーザーが実機で見て判断したうえでONにしているが、**熱が出るようなら `isBoard3dLit()` の未設定時を false に戻すだけ（1行）**で元に戻る。当日ブースで長時間つけっぱなしにする場合は、発熱の様子を見てほしい。",
+    ],
+    devItemsEn: [
+      "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
+      "This had previously been closed as working-as-intended, which was wrong: the reproduction had boost switched off, so it produced the correct arrangement and did not match what the owner was seeing. Where a setting changes how many cards are placed, try the setting both ways. The second report spelled out the correct arrangement, which is what revealed that the reproduction differed from the real game.",
+      "#390: switching the language felt unresponsive. Measured on a phone-sized viewport, the first switch costs 1085ms of synchronous work and 1293ms to paint; later switches are 180-200ms. The key point is that setLang is synchronous, so the browser cannot paint a single frame while it runs - adding a notice alone would never show it. The notice is now placed, the browser is given a frame to paint it, and only then does the switch start. Both user-facing entry points, the opening screen button and the options selector, go through one shared function; the automatic restore from the account is excluded because nobody pressed anything. The text is shown in both languages, since mid-switch there is no right language to choose, and a finally block plus an eight-second hard removal keep it from being left behind. Verified by pressing the real button: the notice is visible from 76ms through 1520ms and then gone, with the language changed.",
+      "A missing import happened again: the new shared function was used in two files without importing it, and the undeclared-symbol check reported zero problems, because it does not look at imports. Caught by grepping. When using a function from another file for the first time, check the import line by eye.",
+      "At the owner's decision to turn the showy presentation on, two defaults changed, because from 17 October people arriving from the crowdfunding page would otherwise play with everything plain: the cinematic camera level goes from off to key-moments-only, and board lighting is on when nothing has been stored. The brightness default stays at the value the owner chose on a real device.",
+      "It is deliberately not set to \"all\": that level also moves the camera on ordinary moves, which happen at least once per turn, making it noisy, and a move you made yourself carries no information to reveal. Key-moments-only covers tackles, effect-driven moves, gate invasions, completed locks and the final colour.",
+      "The implementation detail that matters: reading the lighting flag as equal to \"1\" cannot express a new default, but simply inverting it would also ignore an explicit off from someone who turned it off. Only the unset case became true, and a stored zero is still respected. Verified across three cases: an untouched device gets key-moments plus lighting, with ordinary moves left alone; a device that turned both off keeps them off; and a device set to all keeps all. The smoke test also passes with both features on.",
+      "A note for later: lighting was originally left off because of the iPhone heat report. The owner decided to enable it after trying it on a device, but if heat becomes a problem, returning the unset case to false is a one-line change. Worth watching if it runs for hours at the booth.",
+    ],
+  },
+  {
     date: "2026-10-08",
     summary: [
       "試遊ページから、クラウドファンディングのページへ行けるようにしました",

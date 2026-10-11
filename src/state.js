@@ -618,26 +618,51 @@ function reduce(current, action) {
     case "APPLY_SEAT_NOIR": {
       const side = SEAT_TO_SIDE[action.seat];
       let noirIndex = null;
-      const tokens = current.tokens.map((t) => {
-        if (
+      // 【#391・2026-10-11】**ブースト（無色あり）の「効果なしファーストカード」をノワールに
+      // してしまっていた。** 下の判定は `first-` で始まる札を全部ノワールに変えるが、
+      // ブーストはファーストの左右隣へ `first-blank-{色}` を置く（この関数の上の DEAL_FIRST_CARDS
+      // 参照）ので、**それらも `first-` で始まる**＝一緒に変換されていた。
+      // 実測（本気エイドス戦の引数＋ブーストON）: `first-noir` が **3枚**（index 0・1・6）になり、
+      // さらに `noirIndex` が最後に見つかった札（index 1）になるので**烙印が間違った両隣**
+      // （0 と 2）に置かれ、index 0 では烙印とノワールが重なっていた。
+      // ユーザー報告「本気のエイドスがノアールを2枚ロックでスタートしてます。**正しいのは
+      // ノワール1枚、その両側に誘惑の烙印を1枚ずつ**です」。
+      //
+      // 直し方: ①**本物のファーストカードだけ**をノワールにする（`first-blank-` は除く）
+      // ②ノワールの席のブースト札は**取り除く**——残すと烙印と同じスロットに重なるし、
+      // ユーザーが示した正しい形（ノワール1枚＋烙印2枚）にならない。
+      // 7色勝利の数え方は変わらない（変換後はどれも placed＝数えない札だったので、
+      // 取り除いても集計上は同じ）。
+      //
+      // ⚠ 以前この件を「仕様どおり」と判断して閉じた（#386）が、**再現時にブーストを
+      // ONにしていなかった**ための誤りだった。**設定で増減する札がある所は、設定を変えて
+      // 両方試す。**
+      const tokens = [];
+      for (const t of current.tokens) {
+        const inThisLock =
           t.kind === "card" &&
           t.location.zone === "lock" &&
           t.location.side === side &&
-          typeof t.cardId === "string" &&
-          t.cardId.startsWith("first-")
-        ) {
+          typeof t.cardId === "string";
+        // ①ブーストの「効果なしファースト」は取り除く（ノワールにしない）。
+        //   `first-blank-` も `first-` で始まるので、**この判定を先に置く**のが肝。
+        if (inThisLock && t.cardId.startsWith("first-blank-")) continue;
+        // ②本物のファーストカードをノワールへ差し替える。
+        if (inThisLock && t.cardId.startsWith("first-")) {
           // placed:true ＝「置いている」プレースホルダー（正式なロックではない）。ノワール自身は
           // この状態でずっと残り、victory.jsのロック数集計はこのフラグを除外するので7色勝利の
           // カウントには含まれない。ノワールの手札効果は、この置かれた色スロットへ手札のカードを
           // 別途ロックする（そのロック札はplacedでないので数えられる。#108/ユーザー補足2026-08-15）。
           noirIndex = t.location.index;
-          return { ...t, cardId: "first-noir", placed: true };
+          tokens.push({ ...t, cardId: "first-noir", placed: true });
+          continue;
         }
         if (t.kind === "piece" && t.player === action.seat) {
-          return { ...t, color: "noir" };
+          tokens.push({ ...t, color: "noir" });
+          continue;
         }
-        return t;
-      });
+        tokens.push(t);
+      }
       // brands:true（本気エイドス戦）: ノワールの両端の色スロットに「誘惑の黒の烙印」を
       // 「置いている」状態(placed)で配置する（ユーザー要望2026-08-15）。黒＝無色なので7色勝利の
       // カウントには元々入らず、placedも付けるので「置いている」扱い。両端は色相環でラップアラウンド。

@@ -3,7 +3,7 @@
 // 単独のボタンとして左上にあったが、ここに統合し、左上はゲームタイトル表示用に空けた。
 
 import { openAdminPanel } from "./admin.js";
-import { getLang, setLang, SUPPORTED_LANGS, LANG_LABEL, onLangChange } from "./i18n.js";
+import { getLang, setLangWithNotice, SUPPORTED_LANGS, LANG_LABEL, onLangChange } from "./i18n.js";
 import { t } from "./ui-text.js";
 import { isAutoDragRestrictionEnabled, setAutoDragRestrictionEnabled } from "./auto-drag-restriction.js";
 import { openActionLogPanel } from "./action-log.js";
@@ -709,7 +709,8 @@ function buildLanguageRow() {
     btn.dataset.v = v;
     btn.textContent = LANG_LABEL[v] || v;
     btn.addEventListener("click", () => {
-      setLang(v); // localStorage（端末フォールバック）＋ onLangChange→再描画
+      // 【#390】切り替えは1秒前後かかるので、案内を出しながら行う。
+      void setLangWithNotice(v); // localStorage（端末フォールバック）＋ onLangChange→再描画
       saveMyPreference({ lang: v }); // ログイン済みならアカウントにも保存（端末をまたいで引き継ぐ）
       refresh();
     });

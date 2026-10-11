@@ -36,7 +36,7 @@ import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { startTitlePetWalk } from "./title-pet.js";
 import { t } from "./ui-text.js";
-import { getLang, setLang, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
+import { getLang, setLangWithNotice, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
 import { isTrialEntry, clearTrialParam } from "./trial-entry.js";
 // （旧CPU戦ボタン撤去に伴い cpu-battle.js の静的importも撤去。これで opening-screen.js が
 //  cpu-battle.js を芋づるで静的に読み込む依存辺が消え、循環import由来の黒画面リスクも下がる。）
@@ -639,7 +639,8 @@ export function initOpeningScreen() {
   });
   langToggleBtn.addEventListener("click", () => {
     const i = SUPPORTED_LANGS.indexOf(getLang());
-    setLang(SUPPORTED_LANGS[(i + 1) % SUPPORTED_LANGS.length]);
+    // 【#390】切り替えは1秒前後かかるので、案内を出しながら行う（setLangWithNotice）。
+    void setLangWithNotice(SUPPORTED_LANGS[(i + 1) % SUPPORTED_LANGS.length]);
   });
   const updateOpeningLangToggle = () => {
     for (const seg of langSegments) seg.classList.toggle("is-current", seg.dataset.lang === getLang());

@@ -52,6 +52,67 @@ export function setLang(lang) {
   for (const fn of listeners) { try { fn(lang); } catch {} }
 }
 
+// 【#390・2026-10-11】**「切り替えています」の案内を出しながら言語を変える入口。**
+// ユーザー要望「オープニングで左上の言語切り替えボタンを押した後、反映されるまでが長い。
+// 押した後すぐに切り替えています的なモーダルが出ると嬉しい」。
+//
+// 実測（スマホ相当・オープニング画面）: **1回目の切り替えは同期処理だけで1085ms**
+// （描画込み1293ms）。2回目以降は180〜200ms。1回目が重いのは、英語のカード文など
+// 初回だけの作り込みが走るため。実機ではさらに掛かる。
+//
+// **ここが肝: `setLang` は同期で、その間ブラウザは1フレームも描けない。**
+// だから案内を足すだけでは**出ないまま終わる**。案内を置いたあとに**わざと1フレーム
+// 描かせてから**切り替えを始める（下の rAF 2回）。これをしないと「出たつもり」になる。
+//
+// 文言は日英を併記する——切り替えの途中なので「どちらの言語で出すか」を決める意味が無い。
+// 取り残さない保険: `finally` で必ず消し、さらに8秒の強制撤去も付ける。
+export async function setLangWithNotice(lang) {
+  if (!SUPPORTED_LANGS.includes(lang) || lang === getLang()) return;
+  let el = null;
+  let kill = null;
+  try {
+    el = document.createElement("div");
+    el.id = "lang-switching";
+    el.style.cssText = [
+      "position: fixed",
+      "inset: 0",
+      "z-index: 2147482000",
+      "display: flex",
+      "align-items: center",
+      "justify-content: center",
+      "flex-direction: column",
+      "gap: 0.5rem",
+      "background: rgba(0, 0, 0, 0.82)",
+      "color: #e8edf5",
+      "font-family: sans-serif",
+      "text-align: center",
+      "padding: 1rem",
+    ].join(";");
+    const ja = document.createElement("div");
+    ja.style.cssText = "font-size: 1rem; font-weight: 700; letter-spacing: 0.06em";
+    ja.textContent = "言語を切り替えています…";
+    const en = document.createElement("div");
+    en.style.cssText = "font-size: 0.82rem; opacity: 0.75";
+    en.textContent = "Switching language…";
+    el.append(ja, en);
+    document.body.appendChild(el);
+    // 万一 finally を通らなくても画面を塞がない（保険）。
+    kill = setTimeout(() => { try { el.remove(); } catch (e) {} }, 8000);
+    // **案内を実際に描かせる**。これを挟まないと、この下の同期処理の間ずっと
+    // 画面は前のままで、案内は一度も見えない。
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    setLang(lang);
+    // 切り替え後の絵が出るまで待ってから消す（先に消すと「一瞬光って終わり」に見える）。
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  } catch (e) {
+    // 案内が出せなくても言語の切り替えだけは行う。
+    try { setLang(lang); } catch (e2) {}
+  } finally {
+    if (kill) clearTimeout(kill);
+    try { if (el) el.remove(); } catch (e) {}
+  }
+}
+
 // カード面エディタのプレビュー用の一時オーバーライド（保存しない・ゲームの言語は変えない）。
 export function setPreviewLang(lang) {
   if (!SUPPORTED_LANGS.includes(lang)) return;

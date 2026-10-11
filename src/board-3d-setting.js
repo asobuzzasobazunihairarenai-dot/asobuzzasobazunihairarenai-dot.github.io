@@ -40,11 +40,23 @@ export function setBoard3dEnabledSetting(on) {
 // （駒の5面がちゃんと立方体になっている）、光を当てれば上面と側面で陰影が分かれる。
 // アカウントに同期しない（端末の性能に依る設定なので、WebGL描画のON/OFFと同じ扱い）。
 const LIT_KEY = "so7-board-3d-lit";
+// 【2026-10-08・ユーザー判断「派手な魅せ方はONにします」】**既定をONにした。**
+// それまでは「保存が無ければOFF」だったので、10/17 のクラウドファンディング公開で
+// 初めて触る人は光の無い素の盤面を見ることになっていた。
+//
+// **未設定（null）だけをONにする**のが肝——`=== "1"` のままだと既定を変えられないが、
+// 単に反転させると**自分でOFFにした人のOFFまで無視してしまう**。明示的な "0" は尊重する。
+//
+// ⚠ 光の計算をやめていた理由は #348「iPhoneの画面が熱い」。ユーザーが実機で見て判断した
+// うえでONにしているが、**熱が気になるようなら管理者モードのスイッチで戻せる**
+// （この関数の既定を false に戻すのは1行）。明るさの既定は 4（続き546 でユーザーが決めた値）。
 export function isBoard3dLit() {
   try {
-    return localStorage.getItem(LIT_KEY) === "1";
+    const v = localStorage.getItem(LIT_KEY);
+    if (v === null) return true; // まだ一度も触っていない端末＝既定ON
+    return v === "1";
   } catch (err) {
-    return false;
+    return true; // localStorage が使えない端末でも既定どおり光らせる
   }
 }
 export function setBoard3dLit(on) {
