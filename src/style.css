@@ -11392,6 +11392,22 @@ body.theme-light .draw-targets-modal-name {
   cursor: pointer;
 }
 .bug-report-attach-btn:hover { background: rgba(30, 41, 59, 0.6); }
+/* 「今の画面の状態も送る」のチェック行（続き572）。文字色は決め打ちせず周りから継ぐ
+   ——明暗2テーマがあり、決め打ちすると片方で文字が見えなくなる（教訓15）。 */
+.bug-report-screen {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.bug-report-screen input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
 .bug-report-attach-hint {
   margin-top: 0.35rem;
   font-size: 0.7rem;
@@ -11492,6 +11508,55 @@ body.theme-light .bug-report-cancel {
   background: rgba(176, 141, 63, 0.14);
   color: #6b5c3c;
   border: 1px solid rgba(176, 141, 63, 0.45);
+}
+/* 【続き572・2026-10-11】**スマホでは報告モーダル全体を拡大する。**
+   このアプリは 1600x900 のステージを画面に収まる倍率へ縮めて表示するので、iPhoneの
+   横持ち（932x430）では 1rem が実画面で 7〜8px にしかならない。実測で**送信ボタンの文字が
+   6.9px・添付の案内が 5.4px・ボタンの高さが19px**＝読めず押しにくい状態だった
+   （続き566 の CAMPFIRE リンク 6.3px、#389 の「画面最上部の17pxの帯」と同じ形）。
+   不具合を報告する側の画面が読めないと報告自体が来ないので、オープニングと同じ考え方で
+   文字と当たり判定を 2 倍前後に拡大する。**PCは一切変えない**（この規則はスマホ判定時だけ）。
+   入力欄は行数（rows=6）のままだと拡大で縦に伸びすぎるので、高さを決めて抑える。 */
+body.is-phone-device #bug-report-modal {
+  width: min(60rem, 94vw);
+  padding: 2rem 2.2rem;
+  border-radius: 1rem;
+  /* 画像を添付するとプレビュー（最大8rem）が増えて画面の高さを超えかけるので上限を決める。
+     ステージは900px高（=56.25rem）なので52remでほぼ画面いっぱい。はみ出す分は中で巻く。 */
+  max-height: 52rem;
+  overflow-y: auto;
+}
+body.is-phone-device .bug-report-title {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  padding-right: 3rem;
+}
+body.is-phone-device .bug-report-desc {
+  font-size: 1.35rem;
+  margin-bottom: 1rem;
+}
+body.is-phone-device .bug-report-textarea {
+  font-size: 1.6rem;
+  height: 9rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.7rem;
+}
+body.is-phone-device .bug-report-attach { padding: 0.9rem; border-radius: 0.7rem; }
+body.is-phone-device .bug-report-attach-btn {
+  font-size: 1.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.6rem;
+}
+body.is-phone-device .bug-report-attach-hint { font-size: 1.2rem; margin-top: 0.6rem; }
+body.is-phone-device .bug-report-attach-remove { font-size: 1.3rem; padding: 0.5rem 0.9rem; }
+body.is-phone-device .bug-report-screen { font-size: 1.5rem; gap: 0.8rem; margin-top: 0.9rem; padding: 0.35rem 0; }
+body.is-phone-device .bug-report-screen input { width: 2.4rem; height: 2.4rem; }
+body.is-phone-device .bug-report-status { font-size: 1.35rem; min-height: 2rem; }
+body.is-phone-device .bug-report-cancel,
+body.is-phone-device .bug-report-submit {
+  font-size: 1.6rem;
+  padding: 0.8rem 2rem;
+  border-radius: 0.6rem;
 }
 .hand-effect-option-picker-peek-btn:hover {
   background: rgba(51, 65, 85, 1);

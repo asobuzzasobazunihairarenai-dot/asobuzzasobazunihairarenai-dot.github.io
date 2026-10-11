@@ -10,6 +10,7 @@
 import {
   submitBugReport,
   isOnlineMode,
+  getCachedUser,
   getSelfSeat,
   onBugLogRequestEvents,
   broadcastBugLogRequest,
@@ -34,6 +35,10 @@ import { isAutoProcessingEnabled } from "./card-effect-engine.js";
 import { isCellConfirmEnabled } from "./cell-confirm.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 import { buildCardFace } from "./card-renderer.js";
+// 【2026-10-11】「今の画面を伝える」用。盤面の絵をWebGLが実際に何枚描いているかを読む
+// （#369「盤面が真っ白」はこの数字が0かどうかで一発で切り分けられた）。board-3d.js は
+// main.js より下位のモジュールで、ここを import しても循環しない。
+import { getBoard3dStats } from "./board-3d.js";
 
 // ---- コンソールログの簡易リングバッファ（起動時にconsoleをフックして直近を保持する） ----
 const CONSOLE_BUFFER_MAX = 300;
@@ -316,6 +321,165 @@ function gatherWeightSnapshot() {
     return null;
   }
 }
+// 【2026-10-11・ユーザー提案】**「今の画面を伝える」。報告した人が何を見ていたかを文字で残す。**
+// 「debugの機能に、画像添付以外に『今の画面を伝える』とかもあってもいいかも！どう？」への対応で、
+// **画像ではなく文字にした**のが肝:
+//   ・画像は添付できないことがある（#376 は未解決。10/5 の7件は全滅した）し、試遊（未ログイン）では
+//     そもそも Storage へ上げられない。**文字は報告の本体に入るので必ず届く。**
+//   ・ブラウザから本物のスクリーンショットは自動では撮れない（撮影許可のダイアログか、画面を
+//     描き直す外部ライブラリが要る）。だから「文字で画面の状態を書き出す」が現実的な最善。
+// この数日の #369（盤面が真っ白）・#389（モーダルが出ない＝実は画面最上部に17pxで出ていた）・
+// #391 は、どれも「その時画面に何が出ていたか」が分からず推測に時間を使った。下の項目は全部、
+// あの3件を1回で切り分けられるものだけに絞ってある。
+//
+// **撮る時点は「報告の画面を開いた瞬間」**（送信時ではない）。報告モーダル自体が画面を覆って
+// しまうので、送信時に撮ると「報告モーダルが出ている画面」しか残らない。
+// 個人情報・伏せ情報は入れない——**カード名・手札の中身は載せず、数と位置だけ**にする。
+// 画面に出ているボタンの文字は入る（プレイヤー名がボタンに出ている場合があるので、
+// 送るかどうかはチェックで選べるようにしてある）。
+function gatherScreenSnapshot() {
+  const clip = (s, n = 70) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const num = (sel) => {
+    try {
+      return document.querySelectorAll(sel).length;
+    } catch {
+      return -1;
+    }
+  };
+  const shown = (el) => {
+    if (!el) return false;
+    try {
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    } catch {
+      return false;
+    }
+  };
+  // 盤面の縮尺。main.js の currentStageScale は外へ出していないので、実際に当たっている
+  // body の transform から読む（物差しを2つ持たない＝#378 で踏んだ形を避ける）。
+  const stageScale = (() => {
+    try {
+      const tr = getComputedStyle(document.body).transform;
+      if (!tr || tr === "none") return 1;
+      const m = tr.match(/matrix(?:3d)?\(([^)]+)\)/);
+      if (!m) return 1;
+      return +parseFloat(m[1].split(",")[0]).toFixed(3);
+    } catch {
+      return null;
+    }
+  })();
+  const out = { at: new Date().toISOString() };
+
+  // ① 画面（#378 の黒余白・縦向きで来た時の切り分け）
+  try {
+    const vv = window.visualViewport;
+    out.view = {
+      inner: window.innerWidth + "x" + window.innerHeight,
+      visual: vv ? Math.round(vv.width) + "x" + Math.round(vv.height) : null,
+      orientation: window.innerWidth >= window.innerHeight ? "landscape" : "portrait",
+      stageScale,
+      rotateNotice: shown(document.getElementById("rotate-device-overlay")),
+      // 起動中の「読み込み中」が消え残っていないか（続き568 で入れた覆い。三重の保険を
+      // 付けたが、残っていたら盤面を隠す）。
+      bootLoading: !!document.getElementById("boot-loading"),
+      scrollY: Math.round(window.scrollY || 0),
+    };
+  } catch (e) {
+    out.view = { error: clip(e, 80) };
+  }
+
+  // ② 画面に出ている覆い・モーダル（#389「モーダルが出ない」はこれ一発で分かった）。
+  //    body の直下だけを見る——このアプリのモーダル・背景・オープニングは全部 body 直下に
+  //    付くので、新しいモーダルが増えても勝手に拾える（名前を決め打ちしない）。
+  try {
+    const layers = [];
+    for (const el of document.body.children) {
+      if (!shown(el)) continue;
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      const head =
+        el.querySelector("h1, h2, h3, [class*='title'], [class*='Title']")?.textContent || el.textContent;
+      layers.push({
+        el: (el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") + (el.className && typeof el.className === "string" ? "." + el.className.trim().split(/\s+/).slice(0, 3).join(".") : "")).slice(0, 70),
+        z: cs.zIndex === "auto" ? 0 : +cs.zIndex || 0,
+        pos: cs.position,
+        box: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(","),
+        head: clip(head, 60),
+      });
+    }
+    layers.sort((a, b) => b.z - a.z);
+    out.layers = layers.slice(0, 14);
+  } catch (e) {
+    out.layers = [{ error: clip(e, 80) }];
+  }
+
+  // ③ 手番・フェイズ・優先権・承認待ち（「操作を待っているのに気づけない」系の切り分け）
+  try {
+    const st = getState();
+    out.turn = {
+      turnPlayer: st?.turnPlayer ?? null,
+      turnNumber: st?.turnNumber ?? null,
+      roundNumber: st?.roundNumber ?? null,
+      turnPhase: st?.turnPhase ? `${st.turnPhase.player}/${st.turnPhase.phase}` : null,
+      priority: st?.priorityPlayer ? `${st.priorityPlayer}(${st.priorityPhase ?? "?"})` : null,
+      pendingFinalLock: st?.pendingFinalLock?.attacker ?? null,
+      pendingContact: st?.pendingContact ? `${st.pendingContact.attacker}->${st.pendingContact.defender}` : null,
+      pendingTimerToggle: !!st?.pendingTimerToggle,
+    };
+  } catch (e) {
+    out.turn = { error: clip(e, 80) };
+  }
+
+  // ④ 光っている候補の数（#383 の駒ハイライト・#375 の奪われたスロット・あと1色 など）。
+  //    クラス名は当てずっぽうで書かず、実際に main.js が付けている名前を使っている（続き569 の教訓）。
+  out.highlights = {
+    cells: num("#game-table .cell"),
+    moveCells: num("#game-table .cell.phase-move-highlight"),
+    effectCells: num("#game-table .card-effect-target-cell"),
+    effectPieces: num("#game-table .piece.is-effect-target-piece"),
+    pickTargets: num("#game-table .is-pick-target"),
+    pickable: num("#game-table .is-pickable"),
+    oneAway: num("#game-table .is-one-away"),
+    justRobbed: num("#game-table .lock-slot.is-just-robbed"),
+    pieces: num("#game-table .piece"),
+    lockSlots: num("#game-table .lock-slot"),
+    selfHandCards: num(".hand-card.is-self"),
+  };
+
+  // ⑤ 盤面が本当に描けているか（#369「盤面が真っ白」の決め手）。
+  //    WebGLが描く板が0枚で、かつ CSS 側の絵も剥がされている（board-3d-on）と、
+  //    **何も見えない盤面**になる。CSSの隠し方は `background-image: none` なので、
+  //    display や opacity ではなく背景画像の有無で見る（続き556 で踏んだ形）。
+  try {
+    const s = getBoard3dStats();
+    out.board = { webglActive: s.active, quads: s.quads, textures: s.textures, rebuildMs: s.rebuildMs, frameMs: s.frameMs };
+  } catch (e) {
+    out.board = { error: clip(e, 80) };
+  }
+  try {
+    const arts = [...document.querySelectorAll(".board-card, .piece-face, .stack-top, .playmat-bg")].slice(0, 60);
+    out.board.cssStripped = document.body.classList.contains("board-3d-on");
+    out.board.artworkShown = arts.filter((el) => getComputedStyle(el).backgroundImage !== "none").length;
+    out.board.artworkTotal = arts.length;
+  } catch (e) {
+    out.board.artworkError = clip(e, 80);
+  }
+
+  // ⑥ いま押せるボタンの文字（「何を押せばいいか分からない」系の報告で効く）。
+  try {
+    out.buttons = [...document.querySelectorAll("button")]
+      .filter((b) => shown(b))
+      .map((b) => clip(b.textContent || b.getAttribute("aria-label") || b.id, 24))
+      .filter((s) => s.length > 0)
+      .slice(0, 16);
+  } catch (e) {
+    out.buttons = [clip(e, 80)];
+  }
+  return out;
+}
+
 function gatherContext() {
   let roomId = null;
   try {
@@ -394,6 +558,11 @@ function close() {
 
 export function openBugReportModal() {
   if (modalEl) return;
+  // 【2026-10-11】画面の状態は**ここで撮る**。この下で報告モーダルと背景を body へ足すと、
+  // 報告した人が見ていた画面はその覆いの下に隠れてしまう（送信時に撮ると「報告モーダルが
+  // 出ている画面」しか残らない）。
+  const screenAtOpen = gatherScreenSnapshot();
+  const openedAt = Date.now();
   // blocksGame:false（続き455）。この背景は「盤面のタップを透かさない」ためだけに要る。
   // 続き455で `.so7-modal-backdrop` を「ゲームの進行を止める印」にも流用したため、
   // **不具合報告を書いている間ずっとフェイズが進まなくなっていた**（実機ログ:
@@ -494,6 +663,27 @@ export function openBugReportModal() {
     acceptFile(e.dataTransfer?.files?.[0]);
   });
   attachWrap.append(attachBtn, preview, attachHint, fileInput);
+  // 【2026-10-11】**画像の添付はログイン中だけ**。保存先（Storageの bug-shots）は
+  // 「ログイン済みの人が自分のフォルダへ」しか書けない作りで、公開読み取りのバケットを
+  // 誰でも書ける状態にするのは危ないのでそこは開けない。試遊（未ログイン）の人には
+  // 代わりに「今の画面の状態」（文字）が効く——下のチェックは未ログインでも使える。
+  if (!getCachedUser()) {
+    attachBtn.style.display = "none";
+    attachHint.textContent = t("bug.attachLoginOnly");
+  }
+
+  // --- 今の画面の状態（任意・既定ON。ユーザー提案2026-10-11）---------------------
+  const screenWrap = document.createElement("label");
+  screenWrap.className = "bug-report-screen";
+  const screenCheck = document.createElement("input");
+  screenCheck.type = "checkbox";
+  screenCheck.checked = true; // 既定ON（これが無いと、こちらは毎回推測から始めることになる）
+  const screenLabel = document.createElement("span");
+  screenLabel.textContent = t("bug.screenSnap");
+  screenWrap.append(screenCheck, screenLabel);
+  const screenHint = document.createElement("div");
+  screenHint.className = "bug-report-attach-hint";
+  screenHint.textContent = t("bug.screenSnapHint");
 
   const actions = document.createElement("div");
   actions.className = "bug-report-actions";
@@ -523,6 +713,10 @@ export function openBugReportModal() {
       const peers = await collectPeerLogs();
       const { actionLog, consoleLog } = buildCombinedLogs(peers);
       const context = gatherContext();
+      // 開いた瞬間の画面の状態。何秒前の話かも残す（開いたまま対局が進むことがあるため）。
+      if (screenCheck.checked) {
+        context.screen2 = { ...screenAtOpen, agoMs: Date.now() - openedAt };
+      }
       // 画像は「送れたら添える」扱い。失敗しても本文とログの送信は必ず行う
       // （バケット未作成＝SQL未実行や、未ログインでも報告自体は成立させる）。
       let shotWarning = "";
@@ -550,7 +744,6 @@ export function openBugReportModal() {
     } catch (err) {
       console.error("submitBugReport failed", err);
       status.classList.add("is-error");
-      status.textContent =
       status.textContent = t("bug.failed");
       submitBtn.disabled = false;
       cancelBtn.disabled = false;
@@ -565,6 +758,8 @@ export function openBugReportModal() {
   modalEl.appendChild(desc);
   modalEl.appendChild(textarea);
   modalEl.appendChild(attachWrap);
+  modalEl.appendChild(screenWrap);
+  modalEl.appendChild(screenHint);
   modalEl.appendChild(status);
   modalEl.appendChild(actions);
 

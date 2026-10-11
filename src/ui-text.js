@@ -1499,6 +1499,9 @@ const UI = {
     "bug.uploadingShot": "画像を送信中…",
     "bug.shotFailed": "画像だけ添付できませんでした（本文とログは送信しました）。",
     "bug.needSignIn": "画像の添付にはログインが必要です。",
+    "bug.attachLoginOnly": "画像の添付はログインしている時だけです（下の「今の画面の状態」は、ログイン無しでもそのまま送れます）。",
+    "bug.screenSnap": "今の画面の状態も送る",
+    "bug.screenSnapHint": "この画面に何が出ていたか（開いている案内・手番・光っている候補の数・盤面がちゃんと描けているか）を文字で添えます。カードの中身や名前は入りません。",
     "vic.lead": "七色、集結",
     "vic.title": "VICTORY",
     // --- フェーズ8: ヘルプ（見出し・用語ポップアップ）／ランク戦の説明 ---
@@ -3414,6 +3417,9 @@ const UI = {
     "bug.uploadingShot": "Uploading the image…",
     "bug.shotFailed": "Only the image could not be attached — your report and logs were sent.",
     "bug.needSignIn": "You need to be signed in to attach an image.",
+    "bug.attachLoginOnly": "Images can only be attached while signed in (the screen details below are sent either way).",
+    "bug.screenSnap": "Also send what is on screen now",
+    "bug.screenSnapHint": "Adds a text summary of this screen (which panels are open, whose turn it is, how many highlights are showing, whether the board actually drew). No card contents or names are included.",
     "vic.lead": "SEVEN COLORS, GATHERED",
     "vic.title": "VICTORY",
     // --- Phase 8: help headings, glossary popup, ranked explanation ---
