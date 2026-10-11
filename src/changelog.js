@@ -55,18 +55,22 @@ export const CHANGELOG = [
     summary: [
       "対戦が戦績システムに登録されないことがあったのを直しました",
       "「もう一度遊ぶ」で、誰を待っているかが分かるようになりました",
+      "サマリー（早見表）をゲーム中に開けるようになりました",
     ],
     summaryEn: [
       "Fixed matches sometimes not being recorded in the stats system",
       "The rematch screen now tells you who it is waiting for",
+      "The quick reference sheet can now be opened during a game",
     ],
     items: [
       "**対戦の結果が戦績システムに登録されないこと**があったのを直しました。**勝った人がゲスト（戦績システムに登録していない人）だと、その対戦がまるごと記録されていませんでした**——勝った人だけでなく、**一緒に遊んだ全員のぶん**が消えていました。これからは記録され、勝者は「ゲスト」と表示されます。",
       "オンラインで「もう一度遊ぶ」を押した後、**誰を待っているのかが名前で分かる**ようになりました（「○○さんを待っています（2/4人が準備OK）」）。この機能は**全員が押すと始まる**作りですが、これまでは「他の参加者を待っています…」としか出ず、1人が席を外しているだけでも**壊れているように見えていました**。",
+      "右下の「自動送り」の左隣に**📋 サマリー**のボタンが付きました。実物に入っている**早見表**を、遊びながらそのまま見られます（**表**＝自分のターンの流れ・勝利条件・移動と接触／**裏**＝覚えておきたい原則・相手ゲート侵攻のボーナス）。タブか画像を押すと表／裏が切り替わります。",
     ],
     itemsEn: [
       "Fixed match results sometimes not reaching the stats system. When the winner was a guest who is not registered there, the whole match was dropped, taking everyone else's record with it. Those matches are now kept, with the winner shown as a guest.",
       "After tapping play again in an online room, the screen now names who it is still waiting for, with a count. It always needed everyone to tap it, but the old message said only that it was waiting, so one person stepping away looked like a breakage.",
+      "A quick reference button now sits next to the auto-advance button at the bottom right. It opens the reference sheet that comes with the physical game: the front covers your turn, the victory condition and moving versus contact, and the back covers the standing principles and the gate invasion bonus. Tap a tab or the sheet itself to flip it.",
     ],
     fixes: [
       "カードの効果を処理している途中なのに、別の手札カードを使えてしまうことがあったのを直しました。",
@@ -82,6 +86,9 @@ export const CHANGELOG = [
       "**#406「もう一回を押しても次のゲームがはじまらない」**: 報告のログ802行に **rematch の記録が1行も無く**、押したかどうかすら分からなかった。仕組みは「生きている座席が全員押したら再開」なので1人でも押さないと永久に始まらないのに、画面は「他の参加者を待っています…」だけ。**仕組みは変えず**、誰を待っているかを名前と人数で出し、同じ内容を `diag-rematch-waiting`／押した事実を `diag-rematch-ready` に残すようにした。**推測で仕組み（人数で見切る等）を変えると別の壊れ方をする**ので、次の報告で誰が押していないかが分かる状態にしてから判断する。",
       "**合同建設の途中で別のカードを使えた件**: 手札を場へ出して効果を使ってよいかの判定が `isHandPhaseActive() || (usableAnytime && !isAnyEffectProcessingBusy())` で、**ハンドフェイズ側だけ「いま別の効果を処理中か」を見ていなかった**。合同建設は自分のハンドフェイズで使うので、解決の最中（マス選択・山札/手札の選択）もハンドフェイズのまま＝別のカードを出せてしまった。`(isHandPhaseActive() || usableAnytime) && !isAnyEffectProcessingBusy()` に直した。`isAnyEffectProcessingBusy()` には候補の選択待ち（activeEffectPicker）も含まれるので「選択を待っている間は他のカードを使えない」が自然に成立する。候補として手札を選ぶ操作は別経路なので塞がらない（スモークで通常のカード使用が壊れていないことも確認）。",
       "**「盤面を見る」中にホバー拡大が効かない件**: あの機能は**覆いを残したまま透明にする**作り（続き546。盤面を触らせないため）だが、ホバーの入口 `updateHover` が「返事待ちの覆いが出ていたら何もしない」（#317）なので**覗いている間はホバーも死んでいた**。覗いている間だけ `body.so7-peeking-board` を付け、**ホバーの判定だけ**通すようにした。**A/Bで確認**——覆いあり＝拡大出ない／覗き中＝**拡大が出る**／覗き中でも覆いは手前にあり**掴めない**まま。",
+      "**ユーザー要望「サマリーを見るボタンを右下の自動送りボタンの左隣に新設するのはどう？」**。`src/summary-sheet.js` を新設し、フェイズ案内板の**先頭**（自動送りのさらに左）にボタンを置いた。素材は入稿データの PNG（2363x1182・各4MB）。**画像はファイル容量ではなく幅×高さ×4バイトでメモリを食う**（#223 でiPhoneが落ちた）ので、**幅1500pxのWebP（各374KB）に落とし、開いた時だけ読み込み、閉じたら img ごと捨てる**（2枚を同時に持たないよう、切り替えは src の差し替えだけ）。",
+      "**また `vw` の罠を踏んだ（記録）**: パネルを `width: 96vw` にしたら**実画面の46%（405px）にしかならなかった**。`vw` はビューポート基準なのに、描かれる大きさにはステージ倍率0.478が掛かるため（続き575 の★）。ステージ基準の **`96rem`** に直して **718px（画面の77%）** になった。早見表は横長で情報が詰まっているので、**どれだけ大きく映せるかがそのまま読みやすさ**になる。",
+      "横持ちのスマホは**高さが足りない**（早見表は幅の半分の高さ）ので、見出しを詰めて注記は省き、1画面に収めた。実測 **734x398 で画面内**・画像の表示幅718px・見出し13px・タブ11.5px。閉じると**パネルも img も消える**ことを確認。例外0件。",
     ],
     devItemsEn: [
       "The stats failure was a not-null violation on the winner column: a guest winner produced a null and the insert threw, dropping the whole match for every participant. The comment in the code claimed null was acceptable, which had never been tested against the real schema.",
@@ -89,6 +96,9 @@ export const CHANGELOG = [
       "The rematch report contained no rematch log lines at all, so the fix was to surface who is being waited for and to log it, rather than to guess at changing the rule that everyone must tap it.",
       "Playing another hand card mid-effect was possible because the hand-phase branch of the timing check never looked at whether an effect was already being resolved.",
       "Peeking at the board keeps the modal backdrop in place to block taps, which also disabled hover previews; hover alone is now allowed while peeking, verified by A/B that taps remain blocked.",
+      "A quick reference button was added at the head of the phase guide bar, opening the physical game reference sheet. The source art was 4MB per side, so it was reduced to 1500px WebP and is only loaded while the panel is open, with the image element discarded on close.",
+      "The vw trap appeared again: a 96vw panel rendered at only 46 percent of the screen because vw is viewport based while the rendering is scaled, so it was switched to stage-relative rem and now uses 77 percent.",
+      "On a landscape phone the limiting dimension is height, so the heading was tightened and the footnote hidden to keep the whole sheet on one screen.",
     ],
   },
   {

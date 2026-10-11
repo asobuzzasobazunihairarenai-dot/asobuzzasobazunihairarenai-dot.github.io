@@ -13,6 +13,7 @@ import { buildIconButtonContent, wireIconButtonClick, openIconDetailModal } from
 import { isAutoPhaseSkipEnabled, setAutoPhaseSkipEnabled } from "./auto-phase-skip-setting.js";
 import { t } from "./ui-text.js";
 import { onLangChange } from "./i18n.js";
+import { openSummarySheet } from "./summary-sheet.js";
 
 // tutorial.jsのチュートリアル手順・help.jsの静的ヘルプからも共有される（説明文の二重管理を
 // 避ける）。多言語化のため、表示文は ui-text.js のキーで持ち、下の phaseLabel/phaseShort/
@@ -110,12 +111,43 @@ function refreshPhaseGuideLabels() {
     ref.tooltipEl.textContent = phaseShort(ref.phase);
   }
   if (autoSkipSyncFn) autoSkipSyncFn();
+  if (summaryLabelSyncFn) summaryLabelSyncFn();
 }
+
+// 【続き583・ユーザー要望】「サマリーを見るボタンを右下の自動送りボタンの左隣に新設する
+// のはどう？」。実物に入っている早見表（表＝自分のターンの流れ／裏＝原則とゲート侵攻）を
+// 遊びながら確かめられるようにする。見た目は他のアイコンボタンと揃える。
+function buildSummaryButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "phase-summary-button";
+  btn.classList.add("icon-action-button", "phase-summary-button");
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "icon-action-button-icon-wrap";
+  const glyph = document.createElement("span");
+  glyph.className = "phase-summary-glyph";
+  glyph.textContent = "📋";
+  iconWrap.appendChild(glyph);
+  const caption = document.createElement("span");
+  caption.className = "icon-action-button-caption";
+  caption.textContent = t("summary.caption");
+  btn.appendChild(iconWrap);
+  btn.appendChild(caption);
+  btn.title = t("summary.title");
+  btn.addEventListener("click", () => openSummarySheet());
+  summaryLabelSyncFn = () => {
+    caption.textContent = t("summary.caption");
+    btn.title = t("summary.title");
+  };
+  return btn;
+}
+let summaryLabelSyncFn = null;
 
 export function initPhaseGuide() {
   const bar = document.createElement("div");
   bar.id = "phase-guide-bar";
-  bar.appendChild(buildAutoSkipToggleButton()); // ロックアイコンの左隣（バー先頭）
+  bar.appendChild(buildSummaryButton()); // 自動送りのさらに左隣（バー先頭）
+  bar.appendChild(buildAutoSkipToggleButton()); // ロックアイコンの左隣
   for (const phase of PHASES) {
     bar.appendChild(buildPhaseButton(phase));
   }

@@ -20954,6 +20954,104 @@ body.is-tablet-device .effect-reason-modal-text {
   line-height: 1.6;
 }
 
+/* 【続き583】サマリー（早見表）を見る画面（summary-sheet.js）とフェイズ案内板のボタン。
+   早見表は横長（1500x750）なので、画面の幅いっぱいに置いて読ませる。文字の大きさは
+   画像なので、**どれだけ大きく映せるか**がそのまま読みやすさになる。 */
+#summary-sheet-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10461; /* backdrop(10460)より前面 */
+  width: min(96rem, 96vw);
+  max-height: 54rem;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 1rem 1.2rem 1.2rem;
+  border-radius: 0.8rem;
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.summary-sheet-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fbbf24;
+  margin-bottom: 0.6rem;
+  padding-right: 2rem;
+}
+.summary-sheet-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+.summary-sheet-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(2, 6, 12, 0.35);
+  color: inherit;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.summary-sheet-tab.is-current {
+  border-color: rgba(251, 191, 36, 0.9);
+  background: rgba(251, 191, 36, 0.18);
+  font-weight: 700;
+}
+.summary-sheet-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.summary-sheet-hint {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+/* ライトテーマでも読めるように（他のモーダルと同じ扱い）。 */
+body.theme-light #summary-sheet-panel {
+  background: #fdfbf5;
+  border-color: rgba(176, 141, 63, 0.6);
+  color: #3a3326;
+}
+body.theme-light .summary-sheet-title { color: #8a6d2f; }
+body.theme-light .summary-sheet-tab { background: rgba(176, 141, 63, 0.12); border-color: rgba(176, 141, 63, 0.45); }
+/* スマホ: 1rem が実画面7.6pxにしかならないので、文字は2倍前後に（続き575 の物差し）。
+   早見表そのものは幅いっぱいに出す。 */
+body.is-phone-device #summary-sheet-panel,
+body.is-tablet-device #summary-sheet-panel {
+  /* 【vwの罠】`96vw` だと実画面の46%にしかならない（vwはビューポート基準なのに、描かれる
+     大きさにはステージ倍率0.478が掛かるため＝続き575 の★）。ステージ基準の rem で書く
+     （ステージの幅は100rem）。実測 405px → 734px に広がる。 */
+  width: 96rem;
+  max-height: 52rem;
+  padding: 0.9rem 1rem 1rem;
+}
+/* 早見表は横長（幅の半分の高さ）。横持ちのスマホは**高さが足りない**ので、見出しを詰めて
+   注記は省き、1画面に収める（画像を押せば表裏が切り替わることはタブを見れば分かる）。 */
+body.is-phone-device .summary-sheet-hint,
+body.is-tablet-device .summary-sheet-hint { display: none; }
+body.is-phone-device .summary-sheet-title,
+body.is-tablet-device .summary-sheet-title { font-size: 1.7rem; margin-bottom: 0.5rem; padding-right: 3.4rem; }
+body.is-phone-device .summary-sheet-tab,
+body.is-tablet-device .summary-sheet-tab { font-size: 1.5rem; padding: 0.45rem 1rem; border-radius: 0.6rem; }
+body.is-phone-device .summary-sheet-hint,
+body.is-tablet-device .summary-sheet-hint { font-size: 1.3rem; margin-top: 0.8rem; }
+
+/* フェイズ案内板の「サマリー」ボタン（自動送りの左隣）。絵文字を中央に置くだけ。 */
+.phase-summary-glyph {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 /* ── マイページ: 名前の上のお気に入り称号（続き317）────────────────────────
    ユーザー要望「マイページの称号はもうスペースがないので名前の上を称号にしませんか？
    そこに載せるのはお気に入りだけで、クリックすると称号モーダルが出るようにします」。
