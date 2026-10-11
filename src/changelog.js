@@ -63,6 +63,7 @@ export const CHANGELOG = [
       "ホーム画面とヘルプまわりの文字も読める大きさにしました",
       "マイページがスマホで読める大きさになりました",
       "効果の説明が画面中央に大きく出るようになりました",
+      "ホーム画面に追加した時のアイコンがロゴになりました",
     ],
     summaryEn: [
       "A notice now appears while the language is being switched",
@@ -75,6 +76,7 @@ export const CHANGELOG = [
       "The home screen and surrounding text are now readable too",
       "My Page is now readable on a phone",
       "Effect explanations now appear larger in the middle of the screen",
+      "The home-screen icon is now the game logo",
     ],
     items: [
       "言語を切り替えると**1秒前後かかる**ことがあり（初回はとくに）、押しても何も起きないように見えていました。押した直後に**「言語を切り替えています…」**と出して、終わると消えるようにしました。オープニングの左上のボタンからでも、⚙オプションの言語選択からでも出ます。",
@@ -87,6 +89,7 @@ export const CHANGELOG = [
       "スマホ・タブレットで、**ホーム画面**（タイルの名前・「次にやること」・各バッジ・「ホーム画面に追加」の案内）と**マイページの着せ替えまわり**、**α版のお知らせ**の文字を読める大きさにしました。あわせて、前回の調整で**大きすぎになっていた所を元に戻しました**（ヘルプ・マイページの名前・フェイズ案内板の文字・自分の名前など。これらは元から十分な大きさでした）。パソコンの表示は変わりません。",
       "スマホ・タブレットで**マイページ**の文字が読める大きさになり、パネルも広くなりました（これまでは中の文字が実画面で6.5px、幅も画面の2割ほどしかありませんでした）。",
       "スマホで、**カードの効果の説明が画面中央に出る小さな窓**が読める大きさになりました（文字が実画面で6px、窓の幅も画面の16%しかありませんでした）。",
+      "ホーム画面に追加した時のアイコンが、**7色の玉からゲームのロゴ**（金の「7」と七色の紋章）に変わりました。既に追加してある端末では古い絵のままなので、**一度ホーム画面から消して追加し直す**と新しくなります。",
     ],
     itemsEn: [
       "Switching the language can take about a second, especially the first time, and until now pressing the button looked as if nothing had happened. A notice reading \"switching language\" now appears immediately and disappears once the switch is done. It shows whether you use the button at the top left of the opening screen or the language selector in the options.",
@@ -99,6 +102,7 @@ export const CHANGELOG = [
       "On phones and tablets the home screen (tile names, the next-step card, the badges and the add-to-home prompt), the cosmetics area of My Page and the alpha notice are now readable. At the same time, items that the previous pass had made too large were returned to their original size, because they were already big enough. The desktop layout is unchanged.",
       "My Page is now readable on phones and tablets, and the panel itself is wider. Until now its text rendered at about 6.5 real pixels and the panel used only a fifth of the screen width.",
       "On phones, the small panel that explains a card effect in the middle of the screen is now readable. Its text rendered at about 6 real pixels and the panel used only a sixth of the screen width.",
+      "The icon you get when you add the game to your home screen is now the game logo instead of the seven dots. Devices that already have it keep the old picture, so remove it from your home screen and add it again to see the new one.",
     ],
     fixes: [
       "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
@@ -174,6 +178,9 @@ export const CHANGELOG = [
       "**#400「不具合ボタン横の全画面表示ボタンが消えてるけどなんでだっけ？」——不具合ではない。** `initFullscreenToggle` は `isFullscreenSupported()` が false の環境では**ボタンを作らない**（押しても何も起きないボタンを常設しないため）。**iPhone の Safari は Fullscreen API を持たない**ので、iPhoneでは元から出ない（PC・Androidでは出る）。iPhoneで全画面にする唯一の方法は**ホーム画面に追加して、そこから開く**こと（続き574 の案内モーダルがこれを案内している）。報告の画面の状態でも、押せるボタンの一覧に全画面が無いことを確認した。",
       "**この報告は「今の画面の状態」（続き572）が初めて実戦で効いた回**。#400 と #402 に `screen2` が入っており、押せるボタンの一覧・覆いの一覧・ステージ倍率がそのまま読めた。**#400 は `?trial` から未ログインで届いており**（続き572 の SQL 変更が実際に効いていることの確認にもなった）、**#400 の画面は 932x320・ステージ倍率0.356**だった——**倍率0.478（932x430）で合わせた文字は、Safariのバーが出ている時は25%小さく見える**という材料も取れた。",
       "**司令塔の依頼（ユーザー承認済み）**: `so7_public_counts()` に `trialToday` / `trialVisitsToday` を足した。`loginsToday` は `user_id is not null` で数えるので**登録せずに遊べる試遊の人が全員落ちていた**（「今日0人」の原因）。材料は `so7_visit_log.source`（続き517）。**返すのは数だけでタグの内訳は返さない**——この関数は公開鍵で誰でも呼べるので出す情報は最小限にする。「今日」の切り方は既存の2つと同じ日本時間0時。**`supabase_setup_so7.sql` の変更なので手動実行が必要。**",
+      "#401「ホームに追加した時のこの画像ってセブンのロゴに変えれる？」→「セブンのロゴをアプリアイコン用にアレンジしてみて！」→**「Aで私に位置サイズ調整させて！」**。ユーザーから背景透過のロゴ（1200x1200）を受け取り、**位置・大きさ・背景色をその場で動かせる調整画面**（`scratchpad/icon-tool.html`。ロゴをファイル内に埋め込んであるので開くだけで動く）を渡して決めてもらった。決まった値は **大きさ125%／左右-3.5／上下-4.5／背景はクリーム色#fbf8f1**（濃紺も作って見比べ、ユーザーがクリーム色を選んだ）。書き出しは調整画面と**まったく同じ式**で計算している（見本と出来上がりがズレないように）。`app-icon-512/192` と `apple-touch-icon-180` を差し替え、**URLに `?v=2` を付けた**（絵だけ替えるとブラウザが古いものを使い続けるため）。",
+      "**作る前に2回失敗して方針を変えた（記録）**: ①og-image.jpg から切り出す案——紋章の左に小さな英字が重なっており、正方形に切ると必ず何かが切れるか要らないものが入った ②「紙の白を彩度で抜いて濃紺に載せる」案——**紋章の細い金の線と内側の目盛りまで消えて壊れた紋章になった**（薄い金は白地との彩度差が小さく抜きの対象に入る）。**背景透過の元データをもらうのが正解だった。** 素材の切り出しで粘る前に、元データがあるか聞く。",
+      "**ブラウザのタブのアイコン（favicon）は7色の玉のまま**にした（index.html にインラインSVGで書いてある）。16〜32pxでは紋章は潰れるので、玉の方が向いている。",
     ],
     devItemsEn: [
       "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
@@ -237,6 +244,9 @@ export const CHANGELOG = [
       "The missing full-screen button on iPhone is not a bug: iPhone Safari has no Fullscreen API, so the button is deliberately not created there, and adding the game to the home screen is the way to get full screen.",
       "This round was the first real use of the screen snapshot feature: two reports carried it, one of them sent from the trial entry without a login, which also confirmed the database change works in the wild.",
       "At the owner's approval, the public counts function now also returns the number of trial-entry visitors today, since the existing login count excludes anyone playing without an account.",
+      "At the owner request to arrange the logo into an app icon and then to let them adjust it themselves, a small self-contained tool with sliders was handed over, and the chosen values were applied with the same formula the tool previews with. The three icon files were replaced and their URLs versioned so browsers fetch the new art.",
+      "Two earlier approaches were abandoned: cropping from the social share image always included stray parts of the wider lockup, and keying the white paper out destroyed the thin gold lines of the emblem. Asking for the transparent source was the right move.",
+      "The browser tab favicon keeps the seven dots, which read better at 16 to 32 pixels than the detailed emblem.",
     ],
   },
   {
