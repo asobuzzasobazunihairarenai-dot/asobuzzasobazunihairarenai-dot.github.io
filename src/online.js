@@ -2910,11 +2910,31 @@ export async function submitStatsMatchResult({ activePlayers, winnerSeat, feedba
     memberIds.push(playerId);
     if (seat === winnerSeat) winnerId = playerId;
   }
-  // 実プレイヤーが1人もいない（全員ゲスト）試合は戦績に記録しない。勝者がゲストの場合は
-  // winnerIdがnullのまま記録する（実プレイヤーは参加＝対戦数に入るが、勝ちは誰にも付かない）。
+  // 実プレイヤーが1人もいない（全員ゲスト）試合は戦績に記録しない。
   if (memberIds.length === 0) {
     logAction("diag-stats-abort", { reason: "no-registered-players", guests: guestNames.length });
     return;
+  }
+  // 【2026-10-12・続き580】**勝者が戦績システムに登録されていない（＝ゲスト）場合は、
+  // この先の insert が必ず失敗する。** 姉妹プロジェクト側の `matches.winner_id` は
+  // **not null**（あちらの supabase_setup.sql 30行目）なので、null を送ると
+  // `23502 null value in column "winner_id" … violates not-null constraint` で弾かれ、
+  // **例外になって参加者全員ぶんの記録がまるごと消える**。
+  // ここのコメントは以前「勝者がゲストの場合はwinner_idはnullのまま記録する」と書いていたが、
+  // **実際のスキーマで試していなかった**（ユーザー報告2026-10-12「戦績システムにちゃんと
+  // 登録されないことがある」の正体。10/11夜の4人対戦が1戦まるごと失われていた）。
+  //
+  // 本当の直しは**あちらの列を null 可にすること**（1行のSQL。戦績サイト側は
+  // `players.find(p => p.id === m.winnerId)` が見つからなければ「不明」と出すだけで壊れない
+  // ——あちらの index.html を読んで確認済み）。それまでは、ここで**なぜ落ちるのかが
+  // 一目で分かる印**を残す（失敗ログだけだと毎回スキーマを調べ直すことになる）。
+  if (!winnerId) {
+    logAction("diag-stats-winner-not-registered", {
+      winnerSeat,
+      guests: guestNames.length,
+      members: memberIds.length,
+      note: "matches.winner_id が not null のままなら、この試合は記録できずに失敗する",
+    });
   }
 
   const durationMinutes = Math.max(1, Math.round((Date.now() - new Date(gameRow.created_at).getTime()) / 60000));
