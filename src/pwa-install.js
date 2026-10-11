@@ -22,6 +22,19 @@ const DISMISS_DAYS = 14;
 
 let deferredPrompt = null;
 let bannerEl = null;
+// 【続き574】`beforeinstallprompt` は**ページを開いてから少し遅れて飛んでくる**ことがある。
+// 起動時の案内モーダル（opening-setup-modal.js）は先に組み上がっているので、後から
+// 「1タップで追加できる」ようになったら教えてもらって描き直す。
+let installAvailabilityListeners = [];
+function notifyInstallAvailability() {
+  for (const fn of installAvailabilityListeners) {
+    try {
+      fn();
+    } catch (err) {
+      console.error("install availability listener failed", err);
+    }
+  }
+}
 
 // ブラウザが「インストールできる」と判断した時に飛んでくる。既定の案内バーを止めて
 // （preventDefault）、こちらのタイミングで prompt() できるよう取っておく。
@@ -30,6 +43,7 @@ if (typeof window !== "undefined") {
     e.preventDefault();
     deferredPrompt = e;
     refreshBanner();
+    notifyInstallAvailability();
   });
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
@@ -47,6 +61,34 @@ if (typeof window !== "undefined") {
 export function isStandalone() {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator?.standalone === true;
+}
+
+// 【続き574】起動時の案内モーダルから使う口。バナー（home-screen.js）と**同じ仕組みを共有**し、
+// 判定を2か所に書かないようにする。
+export function onInstallAvailabilityChange(fn) {
+  installAvailabilityListeners.push(fn);
+  return () => {
+    installAvailabilityListeners = installAvailabilityListeners.filter((f) => f !== fn);
+  };
+}
+// ブラウザが「1タップで追加できる」と言っているか（Android の Chrome/Edge 等）。
+export function canPromptInstall() {
+  return Boolean(deferredPrompt);
+}
+// OS標準の「ホーム画面に追加しますか？」を出す。戻り値は accepted / dismissed / unavailable。
+export async function promptInstall() {
+  if (!deferredPrompt) return "unavailable";
+  try {
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    refreshBanner();
+    notifyInstallAvailability();
+    return choice?.outcome === "accepted" ? "accepted" : "dismissed";
+  } catch (err) {
+    /* ブラウザ側で拒否された等 */
+    return "dismissed";
+  }
 }
 
 function isIos() {
@@ -88,8 +130,13 @@ function refreshBanner() {
   bannerEl.style.display = shouldOffer() ? "flex" : "none";
 }
 
+// iPhone/iPad か（起動時の案内モーダルが、手順を出すか1タップのボタンを出すかの判定に使う）。
+export function isIosDevice() {
+  return isIos();
+}
+
 // iPhone/iPad 用の手順モーダル（ボタン一つで追加できないため、やり方を案内する）。
-function showIosHowTo() {
+export function showIosHowTo() {
   const backdrop = createBackdrop(() => close(), { dim: true, blocksGame: false, zIndex: 10450 });
   const modal = document.createElement("div");
   modal.id = "pwa-install-modal";

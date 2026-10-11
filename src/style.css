@@ -65,6 +65,214 @@
   55%, 80% { transform: rotate(-90deg); }
 }
 
+/* 【続き574】起動時の案内モーダル（opening-setup-modal.js）。言語と「ホーム画面に追加」を
+   最初にしっかり案内する。**タッチ端末にだけ出す**ので、実質ここのスマホ／タブレット用の
+   寸法が本番の見え方になる。1600x900 のステージを縮めて表示する作りなので、iPhone の横持ち
+   （932x430）では 1rem が実画面で 7〜8px にしかならない——だから文字は 2 倍前後に拡大する
+   （続き566・572 で 6px 台のまま出してしまった件の再発防止。必ず実画面のpxで測ってから決める）。 */
+#opening-setup-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(30rem, 92vw);
+  z-index: 100061; /* backdrop(100060)より前面 */
+  box-sizing: border-box;
+  padding: 1.3rem;
+  border-radius: 0.6rem;
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  max-height: 52rem;
+  overflow-y: auto;
+}
+.opening-setup-title {
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: #fbbf24;
+  margin-bottom: 0.8rem;
+  text-align: center;
+}
+.opening-setup-section {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+.opening-setup-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+.opening-setup-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+/* 説明・注記の色は決め打ちせず、周りから継いで薄めるだけにする（明暗2テーマがあるため
+   ＝教訓15。決め打ちすると片方のテーマで文字が見えなくなる）。 */
+.opening-setup-why,
+.opening-setup-steps,
+.opening-setup-note {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  opacity: 0.85;
+}
+.opening-setup-steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.4rem;
+}
+.opening-setup-note {
+  font-size: 0.72rem;
+  margin-top: 0.4rem;
+}
+.opening-setup-lang-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.opening-setup-lang-btn {
+  flex: 1 1 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(2, 6, 12, 0.35);
+  color: inherit;
+  font-family: sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.opening-setup-lang-btn.is-current {
+  border-color: rgba(251, 191, 36, 0.9);
+  background: rgba(251, 191, 36, 0.18);
+  font-weight: 700;
+}
+.opening-setup-primary,
+.opening-setup-secondary {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.4rem;
+  border: none;
+  font-family: sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.opening-setup-primary {
+  background: #f59e0b;
+  color: #201400;
+}
+.opening-setup-secondary {
+  background: rgba(148, 163, 184, 0.25);
+  color: inherit;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+}
+.opening-setup-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.opening-setup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.opening-setup-play {
+  flex: 1 1 0;
+  padding: 0.5rem 1rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(2, 6, 12, 0.35);
+  color: inherit;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.opening-setup-never {
+  flex: none;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font-family: sans-serif;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* ライトテーマ（既定）でも読めるように（first-run-bgm.js のモーダルと同じ扱い）。 */
+body.theme-light #opening-setup-modal {
+  background: #fdfbf5;
+  border-color: rgba(176, 141, 63, 0.6);
+  color: #3a3326;
+}
+body.theme-light .opening-setup-title {
+  color: #8a6d2f;
+}
+body.theme-light .opening-setup-lang-btn,
+body.theme-light .opening-setup-play {
+  background: rgba(176, 141, 63, 0.12);
+  border-color: rgba(176, 141, 63, 0.45);
+}
+/* スマホ・タブレット（＝実際に出る端末）での拡大。 */
+body.is-phone-device #opening-setup-modal,
+body.is-tablet-device #opening-setup-modal {
+  width: min(60rem, 94vw);
+  padding: 2rem 2.2rem;
+  border-radius: 1rem;
+}
+body.is-phone-device .opening-setup-title,
+body.is-tablet-device .opening-setup-title {
+  font-size: 2.1rem;
+  margin-bottom: 1.2rem;
+}
+body.is-phone-device .opening-setup-label,
+body.is-tablet-device .opening-setup-label {
+  font-size: 1.7rem;
+  margin-bottom: 0.7rem;
+}
+body.is-phone-device .opening-setup-why,
+body.is-tablet-device .opening-setup-why,
+body.is-phone-device .opening-setup-steps,
+body.is-tablet-device .opening-setup-steps {
+  font-size: 1.5rem;
+  line-height: 1.7;
+}
+body.is-phone-device .opening-setup-note,
+body.is-tablet-device .opening-setup-note {
+  font-size: 1.15rem;
+  margin-top: 0.7rem;
+}
+body.is-phone-device .opening-setup-lang-btn,
+body.is-tablet-device .opening-setup-lang-btn {
+  font-size: 1.7rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.6rem;
+}
+body.is-phone-device .opening-setup-primary,
+body.is-tablet-device .opening-setup-primary,
+body.is-phone-device .opening-setup-secondary,
+body.is-tablet-device .opening-setup-secondary {
+  font-size: 1.7rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 0.6rem;
+  margin-top: 0.9rem;
+}
+body.is-phone-device .opening-setup-play,
+body.is-tablet-device .opening-setup-play {
+  font-size: 1.5rem;
+  padding: 0.8rem 1.2rem;
+  border-radius: 0.6rem;
+}
+body.is-phone-device .opening-setup-never,
+body.is-tablet-device .opening-setup-never {
+  font-size: 1.4rem;
+  padding: 0.7rem 0.8rem;
+}
+
 /* 初回起動時のBGM設定モーダル（first-run-bgm.js）。 */
 #first-run-bgm-modal {
   position: fixed;

@@ -289,6 +289,7 @@ import {
 import { initOnlineUi, openOnlinePanel, isOnlineIntentActive } from "./online-ui.js";
 import { initOpeningScreen, previewOpeningAuras } from "./opening-screen.js";
 import { maybeShowFirstRunBgmModal } from "./first-run-bgm.js";
+import { maybeShowOpeningSetupModal } from "./opening-setup-modal.js";
 import { isTrialEntry } from "./trial-entry.js";
 import { applyStoredCardPreviewSize, getCardPreviewSide } from "./card-preview-size.js";
 import { isFixedHandEnabled, applyStoredFixedHand } from "./fixed-hand.js";
@@ -18248,10 +18249,21 @@ setTimeout(() => {
       });
     });
 }, 0);
-// 初回起動時だけ、オープニングの手前にサウンド／表示の設定モーダル（試聴ボタン付き）を出す。
-// 試遊の入口（?trial）から来た人には出さない——遊び始めるまでの手順を減らすため
-// （音量は既定のまま始まり、あとからオプションで変えられる。trial-entry.js 参照）。
-if (!isTrialEntry()) maybeShowFirstRunBgmModal();
+// 【続き574】起動時の案内モーダル（言語／ホーム画面に追加）。**試遊も通常も出す**
+// （ユーザー要望「トライアルも普通のも…最初にモーダルでしっかり案内しましょう」）。
+// 「遊ぶ画面はホームに追加して全画面じゃないとプレイがしにくいのでマスト」という判断に基づく。
+// 出す条件（タッチ端末だけ・ホームから起動していない・「もう出さない」を押していない）は
+// opening-setup-modal.js 側に閉じ込めてある。
+//
+// 初回起動時だけ出すサウンド／表示の設定モーダル（試聴ボタン付き）と**重ならないよう、
+// こちらを閉じてから続けて出す**（同時に2枚出ると、下のモーダルが触れない）。
+// サウンドの方は従来どおり試遊の入口（?trial）からは出さない——遊び始めるまでの手順を
+// 減らすため（音量は既定のまま始まり、あとからオプションで変えられる。trial-entry.js 参照）。
+maybeShowOpeningSetupModal({
+  onClose: () => {
+    if (!isTrialEntry()) maybeShowFirstRunBgmModal();
+  },
+});
 
 // 管理者モードのスライダーには、CSS変数を変えるだけでは反映されない値（--hand-*-sizeなど、
 // JS側でgetComputedStyleして読み取り、inline styleとして適用しているもの）があるため、
