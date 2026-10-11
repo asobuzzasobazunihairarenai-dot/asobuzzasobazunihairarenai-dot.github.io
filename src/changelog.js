@@ -60,6 +60,7 @@ export const CHANGELOG = [
       "試遊の画面が、いまログインしているかを教えてくれるようになりました",
       "最初に「言語」と「ホーム画面への追加」を案内するようになりました",
       "スマホの文字が小さすぎた所をまとめて大きくしました",
+      "ホーム画面とヘルプまわりの文字も読める大きさにしました",
     ],
     summaryEn: [
       "A notice now appears while the language is being switched",
@@ -69,6 +70,7 @@ export const CHANGELOG = [
       "The trial screen now tells you whether you are signed in",
       "A first-run guide now covers language and adding to your home screen",
       "Text that was far too small on phones has been enlarged",
+      "The home screen and surrounding text are now readable too",
     ],
     items: [
       "言語を切り替えると**1秒前後かかる**ことがあり（初回はとくに）、押しても何も起きないように見えていました。押した直後に**「言語を切り替えています…」**と出して、終わると消えるようにしました。オープニングの左上のボタンからでも、⚙オプションの言語選択からでも出ます。",
@@ -78,6 +80,7 @@ export const CHANGELOG = [
       "試遊の入口（遊び方を教わる／CPUと対戦する／ログインする、が並ぶ画面）が、**いまログインしているかどうか**を出すようになりました。この画面はログインしていても出るのに、ボタンにはいつも「ログインしてすべてを使う」と書いてあったため、**ログイン中なのに未ログインだと読めてしまう**状態でした。ログイン中は誰で入っているかを表示し、ボタンも「アカウントの画面を開く」に変わります。",
       "スマホ・タブレットで開いた時、最初に**言語**と**ホーム画面への追加**を案内するようになりました。このゲームは**横向きの全画面**で遊ぶ作りで、ホーム画面に追加してその印から開くと**全画面・横向きで始まります**（ブラウザのままだと画面が狭く、下に黒い余白が出たり「端末を横向きにしてください」が出続けたりします）。Androidなどは**ボタン1つで追加**でき、iPhone・iPadは手順をその場に出します。全画面に対応している端末では「いますぐ全画面にする」も選べます。「このまま遊ぶ」でそのまま始められ、「もう出さない」で次から出なくなります（ホーム画面から起動している人には最初から出ません）。",
       "スマホ・タブレットで**文字が小さすぎた所をまとめて大きく**しました。直したのは、**お知らせ／更新情報**（全体。見出し・日付・本文・「詳細」・「戻る」）、**サウンドの初回設定**、**オープニングの物語の文章**、**対局中の表示**（ターン／ラウンド、手札の枚数、自分の名前、「自分のターンです」、アイコンの下の文字、自動送りのON/OFF）、**「今回のメンバー」**、**「スタートプレイヤー決定」**、**オープニングの言語の切り替え**、**モーダルを閉じる✕**です。押しやすさも一緒に上げています（✕や「詳細」などの当たり判定を大きくしました）。パソコンの表示は変わりません。",
+      "スマホ・タブレットで、**ホーム画面**（タイルの名前・「次にやること」・各バッジ・「ホーム画面に追加」の案内）と**マイページの着せ替えまわり**、**α版のお知らせ**の文字を読める大きさにしました。あわせて、前回の調整で**大きすぎになっていた所を元に戻しました**（ヘルプ・マイページの名前・フェイズ案内板の文字・自分の名前など。これらは元から十分な大きさでした）。パソコンの表示は変わりません。",
     ],
     itemsEn: [
       "Switching the language can take about a second, especially the first time, and until now pressing the button looked as if nothing had happened. A notice reading \"switching language\" now appears immediately and disappears once the switch is done. It shows whether you use the button at the top left of the opening screen or the language selector in the options.",
@@ -87,6 +90,7 @@ export const CHANGELOG = [
       "The trial entry screen now shows whether you are signed in. It appears even when you are signed in, yet its button always read \"log in to use every feature\", which made it look as though you were not. When you are signed in it now names the account and the button reads \"open the account screen\" instead.",
       "When you open the game on a phone or tablet, a short guide now covers your language and adding the game to your home screen. This game is built for full screen in landscape: opened from a home-screen icon it starts full screen and locked to landscape, whereas a browser tab gives a smaller view, sometimes a black band at the bottom, and the repeated \"please rotate your device\" notice. On Android and similar it can be added with one tap; on iPhone and iPad the steps are shown. Devices that support full screen also get a \"go full screen now\" option. You can play as it is, or switch the guide off for good, and it never appears if you already launched from the home screen.",
       "Text that was far too small on phones and tablets has been enlarged across the app: the news and updates page in full, the first-run sound settings, the opening story text, the in-game readouts (turn and round, hand count, your name, whose turn it is, the icon labels, the auto-advance on/off badge), the match intro, the start-player announcement, the opening language switch, and the close buttons on dialogs. Tap targets grew with them. The desktop layout is unchanged.",
+      "On phones and tablets the home screen (tile names, the next-step card, the badges and the add-to-home prompt), the cosmetics area of My Page and the alpha notice are now readable. At the same time, items that the previous pass had made too large were returned to their original size, because they were already big enough. The desktop layout is unchanged.",
     ],
     fixes: [
       "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
@@ -144,6 +148,13 @@ export const CHANGELOG = [
       "**inline style の文字サイズはクラスへ移した**（`game-setup.js` のスタートプレイヤー発表の見出し・本文）。inline style は CSS から `!important` 無しに上書きできないため。幅と高さの上限は `buildSimpleModal` が cssText で当てているので、そこだけ `!important` で上書きしている（幅は実画面153px→**min(56rem,94vw)**）。",
       "**まだ見ていない画面がある（正直な限界）**: 今回測ったのは オープニング／試遊メニュー／起動時の案内／物語テロップ／対局中の盤面／基本設定／お知らせ／サウンドの初回設定／「今回のメンバー」／スタートプレイヤー決定 まで。**ホーム画面・マイページ・ショップ・ヘルプ・デッキ構築・ランキング・戦績・オンラインのロビー・各カード効果のモーダルは未点検**で、同じ病気の可能性が高い。",
       "**直さないと決めたもの（判断の記録）**: ①**盤面のカードの文字**（実測1.1〜2.6px）＝長押しで拡大して読む設計で、大きくすると札の中に収まらない（拡大サイズの上限は続き563 で52remまで広げてある）②**左上の題字**（7.3px）＝装飾で読む必要がない。③自動送りのON/OFFバッジ（7.6px）と⏭（9.2px）は、**枠の色（緑=ON／赤=OFF）でも分かる**ので「読めれば十分」の位置づけ。",
+      "**⚠ 測り方を間違えていた（今回いちばん大事）。** 続き575 では「実画面px = CSSのfont-size × ステージ倍率(0.478)」で測っていたが、**パネル自体がさらに transform で拡大されている場合を見落としていた**。正しくは **実画面px = CSSのrem × 16 × 実効倍率**、実効倍率は **`getBoundingClientRect().width / offsetWidth`**（ステージ倍率と途中の transform を全部含む）。この式で測り直すと: ヘルプのパネルは**元から2倍**（倍率0.956）で文字は12.6〜16px＝**直す必要が無かった**／α版のお知らせは倍率0.861で見出し17.2px・本文11.3px＝**十分だった**／マイページの名前は倍率1.44で12.2px＝**十分だった**／フェイズ案内板は倍率1.0（＝2.1倍）で文字10.5px＝**十分だった**／自席の名前は倍率0.836で11.4px＝**ほぼ足りていた**。",
+      "**その結果、続き575 で一部を作りすぎていた**（ヘルプの題32.1px・マイページの名前36.8px・案内板の文字23.2px・自分の名前20.1px 等）。**全部戻した**。戻した後の実測: 対局中の盤面は22px超0種／ヘルプ0種／お知らせ0種／α版0種／ホーム画面0種。",
+      "**本当に小さかったのはホーム画面だった**（倍率0.478＝拡大なし。13種のうち**12種が11px未満**）。「次にやること」5.4px／説明6.0px／NEW 6.9px／「ホーム」6.9px／「対戦する」7.3px／タイルの名前7.6px／「ホーム画面に追加」の案内6.1px。全部12〜14pxへ。**11px未満 12種→0種**。",
+      "**教訓: 同じクラスでも入れ物の倍率が違えば見え方が違う。** アイコンの下の文字（`.icon-action-button-caption`）は**オプションエリア（倍率0.477）とフェイズ案内板（倍率1.002）の2か所**に出てくる。一律に1.45remへ上げたら案内板側だけ23.2pxになった。案内板の中だけ元へ戻した。モーダルの ✕ も同じで、ヘルプの中だけ元に戻した。**共通クラスを触る時は、そのクラスが出てくる場所を全部測る。**",
+      "**「はみ出し」が出たらまず元の値でも出るか試す（記録）**: ホームのタイルの名前が `scrollHeight > clientHeight` で8個中8個はみ出していたが、**A/Bで文字を元の1remに戻しても8個中8個で出た**（21>19。1.5remで61>58、1.8remで74>69＝倍率に比例するだけ）。行の高さの丸め誤差で、私の変更のせいではなかった。行間を詰める対策を入れたが効かず、無意味な規則になるので撤去した。",
+      "**まだ直していない（申し送り）**: ①マイページの「マイページ」「ログインする」等は **inline style で font-size を書いている**ため CSS から上書きできない（JS側を直す必要がある。実測6.5px）②**ショップ・デッキ構築・ランキング**はログインが要るので今回も開けず未点検③`max-height: Nvh` の罠（続き575 の★）は20か所以上残っている。",
+      "**測り方の道具**: `scratchpad/_c576fix.mjs` が正しい式で測る版。画面を足す時はここに `run(名前, 準備, ルート)` を足す。",
     ],
     devItemsEn: [
       "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
@@ -191,6 +202,13 @@ export const CHANGELOG = [
       "Inline font sizes in the start-player announcement were moved to classes so CSS can override them without !important.",
       "An honest limit: the home screen, my page, shop, help, deck builder, rankings, stats and lobby were not audited and likely share the same problem.",
       "Deliberately left alone: the card face text, which is meant to be read by long-pressing to enlarge and would not fit if grown, and the decorative title in the corner.",
+      "The measurement method itself was wrong in the previous pass: it multiplied the CSS font size by the stage scale only, ignoring that several panels are additionally transformed. The correct effective scale is the bounding rect width divided by the offset width.",
+      "Re-measuring showed the help panel, the alpha notice, the My Page name and the phase guide bar were already large enough, so the previous pass had pushed some of them to 20-37 real pixels. All of those were reverted.",
+      "The screen that genuinely needed work was the home screen, with twelve of thirteen distinct text styles under 11 real pixels. All are now 12-14.",
+      "A lesson: the same class can render at different sizes depending on the transform of its container, so a shared class must be measured everywhere it appears.",
+      "An overflow that looked like a regression turned out to exist at the original size too, confirmed by an A/B at three font sizes.",
+      "Still open: My Page sets some font sizes inline so CSS cannot override them, the shop, deck builder and rankings need a login to measure, and the vh-based max-height trap remains in over twenty places.",
+      "The corrected measuring probe lives in the scratchpad; new screens are added to it as one more entry.",
     ],
   },
   {

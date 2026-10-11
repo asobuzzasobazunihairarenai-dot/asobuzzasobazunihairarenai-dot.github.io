@@ -20651,6 +20651,15 @@ body.is-tablet-device .icon-action-button-caption {
   padding: 0.1rem 0.5rem;
   border-radius: 0.5rem;
 }
+/* 【訂正】このクラスは**2か所で実効倍率が違う**: オプションエリア（倍率0.477）と
+   フェイズ案内板（倍率1.002＝案内板自体が2.1倍に拡大されている）。一律に1.45remへ
+   上げたら案内板側が**実画面23.2px**になった（元は10.5pxで十分だった）。
+   案内板の中だけ元の大きさへ戻す。 */
+body.is-phone-device #phase-guide-bar .icon-action-button-caption,
+body.is-tablet-device #phase-guide-bar .icon-action-button-caption {
+  font-size: 0.65rem;
+  padding: 0.05rem 0.4rem;
+}
 
 /* 自動送りのON/OFFバッジ。実測3.8px。丸アイコンの右下に重ねる小さな印で、枠の色
    （緑=ON／赤=OFF）でも分かるようにはなっているが、3.8pxは何が書いてあるか読めない。 */
@@ -20661,11 +20670,10 @@ body.is-tablet-device .phase-auto-skip-toggle .phase-auto-skip-toggle-state {
      ここは「読めれば十分」。 */
   /* 右下へ逃がしたら、今度は下の「自動送り」の文字に乗った（実測32x7の重なり）。
      丸の**上の角**へ移す——上には何も無い（ターン表示はバーの0.6rem上で、しかも右寄せ）。 */
-  font-size: 1rem;
-  padding: 0.05rem 0.3rem;
-  bottom: auto;
-  top: -0.6rem;
-  right: -0.5rem;
+  /* 【訂正】案内板自体が2.1倍なので 1rem では実画面16.2px（元は8.1px）。
+     0.62rem＝約10pxに収め、位置も元の右下へ戻す（小さければアイコンを覆わない）。 */
+  font-size: 0.62rem;
+  padding: 0.03rem 0.25rem;
 }
 
 /* ターン数・ラウンド数（画面右上）。実測5.0px。管理者モードのスライダー
@@ -20674,29 +20682,34 @@ body.is-tablet-device .phase-auto-skip-toggle .phase-auto-skip-toggle-state {
    行間が1だと文字の上下が切れていた（実測 113x13 > 113x10 のはみ出し）ので直す。 */
 body.is-phone-device #turn-round-counter,
 body.is-tablet-device #turn-round-counter {
-  font-size: var(--turn-round-counter-font-size-phone, 1.45rem);
+  /* 【訂正】この表示はオプションエリア（1.65倍）の中にあり実効倍率0.79。1.45remでは
+     実画面18.3pxで大きすぎた（元は8.2px）。1rem＝約12.6px。 */
+  font-size: var(--turn-round-counter-font-size-phone, 1rem);
   line-height: 1.4;
 }
 
 /* 自分の名前と手札の枚数（自席のステータス）。実測6.5px／5.7px。
    どちらも inline-block で自前の帯を持つので、大きくすると帯も一緒に広がる。 */
+/* 【訂正】自席のステータスは元から1.75倍に拡大されており（実効倍率0.836）、名前は
+   実画面11.4px・手札は10.0pxで**ほぼ足りていた**。1.5remにしたら20.1pxで大きすぎた。 */
 body.is-phone-device .self-status-name,
 body.is-tablet-device .self-status-name {
-  font-size: 1.5rem;
-  padding: 0.1rem 0.6rem;
+  font-size: 0.9rem;
+  padding: 0.1rem 0.5rem;
 }
 body.is-phone-device .self-status-hand-count,
 body.is-tablet-device .self-status-hand-count {
-  font-size: 1.5rem;
-  padding: 0.1rem 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.5rem;
 }
 
 /* 「自分のターンです」「相手のターンです」。実測6.1px。案内板バーの真上に浮いていて
    右端基準で左へ伸びる作りなので、大きくしても画面の外へは出ない方向に伸びる。 */
+/* 【訂正】実効倍率0.602（案内板の一部が拡大されている）。1.6remでは15.4pxで少し大きい。 */
 body.is-phone-device #phase-automation-turn-status,
 body.is-tablet-device #phase-automation-turn-status {
-  font-size: 1.6rem;
-  padding: 0.6rem 1.1rem;
+  font-size: 1.3rem;
+  padding: 0.5rem 0.9rem;
 }
 
 /* モーダルを閉じる ✕。実測8.4px・当たり判定も小さい（1.8rem＝実画面14px）。
@@ -20751,6 +20764,91 @@ body.is-tablet-device .start-player-announce {
   max-height: 46rem !important; /* 85vh は実画面の41%しか無い（vhの罠。上の★参照） */
   padding: 1.6rem !important;
 }
+
+/* ===========================================================================
+   【続き576・2026-10-11】スマホの文字サイズ（第2弾・訂正後）
+   **実効倍率 = getBoundingClientRect().width / offsetWidth** で測り直した結果だけを入れる。
+   最初は「CSSのfont-size × ステージ倍率」で測っていて、**パネル自体がさらに transform で
+   拡大されている場合を見落としていた**。そのため直す必要の無い所（ヘルプ＝元から2倍で
+   12.6〜16px、マイページの名前＝元から3倍で12.2px）まで大きくしてしまい、23〜37pxに
+   なっていた。それらは撤去した。
+   =========================================================================== */
+
+/* 【訂正2】α版のお知らせは**触らない**。正しい式（rem × 16 × 実効倍率0.861）で計算すると
+   見出し17.2px／アイコン17.9px／導入12.4px／小見出し12.7px／本文11.3px／お礼11.7px／
+   「わかりました」13.8px／「今後表示しない」10.3px で、**元から十分読める大きさだった**。
+   一度2.35remまで上げて32.3pxにしてしまったので撤去した（前回は ×16 を落として計算して
+   いたため「7.1px」と誤読していた）。 */
+
+/* マイページ: **元から3倍に拡大されている部分（名前・✎）は触らない**（既に12.2px/11.3px）。
+   拡大されていない「着せ替え」まわり（実効倍率0.726＝1.5倍）だけが7.4〜8.5pxで小さい。 */
+body.is-phone-device .my-page-cosmetic-thumb.is-none,
+body.is-tablet-device .my-page-cosmetic-thumb.is-none { font-size: 1rem; }
+body.is-phone-device .my-page-cosmetic-label,
+body.is-tablet-device .my-page-cosmetic-label { font-size: 1.1rem; }
+body.is-phone-device .my-page-cosmetics-title,
+body.is-tablet-device .my-page-cosmetics-title { font-size: 1.1rem; }
+body.is-phone-device .my-page-friends-btn,
+body.is-tablet-device .my-page-friends-btn { font-size: 1.1rem; padding: 0.4rem 0.8rem; }
+/* 【訂正2】称号のボタンは元から3倍（倍率1.439）で実画面13.8px＝十分だった。触らない。 */
+/* 段位まわりは拡大されていない（倍率0.478）のでそのまま大きくする。 */
+body.is-phone-device .my-page-rank-title,
+body.is-tablet-device .my-page-rank-title { font-size: 1.6rem; }
+body.is-phone-device .my-page-rank-none,
+body.is-tablet-device .my-page-rank-none { font-size: 1.5rem; }
+
+/* 【訂正2】ヘルプのパネルは**元から2倍**（実効倍率0.956）なので、共通の ✕ の拡大が効いて
+   実画面24.2pxになっていた。ヘルプの中だけ元の大きさへ戻す。
+   ——同じクラスでも**入れ物の倍率が違えば見え方が違う**。共通クラスを触る時は、
+   そのクラスが出てくる場所を全部測ること（アイコンの下の文字でも同じ罠を踏んだ）。 */
+body.is-phone-device #help-panel .modal-close-x,
+body.is-tablet-device #help-panel .modal-close-x {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1.1rem;
+}
+
+/* ホーム画面（実効倍率0.478＝**拡大なし**。13種のうち12種が11px未満で、ここが本命だった）。
+   実測: 「次にやること」5.4px／説明6.0px／NEW 6.9px／✕6.6px／「ホーム」6.9px／
+   「対戦する」7.3px／タイルの名前7.6px。 */
+body.is-phone-device #home-screen-subtitle,
+body.is-tablet-device #home-screen-subtitle { font-size: 1.6rem; }
+body.is-phone-device .home-screen-tile-label,
+body.is-tablet-device .home-screen-tile-label { font-size: 1.8rem; }
+body.is-phone-device .home-screen-tile-badge,
+body.is-tablet-device .home-screen-tile-badge { font-size: 1.5rem; }
+/* NEW のバッジは実効倍率0.54（タイルが少し拡大されている）のでこの値で約12px。 */
+body.is-phone-device .home-screen-tile-new-badge,
+body.is-tablet-device .home-screen-tile-new-badge { font-size: 1.4rem; }
+body.is-phone-device .home-screen-tile-waiting-badge,
+body.is-tablet-device .home-screen-tile-waiting-badge { font-size: 1.45rem; }
+body.is-phone-device .home-screen-tile-notify-badge,
+body.is-tablet-device .home-screen-tile-notify-badge { font-size: 1.3rem; }
+body.is-phone-device .home-first-step-label,
+body.is-tablet-device .home-first-step-label { font-size: 1.45rem; }
+body.is-phone-device .home-first-step-title,
+body.is-tablet-device .home-first-step-title { font-size: 1.7rem; }
+body.is-phone-device .home-first-step-desc,
+body.is-tablet-device .home-first-step-desc { font-size: 1.5rem; }
+body.is-phone-device .home-first-step-badge,
+body.is-tablet-device .home-first-step-badge { font-size: 1.7rem; }
+body.is-phone-device .home-first-step-go,
+body.is-tablet-device .home-first-step-go { font-size: 1.7rem; padding: 0.6rem 1.3rem; }
+body.is-phone-device .home-first-step-close,
+body.is-tablet-device .home-first-step-close { font-size: 1.5rem; }
+
+/* タイルの名前は scrollHeight が clientHeight より2〜5px大きいと出るが、**これは元からで
+   私の変更のせいではない**——A/Bで確かめた（文字を元の1remに戻しても8個中8個で 21>19 と
+   出る。1.5remで61>58、1.8remで74>69＝倍率に比例するだけ）。行の高さの丸め誤差で、
+   見た目には出ていないので触らない。**「はみ出し」が出たらまず元の値でも出るか試す。** */
+
+/* 「ホーム画面に追加」の案内バー（ホーム画面の下。実測 本文6.1px／ボタン6.1px／あとで5.8px）。 */
+body.is-phone-device .pwa-install-text,
+body.is-tablet-device .pwa-install-text { font-size: 1.55rem; }
+body.is-phone-device .pwa-install-add,
+body.is-tablet-device .pwa-install-add { font-size: 1.6rem; padding: 0.6rem 1.2rem; }
+body.is-phone-device .pwa-install-later,
+body.is-tablet-device .pwa-install-later { font-size: 1.45rem; padding: 0.5rem 0.8rem; }
 
 /* ── マイページ: 名前の上のお気に入り称号（続き317）────────────────────────
    ユーザー要望「マイページの称号はもうスペースがないので名前の上を称号にしませんか？
