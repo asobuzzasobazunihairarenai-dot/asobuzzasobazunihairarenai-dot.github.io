@@ -2375,7 +2375,11 @@ export async function startGame(gameId, { includeBlackWhite = false, timerEnable
 const REMATCH_FRESH_MS = 70000;
 
 export async function setRematchReady(ready) {
-  if (!currentGameId || !currentSeat) return;
+  if (!currentGameId || !currentSeat) {
+    logAction("diag-rematch-ready-skipped", { hasGame: !!currentGameId, seat: currentSeat ?? null });
+    return;
+  }
+  logAction("diag-rematch-ready", { seat: currentSeat, ready });
   const { error } = await client
     .from("so7_game_seats")
     .update({ rematch_ready: ready })
@@ -2401,9 +2405,35 @@ async function checkRematchReadiness(gameId) {
 // 座席のクライアントだけが実行する決定的なタイブレークにしてある）。戻り値は
 // 「このクライアントが再開を実行したか」（呼び出し元が待機UIを閉じる判断に使う
 // 必要は無い——実際に再開したかどうかはgetState()の変化で全クライアントが検知する）。
+// 【続き581】「もう一度遊ぶ」の待ち状況を画面に出すための読み取り口。
+// #406「もう一回っておしても次のゲームがはじまらない」は、**1人でも押さない人がいると
+// 永久に始まらない**仕組みなのに、画面が「他の参加者を待っています…」としか言わず、
+// **誰を待っているのかが分からなかった**のが実害だった（報告のログにも rematch の記録が
+// 1行も無く、押したかどうかすら後から分からなかった）。
+export async function getRematchWaitInfo(gameId) {
+  try {
+    const { allReady, freshSeats } = await checkRematchReadiness(gameId);
+    return {
+      allReady,
+      ready: freshSeats.filter((s) => s.rematch_ready).map((s) => s.seat),
+      waiting: freshSeats.filter((s) => !s.rematch_ready).map((s) => s.seat),
+      total: freshSeats.length,
+    };
+  } catch (err) {
+    return null; // 通信が一時的に失敗しても待機表示を壊さない
+  }
+}
+
 export async function maybeTriggerRematch(gameId) {
   const { allReady, freshSeats } = await checkRematchReadiness(gameId);
-  if (!allReady) return false;
+  if (!allReady) {
+    logAction("diag-rematch-waiting", {
+      ready: freshSeats.filter((s) => s.rematch_ready).map((s) => s.seat),
+      waiting: freshSeats.filter((s) => !s.rematch_ready).map((s) => s.seat),
+      total: freshSeats.length,
+    });
+    return false;
+  }
   const triggerSeat = freshSeats.map((s) => s.seat).sort()[0];
   if (getSelfSeat() !== triggerSeat) return false;
   // ユーザー報告（続き102）「疑似CPUモードが適用されない」の調査で判明した別の穴:

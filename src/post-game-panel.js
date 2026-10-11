@@ -30,6 +30,7 @@ import {
   broadcastMatchComment,
   setRematchReady,
   maybeTriggerRematch,
+  getRematchWaitInfo,
   leaveGame,
   getSyncedIdentity,
 } from "./online.js";
@@ -231,7 +232,25 @@ function buildButtonsSection(gameId) {
       console.error("setRematchReady failed", err);
     }
     stopPolling();
+    // 【続き581】**誰を待っているのかを出す。** 仕組みは「生きている座席が全員押したら再開」
+    // なので、1人でも押さない人がいると永久に始まらない。以前は「他の参加者を待っています…」
+    // としか出ず、待っている側は壊れているとしか思えなかった（#406）。
+    const refreshWaiting = async () => {
+      const info = await getRematchWaitInfo(gameId);
+      if (!info || info.allReady) return;
+      const name = (seat) => getSyncedIdentity(seat)?.name || t("game.seat", { seat }) || seat;
+      waitingLabel.textContent =
+        info.waiting.length > 0
+          ? t("postgamepanel.waitingFor", {
+              names: info.waiting.map(name).join("・"),
+              ready: info.ready.length,
+              total: info.total,
+            })
+          : t("postgamepanel.L181");
+    };
+    void refreshWaiting();
     pollTimerId = setInterval(() => {
+      void refreshWaiting();
       maybeTriggerRematch(gameId).catch((err) => console.error("maybeTriggerRematch failed", err));
     }, 3000);
   });
