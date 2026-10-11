@@ -20812,9 +20812,9 @@ body.is-tablet-device #help-panel .modal-close-x {
    実測: 「次にやること」5.4px／説明6.0px／NEW 6.9px／✕6.6px／「ホーム」6.9px／
    「対戦する」7.3px／タイルの名前7.6px。 */
 body.is-phone-device #home-screen-subtitle,
-body.is-tablet-device #home-screen-subtitle { font-size: 1.6rem; }
+body.is-tablet-device #home-screen-subtitle { font-size: 1.4rem; margin: 0; }
 body.is-phone-device .home-screen-tile-label,
-body.is-tablet-device .home-screen-tile-label { font-size: 1.8rem; }
+body.is-tablet-device .home-screen-tile-label { font-size: 1.55rem; }
 body.is-phone-device .home-screen-tile-badge,
 body.is-tablet-device .home-screen-tile-badge { font-size: 1.5rem; }
 /* NEW のバッジは実効倍率0.54（タイルが少し拡大されている）のでこの値で約12px。 */
@@ -20827,9 +20827,9 @@ body.is-tablet-device .home-screen-tile-notify-badge { font-size: 1.3rem; }
 body.is-phone-device .home-first-step-label,
 body.is-tablet-device .home-first-step-label { font-size: 1.45rem; }
 body.is-phone-device .home-first-step-title,
-body.is-tablet-device .home-first-step-title { font-size: 1.7rem; }
+body.is-tablet-device .home-first-step-title { font-size: 1.55rem; }
 body.is-phone-device .home-first-step-desc,
-body.is-tablet-device .home-first-step-desc { font-size: 1.5rem; }
+body.is-tablet-device .home-first-step-desc { font-size: 1.45rem; }
 body.is-phone-device .home-first-step-badge,
 body.is-tablet-device .home-first-step-badge { font-size: 1.7rem; }
 body.is-phone-device .home-first-step-go,
@@ -20889,6 +20889,69 @@ body.is-tablet-device #my-page-panel {
 body.is-phone-device .my-page-panel-title,
 body.is-tablet-device .my-page-panel-title {
   font-size: 1.6rem;
+}
+
+/* 【続き578・2026-10-11】#402「ホーム画面がスクロールするようになっちゃった、多分文字
+   大きくした影響です」。そのとおりで、続き576 で文字を大きくした分だけ縦に伸びた
+   （A/B実測: 中身の高さ 930→1054。見える高さは900なので、はみ出しが30→154に）。
+   **文字は戻さず、縦の余白を削って収める**——読みやすさを守るのが目的なので、
+   そこを戻したら元の木阿弥になる。 */
+
+/* いちばん膨らんだのは「ホーム画面に追加」の案内バー（39→103px）。文字を大きくしたら
+   折り返して3行になっていた。1行に収まる大きさに抑え、余白も詰める。 */
+body.is-phone-device #pwa-install-banner,
+body.is-tablet-device #pwa-install-banner {
+  padding: 0.35rem 0.8rem;
+  gap: 0.25rem 0.5rem;
+  /* `flex-wrap: nowrap` は**逆効果**だった——文字の箱が細くなって何行にも折り返し、
+     バーの高さが 179→275（ステージpx）に増えた。折り返しは許したまま字を抑える。 */
+}
+body.is-phone-device .pwa-install-text,
+body.is-tablet-device .pwa-install-text { font-size: 1.4rem; }
+body.is-phone-device .pwa-install-add,
+body.is-tablet-device .pwa-install-add { font-size: 1.3rem; padding: 0.35rem 0.8rem; }
+body.is-phone-device .pwa-install-later,
+body.is-tablet-device .pwa-install-later { font-size: 1.3rem; padding: 0.25rem 0.5rem; }
+
+/* 画面の上下の余白とタイルの間隔を詰める（文字を大きくしたぶんをここで取り返す）。 */
+body.is-phone-device #home-screen,
+body.is-tablet-device #home-screen {
+  padding: 0.8rem 1rem;
+  gap: 0.2rem;
+}
+body.is-phone-device #home-screen-grid,
+body.is-tablet-device #home-screen-grid {
+  gap: 0.9rem 1.6rem;
+}
+body.is-phone-device .home-screen-tile,
+body.is-tablet-device .home-screen-tile {
+  gap: 0.2rem;
+  padding: 0.3rem;
+}
+/* タイルの絵を小さくする（2段あるので効きが大きい）。文字は11px以上を保ったまま少し抑える。 */
+body.is-phone-device #home-screen-grid,
+body.is-tablet-device #home-screen-grid {
+  --home-tile-icon-size: 4rem;
+}
+
+/* 【続き578】#403「こういった中央のモーダル、スマホだと文字小さいかも！」。
+   画面中央に出る効果の説明（main.js の showEffectReasonModal）。文字は名前0.75rem・
+   本文0.8rem で、幅も min(20rem, 80vw)＝実画面153pxしか無かった。 */
+body.is-phone-device .effect-reason-modal,
+body.is-tablet-device .effect-reason-modal {
+  width: min(60rem, 92vw);
+  padding: 1.2rem 1.6rem;
+  border-radius: 1rem;
+}
+body.is-phone-device .effect-reason-modal-name,
+body.is-tablet-device .effect-reason-modal-name {
+  font-size: 1.5rem;
+  margin-bottom: 0.6rem;
+}
+body.is-phone-device .effect-reason-modal-text,
+body.is-tablet-device .effect-reason-modal-text {
+  font-size: 1.6rem;
+  line-height: 1.6;
 }
 
 /* ── マイページ: 名前の上のお気に入り称号（続き317）────────────────────────

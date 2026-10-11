@@ -3056,6 +3056,23 @@ as $$
       select count(*) from so7_visit_log
        where created_at >= ((now() at time zone 'Asia/Tokyo')::date::timestamp at time zone 'Asia/Tokyo')
     ),
+    -- 【2026-10-11・続き578】試遊の入口（?trial）から来た今日の人数と訪問数。
+    -- 上の loginsToday は user_id is not null で数えるので、**登録せずに遊べる試遊の人は
+    -- 全員落ちる**（「今日 0人」のままに見える原因）。source は続き517 で入れた列で、
+    -- ?trial なら 'trial'、?trial=cf なら 'trial:cf' が入る。visitor_key は端末ごとの無作為な
+    -- 印（名前・メール・端末の情報とは結び付かない）。**返すのは数だけで、タグの内訳は返さない**
+    -- ——この関数は公開鍵で誰でも呼べるので、出す情報は必要最小限にする。
+    -- 「今日」の切り方は上の2つとまったく同じ日本時間0時。
+    'trialToday', (
+      select count(distinct visitor_key) from so7_visit_log
+       where source like 'trial%'
+         and created_at >= ((now() at time zone 'Asia/Tokyo')::date::timestamp at time zone 'Asia/Tokyo')
+    ),
+    'trialVisitsToday', (
+      select count(*) from so7_visit_log
+       where source like 'trial%'
+         and created_at >= ((now() at time zone 'Asia/Tokyo')::date::timestamp at time zone 'Asia/Tokyo')
+    ),
     'totalUsers', (select count(*) from so7_user_profiles)
   );
 $$;

@@ -62,6 +62,7 @@ export const CHANGELOG = [
       "スマホの文字が小さすぎた所をまとめて大きくしました",
       "ホーム画面とヘルプまわりの文字も読める大きさにしました",
       "マイページがスマホで読める大きさになりました",
+      "効果の説明が画面中央に大きく出るようになりました",
     ],
     summaryEn: [
       "A notice now appears while the language is being switched",
@@ -73,6 +74,7 @@ export const CHANGELOG = [
       "Text that was far too small on phones has been enlarged",
       "The home screen and surrounding text are now readable too",
       "My Page is now readable on a phone",
+      "Effect explanations now appear larger in the middle of the screen",
     ],
     items: [
       "言語を切り替えると**1秒前後かかる**ことがあり（初回はとくに）、押しても何も起きないように見えていました。押した直後に**「言語を切り替えています…」**と出して、終わると消えるようにしました。オープニングの左上のボタンからでも、⚙オプションの言語選択からでも出ます。",
@@ -84,6 +86,7 @@ export const CHANGELOG = [
       "スマホ・タブレットで**文字が小さすぎた所をまとめて大きく**しました。直したのは、**お知らせ／更新情報**（全体。見出し・日付・本文・「詳細」・「戻る」）、**サウンドの初回設定**、**オープニングの物語の文章**、**対局中の表示**（ターン／ラウンド、手札の枚数、自分の名前、「自分のターンです」、アイコンの下の文字、自動送りのON/OFF）、**「今回のメンバー」**、**「スタートプレイヤー決定」**、**オープニングの言語の切り替え**、**モーダルを閉じる✕**です。押しやすさも一緒に上げています（✕や「詳細」などの当たり判定を大きくしました）。パソコンの表示は変わりません。",
       "スマホ・タブレットで、**ホーム画面**（タイルの名前・「次にやること」・各バッジ・「ホーム画面に追加」の案内）と**マイページの着せ替えまわり**、**α版のお知らせ**の文字を読める大きさにしました。あわせて、前回の調整で**大きすぎになっていた所を元に戻しました**（ヘルプ・マイページの名前・フェイズ案内板の文字・自分の名前など。これらは元から十分な大きさでした）。パソコンの表示は変わりません。",
       "スマホ・タブレットで**マイページ**の文字が読める大きさになり、パネルも広くなりました（これまでは中の文字が実画面で6.5px、幅も画面の2割ほどしかありませんでした）。",
+      "スマホで、**カードの効果の説明が画面中央に出る小さな窓**が読める大きさになりました（文字が実画面で6px、窓の幅も画面の16%しかありませんでした）。",
     ],
     itemsEn: [
       "Switching the language can take about a second, especially the first time, and until now pressing the button looked as if nothing had happened. A notice reading \"switching language\" now appears immediately and disappears once the switch is done. It shows whether you use the button at the top left of the opening screen or the language selector in the options.",
@@ -95,16 +98,19 @@ export const CHANGELOG = [
       "Text that was far too small on phones and tablets has been enlarged across the app: the news and updates page in full, the first-run sound settings, the opening story text, the in-game readouts (turn and round, hand count, your name, whose turn it is, the icon labels, the auto-advance on/off badge), the match intro, the start-player announcement, the opening language switch, and the close buttons on dialogs. Tap targets grew with them. The desktop layout is unchanged.",
       "On phones and tablets the home screen (tile names, the next-step card, the badges and the add-to-home prompt), the cosmetics area of My Page and the alpha notice are now readable. At the same time, items that the previous pass had made too large were returned to their original size, because they were already big enough. The desktop layout is unchanged.",
       "My Page is now readable on phones and tablets, and the panel itself is wider. Until now its text rendered at about 6.5 real pixels and the panel used only a fifth of the screen width.",
+      "On phones, the small panel that explains a card effect in the middle of the screen is now readable. Its text rendered at about 6 real pixels and the panel used only a sixth of the screen width.",
     ],
     fixes: [
       "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
       "ログアウトしても、名前・アバター・物語の進み具合がその端末に残っていたのを直しました（アカウントには残るので、入り直せば戻ります）。",
       "ログインしていなくても（試遊のままでも）不具合報告を送れるようになりました。これまでは送信を押すと失敗していました。",
+      "ホーム画面が縦にスクロールするようになっていたのを直しました（文字を大きくした分、縦に伸びていました）。",
     ],
     fixesEn: [
       "Fixed the serious Eidos battle starting with the opponent lock area set up incorrectly when blank cards were enabled.",
       "Fixed your name, avatar and story progress staying on the device after you log out (they remain on your account, so logging back in restores them).",
       "You can now send a problem report without being signed in, including from the trial entry. Until now, pressing send simply failed.",
+      "Fixed the home screen having started to scroll vertically, which was a side effect of enlarging its text.",
     ],
     devItems: [
       "#391「本気のエイドスがノアールを2枚ロックでスタートしてます。正しいのはノワール1枚、その両側に誘惑の烙印を1枚ずつです」。**原因**: `APPLY_SEAT_NOIR` は「その辺のロックエリアにある `first-` で始まる札を全部ノワールに変える」作りだが、**ブースト（無色あり）はファーストの左右隣へ `first-blank-{色}` を置く**ので、**それらも一緒に変換されていた**。実測（本気エイドス戦の引数＋ブーストON）: `first-noir` が**3枚**（index 0・1・6）になり、さらに `noirIndex` が最後に見つかった札（index 1）になるので**烙印が間違った両隣**（0と2）に置かれ、index 0 では烙印とノワールが重なっていた。直し方は①**本物のファーストだけ**をノワールにする（`first-blank-` を先に除く）②ノワールの席のブースト札は**取り除く**（残すと烙印と重なるし、ユーザーの示した正しい形にならない）。7色勝利の数え方は変わらない（変換後はどれも placed＝数えない札だったため）。検証: ブーストON・OFF の両方で**ノワール1枚＋両側に烙印1枚ずつ**（ONは index 2・3・4）。npm test 63/63 PASS、smoke PASS、例外0件。",
@@ -162,6 +168,12 @@ export const CHANGELOG = [
       "マイページは**パネルの大きさと文字サイズが `my-page.js` の inline style に書かれていた**ため CSS から上書きできなかった（`!important` を使わない限り）。`#my-page-panel` の見た目を **style.css へ移した**（PCの値は一字も変えていない）。`display: none` だけ inline に残す——開閉が `style.display` の書き換えで行われているため。中の行が持っていた `font-size: 0.85rem` はパネルと同じ値なので外して継承させた。",
       "**⚠ パネル全体の font-size を上げてはいけなかった（記録）**: スマホ用に `#my-page-panel { font-size: 1.6rem }` としたら、**中の「元から拡大されている部分」が巨大化した**（名前が実画面36.8px・説明が23px）。マイページは部分ごとに実効倍率が違う（0.478／0.726／0.899／1.438）ので、**継承で一括して上げると拡大済みの所が壊れる**。小さいのは拡大されていない題名だけだったので、そこだけクラスを付けて個別に上げた。結果 11px未満0種・22px超0種。",
       "**残っている問題（ユーザー判断待ち）**: マイページの「🎨 着せ替え」の見出しと「ランク戦の段位」の行が**スマホで重なっている**。**A/Bで確かめたところ、文字を元の大きさに戻しても重なりは出る**（元から2件、私の拡大で1件増えて3件）。元からこの辺りの配置が崩れているので、直すなら**この区画の並べ方そのものを作り直す**話になる（文字サイズの調整では解けない）。",
+      "**#402「ホーム画面がスクロールするようになっちゃった、多分文字大きくした影響です」——そのとおりだった。** A/B実測: 中身の高さ 930（見える高さ900＝はみ出し30）→ 続き576 の拡大後 **1054（はみ出し154）**。内訳（ステージpx）は 見出し38＋副題38＋「次にやること」171＋タイル668＋案内バー275で、**タイルが+147**と最大。**文字は小さく戻さず、縦の余白で取り返した**（読みやすくするのが目的なので、そこを戻したら元の木阿弥）: 画面の上下余白 2rem→0.8rem、タイルの間隔 1.6→0.9rem、タイルの絵 5.5→4rem、タイルの名前 1.8→1.55rem、「ホーム画面に追加」の案内バーの余白と文字。結果 **中身900／見える900＝はみ出し0・スクロールしない**。",
+      "**`flex-wrap: nowrap` は逆効果だった（記録）**: 案内バーを1行に収めようとして付けたら、**文字の箱が細くなって何行にも折り返し、179→275（ステージpx）に増えた**。折り返しは許したまま字を抑える形に戻した。**「1行にしたい」からといって nowrap を付けると、幅が足りない時は縦に伸びる。**",
+      "**#403「こういった中央のモーダル、スマホだと文字小さいかも！」**（画像つき）。`.effect-reason-modal`（main.js の showEffectReasonModal）で、名前0.75rem＝実画面5.7px・本文0.8rem＝6.1px・幅 min(20rem,80vw)＝**実画面153px**だった。幅 min(60rem,92vw)・名前1.5rem・本文1.6rem へ。実測 **410x80で画面内・名前11.5px・本文12.2px**。対局中にしか出ないモーダルなので、**同じクラスの箱を自分で作って測った**（CSSの効き方を見るのが目的なので十分）。",
+      "**#400「不具合ボタン横の全画面表示ボタンが消えてるけどなんでだっけ？」——不具合ではない。** `initFullscreenToggle` は `isFullscreenSupported()` が false の環境では**ボタンを作らない**（押しても何も起きないボタンを常設しないため）。**iPhone の Safari は Fullscreen API を持たない**ので、iPhoneでは元から出ない（PC・Androidでは出る）。iPhoneで全画面にする唯一の方法は**ホーム画面に追加して、そこから開く**こと（続き574 の案内モーダルがこれを案内している）。報告の画面の状態でも、押せるボタンの一覧に全画面が無いことを確認した。",
+      "**この報告は「今の画面の状態」（続き572）が初めて実戦で効いた回**。#400 と #402 に `screen2` が入っており、押せるボタンの一覧・覆いの一覧・ステージ倍率がそのまま読めた。**#400 は `?trial` から未ログインで届いており**（続き572 の SQL 変更が実際に効いていることの確認にもなった）、**#400 の画面は 932x320・ステージ倍率0.356**だった——**倍率0.478（932x430）で合わせた文字は、Safariのバーが出ている時は25%小さく見える**という材料も取れた。",
+      "**司令塔の依頼（ユーザー承認済み）**: `so7_public_counts()` に `trialToday` / `trialVisitsToday` を足した。`loginsToday` は `user_id is not null` で数えるので**登録せずに遊べる試遊の人が全員落ちていた**（「今日0人」の原因）。材料は `so7_visit_log.source`（続き517）。**返すのは数だけでタグの内訳は返さない**——この関数は公開鍵で誰でも呼べるので出す情報は最小限にする。「今日」の切り方は既存の2つと同じ日本時間0時。**`supabase_setup_so7.sql` の変更なので手動実行が必要。**",
     ],
     devItemsEn: [
       "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
@@ -219,6 +231,12 @@ export const CHANGELOG = [
       "My Page had its panel size and font size written as inline styles, which CSS cannot override, so the panel's appearance was moved into the stylesheet with its desktop values unchanged.",
       "Raising the panel's font size turned out to be wrong: parts of My Page are additionally transformed, so inheritance pushed those to 23-37 real pixels. Only the unscaled title needed its own rule.",
       "Still open for a decision: the cosmetics heading and the rank rows overlap on a phone, and an A/B confirmed the overlap exists at the original font sizes too, so fixing it means reworking that section's layout rather than adjusting text sizes.",
+      "The home screen had started to scroll because the previous pass enlarged its text; measured before and after, the content grew from 930 to 1054 against a 900 viewport. The space was reclaimed from vertical padding, tile spacing and the tile icon rather than by shrinking the text back, and the screen now fits exactly.",
+      "Setting the install banner to nowrap backfired: squeezing the text into a narrow box made it wrap onto more lines and grow taller.",
+      "The effect explanation panel shown in the middle of the screen was 6 real pixels of text in a panel a sixth of the screen wide; it is now 12 pixels in a panel that fits comfortably.",
+      "The missing full-screen button on iPhone is not a bug: iPhone Safari has no Fullscreen API, so the button is deliberately not created there, and adding the game to the home screen is the way to get full screen.",
+      "This round was the first real use of the screen snapshot feature: two reports carried it, one of them sent from the trial entry without a login, which also confirmed the database change works in the wild.",
+      "At the owner's approval, the public counts function now also returns the number of trial-entry visitors today, since the existing login count excludes anyone playing without an account.",
     ],
   },
   {
