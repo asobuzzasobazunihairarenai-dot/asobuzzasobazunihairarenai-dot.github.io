@@ -51,6 +51,47 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-12",
+    summary: [
+      "対戦が戦績システムに登録されないことがあったのを直しました",
+      "「もう一度遊ぶ」で、誰を待っているかが分かるようになりました",
+    ],
+    summaryEn: [
+      "Fixed matches sometimes not being recorded in the stats system",
+      "The rematch screen now tells you who it is waiting for",
+    ],
+    items: [
+      "**対戦の結果が戦績システムに登録されないこと**があったのを直しました。**勝った人がゲスト（戦績システムに登録していない人）だと、その対戦がまるごと記録されていませんでした**——勝った人だけでなく、**一緒に遊んだ全員のぶん**が消えていました。これからは記録され、勝者は「ゲスト」と表示されます。",
+      "オンラインで「もう一度遊ぶ」を押した後、**誰を待っているのかが名前で分かる**ようになりました（「○○さんを待っています（2/4人が準備OK）」）。この機能は**全員が押すと始まる**作りですが、これまでは「他の参加者を待っています…」としか出ず、1人が席を外しているだけでも**壊れているように見えていました**。",
+    ],
+    itemsEn: [
+      "Fixed match results sometimes not reaching the stats system. When the winner was a guest who is not registered there, the whole match was dropped, taking everyone else's record with it. Those matches are now kept, with the winner shown as a guest.",
+      "After tapping play again in an online room, the screen now names who it is still waiting for, with a count. It always needed everyone to tap it, but the old message said only that it was waiting, so one person stepping away looked like a breakage.",
+    ],
+    fixes: [
+      "カードの効果を処理している途中なのに、別の手札カードを使えてしまうことがあったのを直しました。",
+      "「盤面を見る」で覗いている間、カードにカーソルを合わせても拡大できなかったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed being able to play another hand card while a card effect was still being resolved.",
+      "Fixed card previews not appearing while peeking at the board from a selection dialog.",
+    ],
+    devItems: [
+      "**戦績に登録されない件の原因**（#405/#406 のログから確定）: `null value in column \"winner_id\" of relation \"matches\" violates not-null constraint`。勝者が戦績システム未登録（ゲスト）だと `winner_id` が null になるが、姉妹プロジェクト側が **not null** だったため insert が例外になり、**参加者全員ぶんの記録が消えていた**。コードのコメントは「nullのまま記録する」と書いてあった＝**実際のスキーマで試していなかった**。実データでも 10/11 夜に `matches` へ入ったデジタル版の試合は**1件だけ**で、21:58 の4人戦は保険の経路（20秒後の再試行）ごと失敗していた。**教訓: 別プロジェクトのテーブルへ書く時は、相手の列の not null / 型を実物で確かめる。**",
+      "直しは `alter table matches alter column winner_id drop not null;`（ユーザーが実行）。**行を1つも作らない方法で効いたことを確認した**——`winner_id` を null、かつ `date`（not null・既定なし）をわざと欠けさせて送り、返るエラーが `winner_id` から `date` に変わることを見た。あわせて**姉妹プロジェクト側も直した**（別リポジトリ BATTLE-log。`supabase_setup.sql` の記述を実物に合わせ、勝者が引けない時の表示を「不明」→「ゲスト」に4か所。勝敗数の集計は winnerId の一致で数えるので null は「誰の勝ちでもない」と扱われて狂わない）。",
+      "**#406「もう一回を押しても次のゲームがはじまらない」**: 報告のログ802行に **rematch の記録が1行も無く**、押したかどうかすら分からなかった。仕組みは「生きている座席が全員押したら再開」なので1人でも押さないと永久に始まらないのに、画面は「他の参加者を待っています…」だけ。**仕組みは変えず**、誰を待っているかを名前と人数で出し、同じ内容を `diag-rematch-waiting`／押した事実を `diag-rematch-ready` に残すようにした。**推測で仕組み（人数で見切る等）を変えると別の壊れ方をする**ので、次の報告で誰が押していないかが分かる状態にしてから判断する。",
+      "**合同建設の途中で別のカードを使えた件**: 手札を場へ出して効果を使ってよいかの判定が `isHandPhaseActive() || (usableAnytime && !isAnyEffectProcessingBusy())` で、**ハンドフェイズ側だけ「いま別の効果を処理中か」を見ていなかった**。合同建設は自分のハンドフェイズで使うので、解決の最中（マス選択・山札/手札の選択）もハンドフェイズのまま＝別のカードを出せてしまった。`(isHandPhaseActive() || usableAnytime) && !isAnyEffectProcessingBusy()` に直した。`isAnyEffectProcessingBusy()` には候補の選択待ち（activeEffectPicker）も含まれるので「選択を待っている間は他のカードを使えない」が自然に成立する。候補として手札を選ぶ操作は別経路なので塞がらない（スモークで通常のカード使用が壊れていないことも確認）。",
+      "**「盤面を見る」中にホバー拡大が効かない件**: あの機能は**覆いを残したまま透明にする**作り（続き546。盤面を触らせないため）だが、ホバーの入口 `updateHover` が「返事待ちの覆いが出ていたら何もしない」（#317）なので**覗いている間はホバーも死んでいた**。覗いている間だけ `body.so7-peeking-board` を付け、**ホバーの判定だけ**通すようにした。**A/Bで確認**——覆いあり＝拡大出ない／覗き中＝**拡大が出る**／覗き中でも覆いは手前にあり**掴めない**まま。",
+    ],
+    devItemsEn: [
+      "The stats failure was a not-null violation on the winner column: a guest winner produced a null and the insert threw, dropping the whole match for every participant. The comment in the code claimed null was acceptable, which had never been tested against the real schema.",
+      "The column was made nullable, verified without creating any row by sending a payload that fails on a different column instead, and the sister project was updated to match and to show a guest winner rather than unknown.",
+      "The rematch report contained no rematch log lines at all, so the fix was to surface who is being waited for and to log it, rather than to guess at changing the rule that everyone must tap it.",
+      "Playing another hand card mid-effect was possible because the hand-phase branch of the timing check never looked at whether an effect was already being resolved.",
+      "Peeking at the board keeps the modal backdrop in place to block taps, which also disabled hover previews; hover alone is now allowed while peeking, verified by A/B that taps remain blocked.",
+    ],
+  },
+  {
     date: "2026-10-11",
     summary: [
       "言語を切り替えている間、「切り替えています」と出るようになりました",

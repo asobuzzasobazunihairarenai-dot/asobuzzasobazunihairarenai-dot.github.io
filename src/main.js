@@ -7373,6 +7373,7 @@ function attachPeekBoardButton(modal, backdrop) {
   const dimmed = backdrop ? backdrop.style.background : null;
   const restore = () => {
     modal.classList.remove("is-peeking");
+    document.body.classList.remove("so7-peeking-board");
     if (backdrop) backdrop.style.background = dimmed;
     returnBtn?.remove();
     returnBtn = null;
@@ -7384,6 +7385,9 @@ function attachPeekBoardButton(modal, backdrop) {
   button.addEventListener("click", () => {
     if (returnBtn) return; // 二重に押されても増やさない
     modal.classList.add("is-peeking");
+    // 【続き582】覗いている間だけ、ホバー（カードの拡大）を通すための印。
+    // 覆い自体は残す（＝タップ・ドラッグは止めたまま）。updateHover 参照。
+    document.body.classList.add("so7-peeking-board");
     if (backdrop) backdrop.style.background = "transparent";
     returnBtn = document.createElement("button");
     returnBtn.type = "button";
@@ -13723,7 +13727,13 @@ function showAllPieceNameBubbles() {
 function updateHover(clientX, clientY) {
   // 【#317】盤面の手前に別の画面（全画面ページ・基本設定パネル・返事待ちモーダル）が
   // 出ている間は、盤面のホバー/拡大プレビューを出さない。
-  if (isBoardCoveredByOtherScreen() || isBlockingBackdropVisible()) {
+  // 【続き582】ただし「盤面を見る」で覗いている間は**ホバーだけ通す**。あれは覆いを残した
+  // まま透明にする作りなので、ここで一律に止めるとカードを拡大して確かめられない
+  // （ユーザー報告2026-10-12「盤面を見るボタンで見てる時にホバーのカード拡大が効かない」）。
+  // タップ・ドラッグは findDraggableAt が .so7-modal-backdrop を見て止め続けるので、
+  // 「見るだけ」は保たれる。
+  const peeking = document.body.classList.contains("so7-peeking-board");
+  if (!peeking && (isBoardCoveredByOtherScreen() || isBlockingBackdropVisible())) {
     clearHover();
     updatePreview(null);
     hideAllPieceNameBubbles();
@@ -15652,7 +15662,16 @@ async function onDragEnd(e) {
       COLORS[dropTarget.index] === cardColor; // ロックフェイズに一致色スロットへだけ許可
     const isEternalOrFirst = cardId?.startsWith("eternal-") || cardId?.startsWith("first-");
     const usableAnytime = cardId ? isHandEffectUsableAnytime(cardId) : false;
-    const effectTimingOK = isHandPhaseActive() || (usableAnytime && !isAnyEffectProcessingBusy());
+    // 【続き582】**効果の処理中は、ハンドフェイズでも別のカードを使えないようにする。**
+    // 以前は `isHandPhaseActive() || (usableAnytime && !busy)` で、ハンドフェイズ側だけ
+    // 「処理中か」を見ていなかった。合同建設のように**自分のハンドフェイズで使う効果**は、
+    // 解決の最中（マス選択・山札/手札の選択）もハンドフェイズのままなので、その間に別の
+    // 手札を場へ出せてしまっていた（ユーザー報告2026-10-12）。
+    // `isAnyEffectProcessingBusy()` には activeEffectPicker（候補の選択待ち）も含まれるので、
+    // 「選択を待っている間は他のカードを使えない」が自然に成立する。候補として手札を選ぶ
+    // 操作自体は別経路（pointerdown の capture で activeEffectPicker を解決する）なので、
+    // ここを閉じても選べなくなることはない。
+    const effectTimingOK = (isHandPhaseActive() || usableAnytime) && !isAnyEffectProcessingBusy();
     const toBoardForEffect =
       dropTarget.zone !== "hand" &&
       dropTarget.zone !== "lock" &&
