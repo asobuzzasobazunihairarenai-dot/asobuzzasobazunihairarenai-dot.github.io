@@ -83,10 +83,12 @@ export const CHANGELOG = [
     fixes: [
       "本気のエイドス戦を「無色あり」で始めると、相手のロックエリアが正しくない形で始まっていたのを直しました。",
       "ログアウトしても、名前・アバター・物語の進み具合がその端末に残っていたのを直しました（アカウントには残るので、入り直せば戻ります）。",
+      "ログインしていなくても（試遊のままでも）不具合報告を送れるようになりました。これまでは送信を押すと失敗していました。",
     ],
     fixesEn: [
       "Fixed the serious Eidos battle starting with the opponent lock area set up incorrectly when blank cards were enabled.",
       "Fixed your name, avatar and story progress staying on the device after you log out (they remain on your account, so logging back in restores them).",
+      "You can now send a problem report without being signed in, including from the trial entry. Until now, pressing send simply failed.",
     ],
     devItems: [
       "#391「本気のエイドスがノアールを2枚ロックでスタートしてます。正しいのはノワール1枚、その両側に誘惑の烙印を1枚ずつです」。**原因**: `APPLY_SEAT_NOIR` は「その辺のロックエリアにある `first-` で始まる札を全部ノワールに変える」作りだが、**ブースト（無色あり）はファーストの左右隣へ `first-blank-{色}` を置く**ので、**それらも一緒に変換されていた**。実測（本気エイドス戦の引数＋ブーストON）: `first-noir` が**3枚**（index 0・1・6）になり、さらに `noirIndex` が最後に見つかった札（index 1）になるので**烙印が間違った両隣**（0と2）に置かれ、index 0 では烙印とノワールが重なっていた。直し方は①**本物のファーストだけ**をノワールにする（`first-blank-` を先に除く）②ノワールの席のブースト札は**取り除く**（残すと烙印と重なるし、ユーザーの示した正しい形にならない）。7色勝利の数え方は変わらない（変換後はどれも placed＝数えない札だったため）。検証: ブーストON・OFF の両方で**ノワール1枚＋両側に烙印1枚ずつ**（ONは index 2・3・4）。npm test 63/63 PASS、smoke PASS、例外0件。",
@@ -112,6 +114,9 @@ export const CHANGELOG = [
       "検証（前後を同じ回で測るのでそのままA/B）: ログアウト前＝名前「テスト太郎」・アバター赤・本気解放済み true・3つのキーすべて在り → ログアウト後＝名前「プレイヤーA」（既定）・アバター protagonist（既定）・本気解放済み false・**3つのキーすべて null**・**端末の好みのキーは \"1\" のまま残っている**。例外0件。",
       "試遊パネルのログイン状態は、**実際のアカウントを作らずに**確かめた（HTTP の途中で `getCachedUser()` の戻り値だけ差し替え、リポジトリのコードは無改変）。未ログイン＝行は非表示・ボタンは「ログインしてすべてを使う」／ログイン中＝行が 321x37・実画面11.5px で出て（スマホの拡大規則にも入れた＝続き566 の再発防止）・ボタンは「アカウントの画面を開く」。メールは `getAccountDisplayLabel` が伏せた形で出る（ブースでも困らない）。",
       "**正直な限界**: 実際にログイン中に `?trial` を開くと、`maybeAutoAdvanceForLoggedInUser` が先にログインカードを出す（「ログイン中（○○）」と書かれている）ので、試遊パネルのこの行は**✕でカードを閉じて戻った時**に見えるものになる。パネル側に無かった情報を足した、という位置づけ。",
+      "**試遊（ログイン無し）から不具合報告が送れなかったのを直した。** `so7_bug_reports` の INSERT ポリシーが `to authenticated` だけだったので、ログインを一切しない試遊の入口（?trial。trial-entry.js は URL を見るだけで認証に触らない）から送ると RLS に弾かれ「送信に失敗しました」としか出なかった。**10/17 のクラファンから来る人はまさにこの経路**なので、不具合に当たっても1件も届かない状態だった。`to anon, authenticated` に広げた（訪問記録 so7_visit_log は元から anon に開いている＝前例あり）。トレードオフは承知の上で開ける側に倒した——SELECTポリシーは無いので**書いた本人にも読めない**（情報は漏れない）／溜まっても管理者ダッシュボードの「全部対処済みにする」で畳める／戻すのは1語。**届かない方が痛い。**",
+      "**効いたかどうかは「行を1つも作らない形」で確かめた。** わざと必ず失敗する中身を送り、返るエラーの種類で判定する——`42501`（ポリシーに弾かれた）／`23502`（ポリシーは通り、本文が空という別の理由で失敗）／`permission denied for table`（テーブルへの権限自体が無い＝GRANTの問題）。**RLS は NOT NULL より先に評価される**ことを、両方おかしい中身を送って目盛り合わせしてから読んだ。結果: 広げる前は ③が 42501 → 広げた後は **③が 23502**（＝ログイン無しの行がポリシーを通った）。①偽のIDは前後とも 42501 のままで、**何でも通る状態にはなっていない**ことも確認。",
+      "**⚠ 私の手順ミス（記録）**: SQLを直して push したあと「全文を貼って実行してください」とだけ案内したが、**ユーザーが開く作業フォルダのファイルは worktree のものではなく main checkout のもので、push では更新されない**。1回目の実行は古いファイルで、何も変わっていなかった（上の検証で気づけた）。**SQLの実行を依頼する時は、変更した本文そのものをメッセージのコードブロックに貼る**（古いファイルを開かれても事故らない）。全文を案内するなら、先にユーザー側のファイルにその変更が入っているかを `grep` で確かめる。",
     ],
     devItemsEn: [
       "#391: the serious Eidos battle started with the wrong lock area when blank boost cards were on. APPLY_SEAT_NOIR converts every card whose id starts with first- in that seat lock area into the noir card, and boost mode places first-blank-colour cards either side of the real first card, so those were converted too. Measured with the story-battle arguments and boost on, there were three noir cards at indices 0, 1 and 6, and because noirIndex ended up as the last one found, the two brands were placed around the wrong slot, leaving a brand stacked on a noir at index 0. The fix converts only the real first card, excluding first-blank-, and removes the boost blanks from that seat, which is what the owner described as correct. Seven-colour counting is unaffected, since all of those cards were placed markers that are not counted. Verified with boost both on and off: one noir with one brand on each side.",
@@ -137,6 +142,9 @@ export const CHANGELOG = [
       "Verified before and after in the same run: the stored name, avatar and progress were in effect, then all three keys were gone and the values fell back to defaults, while a device preference key survived untouched.",
       "The signed-in state of the trial panel was verified without creating a real account, by substituting only the cached-user getter at the HTTP layer and leaving the repository code untouched.",
       "An honest limit: when actually signed in, the login card appears first, so this new line is what you see after dismissing that card and returning to the trial panel.",
+      "Reports can now be sent without signing in. The insert policy only allowed signed-in users, so the trial entry — which never authenticates, and is exactly the route crowdfunding visitors take — could not report anything. The policy was widened to anonymous as well, matching the visit log. The table still has no select policy, so nothing became readable.",
+      "Whether it took effect was verified without creating a single row, by sending deliberately invalid payloads and reading the error codes, after first calibrating that row-level security is evaluated before not-null constraints. Before the change an anonymous row was rejected by the policy; afterwards it got as far as the empty-body error, while a row with a forged user id is still rejected.",
+      "A process mistake of mine: after committing the SQL change, the instruction to paste the whole file was wrong, because the file the owner opens lives in the main checkout and a push does not update it. The first run used the old file and changed nothing. Future SQL requests should include the changed statements inline.",
     ],
   },
   {
