@@ -13,6 +13,10 @@ import { getState } from "./state.js";
 import { isOnlineMode, getSelfSeat, isSpectatingGame } from "./online.js";
 import { getPlayerName } from "./player-identity.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ6
+import { getCardImagePath } from "./cards-data.js";
+
+// 紫のキューブ「ゴメンナサイッ！」のカードID（ボタンに実物の絵を出すのに使う）。
+const GOMENNASAI_CARD_ID = "purple-sorry";
 
 let bannerEl = null;
 let respondHandler = null;
@@ -160,10 +164,23 @@ export function updateFinalLockApprovalBanner() {
     // （続き64）。使うと相手が既に持っているロック1枚を奪ってから、相手の新しい
     // ロック自体は承認したのと同じ扱いで進む（card-effects.jsのpurple-sorryコメント
     // 参照）。
+    // 【2026-10-12】ユーザー報告「承認＝緑／ゴメンナサイ＝赤で押し間違えた」。赤は
+    // 「やめる・キャンセル」に見えるのに、ここでは**ゴメンナサイの方が能動的な選択**なので
+    // 読み違える。**色を入れ替えるのではなく**（入れ替えると今度は逆向きに誤読される）、
+    // ゴメンナサイ側に**実際のカードそのもの**を出して「このカードを使う」と分かるようにし、
+    // 承認側からは色を抜く（ユーザー了承済みの案）。
     const gomennasaiBtn = document.createElement("button");
-    gomennasaiBtn.className = "final-lock-approval-reject";
+    gomennasaiBtn.className = "final-lock-approval-reject final-lock-approval-gomennasai";
     gomennasaiBtn.type = "button";
-    gomennasaiBtn.textContent = t("game.finalLock.useGomennasai");
+    const gomennasaiImg = document.createElement("img");
+    gomennasaiImg.className = "final-lock-approval-gomennasai-card";
+    gomennasaiImg.src = getCardImagePath(GOMENNASAI_CARD_ID);
+    gomennasaiImg.alt = "";
+    gomennasaiImg.draggable = false;
+    gomennasaiBtn.appendChild(gomennasaiImg);
+    const gomennasaiLabel = document.createElement("span");
+    gomennasaiLabel.textContent = t("game.finalLock.useGomennasaiCard");
+    gomennasaiBtn.appendChild(gomennasaiLabel);
     gomennasaiBtn.addEventListener("click", () => useGomennasaiHandler?.());
     buttons.appendChild(gomennasaiBtn);
     bannerEl.appendChild(buttons);

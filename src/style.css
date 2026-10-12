@@ -10230,6 +10230,51 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   background: rgba(153, 27, 27, 0.95);
 }
 
+/* 【2026-10-12】ユーザー報告「最後のロックの承認で、承認＝緑／ゴメンナサイ＝赤だったので
+   押し間違えた」。赤は「やめる・キャンセル」に見えるのに、ここでは**ゴメンナサイの方が
+   能動的な選択**なので読み違える。**色を入れ替えない**（入れ替えると今度は逆向きに誤読される）。
+   ゴメンナサイ側に**実際のカードそのもの**を出し、承認側からは色を抜く（ユーザー了承済み）。
+   🔴 `.final-lock-approval-approve` / `-reject` は**他のバナーでも流用されている**
+   （タイマーのオン/オフ・自動処理のオン/オフ・接触の承認）ので、**必ずこのバナーの中だけ**に
+   効くよう `#final-lock-approval-banner` で囲う。囲わないと、関係ないバナーの「いいえ」まで
+   色が変わる。 */
+#final-lock-approval-banner .final-lock-approval-approve {
+  background: rgba(148, 163, 184, 0.22);
+  /* 🔴 文字色を決め打ちしない（教訓15）。このバナーは明るいテーマだとアイボリー地に変わるので、
+     白っぽい色のままだと**明るいテーマで文字が消える**（実際にそうなった＝撮って気づいた）。
+     ⚠ `color` を書かないだけでは足りない——共通の `.final-lock-approval-approve` が
+     `#f0fdf4`（ほぼ白）を当てており、それは緑地の上でだけ成り立つ色だった。明示的に
+     `inherit` にして、バナー自身が両テーマで持っている文字色を継ぐ。 */
+  color: inherit;
+  border-color: currentColor;
+  opacity: 0.85;
+}
+#final-lock-approval-banner .final-lock-approval-approve:hover {
+  background: rgba(148, 163, 184, 0.36);
+}
+#final-lock-approval-banner .final-lock-approval-gomennasai {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(88, 28, 135, 0.55);
+  color: #f5e8ff;
+  border-color: var(--color-purple, #a855f7);
+  padding: 0.3rem 0.8rem 0.3rem 0.35rem;
+}
+#final-lock-approval-banner .final-lock-approval-gomennasai:hover {
+  background: rgba(88, 28, 135, 0.82);
+}
+/* このゲームのカードは正方形（物理のカードがそうなので）。 */
+.final-lock-approval-gomennasai-card {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  border-radius: 0.2rem;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 0 0.4rem rgba(168, 85, 247, 0.75);
+}
+
 /* 「タイマーをオン、オフ」ボタン（src/timer-toggle.js、続き64）。
    ユーザー要望（続き68）「常時表示ではなく、基本時間アイコンを押すとひょこっと出てくる
    仕様にしたい」への対応で、#phase-guide-bar内に常設する横並びボタンから、基本時間

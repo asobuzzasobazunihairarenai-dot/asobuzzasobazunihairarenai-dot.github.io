@@ -1938,6 +1938,7 @@ const UI = {
     "game.finalLock.waiting": "{name} さんの承認を待っています…",
     "game.finalLock.approve": "✅ 承認する",
     "game.finalLock.useGomennasai": "🍬 ゴメンナサイを使う",
+    "game.finalLock.useGomennasaiCard": "このカードを使う",
     // ゲート侵攻の演出（gate-invasion-modal.js）
     "game.gate.title": "相手ゲート侵攻ボーナス",
     "game.gate.skip": "スキップ",
@@ -3874,6 +3875,7 @@ const UI = {
     "game.finalLock.waiting": "Waiting for {name} to approve…",
     "game.finalLock.approve": "✅ Approve",
     "game.finalLock.useGomennasai": "🍬 Use So Sorry!",
+    "game.finalLock.useGomennasaiCard": "Play this card",
     "game.gate.title": "Gate Invasion Bonus",
     "game.gate.skip": "Skip",
     "game.gate.hiddenNote": "+{n} hidden card(s)",

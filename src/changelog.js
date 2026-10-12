@@ -58,6 +58,7 @@ export const CHANGELOG = [
       "サマリー（早見表）をゲーム中に開けるようになりました",
       "ホーム画面とマイページの文字の大きさを、前の見え方に戻しました",
       "「相手のターンです」が「○○のターンです」と名前で出るようになりました",
+      "最後のロックの承認で、ゴメンナサイのボタンに実物のカードが出るようになりました",
     ],
     summaryEn: [
       "Fixed matches sometimes not being recorded in the stats system",
@@ -65,6 +66,7 @@ export const CHANGELOG = [
       "The quick reference sheet can now be opened during a game",
       "Home and My Page are back to their previous text sizes on phones",
       "The turn banner now names whose turn it is, instead of saying “your opponent”",
+      "The final-lock approval now shows the actual So Sorry! card on its button",
     ],
     items: [
       "**対戦の結果が戦績システムに登録されないこと**があったのを直しました。**勝った人がゲスト（戦績システムに登録していない人）だと、その対戦がまるごと記録されていませんでした**——勝った人だけでなく、**一緒に遊んだ全員のぶん**が消えていました。これからは記録され、勝者は「ゲスト」と表示されます。",
@@ -72,6 +74,7 @@ export const CHANGELOG = [
       "右下の「自動送り」の左隣に**📋 サマリー**のボタンが付きました。実物に入っている**早見表**を、遊びながらそのまま見られます（**表**＝自分のターンの流れ・勝利条件・移動と接触／**裏**＝覚えておきたい原則・相手ゲート侵攻のボーナス）。タブか画像を押すと表／裏が切り替わります。",
       "スマホの**ホーム画面とマイページ**の文字の大きさを、**1つ前の見え方に戻しました**。昨日まとめて大きくしたのですが、「する前のがよかった」というご指摘をいただいたので戻しています。あわせて、大きくしたぶんを収めるために狭めていた**余白・タイルの間隔・絵の大きさも元の値に戻りました**。ほかの画面（お知らせ、サウンドの初回設定、物語、対局中の表示、不具合報告、効果の説明など）の文字は大きいままです。",
       "画面の右下の**ターン表示が名前で出る**ようになりました。これまでは誰の番でも「**相手のターンです**」で、4人で遊んでいると**3人のうち誰の番なのか分からなかった**ところです。これからは「**つづさんのターンです**」のように出ます。**優先権**の一行（効果の処理中などに添えられるもの）も同じく「優先権は**○○**にあります」と名前で出ます。",
+      "相手が**最後のロック**を宣言した時の承認の画面で、**ゴメンナサイのボタンに実物のカードが出る**ようになりました。これまでは「承認する」が**緑**・「ゴメンナサイを使う」が**赤**で、赤が「やめる・キャンセル」に見えて**押し間違いが起きていました**。**色を入れ替えるのではなく**（入れ替えても、今度は逆向きに読み違えるだけなので）、使う方に**カードそのもの**を出して「このカードを使う」と分かるようにし、承認する方からは色を抜きました。",
     ],
     itemsEn: [
       "Fixed match results sometimes not reaching the stats system. When the winner was a guest who is not registered there, the whole match was dropped, taking everyone else's record with it. Those matches are now kept, with the winner shown as a guest.",
@@ -79,6 +82,7 @@ export const CHANGELOG = [
       "A quick reference button now sits next to the auto-advance button at the bottom right. It opens the reference sheet that comes with the physical game: the front covers your turn, the victory condition and moving versus contact, and the back covers the standing principles and the gate invasion bonus. Tap a tab or the sheet itself to flip it.",
       "The text sizes on the phone home screen and My Page are back to how they looked before yesterday's change, following your feedback that the earlier look was better. The padding, tile spacing and icon sizes that had been tightened to make room for the larger text are back to their original values as well. Every other screen keeps its larger text.",
       "The turn banner at the bottom right now names the player whose turn it is. It used to say only that it was your opponent's turn, which told you nothing in a four-player game. The priority note that appears alongside it during effect resolution now names the player too.",
+      "A card is easier to recognise by its own art than by the colour of a button, so the approval banner for a final lock now shows the actual So Sorry! card on the button that plays it, and the approve button no longer competes for attention with a green fill. The colours were not swapped, because swapping them would only move the misreading to the other side.",
     ],
     fixes: [
       "カードの効果を処理している途中なのに、別の手札カードを使えてしまうことがあったのを直しました。",
@@ -102,6 +106,7 @@ export const CHANGELOG = [
       "**続き575〜578 で入れたホーム画面とマイページのスマホ用の拡大を取り消した**（ユーザー「スマホでのホーム画面とマイページ画面ですが昨日文字サイズ調整してるんだけど、する前のがよかったです」）。取り消したのは style.css の4つの塊——①マイページの着せ替え・段位まわり（続き576）②ホーム画面の文字13種と「ホーム画面に追加」の案内バー（続き576）③マイページのパネルの幅・余白・題名（続き577）④②で縦に伸びたぶんを取り返すために詰めた余白・タイルの間隔・絵の大きさ（続き578 の #402 対応）。🔴 **④は②があって初めて必要になったものなので、②だけ戻すと余白が詰まったままの中途半端な見た目になる＝必ずまとめて戻す。** #402「ホーム画面がスクロールする」も②を戻せば一緒に消える。`#my-page-panel` の**基本の規則は残した**——あれは続き577 で my-page.js の inline style から移してきたもので、PCの値は移す前とまったく同じ。消すとパネルの見た目そのものが無くなる（my-page.js 側はもう inline で持っていない）。共通の ✕ だけは全モーダル向けの拡大（2.6rem）が効いてしまうので、ヘルプと同じ形で**このパネルの中だけ 1.8rem に戻した**。",
       "**A/Bで「良かった状態」と一致することを確かめた**: 続き575 の直前（`739a729^`）の `style.css` と `my-page.js` を**配信のときだけ差し替える**プローブを書き、同じ手順でホーム画面とマイページを描いて、部品ごとに**computed の font-size・幅・高さ・行間・余白**を突き合わせた。ホーム**20種**・マイページ**17種**で**差0件**（マイページの1件はクラス名が `div` → `div.my-page-panel-title` に変わっただけで、値は 13.6px・409.1x9.7・行間20.4px まで同一）。ホーム画面のはみ出しも **30px＝続き575 より前と同じ値**に戻った（この30pxは元からある行の高さの丸め誤差で、見た目には出ていない）。⚠ **最初に「実画面px」だけで見比べたら NEW バッジが 6.3→6.8px と差が出たが、これは `offsetWidth` が整数なので小さい部品では実効倍率の推定がぶれるため**で、computed font-size は両方とも同じだった。**小さい部品を実効倍率で測る時は、派生の数字だけで差を判定しない。**",
       "**#407「ムーブフェイズにその場から移動できず移動先のカードだけめくれて効果が発動しなかった」**（まっちゃん・オンライン）。報告のログの決め手は `arrival: {\"cardId\":\"purple-trial-ritual\",\"location\":{\"zone\":\"cell\",\"row\":4,\"col\":0},\"player\":null,\"self\":\"B\",\"auto\":false,\"depth\":1}` の **`player` が null**——`triggerCardArrival` が `getPieceOwnerAt(location)` を引いた時点で**そのマスに駒が居なかった**。`player` が null だと `shouldAutoProcess` が false になるので**効果は動かず・手札に加えるボタンも出ない**。つまり `moveToken` は例外を投げずに戻ったのに、取り直した状態では駒が移動先に居なかった。それでも `performPhaseMoveToCell` はそのまま先へ進むので、①移動先のカードだけ表向きになる（全員に見える＝情報が只で漏れる）②到達効果が動かない ③「1手を使った」印は立っているのでそのままターンが終わる、という**報告の文面そのままの壊れ方**になる。なお `depth:1` は異常ではない（`beginPostMoveArrivalGuard` が移動のたびに +1 する）。直しは「確かめてから進む」——オンラインの `moveToken` → `fetchAndHydrate` のあとに `confirmPieceLandedOnline()` を挟み、駒が移動先に居なければ**一度だけ取り直してから**判定する（手元が古いだけならここで直ってそのまま進む）。それでも居なければ**カードをめくらずに止め**、`clearPhaseMoveActionTaken()`（phase-automation.js に新設）で1手の印を戻して**もう一度動ける**ようにし、赤い一行を出す。印を戻す判断の根拠は「**サーバーから取り直した状態が『まだ動いていない』と言っている**」こと——サーバーの言い分に合わせるのが、いちばん食い違わない。⚠ **なぜサーバーに適用されなかったのかは確定できていない**（`callAction` は `ok:false` でも非2xxでも throw するのに、ログに `diag-edge-error` もコンソールのエラーも無い）。`diag-move-not-applied`（refetch / recovered / confirmed の3段）を残したので、次に起きたら1回で切り分けられる。",
+      "**ユーザー報告「CPU2にゴメンナサイでロック阻止された時、押し間違えた」への対応（本人了承済みの案）**。承認＝緑／ゴメンナサイ＝赤だったが、**赤は「やめる・キャンセル」に見える**のに、ここでは**ゴメンナサイの方が能動的な選択**なので読み違える。**色を入れ替えない**（入れ替えると今度は逆向きに誤読される）。ゴメンナサイ側に `getCardImagePath(\"purple-sorry\")` で**実物のカード**を出し（2.4rem角・正方形）、文言を「このカードを使う」に、承認側からは色を抜いた。🔴 **`.final-lock-approval-approve` / `-reject` はタイマーのオン/オフ・自動処理のオン/オフ・接触の承認でも流用されている**ので、`#final-lock-approval-banner` で囲って**このバナーの中だけ**に効かせた（A/Bで、他のバナーが緑・赤のままであることを確認）。⚠ **一度、明るいテーマで承認ボタンの文字が消えた**——共通規則が `color:#f0fdf4`（ほぼ白）を当てており、それは**緑地の上でだけ成り立つ色**だった。`color` を書かないだけでは足りず、`inherit` を明示してバナー自身の文字色を継ぐようにした（教訓15。**撮って初めて気づいた**）。実測: 暗いテーマ＝文字 `rgb(254,243,199)`／明るいテーマ＝`rgb(58,51,38)` で、どちらも読める。",
       "**ユーザー要望「『相手のターンです』→『○○のターンです』と名指しに」**。`phase-automation.js` のターン表示（`#phase-automation-turn-status`）が `turnPlayer === getSelfSeat()` の二択で「自分／相手」を出していた。`getPlayerName(state.turnPlayer)` を使って名指しにする（新しい文言 `pa.turnOfNamed` / `pa.priorityNamed`）。**名前が空の時だけ従来の「相手のターンです」に落とす**——名前のつもりで空文字が出ると「のターンです」になるため。同じ一文の中にある優先権の一行も名指しにした（片方だけ「相手」だと誰のことか分からない）。`player-identity.js` を `phase-automation.js` から import したが、**循環にはならない**（player-identity は board-layout / ui-text / online / state しか読まず、同じ深さの `gate-invasion.js` が既に同じ import をしている）。**A/Bで確認**——直す前は手番B・C・Dのどれでも「相手のターンです」と**同じ文**が出る／直した後は「CPU 1／CPU 2／プレイヤーD のターンです」と**出し分かれる**。優先権の一行も「優先権は相手に」→「優先権はプレイヤーDに」。どれも実画面12.5px・画面内・見切れなし（長くなった分は折り返して箱が 48.4→67.2 に伸びるだけ）。例外0件。",
     ],
     devItemsEn: [
@@ -117,6 +122,7 @@ export const CHANGELOG = [
       "The revert was confirmed by serving the pre-change style sheet and my-page module from the commit before the enlargement and comparing every element on both screens: twenty on the home screen and seventeen on My Page matched on computed font size, width, height, line height and padding, with the only listed difference being a class name. An apparent difference on one tiny badge turned out to be integer rounding of offsetWidth in the derived figure, not a real change.",
       "An online move could be acknowledged by the server call yet leave the piece where it was; the client then flipped the destination card and raised an arrival for a square with no piece on it, so no effect ran and the turn was spent. The move is now confirmed against a fresh fetch before going any further, the turn is handed back if it truly did not apply, and three diagnostic stages were added because the server-side cause is still unknown.",
       "The turn banner now resolves the player's name instead of choosing between you and your opponent, falling back to the old wording only when the name is empty; the priority note in the same sentence was changed the same way. An A/B run confirmed that all three opponents previously produced identical text and now produce distinct names, with no clipping at phone size.",
+      "The approve and reject buttons of the final-lock banner were restyled inside that banner only, because those class names are reused by three other banners; an A/B run confirmed the others are untouched. The approve button now inherits its text colour instead of keeping the near-white value that only worked on the old green fill, which had made it invisible in the light theme.",
     ],
   },
   {
