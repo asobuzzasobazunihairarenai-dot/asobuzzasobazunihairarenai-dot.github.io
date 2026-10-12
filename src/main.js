@@ -62,6 +62,7 @@ import {
   noteHandEffectProgress,
   isMovePhaseActive,
   markPhaseMoveActionTaken,
+  clearPhaseMoveActionTaken,
   notePublicDrawForHandPhase,
   setTurnAnnounceActive,
   getCurrentPhase,
@@ -6057,6 +6058,55 @@ async function playPieceMoveAnimation__inner(pieceId, fromLocation, animOpts = {
   }
 }
 
+// 【#407・2026-10-12】**オンラインの移動が本当に反映されたか**を、先へ進む前に確かめる。
+// ユーザー報告（まっちゃん）「ムーブフェイズにその場から移動できず移動先のカードだけめくれて
+// 効果が発動しなかった」。報告のログの決め手はこの1行:
+//   arrival: {"cardId":"purple-trial-ritual","location":{"zone":"cell","row":4,"col":0},
+//             "player":null,"self":"B","auto":false,"depth":1}
+// **player が null** ＝ triggerCardArrival が getPieceOwnerAt(location) を引いた時点で、その
+// マスに駒が居なかった。つまり moveToken は例外を投げずに戻ったのに、取り直した状態では駒が
+// 移動先に居ない。それでも performPhaseMoveToCell はそのまま先へ進むので、
+//   ①移動先のカードだけ表向きになる（全員に見える＝情報が只で漏れる）
+//   ②到達効果は player が null なので動かない（auto:false・手札に加えるボタンも出ない）
+//   ③「1手を使った」印は立っているので、そのままターンが終わる
+// という、報告の文面そのままの壊れ方になる。**なぜ適用されなかったのかはログからは確定
+// できなかった**（moveToken は投げておらず、コンソールにもエラーは無い）ので、原因の方は
+// diag-move-not-applied を残して次の報告で切り分ける。ここで直すのは「確かめずに先へ進む」方。
+function pieceIsAt(pieceId, location) {
+  const l = getState().tokens.find((x) => x.id === pieceId)?.location;
+  return !!l && l.zone === location.zone && l.row === location.row && l.col === location.col;
+}
+async function confirmPieceLandedOnline(pieceId, location, player) {
+  if (pieceIsAt(pieceId, location)) return true;
+  const where = () => getState().tokens.find((x) => x.id === pieceId)?.location ?? null;
+  // **一度だけ取り直してから判定する**——手元の状態が古いだけのことがあるため。その場合は
+  // ここで直って、そのまま通常どおり（カードをめくる→到達効果）へ進む。
+  logAction("diag-move-not-applied", { phase: "refetch", pieceId, want: location, got: where() });
+  try {
+    await fetchAndHydrate(getCurrentGameId());
+  } catch (err) {
+    console.error("confirmPieceLandedOnline refetch failed", err);
+  }
+  if (pieceIsAt(pieceId, location)) {
+    logAction("diag-move-not-applied", { phase: "recovered", pieceId, want: location });
+    render();
+    return true;
+  }
+  logAction("diag-move-not-applied", { phase: "confirmed", pieceId, want: location, got: where(), player });
+  // サーバーから取り直した状態でも駒が移動先に居ない＝この移動は適用されていない。**その状態が
+  // 正**なので、1手を使った印を戻してもう一度動けるようにする（取り直した状態が「まだ動いて
+  // いない」と言っているのだから、それに合わせるのが、サーバーといちばん食い違わない）。
+  clearPhaseMoveActionTaken("move-not-applied");
+  render();
+  document.getElementById("move-failed-label")?.remove();
+  const label = document.createElement("div");
+  label.id = "move-failed-label";
+  label.className = "board-flash-label is-move-failed";
+  label.textContent = t("game.move.notApplied");
+  document.body.appendChild(label);
+  setTimeout(() => label.remove(), 3400);
+  return false;
+}
 async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
   // actingSeat: 通常は自分の席。ローカルCPU戦では自動処理がCPU(C)の席を渡してくる。
   const player = actingSeat;
@@ -6088,6 +6138,8 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
         render();
         return;
       }
+      // 【#407】ここまでで駒が移動先に居なければ、カードをめくる前に止める（上の説明参照）。
+      if (!(await confirmPieceLandedOnline(piece.id, location, player))) return;
     } else {
       moveToken(piece.id, location);
     }

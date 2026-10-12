@@ -738,3 +738,65 @@ diag-stats-submit-failed: null value in column "winner_id" of relation "matches"
 **検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`node tools/check-undeclared.mjs` 0件、
 CSSブレース平衡（3474/3474）、お知らせ ja/en 件数一致（summary/items/fixes/devItems すべて）。例外0件。
 控えは `_bak_style_c585.css` / `_bak_changelog_c585.js`（セッションのスクラッチパッド）。
+
+### 2026-10-12（続き586）：#407「移動できないのに移動先のカードだけめくれる」——**確かめずに先へ進んでいた**
+
+ユーザー（まっちゃん・オンライン）「ムーブフェイズにその場から移動できず移動先のカードだけめくれて
+効果が発動しなかった」。**報告のログの1行で原因側が確定した。**
+
+```
+[23:19:17.941] diag-move-action-taken: {"reason":"tap-move","phase":"move","owner":"B"}
+[23:19:19.221] arrival: {"cardId":"purple-trial-ritual","location":{"zone":"cell","row":4,"col":0},
+                         "player":null,"self":"B","auto":false,"depth":1}
+[23:19:20.817] diag-next-turn: {...}
+```
+
+- **決め手は `player` が null**。`triggerCardArrival` は `getPieceOwnerAt(location)` でその値を作るので、
+  **到達を起こした時点でそのマスに駒が居なかった**ということ。`player` が null だと `shouldAutoProcess`
+  が false になるため、**効果は動かず・「手札に加える」ボタンも出ない**。
+  つまり `moveToken` は例外を投げずに戻ったのに、`fetchAndHydrate` で取り直した状態では駒が移動先に
+  居なかった。**それでも `performPhaseMoveToCell` はそのまま先へ進む**ので、
+  ①移動先のカードだけ表向きになる（全員に見える＝情報が只で漏れる）②到達効果が動かない
+  ③「1手を使った」印は立っているのでそのままターンが終わる——**報告の文面そのままの壊れ方**になる。
+- **`depth: 1` は異常ではない**（最初これを「深度の漏れ」と疑ったが外れだった）。
+  `beginPostMoveArrivalGuard()` が移動のたびに +1 するので、通常の移動の到達は必ず depth 1 になる。
+  **見慣れない数字を見たら、まずそれが正常値でないかを確かめる。**
+- **直したのは「確かめずに先へ進む」方**（`confirmPieceLandedOnline`）。オンラインの
+  `moveToken` → `fetchAndHydrate` の直後に挟み、駒が移動先に居なければ**一度だけ取り直してから**
+  判定する（手元の状態が古いだけのことがあり、その場合はここで直ってそのまま通常どおり進む＝
+  **この経路が実は本当の修理になっている可能性もある**）。それでも居なければ**カードをめくらずに止め**、
+  `clearPhaseMoveActionTaken()`（[src/phase-automation.js](src/phase-automation.js) に新設）で
+  1手の印を戻して**もう一度動ける**ようにし、赤い一行を出す。
+  - **印を戻す判断の根拠**: 取り直した状態が「まだ動いていない」と言っているのだから、
+    **サーバーの言い分に合わせるのがいちばん食い違わない**。もしサーバーには届いていたなら、
+    取り直した状態に移動が入っているので、そもそもこの枝に来ない。
+  - `clearPhaseMoveActionTaken` は `markPhaseMoveActionTaken` をそのまま裏返した形
+    （印を下ろす→保存した「もう動いた」も下ろす→`reconcileMovePhase` でハイライトを貼り直す）。
+    **`reconcileMovePhase` は印が立っている間は何もしない**ので、先に印を下ろしてから呼ぶ。
+- ⚠ **なぜサーバーに適用されなかったのかは確定できていない（正直な限界）。** `callAction` は
+  `data.ok` が false でも非2xxでも throw する作りなのに、報告のログに `diag-edge-error` が無く、
+  コンソールにもエラーが無い。`diag-move-not-applied` を **refetch / recovered / confirmed の3段**で
+  残したので、**次に起きたら1回で切り分けられる**（取り直して直ったのか、本当に適用されなかったのか）。
+
+**検証**（`p407.mjs`・ヘッドレス・932x430。一時的な出口 `__c586` を付けて測り、確認後に除去＝`grep` 0件）:
+
+| 見たもの | 結果 |
+|---|---|
+| 居るマス／居ないマスの判定 | **true / false** |
+| 成功経路（本当に居るマス） | 戻り値 **true**・**0ms**（取り直さない）・案内は出ない |
+| 失敗経路（居ないマス） | 戻り値 **false**・645ms（1回だけ取り直した） |
+| 1手の印 | 立てた直後＝移動フェイズ無効・ハイライト0 → **失敗後＝有効・ハイライト4** |
+| 駒 | 元の位置のまま |
+| 赤い一行 | 「移動が反映されませんでした。もう一度マスを選んでください」・**実画面13.7px**・画面内・3.4秒で消える |
+
+- **一行の大きさは測ってから決めた**: 最初 1.5rem では**実画面10.8px**だった（この一行は
+  ステージの中に居て倍率0.449が掛かる）。これは「もう一度マスを選んでください」という**指示**なので
+  読めないと意味が無い。1.9rem＝13.7px まで上げた。
+- **申し送り**: 同じ作りのゴメンナサイの一行（`.board-flash-label.is-lock-robbed`）も 1.5rem なので
+  スマホでは同じく約10.8px。あちらも**読ませる文**だが、今回のユーザー判断（文字を大きくした所は
+  戻す）があるので**勝手には触っていない**。気になるようなら上げる。
+  また `.is-lock-robbed` は `max-width: min(92vw, 44rem)` と **`vw` を使っている**（続き575 の★の罠。
+  実画面では46%相当にしかならない）。今回足した `.is-move-failed` は `%` で書いた。
+
+**検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`node tools/check-undeclared.mjs` 0件、
+CSSブレース平衡（3476/3476）、お知らせ ja/en 件数一致。例外0件。サーバー側（SQL・Edge Function）の変更は無い。

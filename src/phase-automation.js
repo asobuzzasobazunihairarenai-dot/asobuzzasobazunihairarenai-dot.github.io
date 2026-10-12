@@ -316,6 +316,20 @@ export function markPhaseMoveActionTaken(reason = "unknown") {
   // #167: 「このターンはもう動いた」ことも残す（更新して戻ってきても再度動けないように）。
   if (phaseOwner) persistTurnPhase(phaseOwner, "move", true);
 }
+// 【#407・2026-10-12】立てた印を**戻す**。オンラインの移動がサーバーに適用されていなかった
+// と分かった時だけ使う（main.js の confirmPieceLandedOnline）。印を立てる markPhaseMoveActionTaken
+// と対になる処理をそのまま裏返す——印を下ろし、保存してある「このターンはもう動いた」も
+// 下ろし、移動先のハイライトを貼り直す（reconcileMovePhase は印が立っている間は何もしないので、
+// 先に印を下ろしてから呼ぶ）。
+export function clearPhaseMoveActionTaken(reason = "unknown") {
+  if (!moveActionTaken) return;
+  logAction("diag-move-action-cleared", { reason, phase: currentPhase, owner: phaseOwner });
+  moveActionTaken = false;
+  if (phaseOwner) {
+    persistTurnPhase(phaseOwner, "move", false);
+    reconcileMovePhase(phaseOwner);
+  }
+}
 // main.jsの手札効果トリガー（Task 5）が、コスト選択等で待っている間はフェイズの
 // 自動進行を一時止める（選んでいる最中にハンドフェイズが終わってしまうのを防ぐ）。
 // #93: handEffectBusy が「取り残し」で恒久的に true のまま詰まる稀ケース（ジャンプ台→選べる罠

@@ -22851,6 +22851,35 @@ body.reduce-glow .gomennasai-declare-card { box-shadow: none; }
     0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
   animation: lock-robbed-label 2600ms ease-out forwards;
 }
+/* 【#407・2026-10-12】オンラインの移動がサーバーに反映されなかった時の一行。
+   ゴメンナサイの一行（is-lock-robbed）と同じ置き方・同じ動きで、色だけ赤にする。
+   ⚠ 幅に `vw` を使わない（ビューポート基準なのに描画にはステージ倍率が掛かるので、
+   92vw が実画面の46%にしかならない＝続き575 の★）。親基準の % で書く。 */
+.board-flash-label.is-move-failed {
+  top: auto;
+  bottom: 13%;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  max-width: min(44rem, 92%);
+  text-align: center;
+  line-height: 1.5;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.7rem;
+  background: rgba(26, 10, 10, 0.86);
+  border: 0.1rem solid var(--color-red, #ef4444);
+  text-shadow:
+    0 0 0.6rem rgba(239, 68, 68, 0.85),
+    0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
+  animation: lock-robbed-label 3400ms ease-out forwards;
+}
+/* スマホでは 1.5rem が**実画面10.8px**にしかならなかった（実測。この一行は中に居て
+   ステージ倍率0.449が掛かる）。これは「もう一度マスを選んでください」という**指示**なので、
+   読めないと意味が無い。目安の13px以上になるまで上げる（1.9rem＝約13.7px）。 */
+body.is-phone-device .board-flash-label.is-move-failed,
+body.is-tablet-device .board-flash-label.is-move-failed {
+  font-size: 1.9rem;
+}
 @keyframes lock-robbed-label {
   0% { opacity: 0; transform: translate(-50%, 0.8rem) scale(0.94); }
   8% { opacity: 1; transform: translate(-50%, 0) scale(1); }

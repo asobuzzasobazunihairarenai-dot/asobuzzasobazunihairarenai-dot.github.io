@@ -79,10 +79,12 @@ export const CHANGELOG = [
     fixes: [
       "カードの効果を処理している途中なのに、別の手札カードを使えてしまうことがあったのを直しました。",
       "「盤面を見る」で覗いている間、カードにカーソルを合わせても拡大できなかったのを直しました。",
+      "オンラインで、移動したのに駒がその場から動かず、移動先のカードだけめくれてしまうことがあったのを直しました。もう一度マスを選べます。",
     ],
     fixesEn: [
       "Fixed being able to play another hand card while a card effect was still being resolved.",
       "Fixed card previews not appearing while peeking at the board from a selection dialog.",
+      "Fixed an online move sometimes leaving your piece where it was while only flipping the destination card. You can now pick a square again.",
     ],
     devItems: [
       "**戦績に登録されない件の原因**（#405/#406 のログから確定）: `null value in column \"winner_id\" of relation \"matches\" violates not-null constraint`。勝者が戦績システム未登録（ゲスト）だと `winner_id` が null になるが、姉妹プロジェクト側が **not null** だったため insert が例外になり、**参加者全員ぶんの記録が消えていた**。コードのコメントは「nullのまま記録する」と書いてあった＝**実際のスキーマで試していなかった**。実データでも 10/11 夜に `matches` へ入ったデジタル版の試合は**1件だけ**で、21:58 の4人戦は保険の経路（20秒後の再試行）ごと失敗していた。**教訓: 別プロジェクトのテーブルへ書く時は、相手の列の not null / 型を実物で確かめる。**",
@@ -95,6 +97,7 @@ export const CHANGELOG = [
       "横持ちのスマホは**高さが足りない**（早見表は幅の半分の高さ）ので、見出しを詰めて注記は省き、1画面に収めた。実測 **734x398 で画面内**・画像の表示幅718px・見出し13px・タブ11.5px。閉じると**パネルも img も消える**ことを確認。例外0件。",
       "**続き575〜578 で入れたホーム画面とマイページのスマホ用の拡大を取り消した**（ユーザー「スマホでのホーム画面とマイページ画面ですが昨日文字サイズ調整してるんだけど、する前のがよかったです」）。取り消したのは style.css の4つの塊——①マイページの着せ替え・段位まわり（続き576）②ホーム画面の文字13種と「ホーム画面に追加」の案内バー（続き576）③マイページのパネルの幅・余白・題名（続き577）④②で縦に伸びたぶんを取り返すために詰めた余白・タイルの間隔・絵の大きさ（続き578 の #402 対応）。🔴 **④は②があって初めて必要になったものなので、②だけ戻すと余白が詰まったままの中途半端な見た目になる＝必ずまとめて戻す。** #402「ホーム画面がスクロールする」も②を戻せば一緒に消える。`#my-page-panel` の**基本の規則は残した**——あれは続き577 で my-page.js の inline style から移してきたもので、PCの値は移す前とまったく同じ。消すとパネルの見た目そのものが無くなる（my-page.js 側はもう inline で持っていない）。共通の ✕ だけは全モーダル向けの拡大（2.6rem）が効いてしまうので、ヘルプと同じ形で**このパネルの中だけ 1.8rem に戻した**。",
       "**A/Bで「良かった状態」と一致することを確かめた**: 続き575 の直前（`739a729^`）の `style.css` と `my-page.js` を**配信のときだけ差し替える**プローブを書き、同じ手順でホーム画面とマイページを描いて、部品ごとに**computed の font-size・幅・高さ・行間・余白**を突き合わせた。ホーム**20種**・マイページ**17種**で**差0件**（マイページの1件はクラス名が `div` → `div.my-page-panel-title` に変わっただけで、値は 13.6px・409.1x9.7・行間20.4px まで同一）。ホーム画面のはみ出しも **30px＝続き575 より前と同じ値**に戻った（この30pxは元からある行の高さの丸め誤差で、見た目には出ていない）。⚠ **最初に「実画面px」だけで見比べたら NEW バッジが 6.3→6.8px と差が出たが、これは `offsetWidth` が整数なので小さい部品では実効倍率の推定がぶれるため**で、computed font-size は両方とも同じだった。**小さい部品を実効倍率で測る時は、派生の数字だけで差を判定しない。**",
+      "**#407「ムーブフェイズにその場から移動できず移動先のカードだけめくれて効果が発動しなかった」**（まっちゃん・オンライン）。報告のログの決め手は `arrival: {\"cardId\":\"purple-trial-ritual\",\"location\":{\"zone\":\"cell\",\"row\":4,\"col\":0},\"player\":null,\"self\":\"B\",\"auto\":false,\"depth\":1}` の **`player` が null**——`triggerCardArrival` が `getPieceOwnerAt(location)` を引いた時点で**そのマスに駒が居なかった**。`player` が null だと `shouldAutoProcess` が false になるので**効果は動かず・手札に加えるボタンも出ない**。つまり `moveToken` は例外を投げずに戻ったのに、取り直した状態では駒が移動先に居なかった。それでも `performPhaseMoveToCell` はそのまま先へ進むので、①移動先のカードだけ表向きになる（全員に見える＝情報が只で漏れる）②到達効果が動かない ③「1手を使った」印は立っているのでそのままターンが終わる、という**報告の文面そのままの壊れ方**になる。なお `depth:1` は異常ではない（`beginPostMoveArrivalGuard` が移動のたびに +1 する）。直しは「確かめてから進む」——オンラインの `moveToken` → `fetchAndHydrate` のあとに `confirmPieceLandedOnline()` を挟み、駒が移動先に居なければ**一度だけ取り直してから**判定する（手元が古いだけならここで直ってそのまま進む）。それでも居なければ**カードをめくらずに止め**、`clearPhaseMoveActionTaken()`（phase-automation.js に新設）で1手の印を戻して**もう一度動ける**ようにし、赤い一行を出す。印を戻す判断の根拠は「**サーバーから取り直した状態が『まだ動いていない』と言っている**」こと——サーバーの言い分に合わせるのが、いちばん食い違わない。⚠ **なぜサーバーに適用されなかったのかは確定できていない**（`callAction` は `ok:false` でも非2xxでも throw するのに、ログに `diag-edge-error` もコンソールのエラーも無い）。`diag-move-not-applied`（refetch / recovered / confirmed の3段）を残したので、次に起きたら1回で切り分けられる。",
     ],
     devItemsEn: [
       "The stats failure was a not-null violation on the winner column: a guest winner produced a null and the insert threw, dropping the whole match for every participant. The comment in the code claimed null was acceptable, which had never been tested against the real schema.",
@@ -107,6 +110,7 @@ export const CHANGELOG = [
       "On a landscape phone the limiting dimension is height, so the heading was tightened and the footnote hidden to keep the whole sheet on one screen.",
       "The phone-only enlargements for the home screen and My Page were removed in four blocks, including the padding and spacing that had only been tightened to absorb the larger text; reverting the text without the spacing would have left a half-finished look, and the home screen scrolling report goes away with it. The base rule for the My Page panel was kept because it holds the values that used to be inline, and the shared close button was restored to its original size inside that panel only.",
       "The revert was confirmed by serving the pre-change style sheet and my-page module from the commit before the enlargement and comparing every element on both screens: twenty on the home screen and seventeen on My Page matched on computed font size, width, height, line height and padding, with the only listed difference being a class name. An apparent difference on one tiny badge turned out to be integer rounding of offsetWidth in the derived figure, not a real change.",
+      "An online move could be acknowledged by the server call yet leave the piece where it was; the client then flipped the destination card and raised an arrival for a square with no piece on it, so no effect ran and the turn was spent. The move is now confirmed against a fresh fetch before going any further, the turn is handed back if it truly did not apply, and three diagnostic stages were added because the server-side cause is still unknown.",
     ],
   },
   {
