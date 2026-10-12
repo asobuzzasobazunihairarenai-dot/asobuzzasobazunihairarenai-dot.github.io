@@ -800,3 +800,51 @@ CSSブレース平衡（3474/3474）、お知らせ ja/en 件数一致（summary
 
 **検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`node tools/check-undeclared.mjs` 0件、
 CSSブレース平衡（3476/3476）、お知らせ ja/en 件数一致。例外0件。サーバー側（SQL・Edge Function）の変更は無い。
+
+### 2026-10-12（続き587）：ターン表示を「相手のターンです」→「○○のターンです」と名指しにした
+
+ユーザー要望（2代目への申し送り）「**『相手のターンです』→『○○のターンです』と名指しに**」。
+4人で遊ぶと「相手」が3人いるので、**誰の番なのかが画面から分からなかった**。
+
+- 直したのは [src/phase-automation.js](src/phase-automation.js) のターン表示
+  （`#phase-automation-turn-status`）。`turnPlayer === getSelfSeat()` の二択で「自分／相手」を
+  出していたところを、`getPlayerName(state.turnPlayer)` で名指しにする
+  （新しい文言 `pa.turnOfNamed` / `pa.priorityNamed`）。
+- **名前が空の時だけ従来の「相手のターンです」に落とす。** 名前のつもりで空文字が出ると
+  「のターンです」になってしまうため。⚠ **この枝は手元では通せていない**
+  （`getPlayerName` は既定で「プレイヤーC」を返すので空にならない）＝念のための守り。
+- **同じ一文の中にある優先権の一行も名指しにした**。「○○のターンです（優先権は**相手**に
+  あります）」だと、同じ文の中で片方だけ名前・片方だけ「相手」になって読みづらい。
+- **循環 import にはならない**ことを確かめてから足した（続き573 で実際に TDZ で落ちている）。
+  `player-identity.js` は board-layout / ui-text / online / state しか読まず、**同じ深さの
+  `gate-invasion.js` が既に同じ import をしている**（phase-automation はその gate-invasion を読む）。
+
+**A/Bで確認**（`p587b.mjs`・ヘッドレス・932x430。差し替えで直す前の `phase-automation.js` を配信）:
+
+| 手番 | 直す前 | 直した後 |
+|---|---|---|
+| B | 相手のターンです | **CPU 1のターンです** |
+| C | 相手のターンです | **CPU 2のターンです** |
+| D | 相手のターンです | **プレイヤーDのターンです** |
+| C（優先権D） | …（優先権は**相手**にあります） | …（優先権は**プレイヤーD**にあります） |
+
+どれも実画面12.5px・画面内・見切れなし（長くなったぶんは折り返して箱の高さが 48.4→67.2 に
+伸びるだけ。下端 358.2 < 430）。例外0件。
+
+- **測り方で2回つまずいた（記録）**
+  - **差し替えたファイルが「モジュールではない」と拒否された。** プローブの配信が
+    `path.extname(実ファイル)` から Content-Type を決めていたため、控え
+    `_bak_phase-automation.js_c587` が `application/octet-stream` になり、ブラウザが
+    ES モジュールとして読み込まなかった（`Failed to fetch dynamically imported module`）。
+    **要求されたパス**（`/src/phase-automation.js`）から決めるように直して通った。
+    **配信を差し替えてA/Bする時は、MIME も差し替え元ではなく差し替え先の名前で決める。**
+  - **優先権の一行が出なかった**のは、`setPriorityState` に渡すキーを `priorityPlayer` と
+    推測で書いていたため（正しくは `player`）。**キー名はコードを読んでから書く**
+    （続き569 と同じ形）。
+
+**検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`node tools/check-undeclared.mjs` 0件、
+お知らせ ja/en 件数一致。サーバー側の変更は無い。
+
+- **申し送り（未着手）**: 要望のもう半分「**『○○が操作中』を上に出す**」は判定の設計が要る
+  （誰が今まさに触っているかは、手番とは別の情報）。**まず名指しだけ入れて実機で見てもらう**
+  という2代目の提案のまま。
