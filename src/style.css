@@ -20780,22 +20780,23 @@ body.is-tablet-device .start-player-announce {
    一度2.35remまで上げて32.3pxにしてしまったので撤去した（前回は ×16 を落として計算して
    いたため「7.1px」と誤読していた）。 */
 
-/* マイページ: **元から3倍に拡大されている部分（名前・✎）は触らない**（既に12.2px/11.3px）。
-   拡大されていない「着せ替え」まわり（実効倍率0.726＝1.5倍）だけが7.4〜8.5pxで小さい。 */
-body.is-phone-device .my-page-cosmetic-thumb.is-none,
-body.is-tablet-device .my-page-cosmetic-thumb.is-none { font-size: 1rem; }
-body.is-phone-device .my-page-cosmetic-label,
-body.is-tablet-device .my-page-cosmetic-label { font-size: 1.1rem; }
-body.is-phone-device .my-page-cosmetics-title,
-body.is-tablet-device .my-page-cosmetics-title { font-size: 1.1rem; }
-body.is-phone-device .my-page-friends-btn,
-body.is-tablet-device .my-page-friends-btn { font-size: 1.1rem; padding: 0.4rem 0.8rem; }
-/* 【訂正2】称号のボタンは元から3倍（倍率1.439）で実画面13.8px＝十分だった。触らない。 */
-/* 段位まわりは拡大されていない（倍率0.478）のでそのまま大きくする。 */
-body.is-phone-device .my-page-rank-title,
-body.is-tablet-device .my-page-rank-title { font-size: 1.6rem; }
-body.is-phone-device .my-page-rank-none,
-body.is-tablet-device .my-page-rank-none { font-size: 1.5rem; }
+/* 【続き585・2026-10-12】**マイページのスマホ用の文字拡大は取り消した。**
+   ユーザー「スマホでのホーム画面とマイページ画面ですが昨日文字サイズ調整してるんだけど、
+   する前のがよかったです」。続き576 で着せ替え・段位まわり（7.9〜9.1px）を12px台へ、
+   続き577 でパネルの幅・余白・題名を大きくしていたが、**読みやすさより見た目の
+   まとまりの方が大事だった**という判断。数字の上では「11px以上」の目安を満たしていても、
+   ユーザーが見て良くないなら戻す。
+   ⚠ **`#my-page-panel` の基本の規則（上）は残す。**あれは続き577 で my-page.js の
+   inline style から移してきたもので、PC の値は移す前とまったく同じ。消すとパネルの
+   見た目そのものが無くなる（my-page.js 側はもう inline で持っていない）。
+   共通の ✕ だけは全モーダル向けの拡大（2.6rem）が効いてしまうので、ヘルプと同じ形で
+   このパネルの中だけ元の大きさに戻す。 */
+body.is-phone-device #my-page-panel .modal-close-x,
+body.is-tablet-device #my-page-panel .modal-close-x {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1.1rem;
+}
 
 /* 【訂正2】ヘルプのパネルは**元から2倍**（実効倍率0.956）なので、共通の ✕ の拡大が効いて
    実画面24.2pxになっていた。ヘルプの中だけ元の大きさへ戻す。
@@ -20808,47 +20809,15 @@ body.is-tablet-device #help-panel .modal-close-x {
   font-size: 1.1rem;
 }
 
-/* ホーム画面（実効倍率0.478＝**拡大なし**。13種のうち12種が11px未満で、ここが本命だった）。
-   実測: 「次にやること」5.4px／説明6.0px／NEW 6.9px／✕6.6px／「ホーム」6.9px／
-   「対戦する」7.3px／タイルの名前7.6px。 */
-body.is-phone-device #home-screen-subtitle,
-body.is-tablet-device #home-screen-subtitle { font-size: 1.4rem; margin: 0; }
-body.is-phone-device .home-screen-tile-label,
-body.is-tablet-device .home-screen-tile-label { font-size: 1.55rem; }
-body.is-phone-device .home-screen-tile-badge,
-body.is-tablet-device .home-screen-tile-badge { font-size: 1.5rem; }
-/* NEW のバッジは実効倍率0.54（タイルが少し拡大されている）のでこの値で約12px。 */
-body.is-phone-device .home-screen-tile-new-badge,
-body.is-tablet-device .home-screen-tile-new-badge { font-size: 1.4rem; }
-body.is-phone-device .home-screen-tile-waiting-badge,
-body.is-tablet-device .home-screen-tile-waiting-badge { font-size: 1.45rem; }
-body.is-phone-device .home-screen-tile-notify-badge,
-body.is-tablet-device .home-screen-tile-notify-badge { font-size: 1.3rem; }
-body.is-phone-device .home-first-step-label,
-body.is-tablet-device .home-first-step-label { font-size: 1.45rem; }
-body.is-phone-device .home-first-step-title,
-body.is-tablet-device .home-first-step-title { font-size: 1.55rem; }
-body.is-phone-device .home-first-step-desc,
-body.is-tablet-device .home-first-step-desc { font-size: 1.45rem; }
-body.is-phone-device .home-first-step-badge,
-body.is-tablet-device .home-first-step-badge { font-size: 1.7rem; }
-body.is-phone-device .home-first-step-go,
-body.is-tablet-device .home-first-step-go { font-size: 1.7rem; padding: 0.6rem 1.3rem; }
-body.is-phone-device .home-first-step-close,
-body.is-tablet-device .home-first-step-close { font-size: 1.5rem; }
-
-/* タイルの名前は scrollHeight が clientHeight より2〜5px大きいと出るが、**これは元からで
-   私の変更のせいではない**——A/Bで確かめた（文字を元の1remに戻しても8個中8個で 21>19 と
-   出る。1.5remで61>58、1.8remで74>69＝倍率に比例するだけ）。行の高さの丸め誤差で、
-   見た目には出ていないので触らない。**「はみ出し」が出たらまず元の値でも出るか試す。** */
-
-/* 「ホーム画面に追加」の案内バー（ホーム画面の下。実測 本文6.1px／ボタン6.1px／あとで5.8px）。 */
-body.is-phone-device .pwa-install-text,
-body.is-tablet-device .pwa-install-text { font-size: 1.55rem; }
-body.is-phone-device .pwa-install-add,
-body.is-tablet-device .pwa-install-add { font-size: 1.6rem; padding: 0.6rem 1.2rem; }
-body.is-phone-device .pwa-install-later,
-body.is-tablet-device .pwa-install-later { font-size: 1.45rem; padding: 0.5rem 0.8rem; }
+/* 【続き585・2026-10-12】**ホーム画面のスマホ用の文字拡大も取り消した**（上と同じ理由）。
+   取り消したのは3つの塊: ①続き576 の文字の拡大（タイルの名前・「次にやること」・
+   副題・各バッジ・「ホーム画面に追加」の案内バー）②続き578 の #402 対応（①で縦に
+   伸びた分を取り返すために余白・タイルの間隔・絵の大きさを詰めたもの）。
+   🔴 **②は①があって初めて必要になったものなので、①だけ戻すと余白が詰まったままの
+   中途半端な見た目になる。必ず両方まとめて戻す。**
+   ③ #402「ホーム画面がスクロールするようになった」は①を戻すことで一緒に解消する
+   （実測: はみ出し 30px＝続き575 より前と同じ値に戻った。この30pxは元からある
+   丸め誤差で、見た目には出ていない）。 */
 
 /* 【続き577・2026-10-11】マイページのパネル。**my-page.js の inline style から移してきた**
    （inline だと CSS から上書きできず、スマホ用の文字サイズを足せなかった）。
@@ -20871,69 +20840,6 @@ body.is-tablet-device .pwa-install-later { font-size: 1.45rem; padding: 0.5rem 0
   color: #e2e8f0;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
 }
-/* スマホ: 文字は実測6.5px、幅は実画面184pxしか無かった。`max-height: 85vh` は実画面の
-   41%にしかならない（vhの罠＝続き575 の★）のでステージ基準の rem にする。 */
-body.is-phone-device #my-page-panel,
-body.is-tablet-device #my-page-panel {
-  width: min(76rem, 94vw);
-  max-height: 50rem;
-  /* 計測で overflow-y が hidden と出たので明示しておく（高さの上限に達した時に
-     中身が切れると詰むため。どこで上書きされているかは追えていないが、ここで明示すれば確実）。 */
-  overflow-y: auto;
-  padding: 2rem;
-  border-radius: 1rem;
-  /* 【訂正】ここで font-size を上げてはいけない。マイページは部分ごとに拡大倍率が違い
-     （0.478／0.726／0.899／1.438）、継承で一括して上げると**元から3倍の所が36.8pxに**なる。
-     小さいのは拡大されていない題名だけなので、そこだけ個別に上げる（下）。 */
-}
-body.is-phone-device .my-page-panel-title,
-body.is-tablet-device .my-page-panel-title {
-  font-size: 1.6rem;
-}
-
-/* 【続き578・2026-10-11】#402「ホーム画面がスクロールするようになっちゃった、多分文字
-   大きくした影響です」。そのとおりで、続き576 で文字を大きくした分だけ縦に伸びた
-   （A/B実測: 中身の高さ 930→1054。見える高さは900なので、はみ出しが30→154に）。
-   **文字は戻さず、縦の余白を削って収める**——読みやすさを守るのが目的なので、
-   そこを戻したら元の木阿弥になる。 */
-
-/* いちばん膨らんだのは「ホーム画面に追加」の案内バー（39→103px）。文字を大きくしたら
-   折り返して3行になっていた。1行に収まる大きさに抑え、余白も詰める。 */
-body.is-phone-device #pwa-install-banner,
-body.is-tablet-device #pwa-install-banner {
-  padding: 0.35rem 0.8rem;
-  gap: 0.25rem 0.5rem;
-  /* `flex-wrap: nowrap` は**逆効果**だった——文字の箱が細くなって何行にも折り返し、
-     バーの高さが 179→275（ステージpx）に増えた。折り返しは許したまま字を抑える。 */
-}
-body.is-phone-device .pwa-install-text,
-body.is-tablet-device .pwa-install-text { font-size: 1.4rem; }
-body.is-phone-device .pwa-install-add,
-body.is-tablet-device .pwa-install-add { font-size: 1.3rem; padding: 0.35rem 0.8rem; }
-body.is-phone-device .pwa-install-later,
-body.is-tablet-device .pwa-install-later { font-size: 1.3rem; padding: 0.25rem 0.5rem; }
-
-/* 画面の上下の余白とタイルの間隔を詰める（文字を大きくしたぶんをここで取り返す）。 */
-body.is-phone-device #home-screen,
-body.is-tablet-device #home-screen {
-  padding: 0.8rem 1rem;
-  gap: 0.2rem;
-}
-body.is-phone-device #home-screen-grid,
-body.is-tablet-device #home-screen-grid {
-  gap: 0.9rem 1.6rem;
-}
-body.is-phone-device .home-screen-tile,
-body.is-tablet-device .home-screen-tile {
-  gap: 0.2rem;
-  padding: 0.3rem;
-}
-/* タイルの絵を小さくする（2段あるので効きが大きい）。文字は11px以上を保ったまま少し抑える。 */
-body.is-phone-device #home-screen-grid,
-body.is-tablet-device #home-screen-grid {
-  --home-tile-icon-size: 4rem;
-}
-
 /* 【続き578】#403「こういった中央のモーダル、スマホだと文字小さいかも！」。
    画面中央に出る効果の説明（main.js の showEffectReasonModal）。文字は名前0.75rem・
    本文0.8rem で、幅も min(20rem, 80vw)＝実画面153pxしか無かった。 */
