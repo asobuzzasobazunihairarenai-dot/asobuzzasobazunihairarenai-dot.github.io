@@ -11121,7 +11121,16 @@ body.is-phone-device #phase-automation-turn-status {
     scale(var(--phase-turn-status-scale-phone, 1));
   /* スマホでは画面幅を越える長文（フェイズ名・優先権の注記付き）は折り返して見切れを防ぐ。 */
   white-space: normal;
-  max-width: min(80vw, 22rem);
+  /* 【#414・2026-10-16】ユーザー報告「右下の『エイドスのターンです』の**改行が気になります**」。
+     原因は `max-width` ではなく**入れ物の幅**だった——この表示は案内板バーの中に
+     `position: absolute; right: 0` で置かれており、**幅を auto にしていると入れ物（バー）の
+     幅までしか広がれない**（実測: 上限は352pxと書いてあるのに、折り返した時の箱は
+     実画面168px＝CSS約279pxで頭打ち）。名前が入って1文字ぶん長くなるだけで折り返す。
+     `width: max-content` にすると**入れ物をはみ出して左へ伸びられる**ので1行に収まる
+     （右端基準なので、伸びる先は画面の内側）。長すぎる時だけ max-width で折り返す。
+     ⚠ `vw` は使わない（ステージ倍率が掛かるので実画面では意図の半分以下になる＝続き575 の★）。 */
+  width: max-content;
+  max-width: 44rem;
 }
 body.reduce-glow #phase-automation-skip-button {
   animation: none;
@@ -20012,11 +20021,18 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
    印字カードと同じく、通常・エターナルのタイトル（ふりがな含む）を白にする。
    ファーストは元から全て白（上の規則）。 */
 .card-face[data-card-type=normal] .card-face-title,
+.card-face[data-card-type=eternal] .card-face-title { color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.55); }
+/* 【#415・2026-10-16】ユーザー報告「カードタイトルのルビが白色ですが**背景が白**なので黒文字が
+   いいかと！」。**ふりがなだけは題の帯の外（真上）に浮いている**（`bottom: 100%`。実測でも
+   ルビの下端が題の箱の上端より上にある）。帯そのものは濃いので題の白は正しいが、**ルビが乗って
+   いるのは帯の上の淡い所**なので、白いままだと読めない。ルビだけ濃い字に戻す
+   （基底の `.card-face-title-rt` が持っている #141414 と同じ）。
+   ⚠ **ファーストは触らない**——あちらは題もルビも**絵の上**に乗る作りで、全部白が正しい
+   （上の `[data-card-type="first"]` の規則）。 */
 .card-face[data-card-type=normal] .card-face-title rt,
 .card-face[data-card-type=normal] .card-face-title .card-face-title-rt,
-.card-face[data-card-type=eternal] .card-face-title,
 .card-face[data-card-type=eternal] .card-face-title rt,
-.card-face[data-card-type=eternal] .card-face-title .card-face-title-rt { color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.55); }
+.card-face[data-card-type=eternal] .card-face-title .card-face-title-rt { color: #141414; text-shadow: none; }
 
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,
