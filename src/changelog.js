@@ -51,6 +51,29 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-16",
+    fixes: [
+      "複数のカードを捨てる画面で、下の「これで捨てる」などのボタンが見切れていたのを直しました。カードが増えても必ず見えます。",
+      "サマリー（早見表）の✕を押しやすい大きさにして、画面が少しスクロールしてしまうのをやめました。",
+      "最初に出る案内（ことば／ホーム画面に追加）が、画面の低い端末で小さすぎて読めなかったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the confirm buttons being cut off at the bottom of the multi-card discard dialog, however many cards you hold.",
+      "The quick reference sheet now has a larger close button and no longer scrolls slightly.",
+      "Fixed the first-run notice (language / add to home screen) being too small to read on short screens.",
+    ],
+    devItems: [
+      "**#412「複数捨てるモーダルの時、下のボタンが見切れてます！カードの上部も少し見切れてる気がします！」**。報告に入っていた**画面の記録（screen2）でその場で確定した**——モーダルの箱は `160,40,612,349` で画面(430)には収まっているのに、**中身が476**（はみ出し112）。`#stack-modal` 自身が `overflow-y: auto` なので**確定ボタンが巻かれて見えなくなっていた**。手元でも同じ箱（`160,40,612,349`）で再現し、**手札4枚では見えるが8枚から見えなくなる**ことを確かめた（続き563 の検証が3〜4枚だったので通ってしまっていた）。直しは、中身を縦3段（題と案内／一覧／確定ボタン）に分けて**巻くのは一覧だけ**にする（`min-height: 0` が無いと flex の子は縮まず結局はみ出す）。あわせてスマホの `max-height: 85vh`（実画面349px＝**vhの罠**）を `26rem`（約398px）に、カードを 8rem→6rem に。**A/Bで確認**——直す前は8枚・12枚で確定ボタンが枠外、直した後はどちらも枠内。**戻ってきたのはボタン1つではなく3つ**（「これで捨てる」「おまかせ」「盤面を見る」が全部隠れていた）。932x320 の低い画面でも枠内。",
+      "**#408「サマリー表示で、バツボタンが小さい。あと少しスクロールになるので動かない方がいい」**。実測（932x430）: ✕ が **19.9x19.9px**（押すものの目安28px未満）、パネルは中身894に対して見える830＝**はみ出し64**で早見表の下が切れていた。直しは #412 と同じ形——パネルを縦3段にして**絵だけが縮む**ようにし（`object-fit: contain` なので形は崩れない）、巻きを止めた。✕ は**この画面の中だけ** 3.8rem に（共通クラスなので他のモーダルに波及させない。題の右余白も一緒に広げないと文字に被る）。実測: **はみ出し 0**・✕ **29x29px**・早見表の下端405.7<430。",
+      "**起動時の案内（ことば／ホーム画面に追加）が、画面の低い端末で読めなかった**（試遊の動線を本番で通して見つけた）。実測（932x320＝iPhone横持ちでSafariのバーが出ている状態・ステージ倍率0.356）: **11行すべてが11px未満**で「このまま遊ぶ」が8.5px、手順8.5px、注記6.5px。**10/17 に来た人が最初に見る画面**で、いちばん伝えたい「ホーム画面に追加してください」が読めない。🔴 **字を大きくするだけでは入らない**（320pxの画面でモーダルは既に268px＝84%を使っていた）ので、`@media (max-height: 380px)` で**長い説明と注記を隠してから字を大きくし、横幅も広げた**（折り返しが減って縦が縮む）。**A/Bで確認**——11px未満が **11行→1行**（「もう出さない」10.3px＝控えめにしたい文字）、「このまま遊ぶ」8.5→**11.9px**、モーダルの高さ 268.6→**213.9**（画面の84%→67%）。**932x430 は箱も行も1つも変わっていない**＝低い画面だけに効いている。",
+    ],
+    devItemsEn: [
+      "The multi-card discard dialog clipped its confirm buttons because the modal itself scrolled; it is now a three-row flex column where only the card list scrolls, so the buttons are always visible. The report's captured screen state identified the cause immediately, and the same box was reproduced locally at eight cards.",
+      "The quick reference panel was given the same treatment so only the sheet image shrinks, and its close button was enlarged inside that panel alone, since the class is shared with every other modal.",
+      "The first-run notice was unreadable on short screens, where every line fell below eleven pixels; long explanations are now hidden and the remaining text enlarged under a height media query, leaving taller screens untouched.",
+    ],
+  },
+  {
     date: "2026-10-12",
     summary: [
       "対戦が戦績システムに登録されないことがあったのを直しました",
@@ -2574,7 +2597,14 @@ export function openChangelogModal({ admin = false } = {}) {
       // 英語表示では itemsEn があればそちらを出す。無ければ日本語のまま出し、
       // 「この回は日本語のみ」と一言添える（過去分は英訳しない方針＝ユーザー判断）。
       const useEn = getLang() !== "ja" && Array.isArray(entry.itemsEn) && entry.itemsEn.length > 0;
-      if (getLang() !== "ja" && !useEn) {
+      // 【2026-10-16】「この回は日本語のみ」は、**実際に日本語のまま出すものがある時だけ**添える。
+      // 以前は `itemsEn` が無いだけで出していたので、**不具合の直しだけの回（fixes/fixesEn はある）**
+      // に「日本語のみ」と出てしまっていた（英文はちゃんと出ているのに）。
+      const jaOnlyItems =
+        Array.isArray(entry.items) && entry.items.length > 0 && !(Array.isArray(entry.itemsEn) && entry.itemsEn.length > 0);
+      const jaOnlyFixes =
+        Array.isArray(entry.fixes) && entry.fixes.length > 0 && !(Array.isArray(entry.fixesEn) && entry.fixesEn.length > 0);
+      if (getLang() !== "ja" && (jaOnlyItems || jaOnlyFixes)) {
         const note = document.createElement("div");
         note.className = "changelog-ja-only";
         note.textContent = t("chg.jaOnly");

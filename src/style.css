@@ -272,6 +272,49 @@ body.is-tablet-device .opening-setup-never {
   font-size: 1.4rem;
   padding: 0.7rem 0.8rem;
 }
+/* 【2026-10-12】**画面が低い端末で、この案内が読めなかった。**
+   実測（本番・932x320＝iPhone横持ちで Safari の上下のバーが出ている状態。ステージ倍率0.356）:
+   11行すべてが11px未満で、「このまま遊ぶ」が **8.5px**、手順が 8.5px、注記が 6.5px だった
+   （932x430 なら 11.5px）。**10/17 に来た人が最初に見る画面がこれ**で、いちばん伝えたい
+   「ホーム画面に追加してください」が読めない。
+
+   🔴 **字を大きくするだけでは入らない**——320px の画面でモーダルは既に 268px（84%）を使っていた。
+   **長い説明を隠してから字を大きくする**（続き574 で同じ判断をした。「字を大きくする」は
+   文章を削ることと一緒に考える）。横幅も広げる＝手順の折り返しが減って、そのぶん縦が縮む。
+   `max-height` の境目は**ビューポートの高さ**で見る（`vh` を長さに使うのとは別の話で、
+   メディアクエリの判定はステージ倍率の影響を受けない）。 */
+@media (max-height: 380px) {
+  body.is-phone-device #opening-setup-modal,
+  body.is-tablet-device #opening-setup-modal {
+    width: 88rem; /* 94vw は実画面312pxにしかならない（vwの罠）。rem で広げる＝約501px */
+    padding: 1.2rem 1.6rem;
+  }
+  /* 長い説明と注記は隠す。手順そのものは残すので、やることは分かる。 */
+  body.is-phone-device .opening-setup-why,
+  body.is-tablet-device .opening-setup-why,
+  body.is-phone-device .opening-setup-note,
+  body.is-tablet-device .opening-setup-note {
+    display: none;
+  }
+  body.is-phone-device .opening-setup-title,
+  body.is-tablet-device .opening-setup-title { font-size: 2.8rem; margin-bottom: 0.8rem; }
+  body.is-phone-device .opening-setup-label,
+  body.is-tablet-device .opening-setup-label { font-size: 2.3rem; margin-bottom: 0.5rem; }
+  body.is-phone-device .opening-setup-steps,
+  body.is-tablet-device .opening-setup-steps { font-size: 2rem; line-height: 1.5; }
+  body.is-phone-device .opening-setup-lang-btn,
+  body.is-tablet-device .opening-setup-lang-btn { font-size: 2.3rem; padding: 0.6rem 1rem; }
+  body.is-phone-device .opening-setup-primary,
+  body.is-tablet-device .opening-setup-primary,
+  body.is-phone-device .opening-setup-secondary,
+  body.is-tablet-device .opening-setup-secondary { font-size: 2.3rem; padding: 0.7rem 1.2rem; margin-top: 0.6rem; }
+  body.is-phone-device .opening-setup-play,
+  body.is-tablet-device .opening-setup-play { font-size: 2.1rem; padding: 0.7rem 1.2rem; }
+  body.is-phone-device .opening-setup-never,
+  body.is-tablet-device .opening-setup-never { font-size: 1.8rem; padding: 0.5rem 0.8rem; }
+  body.is-phone-device .opening-setup-section,
+  body.is-tablet-device .opening-setup-section { margin-top: 0.8rem; }
+}
 
 /* 初回起動時のBGM設定モーダル（first-run-bgm.js）。 */
 #first-run-bgm-modal {
@@ -2851,6 +2894,48 @@ body.is-phone-device .update-banner-close {
   transform: translateY(-0.3rem) scale(1.04);
   border-color: rgba(251, 191, 36, 0.95);
   box-shadow: 0 0.7rem 1.4rem rgba(0, 0, 0, 0.6);
+}
+/* 【#412・2026-10-12】ユーザー報告「複数捨てるモーダルの時、**下のボタンが見切れてます**！
+   カードの上部も少し見切れてる気がします！」
+   報告に入っていた画面の記録で**その場で確定した**: モーダルの箱は `160,40,612,349` ＝下端389で
+   画面(430)には収まっているのに、**中身が476ある**（はみ出し112）。`#stack-modal` 自身が
+   `overflow-y: auto` なので、**確定ボタンが巻かれて見えなくなっていた**。巻けば出てくるが、
+   2倍に拡大されたモーダルの中をさらに巻くとは普通は思わない。手元でも再現した
+   （手札4枚＝ボタンは見える／**8枚から見えなくなる**。箱は報告と同じ 160,40,612,349）。
+
+   直し方: 中身を縦に3段（題と案内／カードの一覧／確定ボタン）に分け、**巻くのは一覧だけ**にする。
+   こうすれば枚数がいくら増えても**確定ボタンは必ず見える**。 */
+#stack-modal.is-order-picker {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 巻くのは中の一覧だけ（下の .stack-modal-list） */
+}
+#stack-modal.is-order-picker .stack-modal-title,
+#stack-modal.is-order-picker .stack-modal-note,
+#stack-modal.is-order-picker .stack-modal-confirm {
+  flex: 0 0 auto;
+}
+#stack-modal.is-order-picker .stack-modal-list {
+  /* 残りの高さを全部使う。`min-height: 0` が無いと flex の子は縮まず、結局はみ出す。 */
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+/* スマホ: `max-height: 85vh` は実画面349pxにしかならない（`vh` の罠＝続き575 の★。しかも
+   このモーダルは --center-modal-scale-phone で2倍に拡大される）。ステージ基準の rem にして、
+   画面の9割ほどまで使う（26rem ＝ 実画面約398px / 430px）。画面が低い端末でも同じ割合になる
+   ——rem はステージ倍率と一緒に縮むが、`vh` は縮まないので割合がずれる。 */
+body.is-phone-device #stack-modal.is-order-picker,
+body.is-tablet-device #stack-modal.is-order-picker {
+  max-height: 26rem;
+}
+/* カードを少し小さくして1行に多く並べる（巻く量そのものを減らす）。8rem は実画面122pxで、
+   一覧の幅612pxに4枚しか並ばなかった。 */
+body.is-phone-device #stack-modal.is-order-picker .stack-modal-card,
+body.is-tablet-device #stack-modal.is-order-picker .stack-modal-card {
+  width: 6rem;
+  height: 6rem;
 }
 /* OKボタン1つだけの汎用確認モーダル（山札切れの補充確認等に使う）。 */
 #confirm-modal {
@@ -20997,6 +21082,43 @@ body.is-tablet-device .summary-sheet-tab { font-size: 1.5rem; padding: 0.45rem 1
 body.is-phone-device .summary-sheet-hint,
 body.is-tablet-device .summary-sheet-hint { font-size: 1.3rem; margin-top: 0.8rem; }
 
+
+/* 【#408・2026-10-12】ユーザー報告「スマホでの、サマリー表示で、**バツボタンが小さい**です。
+   あと**少しスクロールになるので動かない方がいい**です！」
+   実測（932x430）: ✕ は **19.9x19.9px**（押すものの目安28pxに足りない）、パネルは中身894に対して
+   見える830＝**はみ出し64** で、早見表の下がわずかに切れて巻かれていた（932x320 では ✕ が14.8px）。
+
+   巻かないようにする直し方: パネルを縦の3段（題／タブ／絵）にして**絵だけが縮む**ようにする。
+   `object-fit: contain` なので縮んでも形は崩れない。`min-height: 0` が無いと flex の子は縮まず、
+   結局はみ出す（#412 と同じ）。 */
+#summary-sheet-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 巻かない（中の絵が縮んで収まる） */
+}
+.summary-sheet-title,
+.summary-sheet-tabs,
+.summary-sheet-hint {
+  flex: 0 0 auto;
+}
+.summary-sheet-image {
+  flex: 0 1 auto;
+  min-height: 0;
+  object-fit: contain;
+}
+/* ✕ は全モーダル共通のクラスなので、**この画面の中だけ**大きくする（他のモーダルに波及させない）。
+   3.8rem ＝ 実画面約29px で「押すものは28px以上」を満たす。題の右の余白も一緒に広げないと
+   題の文字に被る（続き575 で実際に被らせた）。 */
+body.is-phone-device #summary-sheet-panel .modal-close-x,
+body.is-tablet-device #summary-sheet-panel .modal-close-x {
+  width: 3.8rem;
+  height: 3.8rem;
+  font-size: 2.3rem;
+}
+body.is-phone-device #summary-sheet-panel .summary-sheet-title,
+body.is-tablet-device #summary-sheet-panel .summary-sheet-title {
+  padding-right: 4.6rem;
+}
 /* フェイズ案内板の「サマリー」ボタン（自動送りの左隣）。絵文字を中央に置くだけ。 */
 .phase-summary-glyph {
   font-size: 1.2rem;
