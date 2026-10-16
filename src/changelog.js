@@ -61,6 +61,7 @@ export const CHANGELOG = [
       "ゴメンナサイを使っている途中で、勝手に承認が進んで相手が勝ってしまうことがあったのを直しました。じっくり選んでも大丈夫です。",
       "1つのロック宣言に対して、2人目以降もゴメンナサイを使えてしまうことがあったのを直しました。",
       "試遊版をホーム画面に追加して開き直すと、ふつうのタイトル画面になってしまっていたのを直しました。",
+      "物語のエイドス戦に、CPU戦で選んだ設定（無色あり・ブーストあり）が混ざってしまっていたのを直しました。物語の戦いは誰がやっても同じ中身になります。",
     ],
     fixesEn: [
       "Fixed the confirm buttons being cut off at the bottom of the multi-card discard dialog, however many cards you hold.",
@@ -71,6 +72,7 @@ export const CHANGELOG = [
       "Fixed an approval going through on its own while you were still playing So Sorry!, which could hand the win to your opponent. Take your time choosing.",
       "Fixed a second player being able to play So Sorry! against the same final-lock declaration.",
       "Fixed the trial entry being lost when the game was opened from a home screen shortcut.",
+      "Fixed the story battles against Eidos picking up the colourless and boost options chosen for ordinary CPU games; the story battles are now the same for everyone.",
     ],
     devItems: [
       "**#412「複数捨てるモーダルの時、下のボタンが見切れてます！カードの上部も少し見切れてる気がします！」**。報告に入っていた**画面の記録（screen2）でその場で確定した**——モーダルの箱は `160,40,612,349` で画面(430)には収まっているのに、**中身が476**（はみ出し112）。`#stack-modal` 自身が `overflow-y: auto` なので**確定ボタンが巻かれて見えなくなっていた**。手元でも同じ箱（`160,40,612,349`）で再現し、**手札4枚では見えるが8枚から見えなくなる**ことを確かめた（続き563 の検証が3〜4枚だったので通ってしまっていた）。直しは、中身を縦3段（題と案内／一覧／確定ボタン）に分けて**巻くのは一覧だけ**にする（`min-height: 0` が無いと flex の子は縮まず結局はみ出す）。あわせてスマホの `max-height: 85vh`（実画面349px＝**vhの罠**）を `26rem`（約398px）に、カードを 8rem→6rem に。**A/Bで確認**——直す前は8枚・12枚で確定ボタンが枠外、直した後はどちらも枠内。**戻ってきたのはボタン1つではなく3つ**（「これで捨てる」「おまかせ」「盤面を見る」が全部隠れていた）。932x320 の低い画面でも枠内。",
@@ -82,6 +84,7 @@ export const CHANGELOG = [
       "**②の60秒の救済は「撃つ前に、承認者が本当に止まっているかを確かめる」形にした。** この救済のコメント自身が目的を「その人の通信が切れていれば誰も解決できない」と書いているのに、**切れているかを確かめずに時間だけで撃っていた**。確かめる材料は既にあった——各席は **25秒ごとに `so7_game_seats.last_seen` を更新し続けており**（`HEARTBEAT_MS`）、「もう一度遊ぶ」の待ち相手判定が同じ値を **70秒**のしきい値で使っている（`REMATCH_FRESH_MS`）。**ゴメンナサイを選んでいる最中でも、生きていればこの値は新しいまま**。`isSeatAlive()` を online.js に新設し、生きていれば撃たずに時計を進め直す。⚠ **読み取りに失敗した時（null）は「落ちている」と読まない**——読めなかっただけで人を撃つことになるため。ただし永久に止めると落ちた人が1人いるだけで対局が終わらないので、**その時だけ180秒まで待ってから撃つ**（迷ったら遅い方へ倒す）。判定そのものは `isLastSeenFresh()` に切り出して、部屋に入らなくても true / false / null を直接確かめられるようにした。",
       "**ユーザー報告「クラファンページの試遊版、入った後ホームに追加して開き直すと、タイトル画面が通常のになっちゃってる気がする」——気のせいではなかった。** ホーム画面から開く時のURLは `manifest.json` の `start_url`（`\"./\"`）で、**`?trial` が付かない**。つまり**こちらが勧めている道**（起動時の案内で「ホーム画面に追加して、そこから開いてください」と出している）を通ると、試遊の入口が消えてログインを求める通常のタイトルに変わる。🔴 **manifest の `start_url` に `?trial` を入れるのは誤り**——あれは全員で共有の1枚なので、試遊で来ていない人の追加まで試遊扱いになる。**この端末が試遊から入ったことを覚えておく**形にした（`so7-trial-entry`・30日で失効）。ログインへ進む時は `clearTrialParam` と一緒に控えも消すので、登録した人には次から通常のタイトルが出る。⚠ **訪問記録の `getTrialSource` は URL だけを見るまま**にした——あの数字は「試遊のリンクから来た人」という意味で既にコンソールに出ているので、開き直した2回目以降まで数え始めると意味が変わる。**A/Bで確認**——直す前は `?trial` 無しで開くと通常のタイトル（ログインボタンだけ）、直した後は試遊パネルが出る。ログイン後は両方とも通常のタイトル。",
       "**カードの「持ち物検査」を作った**（`node tools/check-cards.mjs`）。ユーザー「今後カードが増えていった際にスマートに対応できるプログラムになってますか？」への答えとして、まず実測した: カード34種に対し **効果データ34/34・日英の文34/34・画像34/34・テスト34/34** で欠けゼロ、山札も `expandDeck(NORMAL_CARDS)` でデータから自動で組まれる（枚数の決め打ちは無い）。**つまり骨格は良い。ただし揃っているのは人が気をつけているからで、仕組みは何も見ていなかった。** カードを足して効果データや英文やテストを忘れても誰も何も言わない。そこで全カードについて（効果データ／日本語の文／英語の文／カード画像／イラスト版／テスト）の有無と、逆向き（一覧に無いのにデータだけ在る＝消し忘れ）を突き合わせる道具を足した。🔴 **探し方が空振りすると「0件＝合格」になる**ので、まず「それらしい数が取れたか」を確かめ、取れていなければ検査自体を失敗にする。**A/Bで確認**——にせのカードを1枚足すと6件を名指しで報告し終了コード1、戻すと合格。ブーストの白紙カード7種は効果も実画像も持たない作りなので対象外にしてある。あわせて `card-effects.js` の冒頭に残っていた「**まだゲーム本体には一切配線していない、パイロット5枚だけの設計たたき台**」という**古い説明を訂正した**（実際はとっくに全34種を本番で動かしている）。",
+      "**ユーザー報告「本気のエイドスの時、CPU戦の時の選択（ブーストモードとかマイデッキ戦とか）が引き継がれちゃってる？」——そのとおりだった。** `runCpuBattleSetup` は**渡さなかった項目にCPU戦モーダルで選んだ設定を既定で使う**作り。`eidos-story.js` は `myDeck` と人数を明示していたが、**白黒（無色）とブーストを渡し忘れていた**ので、物語戦の中身が「その端末のCPU戦の設定」で変わっていた。**実測**（本気エイドス戦を設定だけ変えて4回開始）: 両方オフ＝白紙0・無色2／**ブーストON＝白紙2枚混ざる**／**白黒ON＝無色3に増える**／両方ON＝白紙2・無色4。コードのコメント自体が「物語のエイドス戦は myDeck を明示で渡してくるので、そちらはこの設定に左右されない」と書いており、**意図はあったのに2つ渡し忘れていた**形。物語戦は作り込まれた筋書き（エイドス＝ノワール＋両隣に烙印）なので**誰がやっても同じ戦い**であるべき、という判断で `includeBlackWhite: false, boost: false` を明示した（ユーザー了承）。設定どうしのぶつかり合いも消える——**#391「本気のエイドスがノワールを3枚ロックしている」は、まさにブーストONの白紙カードがノワールに変換されていたもの**だった。**A/Bで確認**——直した後は4通りすべて同じ中身（白紙0・無色2・ノワール1・烙印2）。易しい方・本気の方どちらも同じ1か所を通るので両方に効く。⚠ **既定は両方オフ**なので、初めて開く端末（ゲムマで来る人）には元から影響が無かった。",
     ],
     devItemsEn: [
       "The multi-card discard dialog clipped its confirm buttons because the modal itself scrolled; it is now a three-row flex column where only the card list scrolls, so the buttons are always visible. The report's captured screen state identified the cause immediately, and the same box was reproduced locally at eight cards.",
@@ -93,6 +96,7 @@ export const CHANGELOG = [
       "The stuck rescue now checks whether the approver's seat is actually stale before firing, using the per-seat heartbeat the app already writes every twenty-five seconds; an unreadable result is never treated as absence, but it does extend the wait to three minutes so a genuinely dead client cannot freeze the game.",
       "Adding the game to a home screen dropped the trial entry because the manifest start_url carries no query, so the device now remembers that it arrived through the trial link and forgets it again when the player goes to log in; the visit metric still counts only real link arrivals.",
       "A card inventory check was added so that adding a card reports anything missing by name: effect data, Japanese and English text, both images and a test. The checker fails loudly if its own search finds implausibly few cards, and a stale comment claiming the effect data was an unwired prototype was corrected.",
+      "The story battles passed only the deck and player-count options to the shared CPU setup, so the colourless and boost options fell back to whatever the device had chosen for ordinary CPU games, changing an authored scenario; both are now passed explicitly.",
     ],
   },
   {
