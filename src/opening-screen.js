@@ -38,7 +38,7 @@ import { isTouchPrimaryDevice } from "./device-detect.js";
 import { startTitlePetWalk } from "./title-pet.js";
 import { t } from "./ui-text.js";
 import { getLang, setLangWithNotice, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
-import { isTrialEntry, clearTrialParam } from "./trial-entry.js";
+import { isTrialEntry, clearTrialParam, forgetTrialEntry } from "./trial-entry.js";
 // （旧CPU戦ボタン撤去に伴い cpu-battle.js の静的importも撤去。これで opening-screen.js が
 //  cpu-battle.js を芋づるで静的に読み込む依存辺が消え、循環import由来の黒画面リスクも下がる。）
 
@@ -590,6 +590,8 @@ export function initOpeningScreen() {
     loginLink.addEventListener("click", () => {
       // Googleログインはページを離れて「今のURL」へ戻ってくるので、?trial を持ち越さない。
       clearTrialParam();
+      // 【2026-10-16】端末の控えも一緒に消す——ログインする人には、次から通常のタイトルを出す。
+      forgetTrialEntry();
       setTestModeRequested(false);
       showCard();
     });
