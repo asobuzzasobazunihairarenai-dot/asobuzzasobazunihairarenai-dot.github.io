@@ -333,6 +333,7 @@ import {
   onAuthChange,
   fetchMyTitleKey,
   fetchAndHydrate,
+  isSeatAlive,
   onGateInvasionEvents,
   broadcastContactTackle,
   onContactTackleEvents,
@@ -18534,6 +18535,9 @@ function checkContactStuckApprove() {
 // queue の先頭を1つ進めるだけなので**Edge Function の変更は不要**。承認者が複数いる
 // 3・4人戦では、この砦が順番に効いて最後まで進む。
 const FINAL_LOCK_STUCK_APPROVE_MS = 60000;
+// 生存を確かめられなかった時に、それでも救済するまでの待ち時間（迷ったら遅い方へ倒す）。
+const FINAL_LOCK_STUCK_UNKNOWN_MS = 180000;
+let finalLockStuckCheckInFlight = false;
 let finalLockStuckKey = "";
 let finalLockStuckSince = 0;
 function checkFinalLockStuckApprove() {
@@ -18550,16 +18554,60 @@ function checkFinalLockStuckApprove() {
     finalLockStuckSince = Date.now();
     return;
   }
+  // 自分がゴメンナサイを処理している最中は、この救済も撃たない（45秒側と同じ理由）。
+  if (gomennasaiManualUseInFlight || gomennasaiAutoApprovalInFlight || cpuFinalLockInFlight) {
+    finalLockStuckSince = Date.now();
+    return;
+  }
   if (Date.now() - finalLockStuckSince < FINAL_LOCK_STUCK_APPROVE_MS) return;
-  finalLockStuckSince = Date.now(); // 連続発火を防ぐ
-  logAction("diag-final-lock-stuck-approve", {
-    attacker: pending.attacker,
-    approver: pending.queue[0],
-    selfSeat: getSelfSeat(),
-    iAmApprover: getSelfSeat() === pending.queue[0],
-    waitedMs: FINAL_LOCK_STUCK_APPROVE_MS,
-  });
-  respondFinalLock(true);
+  // 🔴【#416/#417・2026-10-16】**撃つ前に、承認者が本当に止まっているかを確かめる。**
+  // この救済の目的は上のコメントのとおり「その人の通信が切れていれば誰も解決できない」
+  // なのに、**切れているかを確かめずに時間だけで撃っていた**。そのため、ゴメンナサイを
+  // じっくり選んでいる**生きている人**まで撃ってしまい、勝敗が狂っていた。
+  // 各席は25秒ごとに so7_game_seats.last_seen を更新し続けるので、**選んでいる最中でも
+  // 生きていれば新しいまま**。これで「本当に落ちた人」だけを対象にできる。
+  // 読み取りは非同期なので、重なって何度も走らないように印を立てる。
+  if (finalLockStuckCheckInFlight) return;
+  finalLockStuckCheckInFlight = true;
+  const attackerAtCheck = pending.attacker;
+  const approverAtCheck = pending.queue[0];
+  void (async () => {
+    let alive = null;
+    try {
+      alive = await isSeatAlive(approverAtCheck);
+    } catch (_) {
+      alive = null;
+    } finally {
+      finalLockStuckCheckInFlight = false;
+    }
+    // 待っている相手が変わっていたら、この結果はもう使えない。
+    const now = getState().pendingFinalLock;
+    if (!now || !now.queue || now.queue[0] !== approverAtCheck || now.attacker !== attackerAtCheck) return;
+    const waited = Date.now() - finalLockStuckSince;
+    if (alive === true) {
+      // 生きている＝救済の出番ではない。時計を進めて、また60秒後に見直す。
+      finalLockStuckSince = Date.now();
+      logAction("diag-final-lock-stuck-alive", { attacker: attackerAtCheck, approver: approverAtCheck, waitedMs: waited });
+      return;
+    }
+    // alive === null ＝ **確かめられなかった**。ここで撃つと「読めなかっただけ」で人を
+    // 撃つことになるが、永久に止めると落ちた人が1人いるだけで対局が終わらなくなる。
+    // そこで**待ち時間を長くして**から撃つ（迷った時は遅い方へ倒す）。
+    if (alive === null && waited < FINAL_LOCK_STUCK_UNKNOWN_MS) {
+      logAction("diag-final-lock-stuck-unknown", { attacker: attackerAtCheck, approver: approverAtCheck, waitedMs: waited });
+      return;
+    }
+    finalLockStuckSince = Date.now(); // 連続発火を防ぐ
+    logAction("diag-final-lock-stuck-approve", {
+      attacker: attackerAtCheck,
+      approver: approverAtCheck,
+      selfSeat: getSelfSeat(),
+      iAmApprover: getSelfSeat() === approverAtCheck,
+      waitedMs: waited,
+      approverAlive: alive,
+    });
+    respondFinalLock(true);
+  })();
 }
 
 function checkFinalLockApprovalTimeout() {
@@ -18573,6 +18621,19 @@ function checkFinalLockApprovalTimeout() {
   const key = pending.attacker + "|" + pending.queue[0] + "|" + (pending.tokenId ?? "");
   if (key !== finalLockPromptKey) {
     finalLockPromptKey = key;
+    finalLockPromptSince = Date.now();
+    return;
+  }
+  // 🔴【#416/#417・2026-10-16】**ゴメンナサイを処理している最中は撃たない。**
+  // この守りは checkGomennasaiAutoApproval（#36/#83）に前からあるのに、**あとから足した
+  // この45秒の経路には付け忘れていた**。ゴメンナサイは「奪う札を選ぶ → コストの紫を選ぶ →
+  // 発動宣言と『防いだ！』の演出」と進むので45秒を超えやすく、**本人の画面のタイマーが
+  // 本人を裏切って承認を送り、攻撃側が勝ってしまっていた**（報告 #417。ログでも
+  // diag-final-lock-auto-approve と diag-lock-robbed-notice が同じ秒に並んでいた）。
+  // 承認待ちが先へ進むと、次の人の画面では攻撃側がまだ7色目に届いて見えるので、
+  // **2人目にもゴメンナサイのボタンが出る**（報告 #416）——同じ根。
+  // 時計も進めておく（解決し終わった瞬間に即発火しないように）。
+  if (gomennasaiManualUseInFlight || gomennasaiAutoApprovalInFlight || cpuFinalLockInFlight) {
     finalLockPromptSince = Date.now();
     return;
   }

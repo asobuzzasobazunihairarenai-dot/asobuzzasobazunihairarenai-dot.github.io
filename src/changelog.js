@@ -58,6 +58,8 @@ export const CHANGELOG = [
       "最初に出る案内（ことば／ホーム画面に追加）が、画面の低い端末で小さすぎて読めなかったのを直しました。",
       "右下の「○○のターンです」が、名前が入ると折り返してしまうことがあったのを直しました。",
       "カードのタイトルのふりがなが白くて読みづらかったのを、濃い文字にしました。",
+      "ゴメンナサイを使っている途中で、勝手に承認が進んで相手が勝ってしまうことがあったのを直しました。じっくり選んでも大丈夫です。",
+      "1つのロック宣言に対して、2人目以降もゴメンナサイを使えてしまうことがあったのを直しました。",
     ],
     fixesEn: [
       "Fixed the confirm buttons being cut off at the bottom of the multi-card discard dialog, however many cards you hold.",
@@ -65,6 +67,8 @@ export const CHANGELOG = [
       "Fixed the first-run notice (language / add to home screen) being too small to read on short screens.",
       "Fixed the turn banner at the bottom right wrapping onto several lines once a player name was in it.",
       "The furigana above card titles is now dark instead of white, so it can be read.",
+      "Fixed an approval going through on its own while you were still playing So Sorry!, which could hand the win to your opponent. Take your time choosing.",
+      "Fixed a second player being able to play So Sorry! against the same final-lock declaration.",
     ],
     devItems: [
       "**#412「複数捨てるモーダルの時、下のボタンが見切れてます！カードの上部も少し見切れてる気がします！」**。報告に入っていた**画面の記録（screen2）でその場で確定した**——モーダルの箱は `160,40,612,349` で画面(430)には収まっているのに、**中身が476**（はみ出し112）。`#stack-modal` 自身が `overflow-y: auto` なので**確定ボタンが巻かれて見えなくなっていた**。手元でも同じ箱（`160,40,612,349`）で再現し、**手札4枚では見えるが8枚から見えなくなる**ことを確かめた（続き563 の検証が3〜4枚だったので通ってしまっていた）。直しは、中身を縦3段（題と案内／一覧／確定ボタン）に分けて**巻くのは一覧だけ**にする（`min-height: 0` が無いと flex の子は縮まず結局はみ出す）。あわせてスマホの `max-height: 85vh`（実画面349px＝**vhの罠**）を `26rem`（約398px）に、カードを 8rem→6rem に。**A/Bで確認**——直す前は8枚・12枚で確定ボタンが枠外、直した後はどちらも枠内。**戻ってきたのはボタン1つではなく3つ**（「これで捨てる」「おまかせ」「盤面を見る」が全部隠れていた）。932x320 の低い画面でも枠内。",
@@ -72,6 +76,8 @@ export const CHANGELOG = [
       "**起動時の案内（ことば／ホーム画面に追加）が、画面の低い端末で読めなかった**（試遊の動線を本番で通して見つけた）。実測（932x320＝iPhone横持ちでSafariのバーが出ている状態・ステージ倍率0.356）: **11行すべてが11px未満**で「このまま遊ぶ」が8.5px、手順8.5px、注記6.5px。**10/17 に来た人が最初に見る画面**で、いちばん伝えたい「ホーム画面に追加してください」が読めない。🔴 **字を大きくするだけでは入らない**（320pxの画面でモーダルは既に268px＝84%を使っていた）ので、`@media (max-height: 380px)` で**長い説明と注記を隠してから字を大きくし、横幅も広げた**（折り返しが減って縦が縮む）。**A/Bで確認**——11px未満が **11行→1行**（「もう出さない」10.3px＝控えめにしたい文字）、「このまま遊ぶ」8.5→**11.9px**、モーダルの高さ 268.6→**213.9**（画面の84%→67%）。**932x430 は箱も行も1つも変わっていない**＝低い画面だけに効いている。",
       "**#414「右下の『エイドスのターンです』の改行が気になります」**——10/12 に入れた名指しの回帰。原因は `max-width` ではなく**入れ物の幅**だった。この表示は案内板バーの中に `position: absolute; right: 0` で置かれていて、**幅が auto だと入れ物（バー）の幅までしか広がれない**（実測: 上限は352pxと書いてあるのに、折り返した時の箱は実画面168px＝CSS約279pxで頭打ちだった）。`width: max-content` にすると**入れ物をはみ出して左へ伸びられる**ので1行に収まる（右端基準なので伸びる先は画面の内側）。長すぎる時だけ `max-width: 44rem` で折り返す。**A/Bで確認**——長い文（優先権の注記つき）が **3行→1行**、箱は 168→343.5px で**画面内のまま**、短い文は1つも変わっていない。932x320 でも 3行→1行。",
       "**#415「カードタイトルのルビが白色ですが背景が白なので黒文字がいいかと！」**。2026-09-26 に題の帯が濃くなったとき、題とふりがなをまとめて白にしていた。しかし**ふりがなだけは帯の外（真上）に浮いている**（`bottom: 100%`。実測でもルビの下端が題の箱の上端より上にある）ので、**乗っているのは帯の上の淡い所**だった。ふりがなだけ濃い字（`#141414`＝基底と同じ）に戻し、影も外した。⚠ **ファーストは触っていない**——あちらは題もふりがなも**絵の上**に乗る作りで、全部白が正しい。実測: 通常・エターナルとも ルビ `rgb(20,20,20)`／題は `rgb(255,255,255)` のまま。実際に3枚描いて目でも確かめた。",
+      "**#417「ゴメンナサイが通る前に、次のプレイヤーの承認モーダルが出て承認すると勝っちゃった」＋ #416「1つのロック宣言に対して複数のゴメンナサイが使える？」——同じ根だった。** `main.js` には「ゴメンナサイを使っている最中は自動承認しない」ための `gomennasaiManualUseInFlight` が前からあり（#36/#83 の対策）、**2か所**で使われている。ところが**あとから足した2つの自動承認の経路には付け忘れていた**: ①45秒の自動承認（`checkFinalLockApprovalTimeout`）②60秒の詰まり救済（`checkFinalLockStuckApprove`）。ゴメンナサイは「奪う札を選ぶ→コストの紫を選ぶ→発動宣言と『防いだ！』の演出」と進むので45秒を超えやすく、**本人の画面のタイマーが本人を裏切って承認を送っていた**。承認待ちが先へ進むと、次の人の画面では攻撃側がまだ7色目に届いて見えるので**2人目にもボタンが出る**＝#416。報告のログでも `diag-final-lock-auto-approve`（A 23:57:27 / B 00:00:14）が出ており、**B のぶんは `diag-lock-robbed-notice`（00:00:14）と同じ秒**だった＝奪取とタイマーが競っていた。①は守りを足して時計も進めるようにした。",
+      "**②の60秒の救済は「撃つ前に、承認者が本当に止まっているかを確かめる」形にした。** この救済のコメント自身が目的を「その人の通信が切れていれば誰も解決できない」と書いているのに、**切れているかを確かめずに時間だけで撃っていた**。確かめる材料は既にあった——各席は **25秒ごとに `so7_game_seats.last_seen` を更新し続けており**（`HEARTBEAT_MS`）、「もう一度遊ぶ」の待ち相手判定が同じ値を **70秒**のしきい値で使っている（`REMATCH_FRESH_MS`）。**ゴメンナサイを選んでいる最中でも、生きていればこの値は新しいまま**。`isSeatAlive()` を online.js に新設し、生きていれば撃たずに時計を進め直す。⚠ **読み取りに失敗した時（null）は「落ちている」と読まない**——読めなかっただけで人を撃つことになるため。ただし永久に止めると落ちた人が1人いるだけで対局が終わらないので、**その時だけ180秒まで待ってから撃つ**（迷ったら遅い方へ倒す）。判定そのものは `isLastSeenFresh()` に切り出して、部屋に入らなくても true / false / null を直接確かめられるようにした。",
     ],
     devItemsEn: [
       "The multi-card discard dialog clipped its confirm buttons because the modal itself scrolled; it is now a three-row flex column where only the card list scrolls, so the buttons are always visible. The report's captured screen state identified the cause immediately, and the same box was reproduced locally at eight cards.",
@@ -79,6 +85,8 @@ export const CHANGELOG = [
       "The first-run notice was unreadable on short screens, where every line fell below eleven pixels; long explanations are now hidden and the remaining text enlarged under a height media query, leaving taller screens untouched.",
       "The turn banner wrapped because its width was auto inside the narrow phase-guide bar, so it could never exceed the bar; max-content lets it extend leftwards into the screen and it now stays on one line.",
       "Card title furigana floats above the title band rather than inside it, so the white introduced when the band darkened left it on a pale background; only the furigana is dark again, and First cards are untouched.",
+      "Both So Sorry! reports shared one cause: the flag that suppresses auto-approval while So Sorry! is being resolved existed in two places but had never been added to the forty-five second timeout or the sixty second stuck rescue, so a player's own client could approve on their behalf mid-resolution and hand the attacker the win, which in turn let a second player see the declaration as still completing and offer them the button too.",
+      "The stuck rescue now checks whether the approver's seat is actually stale before firing, using the per-seat heartbeat the app already writes every twenty-five seconds; an unreadable result is never treated as absence, but it does extend the wait to three minutes so a genuinely dead client cannot freeze the game.",
     ],
   },
   {

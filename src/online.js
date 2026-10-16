@@ -2374,6 +2374,38 @@ export async function startGame(gameId, { includeBlackWhite = false, timerEnable
 // みなし、全員揃うのを待つ対象から除外する。
 const REMATCH_FRESH_MS = 70000;
 
+
+// 【#416/#417・2026-10-16】座席がまだ生きているか（`last_seen` が新しいか）。
+// 最後のロックの「詰まり救済」が、**本当に通信が切れている人だけ**を対象にできるようにする
+// ための読み取り。各席は 25秒ごと（HEARTBEAT_MS）に `last_seen` を更新し続けるので、
+// ゴメンナサイの札を選んでいる最中でも、生きていれば必ず新しいままになる。
+// しきい値は「もう一度遊ぶ」の待ち相手判定（REMATCH_FRESH_MS）と同じ 70秒。
+// 戻り値: true=生きている / false=止まっている / **null=確かめられなかった**
+// （null を false と混同しないこと——「分からない」を「落ちている」と読むと、
+//  読み取りが失敗しただけで人を撃つことになる）。
+export const SEAT_ALIVE_FRESH_MS = 70000;
+// `last_seen` が「まだ新しい」か。**判定だけを切り出してある**——表に出しておくと、
+// 部屋に入らなくても true / false / null の3つを直接確かめられる（勝敗に効く判定なので、
+// 読み取りの往復に邪魔されずに検査できる形にしておきたい）。
+// 戻り値: true=新しい / false=古い / null=値が無い・読めない
+export function isLastSeenFresh(lastSeen, freshMs = SEAT_ALIVE_FRESH_MS) {
+  if (!lastSeen) return null;
+  const t = new Date(lastSeen).getTime();
+  if (!Number.isFinite(t)) return null;
+  return Date.now() - t < freshMs;
+}
+export async function isSeatAlive(seat, freshMs = SEAT_ALIVE_FRESH_MS) {
+  if (!client || !currentGameId || !seat) return null;
+  try {
+    // 問い合わせの形は getRematchWaitInfo と同じ（実績のある読み方をそのまま使う）。
+    const { data, error } = await client.from("so7_game_seats").select("seat, last_seen").eq("game_id", currentGameId);
+    if (error || !Array.isArray(data)) return null;
+    const row = data.find((s) => s.seat === seat);
+    return isLastSeenFresh(row?.last_seen, freshMs);
+  } catch (_) {
+    return null;
+  }
+}
 export async function setRematchReady(ready) {
   if (!currentGameId || !currentSeat) {
     logAction("diag-rematch-ready-skipped", { hasGame: !!currentGameId, seat: currentSeat ?? null });
