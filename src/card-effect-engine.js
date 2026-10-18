@@ -2439,6 +2439,28 @@ export async function runArrivalEffect(ctx, helpers) {
 
 // 選ばれた1つの選択肢を実際に実行する（runHandEffectの内部処理を切り出したもの）。
 async function runHandEffectOption(ctx, option, helpers) {
+  // 【#419・2026-10-18】**もう手札に無い札で、もう一度効果が走るのを止める。**
+  // 不具合報告「たたかってるときに、七色のカード２枚しかもってなかったけど、七色のカードを
+  // クリックしまくってたら２つの色ろっくできて勝っちゃいました」。行動ログでは、
+  // 1回目の発動で**ロック0番へ置いた**なないろの欠片(card-208)が、2回目の発動でも
+  // ctx.cardTokenId として使われ、**0番から2番へ引きずり出されていた**（0番には相方が
+  // 残るので、**1色が無から増えて**7色に届き勝利していた）。
+  // 大半のカードは発動の最初に自分自身を捨てる（下の discardAndSync）ので二重発動しても
+  // 実害が出にくいが、**なないろの欠片の「2枚をロックする」選択肢は keepsCardOnUse で
+  // カードを残す**ため、同じ札を何度でもロックし直せてしまう。
+  // ★ ファースト/エターナルは「これがロックされていても手札効果を使える」特別枠なので
+  // 対象外（判定は下の discardAndSync の分岐と同じ cardId の命名規則）。
+  if (!ctx.cardId.startsWith("eternal-") && !ctx.cardId.startsWith("first-")) {
+    if (!getHandTokens(ctx.player).some((tk) => tk.id === ctx.cardTokenId)) {
+      logAction("diag-hand-effect-stale", {
+        cardId: ctx.cardId,
+        tokenId: ctx.cardTokenId,
+        player: ctx.player,
+        zone: getState().tokens.find((tk) => tk.id === ctx.cardTokenId)?.location?.zone ?? null,
+      });
+      return false;
+    }
+  }
   // ユーザー要望「手札効果を使用したら、このカードが使用されるよ！って知らしめる
   // モーダルをしっかりと出したい」。実際の状態変更（捨てる・コスト支払い等）より前、
   // 「このカードを使う」と決まった瞬間に出す。

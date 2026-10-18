@@ -52,16 +52,36 @@ import { getLang } from "./i18n.js";
 export const CHANGELOG = [
   {
     date: "2026-10-18",
+    summary: [
+      "ログインしなくても、タイトル画面からそのまま遊べるようになりました",
+    ],
+    summaryEn: [
+      "You can now start playing straight from the title screen, without an account",
+    ],
+    items: [
+      "タイトル画面の「ログイン」の下に「アカウントを作らずに試す」を足しました。押すと、物語で遊び方を教わるか、すぐCPUと対戦するかを選べます。ホーム画面に追加したショートカットから開いた時や、お友達にURLをそのまま教えてもらった時など、これまで行き止まりになっていた入り方でも、そのまま遊び始められます。一度押した端末では、次からはこの画面が最初から出ます。ログインしている方にはこれまでどおりの画面が出ます。",
+    ],
+    itemsEn: [
+      "The title screen now offers \"Try it without an account\" under the log-in button. It leads to the same two ways in as the trial page: learn the game through the story, or play the CPU right away. This covers the ways people used to hit a dead end — opening the home screen shortcut, or being handed the plain address by a friend. Once you have used it on a device, that screen comes up first from then on. Nothing changes for people who are logged in.",
+    ],
     fixes: [
       "試遊版をホーム画面に追加して開き直すと、ふつうのタイトル画面になってしまう件を直しました（前回の直しでは iPhone で直っていませんでした）。",
+      "なないろの欠片で、すでにロックした札をもう一度使えてしまい、ロックの色が増えることがあったのを直しました。",
+      "不具合報告のボタンを、タイトル画面にも出るようにしました。",
     ],
     fixesEn: [
       "Fixed, for real this time, the trial entry being lost when the game is opened from a home screen shortcut; the previous attempt did not work on iPhone.",
+      "Fixed a Shard of Seven Hues card that was already locked being usable again, which could add a locked colour out of nowhere.",
+      "The bug report button is shown on the title screen again.",
     ],
     devItems: [
+      "**#419「七色のカード2枚しかもってなかったけど、クリックしまくってたら2つの色ろっくできて勝っちゃいました」＝勝敗が狂う不具合。** 行動ログで確定した: 1回目の発動で**ロック0番へ置いた**なないろの欠片(card-208)が、2回目の発動でも `ctx.cardTokenId` として使われ、**0番から2番へ引きずり出されていた**（0番には相方が残るので**1色が無から増え**、7色に届いて勝利）。大半のカードは発動の最初に自分自身を捨てるので二重発動が実害にならないが、**なないろの欠片の「2枚をロックする」選択肢は `keepsCardOnUse` でカードを残す**ため、同じ札を何度でもロックし直せた。直しは `runHandEffectOption` の冒頭に**「この札がまだ手札にあるか」の確認**を1つ（ファースト/エターナルは『ロックされていても手札効果を使える』特別枠なので対象外）。**A/B**: 直す前＝ロック済みの札で `ok:true`・**0番→2番へ移動＋2枚ドロー**／直した後＝`ok:false`・**何も起きない**。**正常系（手札の札）は前後で完全に同じ**。`diag-hand-effect-stale` を残したので、次に起きたら経路が分かる。",
+      "**#420 の試遊版の件は、URLにも端末の記憶にも頼らない形へ切り替えた。** 報告 #420 で `href=\"https://seven.asobuzz.net/\"` かつ **version が最新**と分かり、「古いキャッシュ」ではなく **iOS 18.7 が差し替えた manifest を見ていない**ことが確定した（続き596 の手が効かない）。さらに **manifest 系の手はどれも『すでに追加してあるショートカット』には効かない**（追加し直しが要る）。→ **試遊パネルを常に組み立てておき、通常のタイトル画面に「アカウントを作らずに試す」を置いた**。未ログインの時だけ出す。押すと `rememberTrialEntry()`（続き593 の30日の控え）も立てるので、次からは最初から試遊パネルになる。**A/B（iPhoneのUA・932x430）**: ①通常の入口＝ボタンが出る（139x27・画面内）②押すと試遊パネル（321x302・画面内）③開き直すと最初から試遊パネル ④`?trial` で来た人は従来どおり（ボタンは出ない）。例外0件。**なお `manifest-trial.json`（続き596）はそのまま残してある**——効く端末では効くので、二重の備えとして。",
       "**ユーザー報告 第2報「やっぱり試遊版URLですがホーム追加した後開くと普通のデジタル版になっちゃいます」。** 10/16 の直し（この端末が試遊から入ったことを localStorage に覚える）では**直っていなかった**。🔴 理由: **iOS では、ホーム画面から開いたアプリは Safari とは別の保管場所を持つ**——Cookie・localStorage・IndexedDB は共有されず、共有されるのは Service Worker の登録と CacheStorage だけ（WebKit 側の説明。ウェブで裏を取った）。つまり Safari で覚えた印はホーム画面のアプリからは**見えない**ので、「端末に覚えさせる」やり方ではこの経路は**原理的に越えられない**。→ **ショートカット自身の行き先に残す**のが正解。ホーム画面から開く時のURLは manifest の `start_url` なので、**試遊で来た人の画面でだけ** `start_url` に `?trial=app` を持つ `manifest-trial.json` へ差し替える（`manifest.json` は全員で共有の1枚なので、そちらに書くと試遊で来ていない人の追加まで試遊扱いになる＝誤り）。差し替えは **index.html に直接**書いた——本番では試遊メニューが出るまで10秒前後かかるので、その間に「ホーム画面に追加」を押されても間に合うようにするため。タグを `gm` ではなく **`app`**（＝ホーム画面から開いた）にして、`getTrialSource()` がこれを数えないようにした——数えると「試遊のリンクから来た人」という数字の意味が変わるため。**A/Bで確認**: `?trial=gm` で開くと manifest が `manifest-trial.json`（`start_url: \"./?trial=app\"`）に替わり試遊パネルが出て訪問記録は `trial:gm`／試遊でない人は `manifest.json`（`\"./\"`）のままで試遊パネルは出ない／`?trial=app` では試遊パネルが出て訪問記録は数えない。**10/16 の『端末に覚える』方も残してある**（Android の Chrome など保管場所が共有される端末と、Safari で開き直した時に効く＝二重の備え）。",
     ],
     devItemsEn: [
+      "A rainbow shard that had already been locked could be played again as the effect card, dragging itself out of its lock slot into another one while its partner stayed behind, which created a locked colour out of nothing and ended the game. The hand effect runner now checks that the card is still in hand before anything happens, except for First and Eternal cards, which are meant to work from the lock.",
+      "Report #420 showed the newest build still opening the bare address from the home screen, so iOS was ignoring the swapped manifest, and no manifest-based fix can repair shortcuts people have already created. The trial panel is now built on every title screen and reachable from a button shown to logged-out visitors, so the entry no longer depends on the address or on device storage.",
       "Remembering the trial entry in localStorage could never work on iOS, where a home screen app has its own storage separate from Safari; the shortcut's own destination now carries the flag instead, by swapping in a trial manifest whose start_url keeps the parameter, and only on the page of someone who arrived through the trial link. The swap is inline in the document so that it is already in place during the ten seconds the app takes to load, and the relaunch uses a distinct tag that the visit metric ignores.",
     ],
   },

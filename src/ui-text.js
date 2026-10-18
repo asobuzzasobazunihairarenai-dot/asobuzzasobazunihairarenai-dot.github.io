@@ -201,6 +201,8 @@ const UI = {
 
     // --- オープニング/ログイン画面（opening-screen.js） ---
     "opening.loginToggle": "ログイン",
+    // 【#420・2026-10-18】通常のタイトル画面からも試遊へ入れる導線（opening-screen.js）。
+    "trial.noAccount": "アカウントを作らずに試す",
     "trial.badge": "⚠ 開発中のアプリです",
     "trial.devNote": "不具合や内容の変更があり得ます。",
     "trial.lead": "登録なしで、すぐに遊べます。",
@@ -2145,6 +2147,7 @@ const UI = {
 
     // --- Opening / login screen ---
     "opening.loginToggle": "Log in",
+    "trial.noAccount": "Try it without an account",
     "trial.badge": "⚠ In development",
     "trial.devNote": "Expect bugs and changes.",
     "trial.lead": "Play now. No account needed.",

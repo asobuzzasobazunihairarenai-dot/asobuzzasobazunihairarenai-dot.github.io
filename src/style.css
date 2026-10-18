@@ -8151,8 +8151,12 @@ body.opening-screen-active #options-menu-panel {
    上の一括hide（body.opening-screen-active #self-status-online＝id1つ）ではdisplay:flexに
    負けてタイトル/オープニングでも表示されてしまっていた（ユーザー報告）。同等以上の詳細度で
    隠し、表示はホーム画面以降からにする。 */
+/* 不具合報告ボタン(#self-status-bug-report)だけはタイトル画面でも出す（ユーザー要望・不具合
+   報告#420「不具合報告ボタンは設定アイコン同样にタイトル画面から表示させるようにしていたのに
+   いつのまにか表示されなくなってます」2026-10-18）。このボタンはbody直下のz-index:100055なので、
+   #opening-screen(50000)より手前に出る。起動時の案内モーダル(100060)より後ろなので、あちらが
+   出ている間は覆われる＝従来どおり。 */
 body.opening-screen-active #option-area #self-status-online,
-body.opening-screen-active #self-status-bug-report,
 body.opening-screen-active #option-area #self-status-action-log {
   display: none;
 }

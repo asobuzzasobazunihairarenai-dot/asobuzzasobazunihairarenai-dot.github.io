@@ -33,7 +33,7 @@ function hasTrialParam() {
 }
 
 // URLに `?trial` が在る間に、この端末へ控えておく（ホーム画面から開いた時のため）。
-function rememberTrialEntry() {
+export function rememberTrialEntry() {
   try {
     localStorage.setItem(TRIAL_MEMO_KEY, String(Date.now()));
   } catch {
