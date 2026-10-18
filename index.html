@@ -44,6 +44,34 @@
 <!-- PWA: manifestでインストール可能（ホーム画面に追加）にする。start_url/scope/iconsは相対パスに
      しておくことで、サブパスで配信される場合でも正しく解決される。 -->
 <link rel="manifest" href="manifest.json">
+<script>
+  /* 【2026-10-18・ユーザー報告 第2報】「試遊版URL、ホーム追加した後開くと普通のデジタル版になっちゃう」
+     ——1回目の直し（この端末が試遊から入ったことを localStorage に覚える）では**直らなかった**。
+     🔴 理由: **iOS では、ホーム画面から開いたアプリは Safari とは別の保管場所を持つ**。
+     Safari で覚えた印は、ホーム画面のアプリからは**見えない**（Cookie・localStorage・IndexedDB は
+     共有されない。共有されるのは Service Worker の登録と CacheStorage だけ、というのが WebKit 側の説明）。
+     つまり「端末に覚えさせる」やり方では、この経路は原理的に越えられない。
+
+     → **ショートカット自身の行き先に ?trial を残す**のが正解。ホーム画面から開く時のURLは
+     manifest の start_url なので、**試遊で来た人の画面でだけ** start_url に ?trial を持つ
+     manifest-trial.json へ差し替える（manifest.json は全員で共有の1枚なので、そちらに書くと
+     試遊で来ていない人の追加まで試遊扱いになる＝それは誤り）。
+
+     ⚠ **ここに直接書く**（モジュールではなく）。本番では試遊メニューが出るまで10秒前後かかるので、
+     その間に「ホーム画面に追加」を押されても間に合うようにする。
+
+     ⚠ 行き先のタグは gm ではなく **app**（＝ホーム画面から開いた、の意味）。こうすると
+     訪問記録の「試遊のリンクから来た人」の数字に、2回目以降の起動が混ざらない
+     （trial-entry.js の getTrialSource が app を数えない）。 */
+  try {
+    if (new URLSearchParams(location.search).has("trial")) {
+      var m = document.querySelector('link[rel="manifest"]');
+      if (m) m.href = "manifest-trial.json";
+    }
+  } catch (e) {
+    /* 差し替えられなくても、その場で遊ぶことには影響しない */
+  }
+</script>
 <meta name="theme-color" content="#0a1524">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">

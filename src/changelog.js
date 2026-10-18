@@ -51,6 +51,21 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-18",
+    fixes: [
+      "試遊版をホーム画面に追加して開き直すと、ふつうのタイトル画面になってしまう件を直しました（前回の直しでは iPhone で直っていませんでした）。",
+    ],
+    fixesEn: [
+      "Fixed, for real this time, the trial entry being lost when the game is opened from a home screen shortcut; the previous attempt did not work on iPhone.",
+    ],
+    devItems: [
+      "**ユーザー報告 第2報「やっぱり試遊版URLですがホーム追加した後開くと普通のデジタル版になっちゃいます」。** 10/16 の直し（この端末が試遊から入ったことを localStorage に覚える）では**直っていなかった**。🔴 理由: **iOS では、ホーム画面から開いたアプリは Safari とは別の保管場所を持つ**——Cookie・localStorage・IndexedDB は共有されず、共有されるのは Service Worker の登録と CacheStorage だけ（WebKit 側の説明。ウェブで裏を取った）。つまり Safari で覚えた印はホーム画面のアプリからは**見えない**ので、「端末に覚えさせる」やり方ではこの経路は**原理的に越えられない**。→ **ショートカット自身の行き先に残す**のが正解。ホーム画面から開く時のURLは manifest の `start_url` なので、**試遊で来た人の画面でだけ** `start_url` に `?trial=app` を持つ `manifest-trial.json` へ差し替える（`manifest.json` は全員で共有の1枚なので、そちらに書くと試遊で来ていない人の追加まで試遊扱いになる＝誤り）。差し替えは **index.html に直接**書いた——本番では試遊メニューが出るまで10秒前後かかるので、その間に「ホーム画面に追加」を押されても間に合うようにするため。タグを `gm` ではなく **`app`**（＝ホーム画面から開いた）にして、`getTrialSource()` がこれを数えないようにした——数えると「試遊のリンクから来た人」という数字の意味が変わるため。**A/Bで確認**: `?trial=gm` で開くと manifest が `manifest-trial.json`（`start_url: \"./?trial=app\"`）に替わり試遊パネルが出て訪問記録は `trial:gm`／試遊でない人は `manifest.json`（`\"./\"`）のままで試遊パネルは出ない／`?trial=app` では試遊パネルが出て訪問記録は数えない。**10/16 の『端末に覚える』方も残してある**（Android の Chrome など保管場所が共有される端末と、Safari で開き直した時に効く＝二重の備え）。",
+    ],
+    devItemsEn: [
+      "Remembering the trial entry in localStorage could never work on iOS, where a home screen app has its own storage separate from Safari; the shortcut's own destination now carries the flag instead, by swapping in a trial manifest whose start_url keeps the parameter, and only on the page of someone who arrived through the trial link. The swap is inline in the document so that it is already in place during the ten seconds the app takes to load, and the relaunch uses a distinct tag that the visit metric ignores.",
+    ],
+  },
+  {
     date: "2026-10-16",
     fixes: [
       "複数のカードを捨てる画面で、下の「これで捨てる」などのボタンが見切れていたのを直しました。カードが増えても必ず見えます。",

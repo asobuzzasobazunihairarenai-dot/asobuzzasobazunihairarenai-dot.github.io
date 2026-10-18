@@ -10,6 +10,12 @@
 // ホーム画面から開く時のURLは `manifest.json` の `start_url`（`"./"`）で、**`?trial` が付かない**。
 // つまり「ホーム画面に追加して、そこから開いてください」という**こちらが勧めている道**を通ると、
 // 試遊の入口が消えて、ログインを求める通常のタイトルに変わってしまう。
+// 🔴【2026-10-18 追記】**この「端末に覚える」だけでは iOS で直らなかった**（ユーザー報告 第2報）。
+// **iOS では、ホーム画面から開いたアプリは Safari とは別の保管場所を持つ**ので、Safari で覚えた印が
+// 見えない。本命の直しは `index.html` 側——試遊で来た人の画面でだけ、`start_url` に `?trial=app` を
+// 持つ `manifest-trial.json` へ差し替える（＝**ショートカットの行き先そのものに残す**）。
+// こちらの「覚える」は、保管場所が共有される端末（Android の Chrome など）と、
+// Safari で開き直した時に効くので**残してある**（二重の備え）。
 // 🔴 **manifest の `start_url` に `?trial` を入れてはいけない**——あれは全員で共有の1枚なので、
 // 試遊で来ていない人の追加まで試遊扱いになる。**この端末が試遊から入ったことを覚えておく**
 // 形にする（URLが無くなっても分かるように）。
@@ -78,6 +84,10 @@ export function getTrialSource() {
     const params = new URLSearchParams(window.location.search);
     if (!params.has("trial")) return null;
     const tag = (params.get("trial") || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 16);
+    // 【2026-10-18】`app` は**ホーム画面のショートカットから開いた**という意味の専用タグ
+    // （manifest-trial.json の start_url）。これは「試遊のリンクから新しく来た人」ではないので
+    // **数えない**。数えてしまうと、コンソールに出ている数字の意味が変わる。
+    if (tag === "app") return null;
     return tag ? `trial:${tag}` : "trial";
   } catch {
     return null;
