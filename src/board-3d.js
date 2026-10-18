@@ -31,6 +31,7 @@ import {
   isBoard3dEnabled,
   setBoard3dEnabledSetting,
   setBoard3dInvalidator,
+  setBoard3dTransformNoter,
   setBoard3dFlusher,
   isBoard3dLit,
   setBoard3dLitChangeHandler,
@@ -57,6 +58,19 @@ let needsRebuild = true;
 let needsDraw = true;
 let drawsSinceLog = 0;
 let lastCameraKey = "";
+// 【2026-10-18・ユーザー報告「カメラがズームするとき、駒と盤面がしっかり連動していないことが
+// ある。マットだけ動いて、少し後に駒がジャンプする」】
+// **本当にズレているのかを実機で測って記録に残す**（手元＝ヘッドレスは毎秒3コマしか出ないので、
+// 滑らかさの違いを測れない。推測で直す前に、数字が不具合報告に乗るようにする）。
+// 測るのは「**DOM の変形を書いてから、WebGL がその変形で描き終えるまで**」。
+// DOM（マット・枠・光）は style を書いた時点で動くので、この時間がそのまま
+// 「マットは動いたのに駒はまだ前の位置」の長さになる。diag-board3d に camLagMs として出す。
+// ⚠ **board-3d の中だけで読むと必ず 0 になる**（syncCamera が読んで同じフレームで描くため）。
+//   なので書く側（main.js の writeTableTransform）から合図をもらう。
+let pendingTransformKey = null;  // DOM に書かれたが、まだ描けていない変形
+let pendingTransformAt = 0;      // それが書かれた時刻
+let worstCamLagMs = 0;           // 前回の記録以降でいちばん長かったズレ
+let camLagSamples = 0;           // そのうち実際に測れた回数
 let rebuildTimer = null;
 let unsubscribe = null;
 
@@ -937,6 +951,11 @@ function maybeLogStats() {
   // #348: 実機で「待っている間にどれだけ描いているか」を見るための数（1秒あたりの描画回数）。
   const drawsPerSec = spanMs > 0 ? +((drawsSinceLog * 1000) / spanMs).toFixed(1) : null;
   drawsSinceLog = 0;
+  // この回ぶんを控えてから 0 に戻す（戻してから使うと**常に 0**という嘘の記録になる）。
+  const camLagForLog = worstCamLagMs;
+  const camLagCountForLog = camLagSamples;
+  worstCamLagMs = 0;
+  camLagSamples = 0;
   try {
     const st = getBoard3dStats();
     logAction("diag-board3d", {
@@ -949,6 +968,10 @@ function maybeLogStats() {
       texNewColor: st.texNewColor,
       texNewGeom: st.texNewGeom,
       frameMs: st.frameMs,
+      // カメラが動いた時、マット・枠（DOM）が動いてから駒・カードの絵（WebGL）が追いつくまでの
+      // いちばん長かった時間（ms）と、その回数。0 なら同じフレームで揃っている。
+      camLagMs: +camLagForLog.toFixed(1),
+      camLagN: camLagCountForLog,
       drawMs: st.drawMs,
       rebuildMs: st.rebuildMs,
       drawsPerSec,
@@ -1025,8 +1048,23 @@ function frame() {
     return;
   }
   lastDrawMs = lastDrawMs * 0.8 + (performance.now() - t1) * 0.2;
+  // 描き終えた。DOM に書かれた変形に追いついたなら、待たせた時間がズレの長さ。
+  if (pendingTransformKey !== null) {
+    const lag = performance.now() - pendingTransformAt;
+    if (lag > worstCamLagMs) worstCamLagMs = lag;
+    camLagSamples++;
+    pendingTransformKey = null;
+  }
 }
 
+// main.js が #game-table の transform を書いた時に呼ばれる（board-3d-setting.js 経由）。
+function noteTransformWritten(key) {
+  if (!active) return;
+  if (key === pendingTransformKey) return; // 同じ値の書き直しは数えない
+  pendingTransformKey = key;
+  pendingTransformAt = performance.now();
+  needsDraw = true; // 変形が変わったのだから描き直す（#348 の「変化が無ければ描かない」の対象外）
+}
 function markDirty() {
   needsRebuild = true;
 }
@@ -1236,6 +1274,7 @@ function reconcileBoard3dActive() {
     // 【#297】盤面のDOMを描き直した合図（main.js の render()）を受け取る。状態が変わらない
     // 描き直し（駒の着地で隠していた駒を戻す等）も、次のフレームで必ず作り直されるようになる。
     setBoard3dInvalidator(markDirty);
+    setBoard3dTransformNoter(noteTransformWritten);
     // 【#301/#302】演出が実物を見せた瞬間に、その場で描き直せるようにする（上の flushNow）。
     setBoard3dFlusher(flushNow);
     // 【試作 2026-09-29】「盤面に光を当てる」を切り替えたら、材質は板ごとに作って**使い回して
@@ -1271,6 +1310,7 @@ function reconcileBoard3dActive() {
     rebuildTimer = null;
     window.removeEventListener("resize", markDirty);
     setBoard3dInvalidator(null);
+    setBoard3dTransformNoter(null);
     setBoard3dFlusher(null);
     unsubscribe?.();
     unsubscribe = null;

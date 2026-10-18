@@ -432,7 +432,7 @@ function cardDisplayName(cardId) {
   return getCardName(cardId) || getCardDefinition(cardId)?.name || cardId;
 }
 import { isBoardIllustOnly } from "./board-card-display.js";
-import { invalidateBoard3d, flushBoard3d } from "./board-3d-setting.js";
+import { invalidateBoard3d, flushBoard3d, noteBoard3dTransform } from "./board-3d-setting.js";
 // 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
 import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, isCinematicCameraHome, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
@@ -12558,6 +12558,10 @@ function writeTableTransform(override) {
     flat,
     c.yaw || 0,
   );
+  // 【2026-10-18】**書いた瞬間**を board-3d へ知らせる（ユーザー報告「マットだけ動いて、
+  // 少し後に駒がジャンプする」を実機で測るため）。DOM はここで動くので、ここから
+  // 「WebGLがその変形で描き終える」までがズレの長さになる。記録に出すだけで、描き方は変えない。
+  noteBoard3dTransform(table.style.transform);
   // 【2026-10-06】カメラが原点へ**戻り切った瞬間**に、画面に合わせる計算をやり直す。
   // 寄っている間は手札の寄せとミニロックエリアを止めてあるので（#370・#373）、戻った時に
   // 1回だけ正しい画角で測り直す必要がある。**ここが全てのカメラ変更が通る1か所**なので、

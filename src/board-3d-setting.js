@@ -154,6 +154,23 @@ export function invalidateBoard3d() {
 // ★演出を書く時のルール: 盤面の実物を `visibility` で隠す／見せたら、その直後に
 //   flushBoard3d() を呼ぶこと。render() を呼んでいる場合も、ゴーストを消す前に呼ぶ。
 let flusher = null;
+// 【2026-10-18】盤面の変形（#game-table の transform）を**書いた瞬間**を board-3d へ伝える。
+// ユーザー報告「カメラがズームするとき、マットだけ動いて少し後に駒がジャンプする」を
+// 実機で確かめるためのもの。DOM（マット・枠）は style を書いた時点で動くので、
+// 「書いた時刻」と「WebGLがその変形で描き終えた時刻」の差が、そのままズレの長さになる。
+// ⚠ board-3d.js の中だけで測ると**必ず0になる**（同じ関数の中で読んで描くので食い違わない）。
+//   書く側から伝えてもらわないと、本当のズレは測れない。
+let board3dTransformNoter = null;
+export function setBoard3dTransformNoter(fn) {
+  board3dTransformNoter = fn;
+}
+export function noteBoard3dTransform(key) {
+  try {
+    board3dTransformNoter?.(key);
+  } catch (_) {
+    /* 記録のためだけの処理なので、失敗しても描画は止めない */
+  }
+}
 export function setBoard3dFlusher(fn) {
   flusher = typeof fn === "function" ? fn : null;
 }
