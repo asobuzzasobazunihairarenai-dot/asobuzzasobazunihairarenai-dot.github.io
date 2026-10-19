@@ -51,6 +51,37 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-19",
+    summary: [
+      "エイドスの黒いカードが、英語でも英語で読めるようになりました",
+    ],
+    summaryEn: [
+      "The Eidos black card now reads in English too",
+    ],
+    items: [
+      "エイドス専用の「黒のキューブ　ノワール」は、絵そのものに日本語が刷り込まれていたため、言語を英語にしてもこのカードだけ日本語のままでした。絵から文字を取り除き、ほかのカードと同じ仕組みで文章を載せるようにしたので、英語でもちゃんと英語で読めます。",
+    ],
+    itemsEn: [
+      "The Eidos-only Black Cube: Noir had its Japanese text printed into the artwork, so it stayed Japanese even when the language was set to English. The text has been taken out of the picture and is now drawn the same way as on every other card, so it reads in English.",
+    ],
+    fixes: [
+      "エイドスの黒いカードで、文章が二重に重なって見えていたのを直しました。",
+      "同じカードの真ん中の紋様が、紫のカードのものになっていたので、黒のものに直しました。",
+    ],
+    fixesEn: [
+      "Fixed the text on the Eidos black card appearing twice, overlapping itself.",
+      "The emblem in the middle of that card was the purple card's; it is now the black one.",
+    ],
+    devItems: [
+      "**#418「赤枠で囲ってる文章が２重に見えます」の原因は、画像の取り違えだった。** カード面は「文字の入っていない下地（`assets/cards-blank/`）の上に、アプリが文章を重ねて描く」仕組み（そうしないと英語に切り替えられない）。🔴 **34種を突き合わせたところ、`first-noir` だけ下地が刷り上がり（`assets/cards/`）とバイト単位で同一**だった——2026-08-25 に下地一式を入れた時、このカードだけ文字無し版が無く、実物をそのまま置いていた（ノワールは 8/15 追加のエイドス専用で、他より後から入った）。だから**文字が刷られた絵の上に同じ文章をもう一度描いて**いた。**ユーザーに文字無しの元データが無かったので、こちらで消した**: 白い文字だけを拾い（その帯の上下の明るさを基準に、+38 より明るい画素）、3回膨張させてから**拡散で埋める**（900回）。消したのは4か所（上の帯／タイトル／《抽出》／下の帯＋◆■の印）で、**BRACK・中央の光・枠線・フッターは残した**。⚠ 文字のあった帯は**わずかにのっぺりする**（完全な復元ではない）。",
+      "**紋様も間違っていた（ユーザー指摘「真ん中の紋様も紫の紋様になってます」）。** 7色の紋様を並べて確かめると**色ごとに形が違い**、ノワールのものは**紫と同一**だった。🔴 **正しい黒の紋様は `assets/pieces/noir.webp`（駒）にあった**——駒と札は色ごとに同じ紋様を使う（紫の駒＝紫の札で確認）。駒から取り出す時、素朴に「中央付近の白い画素」で拾うと**白い丸ごと**拾ってしまう（紋様は「白い丸の上の黒い正方形の中の白」）ので、**黒い正方形を塗りつぶし探索で特定してから、その中の白**を取り出した。札側は、古い紋様を**半径ごとの下位25%の色**で塗り直して（中央値だと紋様自体を拾って白く飛ぶ）光のにじみを残したまま消し、新しい紋様を白＋発光で描いた。⚠ **BRACK と《抽出》の帯は、この塗り直しの対象から外す**——半径に入るので、外さないと文字が消える（実際に一度 A が消えた）。差し替えたのは下地・札の絵・イラスト版の3つで、**「下地と札の絵が同一」のカードは0件になった**。",
+    ],
+    devItemsEn: [
+      "The blank used to draw card text was, for this one card out of thirty-four, a byte-identical copy of the printed artwork, so the text was drawn on top of itself. No textless original existed, so the lettering was removed by masking the bright strokes and filling them by diffusion, keeping the latin word, the central glow, the frame and the footer.",
+      "Each colour has its own emblem, and this card was wearing the purple one. The correct black emblem was found on the noir piece artwork, extracted by flood-filling the dark square it sits on, and redrawn over a radially rebuilt glow; the bands holding the latin word and the subtitle are excluded from that rebuild so they survive.",
+    ],
+  },
+  {
     date: "2026-10-18",
     summary: [
       "ログインしなくても、タイトル画面からそのまま遊べるようになりました",
