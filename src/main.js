@@ -16699,7 +16699,25 @@ async function flushPendingTurnEndDiscards(player) {
   pendingTurnEndDiscards.delete(player);
   // 既に何らかの理由で盤面/publicDrawゾーンから無くなっている可能性もゼロではないため
   // （善処の原則）、現存するトークンだけを対象にする。
-  let ids = [...set].filter((id) => getState().tokens.some((t) => t.id === id));
+  // 🔴【#421・2026-10-19】**もう使ったカードは対象外にする。**
+  // ヴァーディアンの「ターン終了時、それらを捨てる」の『それら』は、**まだ公開ドロー置き場に
+  // 残っているもの**のこと。ところがここは「そのトークンがまだ存在するか」しか見ていなかったので、
+  // **公開ドローした札をそのターン中に使ってしまうと、置いた先から引き剥がして捨てていた**。
+  // ユーザー報告「罠をおいたのに、そのしたにあったプレゼントの効果が発動されてて」がこれ——
+  // 公開ドローで出た「選べる罠」を盤面へ伏せて置いた直後、ターン終了時にその罠だけが捨て場へ
+  // 消え、次に誰かがそのマスへ来た時は**下に居たカード（プレゼント）が一番上になって発動**した。
+  // 残すのは「公開ドロー置き場に在る」か「その人の手札に在る」もの（手札はターン終了時に
+  // 公開ドローが合流する先なので、まだ使っていないのと同じ扱い）。盤面・ロック・捨て場へ
+  // 行ったものは**使い終わっている**ので触らない。
+  const stillUnused = (tk) =>
+    tk && tk.location?.player === player && (tk.location.zone === "publicDraw" || tk.location.zone === "hand");
+  let ids = [];
+  for (const id of set) {
+    const tk = getState().tokens.find((t) => t.id === id);
+    if (!tk) continue;
+    if (stillUnused(tk)) ids.push(id);
+    else logAction("diag-turn-end-discard-skipped", { tokenId: id, cardId: tk.cardId ?? null, zone: tk.location?.zone ?? null });
+  }
   // 【#357】2枚以上をまとめて捨てる時は、本人に順番を選んでもらう。ユーザー報告は
   // 「ヴァディアンで引いたカードを2枚捨てる時、順番を指定できるように！」——ヴァーディアン
   // （first-green）がこの経路。※マンズウッド（eternal-green）は「【追色１】１枚ドロー。」で

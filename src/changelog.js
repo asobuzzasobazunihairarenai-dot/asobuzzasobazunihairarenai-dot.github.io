@@ -51,6 +51,21 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-20",
+    fixes: [
+      "公開ドローで出したカードをそのターン中に使った時、ターン終了時にその1枚が置いた先から消えてしまうことがあったのを直しました（盤面に伏せて置いた罠が消え、その下にあったカードが代わりに発動していました）。",
+    ],
+    fixesEn: [
+      "Fixed a card drawn face-up and then played in the same turn being taken back off the board and discarded at the end of that turn, which left the card underneath to trigger instead.",
+    ],
+    devItems: [
+      "**#421「罠をおいたのに、そのしたにあったプレゼントの効果が発動されてて、エイドスの処理が速すぎてよくわからなかったです。ばぐなのか、エイドスの効果なのか。」——不具合だった。** 報告のログで経路が全部追えた: `19:54` に A が「選べる罠」の手札効果で `card-320` をマス(2,3)へ**伏せて置き**（直前の `diag-exposed-arrival` の location が `publicDraw` ＝**公開ドロー置き場から出した札**だった）、`19:54:xx` のターン終了時に **`SEND_TOKEN_TO_PILE card-320 → discard`**。その後 `19:55` にエイドスの駒が(2,3)へ来ると、`FLIP_TOKEN card-300` → **`arrival: pink-present`** → さらに下の `red-jump-pad` と続いた。**罠が盤面から消えていたので、下のカードが一番上になって発動していた。** 🔴 原因は `flushPendingTurnEndDiscards`（緑のキューブ ヴァーディアンの「ターン終了時、それらを捨てる」の実装）。`それら` は**まだ公開ドロー置き場に残っているもの**のはずなのに、**「そのトークンがまだ存在するか」しか見ていなかった**ため、**使って置いた先から引き剥がして捨てていた**。直しは、残す対象を「その人の `publicDraw` か `hand` に在るもの」に限定し（手札はターン終了時に公開ドローが合流する先なので未使用と同じ扱い）、外したものは `diag-turn-end-discard-skipped` に残す。**A/B**（一時の出口を付けて実測・確認後に除去＝`grep` 0件）: 直す前は**盤面に伏せた罠・公開ドローの札・手札の札の3つとも消えた**／直した後は**盤面の罠だけが残り**、公開ドローと手札の札はこれまでどおり捨てられる。",
+    ],
+    devItemsEn: [
+      "The end-of-turn discard that implements the green First card's drawback only checked that the token still existed, not where it was, so a card drawn face-up and then played onto the board was pulled back off it and discarded. It now only takes cards still sitting in that player's face-up draw area or hand, and logs the ones it skips.",
+    ],
+  },
+  {
     date: "2026-10-19",
     summary: [
       "エイドスの黒いカードが、英語でも英語で読めるようになりました",
