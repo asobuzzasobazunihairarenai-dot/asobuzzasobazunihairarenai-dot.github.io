@@ -12898,8 +12898,18 @@ function scheduleCameraHome(delay = 700, ms = 420) {
 // ・3D変形（perspective+rotateX）の中では「1px寄せたら画面上で何px動くか」が座席ごとに違う
 //   ので、計算では求めず2点を実測して比例で解く（撤去した倍率ループと同じ考え方）。
 const HAND_NUDGE_PROBE_PX = 24; // 反応の傾きを測るための試しずらし量
+// 【2026-10-19】**固定オーバーレイの中の手札も必ず取り消す。**
+// 「手札を画面下に固定する」が ON の間、自分の手札は #game-table の外（#self-hand-overlay）へ
+// 移される（syncFixedHandOverlay）。寄せの計算も取り消しも **盤面の中しか見ていなかった**ので、
+// 🔴 **ONにした時点で付いていた寄せの値がそのまま凍りつき、以後どれだけ画面が変わっても戻らなかった**
+// （ユーザー報告「手札が途中からこの位置になってしまうことがあります」）。.hand-area は
+// 作り直されずに使い回される要素なので、一度付いた値は永久に残る（実測で確認）。
+// オーバーレイの中は画面に対する固定配置で、ステージの枠を基準にした寄せは意味を持たないため、
+// **見つけたら常に外す**のが正しい。
 function clearHandStageNudges(table) {
-  for (const area of table.querySelectorAll(".hand-area")) {
+  const areas = [...table.querySelectorAll(".hand-area")];
+  if (selfHandOverlayEl) areas.push(...selfHandOverlayEl.querySelectorAll(".hand-area"));
+  for (const area of areas) {
     if (area.style.translate) area.style.translate = "";
   }
 }
@@ -13854,7 +13864,12 @@ function syncFixedHandOverlay(table) {
   selfHandOverlayEl.style.display = "";
   const self = getSelfSeat();
   const handArea = table.querySelector(`.hand-area[data-player="${self}"]`);
-  if (handArea) selfHandOverlayEl.appendChild(handArea);
+  if (handArea) {
+    // 盤面の中で付いた寄せ（nudgeHandsIntoStage）は、画面固定のこちらでは意味を持たない。
+    // 持ち込むと、この後どこからも取り消されずに残り続ける（上の clearHandStageNudges 参照）。
+    handArea.style.translate = "";
+    selfHandOverlayEl.appendChild(handArea);
+  }
   const revealArea = table.querySelector(`.hand-reveal-area[data-player="${self}"]`);
   if (revealArea) selfHandOverlayEl.appendChild(revealArea);
 }

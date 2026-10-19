@@ -67,16 +67,20 @@ export const CHANGELOG = [
     fixes: [
       "エイドスの黒いカードで、文章が二重に重なって見えていたのを直しました。",
       "同じカードの真ん中の紋様が、紫のカードのものになっていたので、黒のものに直しました。",
+      "自分の手札が、途中から本来より上（盤面に重なる位置）にずれたまま戻らなくなることがあったのを直しました。",
     ],
     fixesEn: [
       "Fixed the text on the Eidos black card appearing twice, overlapping itself.",
       "The emblem in the middle of that card was the purple card's; it is now the black one.",
+      "Fixed your hand sometimes drifting upward, over the board, and staying there for the rest of the game.",
     ],
     devItems: [
+      "**ユーザー報告「手札が添付の位置に途中からなってしまうことがあります。多分カメラワークの時な気がする」。** 実測で原因が確定した。手札には、画面からはみ出しそうな時だけ内側へ寄せる仕組み（`nudgeHandsIntoStage`。#361/#370）があり、その値は `.hand-area` の `style.translate` に入る。🔴 **ところが「手札を画面下に固定する」が ON の間、自分の手札は `#game-table` の外（`#self-hand-overlay`）へ移される**（`syncFixedHandOverlay`）のに、**寄せの計算も取り消しも `table.querySelectorAll` ＝ 盤面の中しか見ていなかった**。つまり**ONにした時点で付いていた値がそのまま凍りつき、以後どれだけ画面が変わっても戻らない**。しかも `.hand-area` は作り直されずに使い回される要素なので、永久に残る。**A/B（実測）**: 直す前は、固定ONのまま手で寄せを消して描き直しても**付き直らず**、固定OFFにすると**古い値 `-14.09px` を持ち込み**、盤面拡大1→2→切と画面が激変しても（手札の上端 698→1209→-13844→698）**値は `-14.0917px` のまま1ミリも動かなかった**。直した後は、固定ONの間は**常に外れ**、盤面の中にある間だけ毎回ちゃんと計算し直す。直しは2か所——①取り消しの対象にオーバーレイの中も含める ②オーバーレイへ移す時にその場で外す（画面に固定された手札に、ステージの枠を基準にした寄せは意味を持たないため）。⚠ **ユーザーの推測「カメラワークの時」は、凍る『きっかけ』としてはあり得るが確定はしていない**——凍った値の大きさは「最後に盤面の中で計算された瞬間」の画面しだいで、カメラ・窓の高さ・手札の枚数のどれでも大きくなり得る。**凍ること自体を無くしたので、きっかけが何であれ残らない。**",
       "**#418「赤枠で囲ってる文章が２重に見えます」の原因は、画像の取り違えだった。** カード面は「文字の入っていない下地（`assets/cards-blank/`）の上に、アプリが文章を重ねて描く」仕組み（そうしないと英語に切り替えられない）。🔴 **34種を突き合わせたところ、`first-noir` だけ下地が刷り上がり（`assets/cards/`）とバイト単位で同一**だった——2026-08-25 に下地一式を入れた時、このカードだけ文字無し版が無く、実物をそのまま置いていた（ノワールは 8/15 追加のエイドス専用で、他より後から入った）。だから**文字が刷られた絵の上に同じ文章をもう一度描いて**いた。**ユーザーに文字無しの元データが無かったので、こちらで消した**: 白い文字だけを拾い（その帯の上下の明るさを基準に、+38 より明るい画素）、3回膨張させてから**拡散で埋める**（900回）。消したのは4か所（上の帯／タイトル／《抽出》／下の帯＋◆■の印）で、**BRACK・中央の光・枠線・フッターは残した**。⚠ 文字のあった帯は**わずかにのっぺりする**（完全な復元ではない）。",
       "**紋様も間違っていた（ユーザー指摘「真ん中の紋様も紫の紋様になってます」）。** 7色の紋様を並べて確かめると**色ごとに形が違い**、ノワールのものは**紫と同一**だった。🔴 **正しい黒の紋様は `assets/pieces/noir.webp`（駒）にあった**——駒と札は色ごとに同じ紋様を使う（紫の駒＝紫の札で確認）。駒から取り出す時、素朴に「中央付近の白い画素」で拾うと**白い丸ごと**拾ってしまう（紋様は「白い丸の上の黒い正方形の中の白」）ので、**黒い正方形を塗りつぶし探索で特定してから、その中の白**を取り出した。札側は、古い紋様を**半径ごとの下位25%の色**で塗り直して（中央値だと紋様自体を拾って白く飛ぶ）光のにじみを残したまま消し、新しい紋様を白＋発光で描いた。⚠ **BRACK と《抽出》の帯は、この塗り直しの対象から外す**——半径に入るので、外さないと文字が消える（実際に一度 A が消えた）。差し替えたのは下地・札の絵・イラスト版の3つで、**「下地と札の絵が同一」のカードは0件になった**。",
     ],
     devItemsEn: [
+      "The hand carries an inline nudge that pulls it back inside the stage when it would fall off, but while the fixed-hand option is on the hand lives outside the board element, and both the nudge and its removal only ever scanned inside the board. The value therefore froze at whatever it was when the option took effect and never updated again, on an element that is reused rather than rebuilt. The overlay is now included when clearing, and the nudge is dropped as the hand moves into it.",
       "The blank used to draw card text was, for this one card out of thirty-four, a byte-identical copy of the printed artwork, so the text was drawn on top of itself. No textless original existed, so the lettering was removed by masking the bright strokes and filling them by diffusion, keeping the latin word, the central glow, the frame and the footer.",
       "Each colour has its own emblem, and this card was wearing the purple one. The correct black emblem was found on the noir piece artwork, extracted by flood-filling the dark square it sits on, and redrawn over a radially rebuilt glow; the bands holding the latin word and the subtitle are excluded from that rebuild so they survive.",
     ],
