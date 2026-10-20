@@ -52,6 +52,18 @@ import { getLang } from "./i18n.js";
 export const CHANGELOG = [
   {
     date: "2026-10-20",
+    summary: [
+      "不具合を報告してくださった方に、直ったことをアプリの中でお知らせするようにしました",
+    ],
+    summaryEn: [
+      "If you report a problem, the game now tells you when it is fixed",
+    ],
+    items: [
+      "不具合を報告してくださった方へ、その件が直った時に、ホーム画面で「ご報告ありがとうございました」とお伝えするようにしました。ご自分が書いてくださった文と、何が直ったかを並べて出します。一度見たら二度と出ませんし、別の端末で開いても重ねて出ることはありません。いつもありがとうございます。なお、ログインせずに送っていただいた報告は、どなたの報告か分からないためお伝えできません。",
+    ],
+    itemsEn: [
+      "When something you reported gets fixed, the home screen now says thank you and tells you what changed, next to the words you wrote. It appears once and will not come back, on any of your devices. Reports sent without logging in cannot be answered this way, because there is no way to tell whose they are.",
+    ],
     fixes: [
       "公開ドローで出したカードをそのターン中に使った時、ターン終了時にその1枚が置いた先から消えてしまうことがあったのを直しました（盤面に伏せて置いた罠が消え、その下にあったカードが代わりに発動していました）。",
     ],
@@ -59,9 +71,13 @@ export const CHANGELOG = [
       "Fixed a card drawn face-up and then played in the same turn being taken back off the board and discarded at the end of that turn, which left the card underneath to trigger instead.",
     ],
     devItems: [
+      "**【同じ日に作り替え】ユーザー提案「ここであなたが直してコミットした時にあなたが入力して送るようにしたら？ その文面はコミット前に私が確認する」。** その方がよいので、**お礼の文をコードに置ける**形にした（`handled-bug-reports.js` の `BUG_REPORT_FIX_NOTES`）。理由: ①**文面がコミットに入るので、公開前に必ずユーザーの目を通る**（「聞き忘れ」が構造上起きない）②**Claude は管理者としてログインできない＝DBには書けない**（このファイルの冒頭に元から書いてある制約）③**日本語と英語の両方を書ける**（DBの列は1つなので1言語だけになる）④どの修正でどう伝えたかが git の履歴に残る。🔴 **これに伴い SQL 側の絞りを緩めた**——`fixed_note is not null` で絞ったままだと**コードに書いた文が永久に届かない**。サーバーは「本人のもの・まだ見ていない」だけで返し、**何を見せるか（見せないか）はクライアントが決める**: DBの文 → 無ければコードの文 → **どちらにも無ければ出さない**。「すべて対処済みにする」で嘘の通知が飛ばない保証は、この最後の1行が担っている。🔴 **既読にするのは実際に見せた分だけ**——見せていない報告まで既読にすると、**あとから文を書いても二度と届かない**。**実測**: 3件（コードの文あり／DBの文あり／どちらも無し）を渡すと**2件だけ表示**され、**既読に送られたのもその2件だけ**。画面でも、1件目はコードの文・2件目はDBの文が出ていることを確認した。⚠ **SQLの再実行が必要**（同じファイルを貼り直すだけ。`so7_get_my_fixed_bug_reports` は戻り値の列が増えたので drop → 作り直しにしてある）。",
+      "**ユーザー要望「debug報告者に、内容が解決した際にそのことをアプリ内でお礼とともに通知してあげたい」。** `so7_bug_reports` には **SELECT ポリシーが一切無い**（生ログは管理者しか読めない設計）ので、**報告した本人が自分の報告を読む口すら無かった**。本人の行だけを返す SECURITY DEFINER 関数（`so7_get_my_fixed_bug_reports`）を足し、返すのは **id・日時・本人が書いた文・直った内容** だけにした（ログや画面の状態は本人のものでも返さない）。🔴 **設計で一番考えたところ: 「対処済み」になっただけでは通知しない。** 管理画面には「すべて対処済みにする」という一括ボタンがあり（溜まった一覧を畳むためのもの）、対処済み＝通知にすると**そのボタン1回で全員に「直りました」という嘘が一斉に飛ぶ**。そこで**管理者が「直った内容」を一言書いた時だけ**通知する形にした——事故を仕組みで防げるうえ、中身のある通知になる。「見た」の記録は **DB に持つ**（端末の localStorage ではなく。別の端末で二重に出ないため。iOS はホーム画面アプリと Safari で保管場所が別、という続き596 の件もあるので端から選ばない）。出す場所は**ホーム画面を開いた時・1セッション1回**（対局中は手が止まる／起動直後は案内モーダルと重なる＝続き574）。**閉じた時に初めて「見た」を送る**——開いた瞬間に送ると、読む前に閉じた人の分が永久に消える。**実測**（データ部分だけ差し替えて本物の描画を動かした）: PC 435x361・スマホ 419x362 でどちらも画面内・はみ出し0、スマホの文字は 題17.6px／説明13.4px／直った内容13px／閉じる13px（高さ33px）。閉じると覆いも消え、見た記録が送られる。例外0件。⚠ **`supabase_setup_so7.sql` に追記したので手動実行が必要**（実行するまではお礼が出ないだけで、他は何も壊れない＝関数が無い時は黙って空を返す作りにしてある）。⚠ **ログインせずに送られた報告（user_id が null）には届かない**——誰あてか分からないため。管理画面では「📨 届きません」と出して押せないようにした。",
       "**#421「罠をおいたのに、そのしたにあったプレゼントの効果が発動されてて、エイドスの処理が速すぎてよくわからなかったです。ばぐなのか、エイドスの効果なのか。」——不具合だった。** 報告のログで経路が全部追えた: `19:54` に A が「選べる罠」の手札効果で `card-320` をマス(2,3)へ**伏せて置き**（直前の `diag-exposed-arrival` の location が `publicDraw` ＝**公開ドロー置き場から出した札**だった）、`19:54:xx` のターン終了時に **`SEND_TOKEN_TO_PILE card-320 → discard`**。その後 `19:55` にエイドスの駒が(2,3)へ来ると、`FLIP_TOKEN card-300` → **`arrival: pink-present`** → さらに下の `red-jump-pad` と続いた。**罠が盤面から消えていたので、下のカードが一番上になって発動していた。** 🔴 原因は `flushPendingTurnEndDiscards`（緑のキューブ ヴァーディアンの「ターン終了時、それらを捨てる」の実装）。`それら` は**まだ公開ドロー置き場に残っているもの**のはずなのに、**「そのトークンがまだ存在するか」しか見ていなかった**ため、**使って置いた先から引き剥がして捨てていた**。直しは、残す対象を「その人の `publicDraw` か `hand` に在るもの」に限定し（手札はターン終了時に公開ドローが合流する先なので未使用と同じ扱い）、外したものは `diag-turn-end-discard-skipped` に残す。**A/B**（一時の出口を付けて実測・確認後に除去＝`grep` 0件）: 直す前は**盤面に伏せた罠・公開ドローの札・手札の札の3つとも消えた**／直した後は**盤面の罠だけが残り**、公開ドローと手札の札はこれまでどおり捨てられる。",
     ],
     devItemsEn: [
+      "Reworked the same day so the fix note can live in the code next to the list of handled report numbers, which puts the wording inside the commit for review and allows both languages; the server filter had to be loosened accordingly, because filtering on the database note would have made code-side notes undeliverable. The client now decides what to show — database note, else code note, else nothing — and only marks as seen the ones it actually showed.",
+      "Reporters had no way to read their own reports, since the table deliberately has no select policy, so a definer function returns just their own id, date, words and the fix note. Notifying on the resolved flag alone would have been a trap, because the admin screen has a bulk resolve button for tidying the list, so the trigger is the admin writing a one-line note instead. The seen mark lives in the database rather than on the device, and is only written when the reader closes the dialog.",
       "The end-of-turn discard that implements the green First card's drawback only checked that the token still existed, not where it was, so a card drawn face-up and then played onto the board was pulled back off it and discarded. It now only takes cards still sitting in that player's face-up draw area or hand, and logs the ones it skips.",
     ],
   },

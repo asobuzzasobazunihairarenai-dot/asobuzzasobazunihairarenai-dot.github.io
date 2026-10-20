@@ -1453,6 +1453,42 @@ export async function submitBugReport({ comment, actionLog, consoleLog, context 
 }
 
 // 管理者ダッシュボード用: 不具合報告の一覧（SECURITY DEFINER RPC経由、管理者のみ読める）。
+// 【続き602・2026-10-20】不具合報告をくれた本人へ、アプリの中でお礼と結果を伝えるための3つ。
+// so7_bug_reports は SELECT ポリシーが一切無い（生ログは管理者しか読めない）ので、本人が
+// 自分の報告を読む口も無かった。本人の行だけを返す SECURITY DEFINER 関数を経由する
+// （supabase_setup_so7.sql 参照。**SQLを実行するまでは下の3つは動かない**）。
+
+// 本人あての「まだ見ていないお知らせ」を取る。取れなければ空配列（＝何も出さない）。
+export async function fetchMyFixedBugReports() {
+  if (!client) return [];
+  const { data, error } = await client.rpc("so7_get_my_fixed_bug_reports");
+  if (error) {
+    // SQL未実行の環境では関数が無い＝エラーになる。ここで黙って空を返す
+    // （お礼が出ないだけで、他の機能は何も壊れない）。
+    console.warn("fetchMyFixedBugReports failed", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+// 見たことを記録する。実際に更新された件数を返す（0なら黙って失敗していないか分かる）。
+export async function ackBugReports(ids) {
+  if (!client || !ids?.length) return 0;
+  const { data, error } = await client.rpc("so7_ack_bug_report", { p_ids: ids });
+  if (error) {
+    console.warn("ackBugReports failed", error.message);
+    return 0;
+  }
+  return data ?? 0;
+}
+
+// 管理者が「直った内容」を書く（空文字で消す）。実際に更新された件数を返す。
+export async function setBugReportNote(id, note) {
+  if (!client) return 0;
+  const { data, error } = await client.rpc("so7_set_bug_report_note", { p_id: id, p_note: note ?? "" });
+  if (error) throw new Error(error.message);
+  return data ?? 0;
+}
 export async function fetchAdminBugReports() {
   if (!client) return [];
   const { data, error } = await client.rpc("so7_get_admin_bug_reports");

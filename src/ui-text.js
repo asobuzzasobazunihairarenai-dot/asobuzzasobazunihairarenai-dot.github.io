@@ -203,6 +203,11 @@ const UI = {
     "opening.loginToggle": "ログイン",
     // 【#420・2026-10-18】通常のタイトル画面からも試遊へ入れる導線（opening-screen.js）。
     "trial.noAccount": "アカウントを作らずに試す",
+    // 【続き602・2026-10-20】不具合報告へのお礼（bug-report-thanks.js）。
+    "thanks.title": "ご報告ありがとうございました",
+    "thanks.lead": "いただいた報告をもとに直しました。おかげでゲームがよくなりました。",
+    "thanks.leadMany": "いただいた{n}件の報告をもとに直しました。おかげでゲームがよくなりました。",
+    "thanks.close": "閉じる",
     "trial.badge": "⚠ 開発中のアプリです",
     "trial.devNote": "不具合や内容の変更があり得ます。",
     "trial.lead": "登録なしで、すぐに遊べます。",
@@ -2148,6 +2153,10 @@ const UI = {
     // --- Opening / login screen ---
     "opening.loginToggle": "Log in",
     "trial.noAccount": "Try it without an account",
+    "thanks.title": "Thank you for your report",
+    "thanks.lead": "We fixed what you told us about. The game is better for it.",
+    "thanks.leadMany": "We fixed {n} things you told us about. The game is better for it.",
+    "thanks.close": "Close",
     "trial.badge": "⚠ In development",
     "trial.devNote": "Expect bugs and changes.",
     "trial.lead": "Play now. No account needed.",

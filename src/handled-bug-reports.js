@@ -125,6 +125,50 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   367, // エイドスがギャンブルの色宣言を外す → 仕様（のぞき見は「最強」だけ。エイドスは上級/中級）
 ]);
 
+// ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
+// ユーザー提案「ここであなたが直してコミットした時にあなたが入力して送るようにしたら？
+// その文面はコミット前に私が確認する」。
+//
+// **文面をここに書くと、その人が次にホーム画面を開いた時にお礼と一緒に出る**
+// （bug-report-thanks.js）。この形にした理由:
+//  ・**文面がコミットに入るので、公開前に必ずユーザーの目を通る**（聞き忘れが起きない）
+//  ・Claude は管理者としてログインできない＝**DBには書けない**（このファイルの冒頭の理由と同じ）
+//  ・**日本語と英語の両方**を書ける（DBの列は1つしかないので1言語だけになる）
+//  ・どの修正でどう伝えたかが **git の履歴に残る**
+//
+// 書き方: 報告者本人が読む文なので、**内部用語を使わず・1〜2文で・何が直ったか**だけ書く
+// （お知らせ/changelog の fixes と同じ調子。番号や関数名は書かない）。
+// ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
+// （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
+export const BUG_REPORT_FIX_NOTES = {
+  418: {
+    ja: "黒いカードの文章が二重に見えていたのを直しました。真ん中の紋様も、紫のものになっていたので黒のものに差し替えています。",
+    en: "Fixed the text on the black card showing twice. The emblem in the middle was the purple card's, and is now the black one.",
+  },
+  419: {
+    ja: "なないろの欠片で、すでにロックした札をもう一度使えてしまい、ロックの色が増えることがあったのを直しました。",
+    en: "Fixed a Shard of Seven Hues that was already locked being usable again, which could add a locked colour out of nowhere.",
+  },
+  420: {
+    ja: "不具合報告のボタンを、タイトル画面にも出るようにしました。試遊版をホーム画面から開いた時に通常のタイトルになってしまう件も、ログインしていない方には「アカウントを作らずに試す」を出すようにして直しました。",
+    en: "The bug report button is on the title screen again. The trial entry being lost from a home screen shortcut is handled too: logged-out visitors now get a \"Try it without an account\" button.",
+  },
+  421: {
+    ja: "置いた罠がターン終了時に消えてしまい、下にあったカードが代わりに発動していました。直しました。",
+    en: "A trap you placed was being removed at the end of your turn, so the card underneath triggered instead. Fixed.",
+  },
+};
+
+// 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。
+for (const id of Object.keys(BUG_REPORT_FIX_NOTES)) HANDLED_BUG_REPORT_IDS.add(Number(id));
+
+// その報告に対する「直した内容」を、今の言語で返す（無ければ null）。
+export function getBugReportFixNote(id, lang) {
+  const n = BUG_REPORT_FIX_NOTES[Number(id)];
+  if (!n) return null;
+  return (lang === "en" ? n.en : n.ja) || n.ja || null;
+}
+
 export function isBugReportHandledInCode(id) {
   return HANDLED_BUG_REPORT_IDS.has(Number(id));
 }

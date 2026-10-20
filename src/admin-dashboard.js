@@ -12,7 +12,7 @@
 // アクセス制限の実体はサーバー側（supabase_setup_so7.sqlの各RPC内部でauth.jwt()の
 // メールアドレスをチェック）にあり、ここでのisAdmin判定は表示の出し分けだけ。
 
-import { isBugReportHandledInCode } from "./handled-bug-reports.js";
+import { isBugReportHandledInCode, getBugReportFixNote } from "./handled-bug-reports.js";
 
 const SUPABASE_URL = "https://prnddzrnblfysggiuzmo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YFYWr0FghhXbrqNQJ9Jzgw_hu31kvw9";
@@ -541,6 +541,50 @@ function makeBugReportRow(row) {
     : "この報告のテキストをクリップボードへコピーします";
   copyBtn.addEventListener("click", () => copyBugReport(row, copyBtn));
   detailTd.appendChild(copyBtn);
+
+  // 【続き602・2026-10-20】「直った内容」を一言書くと、**その人が次にホーム画面を開いた時に
+  // お礼と一緒に出る**（bug-report-thanks.js）。🔴 **「対処済み」だけでは通知しない**作りに
+  // してある——上の「すべて対処済みにする」ボタン1回で全員に嘘の『直りました』が飛ぶのを
+  // 仕組みで防ぐため。ここに一言を書くことがトリガー（書くと対処済みにもなる）。
+  // ⚠ ログインせずに送られた報告は、誰あてか分からないので通知できない（has_account=false）。
+  const noteBtn = document.createElement("button");
+  noteBtn.type = "button";
+  // 【続き603】コード側（handled-bug-reports.js の BUG_REPORT_FIX_NOTES）にも文を置けるので、
+  // それがある時は「コードで送信待ち」と出す（ここで書かなくても届く、と分かるように）。
+  // DBに書いた文の方が優先されるので、言い回しを変えたい時はここで上書きできる。
+  const noteLabel = () =>
+    row.has_account === false
+      ? "📨 届きません"
+      : row.thanked_at
+        ? "📨 既読"
+        : row.fixed_note
+          ? "📨 送信待ち"
+          : getBugReportFixNote(row.id, "ja")
+            ? "📨 コードで送信待ち"
+            : "📨 お礼を書く";
+  noteBtn.textContent = noteLabel();
+  noteBtn.title =
+    row.has_account === false
+      ? "ログインせずに送られた報告なので、誰あてか分からず通知できません"
+      : "直った内容を一言書くと、その人が次にホーム画面を開いた時にお礼と一緒に出ます（空にすると取り消し）";
+  noteBtn.disabled = row.has_account === false;
+  noteBtn.addEventListener("click", async () => {
+    const next = window.prompt("この報告について、直った内容を一言で（空にすると通知を取り消します）", row.fixed_note || "");
+    if (next === null) return; // キャンセル
+    noteBtn.disabled = true;
+    try {
+      const { data, error } = await client.rpc("so7_set_bug_report_note", { p_id: row.id, p_note: next });
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("更新0件（管理者権限またはSQL未実行）");
+      row.fixed_note = next.trim() || null;
+      if (row.fixed_note) row.resolved = true;
+      renderBugReports();
+    } catch (err) {
+      noteBtn.disabled = false;
+      bugReportStatusEl.textContent = `お礼の保存に失敗しました: ${err.message ?? err}`;
+    }
+  });
+  detailTd.appendChild(noteBtn);
   const detailBtn = document.createElement("button");
   detailBtn.type = "button";
   detailBtn.textContent = "詳細";

@@ -23786,3 +23786,94 @@ body.is-phone-device .opening-trial-cf {
   margin-top: 0.5rem;
   opacity: 0.95;
 }
+
+/* 【続き602・2026-10-20】不具合報告をくれた人へのお礼（bug-report-thanks.js）。
+   起動時の案内モーダル（#opening-setup-modal）と同じ「自前で地と文字色を持つ暗いパネル」に
+   する——明暗2テーマのどちらでも読めるようにするいちばん確実な形（教訓15。色を書かずに
+   継承させると、片方のテーマで文字が消える事故が起きる）。
+   ホーム画面はスマホでも開くので、スマホ用の寸法も一緒に決める（1600x900 のステージを
+   縮めて描くため、iPhone 横持ちでは 1rem が実画面 7〜8px にしかならない）。 */
+#bug-thanks-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(34rem, 92vw);
+  z-index: 100061; /* 上の覆い(100060)より前面 */
+  box-sizing: border-box;
+  padding: 1.3rem;
+  border-radius: 0.6rem;
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  /* ⚠ vh ではなく rem（ステージの高さ = 56.25rem）。vh はビューポート基準なので、
+     スマホの実画面では意図の半分以下にしかならない（続き575 の★の罠）。 */
+  max-height: 44rem;
+  overflow-y: auto;
+}
+.bug-thanks-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #fbbf24;
+  text-align: center;
+  margin-bottom: 0.6rem;
+}
+.bug-thanks-lead {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 0.9rem;
+}
+.bug-thanks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.bug-thanks-item {
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.4rem;
+  background: rgba(148, 163, 184, 0.12);
+  border-left: 3px solid rgba(251, 191, 36, 0.6);
+}
+.bug-thanks-when {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+.bug-thanks-quote {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0.25rem 0 0.4rem;
+  opacity: 0.85;
+  font-style: italic;
+}
+.bug-thanks-fixed {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #bbf7d0;
+}
+.bug-thanks-close {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.18);
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+/* スマホ: 実画面のpxで測ってから決める（読ませるもの13px以上／押すもの高さ28px以上）。 */
+body.is-phone-device #bug-thanks-modal {
+  width: min(78rem, 94vw);
+  padding: 1.3rem;
+  max-height: 49rem;
+}
+body.is-phone-device .bug-thanks-title { font-size: 2.3rem; }
+body.is-phone-device .bug-thanks-lead { font-size: 1.75rem; }
+body.is-phone-device .bug-thanks-when { font-size: 1.4rem; }
+body.is-phone-device .bug-thanks-quote { font-size: 1.62rem; }
+body.is-phone-device .bug-thanks-fixed { font-size: 1.7rem; }
+body.is-phone-device .bug-thanks-close { font-size: 1.7rem; padding: 0.8rem; }

@@ -474,6 +474,10 @@ function buildTile(tile) {
 
 export function openHomeScreen() {
   if (overlayEl) return;
+  // 【続き602・2026-10-20】不具合報告をくれた人へのお礼を、ここで一度だけ見に行く。
+  // 対局中には出さない（手が止まる）し、起動直後の案内モーダルとも重ならない。
+  // 動的import（この画面の起動を重くしない）・投げっぱなし（失敗してもホームは開く）。
+  void import("./bug-report-thanks.js").then((m) => m.maybeShowBugReportThanks()).catch(() => {});
   // #210: どの経路でホームへ戻っても勝利ファンファーレは止める（対戦終了パネルの各ボタン
   // だけでなく、最小化してから戻る等の経路もあるため、ここで一括して面倒を見る）。
   // あわせて盤面のBGMも止める（ユーザー報告2026-09-02「対戦後、ホーム画面に戻っても
