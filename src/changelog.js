@@ -51,6 +51,21 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-24",
+    fixes: [
+      "ゲート侵攻の演出が、画面を触った拍子に途中で消えてしまうことがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the gate invasion sequence vanishing part-way if you tapped the screen as it appeared.",
+    ],
+    devItems: [
+      "**#428「ゲート侵攻の演出がスキップされました」（YGM）。** 報告のログで**6段積んだのに2段しか出ていない**ことが確定。列を途中で空にできるのは `skipAll`（スキップ／✕／**背景を押す**）か例外だけで、例外の記録（`diag-gate-invasion-modal-error`）は無く、直後に `diag-notice-wait {blocker:\"none\"}` が出ている＝**止まったのではなく空にされた**。🔴 背景は**画面全体を覆う**うえ、この演出は**相手の操作で突然現れる**ので、**盤面を触ろうとしていた指がそのまま背景に当たって6段まとめて消える**。背景を押せるようにしたのは #380 で、それ以前は何も起きなかった（＝比較的新しい事故）。直しは「**出てから500msの間だけ背景を無視する**」。✕とスキップは狙って押す小さな的なので今までどおり即座に効く。**A/B**: 背景が出た**80ms後**に押すと、直す前は**1段で全部消えた**／直した後は**3段続いた**（無視の記録が1件）。**900ms後**に押すと前後とも1段で終了＝狙って飛ばす操作は変えていない。あわせて `diag-gate-invasion-skipped {via}`（背景／✕／スキップのどれで飛ばしたか）を残した——**次に同じ報告が来た時、押されたのか別の原因なのかが1行で分かる**。⚠ **測り方で2回しくじった（記録）**: 最初は「少し待ってから背景を探して押す」形にしたため、**別の要素を押していて何も起きなかった**（守りが効いているのかどうかすら分からなかった）。`MutationObserver` で**背景が body に足されたその瞬間を捕まえて押す**形にして、はじめて A/B が噛み合った。**「効かない」と見えたら、まず操作が届いているかを確かめる**（続き558・562・582 と同じ）。",
+    ],
+    devItemsEn: [
+      "Six steps were queued but only two were shown, and the only paths that empty the queue are the skip button, the close cross and the backdrop, none of which had logged an exception. The backdrop covers the whole screen and the sequence appears without warning on an opponent's turn, so a tap meant for the board wipes the rest; backdrop taps are now ignored for the first half second, and the control that caused a skip is recorded.",
+    ],
+  },
+  {
     date: "2026-10-20",
     summary: [
       "不具合を報告してくださった方に、直ったことをアプリの中でお知らせするようにしました",

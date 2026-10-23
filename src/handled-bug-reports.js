@@ -153,6 +153,10 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "不具合報告のボタンを、タイトル画面にも出るようにしました。試遊版をホーム画面から開いた時に通常のタイトルになってしまう件も、ログインしていない方には「アカウントを作らずに試す」を出すようにして直しました。",
     en: "The bug report button is on the title screen again. The trial entry being lost from a home screen shortcut is handled too: logged-out visitors now get a \"Try it without an account\" button.",
   },
+  428: {
+    ja: "ゲート侵攻の演出が、画面を触った拍子に途中で消えてしまうことがあったのを直しました。出たばかりの背景を押しても飛ばなくなります（少し待ってから押せば、今までどおり飛ばせます）。",
+    en: "The gate invasion sequence could vanish part-way if you happened to tap the screen as it appeared. Tapping the backdrop right as it shows up no longer skips it; wait a moment and it still skips as before.",
+  },
   421: {
     ja: "置いた罠がターン終了時に消えてしまい、下にあったカードが代わりに発動していました。直しました。",
     en: "A trap you placed was being removed at the end of your turn, so the card underneath triggered instead. Fixed.",
