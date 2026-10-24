@@ -51,6 +51,39 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-24",
+    summary: [
+      "ヘルプの用語集に、言葉を12個足しました",
+    ],
+    summaryEn: [
+      "Added twelve terms to the glossary in Help",
+    ],
+    items: [
+      "ヘルプの用語集に**12個の言葉**を足しました——**ロックフェイズ／ハンドフェイズ／ムーブフェイズ**（これまで、説明文の中では使っているのに**言葉そのものの説明がありませんでした**）、**割り込み**、**単数の原則**（数の指定がなければ対象は1つ）、**領域**、**不発**、**虹**、**ループの禁止**、**到達コンボ**、**一気に移動**、**他のカードの効果の対象にならない**。公式サイトの総合ルールと言い方をそろえてあります。",
+    ],
+    itemsEn: [
+      "Added twelve entries to the glossary in Help: Lock Phase, Hand Phase and Move Phase (used throughout the other entries but never defined), Interrupt, the singular principle (no number given means one target), Zone, Fizzle, Rainbow, No pointless loops, Arrival combo, Move at once, and Cannot be targeted by other cards. The wording matches the comprehensive rules on the official site.",
+    ],
+    devItems: [
+      "**きっかけ**: ユーザー提案「一度アプリの中とHP、説明書のルールを整合したほうがいいかな？」。足す前に**4つの資料の用語の集合を機械的に突き合わせた**（`scratchpad/glossary-diff.mjs`）: 総合ルール245条・索引46語／HPの基本用語集55語（**全版共通**なので1st専用の財力S・志炎・色者を含む）／アプリのヘルプ46語／説明書8pt版36語。**統合すると57語**。",
+      "**分かったこと: アプリのヘルプは「2026年初期の説明書（25ページ版）の写し」で止まっていた。** アプリの46語は25p版の45語＋「いつでも使える」とほぼ一致し、その後に整理した語（割り込み・単数の原則・領域・不発・虹・ループの禁止・到達コンボ）が**1つも入っていない**。さらに**ハンドフェイズ等のフェイズ3種が立項されていない**——`help-content.ja.js` の中で9回使われているのに言葉の説明が無い状態だった（HPには3つとも在る）。",
+      "**説明書は触らない**と決めた（紙面の制限）。25p版45語→8pt版36語は**意図的な削減**で、12語を落として3語に集約している（相手・自分・プレイヤー・プレイヤー全員→「全員」、手札の半分→「半分」など）。巻き戻すと26ページに収まらない。",
+      "**1st専用の語は入れていない**。HPの「固有効果」にある財力S・志炎・色者・状況は1st EDITIONのカードの仕組みで、REMAKEには無い（`docs/cards.md` に【状況】のカードが無いことを確認した。grepの「収録状況」に引っかかるので文字列一致では判断できない）。",
+      "**定義はすべて総合ルールの条文から取った**（111/112/115/203.2/300/502.1/502.4/503.1/504.1/505.1/605/609.3/610.2/611/704.3）。私が作文した定義は無い。日英とも**同じ順・同じ件数**で挿入し、**46→58語**。挿入は五十音／アルファベット順を保つため「このtermのブロックの直前」に入れる形（`scratchpad/add-glossary.mjs`）。**`help-content.*.js` は LF**（src の多くは CRLF なので、道具側で改行コードを確認してから書いた＝続き550の教訓）。",
+      "**検証**: 実際にヘッドレスでヘルプを開き、**12語とも一覧に在る**ことと、「割り込み」を開いて本文が出ること（スマホ相当932x430で題15.3px・本文13px・モーダル398x168で画面内）を確認。例外0件。`npm test` 63/63 PASS、`check-undeclared` 0件（168ファイル）。",
+      "**残り（未着手）**: ①HPに無くてアプリ・説明書・総合ルールに在る語が3つある（句点の原則・無作為・公開する）＋総合ルールで新設した語もHPには無い ②表記ゆれ（ロックする／ロック、一気に移動／一気に移動する、無色のカード／無色のカード（白黒）、1番上の原則／「1番上」の原則）③説明書は次の改訂時に「単数の原則」を1〜2行だけ入れる価値があるか（カードの読み方そのものに関わるため）。",
+    ],
+    devItemsEn: [
+      "Prompted by the owner asking whether the app, the site and the manual should be reconciled. Before adding anything, the four glossaries were diffed mechanically: comprehensive rules (46 indexed terms), the site glossary (55, shared across all editions and so including first-edition-only mechanics), the app's Help (46) and the printed manual (36). The union is 57.",
+      "The finding: the app's Help was still a copy of the early 2026 manual. Its 46 terms match that manual's 45 plus one, so nothing settled since then had reached it, and the three phases were never defined even though other entries use the word nine times. The site defines all three.",
+      "The printed manual was deliberately left alone. Its reduction from 45 terms to 36 was a conscious choice to fit the page count, collapsing twelve terms into three; undoing that would not fit in 26 pages.",
+      "First-edition-only mechanics were excluded. The site lists them because its glossary spans editions, but they do not exist in this one, confirmed by checking the card data rather than by string match.",
+      "Every definition was taken from a numbered rule rather than written fresh. The twelve entries were inserted in both languages in matching order, 46 to 58, keeping alphabetical position. The help content files use LF while most sources use CRLF, so the tool checked the line endings first.",
+      "Verified by opening Help in a headless browser at phone size: all twelve appear in the index, and one was opened to confirm the body renders at a readable size within the screen. No exceptions; tests and the undeclared-name check pass.",
+      "Still open: three terms exist everywhere except the site, several terms are spelled differently between sources, and the printed manual may warrant one line on the singular principle at its next revision.",
+    ],
+  },
+  {
     date: "2026-10-12",
     summary: [
       "対戦が戦績システムに登録されないことがあったのを直しました",

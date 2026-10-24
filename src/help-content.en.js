@@ -109,6 +109,12 @@ export const GLOSSARY_EN = [
     body: ["The player with the greatest number of cards locked in their own Lock Area."],
   },
   {
+    term: "Move at once",
+    body: [
+      "Moving directly to the destination without passing through the squares in between. Cards or opposing pieces on the way do not matter.",
+    ],
+  },
+  {
     term: "Usable anytime",
     body: [
       "A card with this wording can be used at any time, except while an effect is being resolved.",
@@ -193,6 +199,13 @@ export const GLOSSARY_EN = [
   },
   { term: "Turn", body: ["As a rule, from the start of the Lock phase to the end of the Move phase."] },
   {
+    term: "Singular principle",
+    body: [
+      "When a card's text gives no number, the target is one (one player, one card, one square).",
+      "Example: in \"one card from an opponent's hand\", \"an opponent\" means a single player. If every opponent were meant, the card would say \"all opponents\".",
+    ],
+  },
+  {
     term: "Color Cost S",
     body: [
       "Written as 【Color Cost S】.",
@@ -225,11 +238,29 @@ export const GLOSSARY_EN = [
       "If the card itself says what happens to it, follow that instead of adding it to your hand.",
     ],
   },
+  {
+    term: "Arrival combo (exposed arrival)",
+    body: [
+      "If resolving an arrival effect puts that card into your hand and a face-up card is then exposed underneath it on the same square, your piece arrives at that card as well.",
+    ],
+  },
   { term: "Adjacent", body: ["The 4 squares in front of, behind, left of and right of the target square."] },
   { term: "Draw", body: ["Adding a card from the deck to your hand."] },
   { term: "Empty square", body: ["A square with neither a card nor a piece on it."] },
+  {
+    term: "Rainbow",
+    body: [
+      "A card that counts as every color. For effects that name a color, a rainbow card can be treated as that color.",
+    ],
+  },
   { term: "Field", body: ["The 7×7 grid of 49 squares in the middle of the board."] },
   { term: "Center of the field", body: ["The single square at the center of the 7×7 grid."] },
+  {
+    term: "Hand Phase",
+    body: [
+      "The second phase of a turn. You may use any number of hand effects, or none at all.",
+    ],
+  },
   {
     term: "First card",
     body: [
@@ -238,9 +269,28 @@ export const GLOSSARY_EN = [
       "This card is never targeted by other cards' effects: it cannot be taken or discarded.",
     ],
   },
+  {
+    term: "Fizzle",
+    body: [
+      "When an effect you receive automatically (such as an arrival effect) cannot be carried out, it fizzles. Even so, that card still goes into your hand.",
+    ],
+  },
   { term: "Player", body: ["Anyone taking part in the game."] },
   { term: "All players", body: ["Every player, including you."] },
+  {
+    term: "Cannot be targeted by other cards",
+    body: [
+      "A property of First cards and Eternal cards. They can never be taken or discarded by another card's effect.",
+    ],
+  },
   { term: "Square", body: ["A place on the field where cards and pieces are put. Cards themselves are not part of a square."] },
+  {
+    term: "Move Phase",
+    body: [
+      "The last phase of a turn. You must do exactly one of the two: move or contact.",
+      "If you can do neither, place one card face-down from the deck onto an adjacent square and end your turn.",
+    ],
+  },
   {
     term: "At random",
     body: [
@@ -257,6 +307,20 @@ export const GLOSSARY_EN = [
       "When the deck runs out, turn the discard pile face-down as it is and use it as the new deck.",
     ],
   },
+  {
+    term: "Zone",
+    body: [
+      "The places a card can be: the field, a lock area, a hand, the deck, the discard pile, and outside the board.",
+      "A card is always in exactly one zone, never in two at the same time.",
+    ],
+  },
+  {
+    term: "No pointless loops",
+    body: [
+      "Even when an effect could be used over and over, repeating it pointlessly is not allowed.",
+      "If a repetition changes nothing on the board, in hands, or in lock areas, it cannot be done.",
+    ],
+  },
   { term: "Lock", body: ["Placing one card face-up in the matching color slot of your Lock Area.", "As a rule, only one card can be locked per color."] },
   {
     term: "Lock Area",
@@ -264,6 +328,19 @@ export const GLOSSARY_EN = [
       "The place where cards are locked.",
       "Each player has one Lock Area of their own; the seven slots from red to purple together are called the Lock Area.",
       "For example, the slot where you would lock your red card is called “your red Lock Area”.",
+    ],
+  },
+  {
+    term: "Lock Phase",
+    body: [
+      "The first phase of a turn. You may lock one card from your hand, or none at all.",
+    ],
+  },
+  {
+    term: "Interrupt",
+    body: [
+      "A hand effect that states when it can be used may be used at that moment even on another player's turn.",
+      "Once the interrupting effect finishes resolving, the interrupted process continues.",
     ],
   },
 ];
