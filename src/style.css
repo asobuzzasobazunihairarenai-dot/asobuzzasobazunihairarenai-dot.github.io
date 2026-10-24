@@ -220,7 +220,7 @@ body.theme-light .opening-setup-play {
 /* スマホ・タブレット（＝実際に出る端末）での拡大。 */
 body.is-phone-device #opening-setup-modal,
 body.is-tablet-device #opening-setup-modal {
-  width: min(60rem, 94vw);
+  width: min(60rem, 94%);
   padding: 2rem 2.2rem;
   border-radius: 1rem;
 }
@@ -335,7 +335,7 @@ body.is-tablet-device .opening-setup-never {
   text-align: center;
   /* BGM・効果音・カード拡大サイズの3項目に増えて縦に長くなったため、小さい画面でも
      はみ出さず中でスクロールできるようにする。 */
-  max-height: 90vh;
+  max-height: 50.625rem; /* 90vh相当 */
   overflow-y: auto;
 }
 .first-run-bgm-title {
@@ -2817,7 +2817,7 @@ body.is-phone-device .update-banner-close {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(40rem, 92vw);
-  max-height: 85vh;
+  max-height: 47.813rem; /* 85vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -2838,7 +2838,7 @@ body.is-phone-device .update-banner-close {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
-  max-height: 60vh;
+  max-height: 33.75rem; /* 60vh相当 */
   overflow-y: auto;
   margin-bottom: 0.8rem;
 }
@@ -3170,7 +3170,7 @@ body.theme-light #contact-result-modal {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(38rem, 92vw);
-  max-height: 80vh;
+  max-height: 45rem; /* 80vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -3683,7 +3683,7 @@ body.self-status-rearrange-mode #self-status-online.is-rearranging {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(30rem, 92vw);
-  max-height: 80vh;
+  max-height: 45rem; /* 80vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -5663,7 +5663,7 @@ body.spotlight-mode #spotlight-overlay {
 .online-lobby-card {
   pointer-events: auto;
   width: min(24rem, 92vw);
-  max-height: 90vh;
+  max-height: 50.625rem; /* 90vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -6212,7 +6212,7 @@ body.is-phone-device #options-menu-button {
   right: 1rem;
   width: 30rem;
   max-width: 92vw;
-  max-height: 60vh;
+  max-height: 33.75rem; /* 60vh相当 */
   z-index: 901;
   background: rgba(15, 23, 32, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -6330,7 +6330,7 @@ body.is-phone-device #options-menu-button {
   transform: translate(-50%, -50%);
   z-index: 10621;
   width: min(30rem, 92vw);
-  max-height: 80vh;
+  max-height: 45rem; /* 80vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -6703,7 +6703,7 @@ body.theme-light .action-log-window-title {
   /* 部屋パネルは2カラム（左＝作成／右＝参加・観戦、ユーザー要望2026-08-17）にしたため広めにする。
      狭い画面では .online-room-columns が縦積みに折り返す。 */
   width: min(40rem, 94vw);
-  max-height: 90vh;
+  max-height: 50.625rem; /* 90vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -6772,7 +6772,7 @@ body.theme-light #online-panel-home-btn:hover {
   border-radius: 0.5rem;
   padding: 0.75rem;
   width: 19rem;
-  max-height: 90vh;
+  max-height: 50.625rem; /* 90vh相当 */
   overflow-y: auto;
   box-sizing: border-box;
   font-family: sans-serif;
@@ -7076,7 +7076,7 @@ body.is-phone-device #admin-panel {
 }
 .eidos-story-menu-panel {
   width: min(24rem, 92vw);
-  max-height: 88vh;
+  max-height: 49.5rem; /* 88vh相当 */
   overflow-y: auto;
   background: linear-gradient(180deg, rgba(30, 27, 46, 0.98), rgba(18, 16, 28, 0.98));
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -7332,7 +7332,7 @@ body.theme-light .daily-bonus-modal-note {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(28rem, 92vw);
-  max-height: 85vh;
+  max-height: 47.813rem; /* 85vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -7424,7 +7424,7 @@ body.theme-light .daily-bonus-modal-note {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(26rem, 90vw);
-  max-height: 80vh;
+  max-height: 45rem; /* 80vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -7976,7 +7976,7 @@ body.shop-adjust-mode .shop-item-color-swatch {
   min-width: 20rem;
   min-height: 14rem;
   max-width: 96vw;
-  max-height: 92vh;
+  max-height: 51.75rem; /* 92vh相当 */
   overflow: auto;
   resize: both;
   background: rgba(15, 23, 32, 0.98);
@@ -8743,7 +8743,7 @@ body.diagnostic-flatten-3d.is-touch-device #hand-shuffle-button {
   /* 駒スキンが8バリエーション(2列4行)に増えたことで、縦に長い画面でないと収まりきらず、
      画面からはみ出て閉じるボタンにも手が届かなくなっていた（ユーザー報告）。
      max-height+overflow-yで、収まらない場合はモーダル自身がスクロールするようにする。 */
-  max-height: 85vh;
+  max-height: 47.813rem; /* 85vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -10653,7 +10653,7 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(24rem, 92vw);
-  max-height: 80vh;
+  max-height: 45rem; /* 80vh相当 */
   overflow-y: auto;
   z-index: 10701;
   background: rgba(15, 23, 32, 0.98);
@@ -11869,7 +11869,7 @@ body.theme-light .bug-report-cancel {
    文字と当たり判定を 2 倍前後に拡大する。**PCは一切変えない**（この規則はスマホ判定時だけ）。
    入力欄は行数（rows=6）のままだと拡大で縦に伸びすぎるので、高さを決めて抑える。 */
 body.is-phone-device #bug-report-modal {
-  width: min(60rem, 94vw);
+  width: min(60rem, 94%);
   padding: 2rem 2.2rem;
   border-radius: 1rem;
   /* 画像を添付するとプレビュー（最大8rem）が増えて画面の高さを超えかけるので上限を決める。
@@ -12791,7 +12791,7 @@ body.victory-celebration-active #option-area {
   width: min(30rem, 92vw);
 }
 .rank-reveal-climb-list {
-  max-height: 55vh;
+  max-height: 30.938rem; /* 55vh相当 */
   overflow-y: auto;
   text-align: left;
   margin: 0.4rem 0 0.6rem;
@@ -12875,7 +12875,7 @@ body.victory-celebration-active #option-area {
   flex-direction: column;
   gap: 0.15rem;
   margin: 0.2rem 0 0.8rem;
-  max-height: 38vh;
+  max-height: 21.375rem; /* 38vh相当 */
   overflow-y: auto;
 }
 .rank-reveal-leaderboard-row {
@@ -12951,7 +12951,7 @@ body.victory-celebration-active #option-area {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(24rem, 90vw);
-  max-height: 85vh;
+  max-height: 47.813rem; /* 85vh相当 */
   overflow-y: auto;
   padding: 1.6rem 1.4rem;
   border-radius: 1rem;
@@ -14749,7 +14749,7 @@ body.is-phone-device .opening-lang-toggle-seg.is-current {
 .opening-login-card {
   position: relative;
   width: min(24rem, 90vw);
-  max-height: 80vh;
+  max-height: 45rem; /* 80vh相当 */
   overflow-y: auto;
   box-sizing: border-box;
   background: rgba(15, 23, 32, 0.82);
@@ -19605,7 +19605,7 @@ body.opening-screen-active.is-admin-user #smoke-test-launch-btn {
   transform: translate(-50%, -50%);
   z-index: 20200;
   width: min(30rem, 92vw);
-  max-height: 84vh;
+  max-height: 47.25rem; /* 84vh相当 */
   display: flex;
   flex-direction: column;
   background: linear-gradient(160deg, #232c3d, #141a26);
@@ -20814,7 +20814,7 @@ body.is-tablet-device #changelog-back {
       実測 説明6.5px／ラベル6.5px／「次へ」7.3px だった。縦の上限も vh から rem へ。 */
 body.is-phone-device #first-run-bgm-modal,
 body.is-tablet-device #first-run-bgm-modal {
-  width: min(60rem, 94vw);
+  width: min(60rem, 94%);
   padding: 2rem 2.2rem 1.8rem;
   border-radius: 1rem;
   max-height: 50rem; /* 90vh では実画面の43%しか無い（上の★参照） */
@@ -21004,7 +21004,7 @@ body.is-tablet-device .start-player-body {
 }
 body.is-phone-device .start-player-announce,
 body.is-tablet-device .start-player-announce {
-  width: min(56rem, 94vw) !important;
+  width: min(56rem, 94%) !important;
   max-height: 46rem !important; /* 85vh は実画面の41%しか無い（vhの罠。上の★参照） */
   padding: 1.6rem !important;
 }
@@ -21072,7 +21072,7 @@ body.is-tablet-device #help-panel .modal-close-x {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(24rem, 92vw);
-  max-height: 85vh;
+  max-height: 47.813rem; /* 85vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -21089,7 +21089,7 @@ body.is-tablet-device #help-panel .modal-close-x {
    本文0.8rem で、幅も min(20rem, 80vw)＝実画面153pxしか無かった。 */
 body.is-phone-device .effect-reason-modal,
 body.is-tablet-device .effect-reason-modal {
-  width: min(60rem, 92vw);
+  width: min(60rem, 92%);
   padding: 1.2rem 1.6rem;
   border-radius: 1rem;
 }
@@ -21306,7 +21306,7 @@ body.theme-light .my-page-fav-title.is-empty {
   z-index: 10701;
   /* 続き318: 称号を碁盤目に並べるため、ユーザーの許可を得て広げた（3〜4列になる幅） */
   width: min(42rem, 94vw);
-  max-height: 82vh;
+  max-height: 46.125rem; /* 82vh相当 */
   overflow-y: auto;
   padding: 1.1rem 1.2rem 1.3rem;
   border-radius: 0.7rem;
@@ -21851,7 +21851,7 @@ body.theme-light .cell-confirm-dontshow { color: #6b6153; }
   transform: translate(-50%, -50%);
   z-index: 2701;
   width: min(34rem, 92vw);
-  max-height: 86vh;
+  max-height: 48.375rem; /* 86vh相当 */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -22470,7 +22470,7 @@ body.theme-light .my-page-friends-btn {
   transform: translate(-50%, -50%);
   z-index: 10701;
   width: min(30rem, 92vw);
-  max-height: 82vh;
+  max-height: 46.125rem; /* 82vh相当 */
   overflow-y: auto;
   padding: 1.2rem 1.2rem 1rem;
   background: linear-gradient(160deg, #111827, #0b1120);
@@ -23971,3 +23971,27 @@ body.is-phone-device .bug-thanks-when { font-size: 1.4rem; }
 body.is-phone-device .bug-thanks-quote { font-size: 1.62rem; }
 body.is-phone-device .bug-thanks-fixed { font-size: 1.7rem; }
 body.is-phone-device .bug-thanks-close { font-size: 1.7rem; padding: 0.8rem; }
+
+/* 【続き613】**スマホで拡大されているパネルは、上限も倍率で割る。**
+   上の vh → rem の置き換えで上限が広がったが、このうち5つは `body.is-phone-device` で
+   `transform: scale()` が掛かっている（実測: ヘルプ・ロック選択・カードのメモ・ヘルプの項目は
+   **2倍**、管理者パネルは **1.45倍**）。そのままだと**画面から上下にあふれる**（実測で
+   ロック選択とヘルプが箱 -150〜581 ＝ 画面(0〜430)の外へ302px）。**元の vh でも同じ罠に
+   かかっていたが、値が小さかったので表面化していなかっただけ。**
+   タブレットは実測で倍率1.00だったので対象外（タブレットにこれを掛けると逆に小さくなる）。
+   ⚠ **拡大が掛かっている部品の寸法を触る時は、必ず倍率を測ってから決める**（続き576 と同じ罠）。 */
+body.is-phone-device #help-panel {
+  max-height: 23.906rem; /* 47.813rem ÷ 2倍 */
+}
+body.is-phone-device #help-item-modal {
+  max-height: 22.5rem; /* 45rem ÷ 2倍 */
+}
+body.is-phone-device #lock-pick-modal {
+  max-height: 23.906rem; /* 47.813rem ÷ 2倍 */
+}
+body.is-phone-device #card-note-modal {
+  max-height: 22.5rem; /* 45rem ÷ 2倍 */
+}
+body.is-phone-device #admin-panel {
+  max-height: 34.914rem; /* 50.625rem ÷ 1.45倍 */
+}
