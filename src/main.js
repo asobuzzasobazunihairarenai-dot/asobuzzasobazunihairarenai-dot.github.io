@@ -879,7 +879,10 @@ function buildPlayerZone(side, player, isSelf) {
     if (isSpectatingGame()) {
       // 観戦中は「自分の座席」の概念を使わない。allモードは全プレイヤーの手札を表向き
       // （god-view）、publicモードは全て裏向き（公開情報のみ）。自分専用の演出は付けない。
-      if (spectateAll && token.cardId) {
+      // 「視点の人の手札だけ」がONなら、表向きにするのは見ている席だけにする。
+      // isSelf は buildPlayerZone(side, seat, self === seat) 由来で、**観戦中の self は
+      // 『見ている席』**（online.js の getSelfSeat 参照）＝ここでは「視点の人か」と同じ意味。
+      if (spectateAll && token.cardId && (!isSpectateOneHand() || isSelf)) {
         cardEl.className = "hand-card is-self";
         showCardFace(cardEl, token.cardId, getCardImagePath(token.cardId));
       } else {
@@ -6375,6 +6378,16 @@ function pickRandomFrom(arrayOrSet) {
 // 自動で流すため、その時だけ今のターンプレイヤーを対象にする（phase-automation.js側の
 // getAutoDriveSeatと同じ考え方。ここでは移動・ロック・接触の実行対象席として使う）。
 function getAutoDriveSeat() {
+  // 🔴【2026-10-24・ユーザー報告「観戦中にプレイヤーの色選択モーダルが出て選べる状態でした」】
+  // **観戦者はどの席も代行しない。** `getSelfSeat()` は観戦中「**見ている席**」を返す
+  // （online.js のコメント「観戦中は座席を持たないが、盤面をどのプレイヤー視点で描くか…
+  // 操作は全てブロックされる」）。ここがそれを返していたため、**見ている人の到達効果を
+  // 観戦者の画面が自分の仕事だと思って走らせ**、色宣言のモーダルまで出して選べてしまった。
+  // しかも宣言は `broadcastColorsDeclared` で全員へ流れるので、**観戦者が対局に口を出せる**。
+  // ⚠ これは 2026-09-21 に**接触の承認**と**最後のロックの承認**で直したのと同じ系統
+  // （ユーザーも『前もあった気がする』と言っている）。あの時は2か所に守りを足したが、
+  // **効果を走らせる側（ここ）には足していなかった**。
+  if (isSpectatingGame()) return null;
   if (isCpuBattleActive() && !isOnlineMode()) return getState().turnPlayer || getSelfSeat();
   return getSelfSeat();
 }
@@ -6465,6 +6478,8 @@ setInterval(() => {
 }, 500);
 
 export function performPriorityTimeoutAutoAction() {
+  // 観戦者は誰の代行もしない（上の getAutoDriveSeat 参照）。null が流れ込む前にここで止める。
+  if (isSpectatingGame()) return false;
   // ローカルCPU戦ではCPU(C)の番を、それ以外は自分の席を代行する。
   const driveSeat = getAutoDriveSeat();
   if (activeEffectPicker) {
@@ -12053,6 +12068,26 @@ let suppressGenericRenderForContactTackle = false;
 // 先回りして実カードを手札に描いてしまっていた。着地後の手動render()まで抑止する。
 let suppressGenericRenderForDrawFlight = false;
 
+// 【2026-10-24・ユーザー要望】「観戦モードの時はその視点プレイヤーの手札が見えるように
+// 選べるといいかも！」。**案A（画面側だけ）**で入れた——「すべて」モードは元から全員の手札が
+// 見えているので、**表向きにするのを『視点の人』だけに絞る**（情報の出方は1ミリも変わらない）。
+// 🔴 **案B（『公開情報のみ』の部屋で1人分だけ届ける）は採らなかった**: 手札の中身は
+// **サーバーが送る段階で伏せられている**ので、そもそも届いていない＝サーバーの改修が要る。
+// しかも観戦者は**視点を自由に切り替えられる**ので、「視点の人だけ見える」＋「切り替え自由」
+// ＝結局全員の手札が見えることになる（視点の固定か部屋の許可制とセットでないと成立しない）。
+// ユーザーに A/B を出して **A** を選んでもらった。
+const SPECTATE_ONE_HAND_KEY = "so7-spectate-one-hand";
+let spectateOneHand = (() => {
+  try { return localStorage.getItem(SPECTATE_ONE_HAND_KEY) === "1"; } catch { return false; }
+})();
+function isSpectateOneHand() {
+  return spectateOneHand;
+}
+function setSpectateOneHand(v) {
+  spectateOneHand = !!v;
+  try { localStorage.setItem(SPECTATE_ONE_HAND_KEY, spectateOneHand ? "1" : "0"); } catch { /* 覚えられなくても動く */ }
+}
+
 // 観戦中の告知バナー（ユーザー要望）。観戦モード（すべて/公開）を表示し、観戦をやめる導線を出す。
 let spectatorBannerEl = null;
 function updateSpectatorBanner() {
@@ -12105,6 +12140,21 @@ function updateSpectatorBanner() {
           seatsEl.appendChild(btn);
         }
       }
+    }
+    // 「視点の人の手札だけ表向き」の切り替え。**全員の手札が見える『すべて』モードの時だけ出す**
+    // （『公開情報のみ』では元から全部裏向きなので、出しても何も変わらず紛らわしい）。
+    if (spectatorBannerEl._oneHandBtn) spectatorBannerEl._oneHandBtn.remove();
+    if (getSpectateMode() === "all") {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "spectator-banner-seat" + (isSpectateOneHand() ? " is-current" : "");
+      btn.textContent = isSpectateOneHand() ? t("game.spectate.oneHandOn") : t("game.spectate.oneHandOff");
+      btn.addEventListener("click", () => {
+        setSpectateOneHand(!isSpectateOneHand());
+        render();
+      });
+      spectatorBannerEl._seats.after(btn);
+      spectatorBannerEl._oneHandBtn = btn;
     }
     spectatorBannerEl.style.display = "flex";
   } else if (spectatorBannerEl) {

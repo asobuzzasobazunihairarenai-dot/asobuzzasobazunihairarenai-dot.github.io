@@ -203,6 +203,9 @@ const UI = {
     "opening.loginToggle": "ログイン",
     // 【#420・2026-10-18】通常のタイトル画面からも試遊へ入れる導線（opening-screen.js）。
     "trial.noAccount": "アカウントを作らずに試す",
+    // 【2026-10-24】観戦中「視点の人の手札だけ表向き」の切り替え（main.js）。
+    "game.spectate.oneHandOn": "👁 視点の人だけ",
+    "game.spectate.oneHandOff": "👁 全員の手札",
     // 【続き602・2026-10-20】不具合報告へのお礼（bug-report-thanks.js）。
     "thanks.title": "ご報告ありがとうございました",
     "thanks.lead": "いただいた報告をもとに直しました。おかげでゲームがよくなりました。",
@@ -2153,6 +2156,8 @@ const UI = {
     // --- Opening / login screen ---
     "opening.loginToggle": "Log in",
     "trial.noAccount": "Try it without an account",
+    "game.spectate.oneHandOn": "👁 Viewed player only",
+    "game.spectate.oneHandOff": "👁 All hands",
     "thanks.title": "Thank you for your report",
     "thanks.lead": "We fixed what you told us about. The game is better for it.",
     "thanks.leadMany": "We fixed {n} things you told us about. The game is better for it.",

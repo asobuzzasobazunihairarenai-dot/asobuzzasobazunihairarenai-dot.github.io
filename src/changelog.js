@@ -52,19 +52,37 @@ import { getLang } from "./i18n.js";
 export const CHANGELOG = [
   {
     date: "2026-10-24",
+    summary: [
+      "観戦中に「視点の人の手札だけ」を表示できるようになりました",
+    ],
+    summaryEn: [
+      "While spectating you can now show only the viewed player's hand",
+    ],
+    items: [
+      "観戦の「すべて」モードで、手札の見せ方を切り替えられるようにしました。観戦バナーの👁のボタンを押すと、表向きにするのを「いま視点にしている人の手札だけ」に絞れます（もう一度押すと全員ぶんに戻ります）。4人の手札が一度に開いていると追いきれない、という時に、誰か1人の目線で試合を追えます。視点を切り替えれば、その人の手札が表向きになります。この設定はお使いの端末に覚えておきます。",
+    ],
+    itemsEn: [
+      "While spectating in the mode that reveals hands, a new eye button on the spectator bar narrows the face-up hands to just the player you are currently viewing; press it again for everyone. Switching your viewpoint moves which hand is shown. The choice is remembered on your device.",
+    ],
     fixes: [
       "ゲート侵攻の演出が、画面を触った拍子に途中で消えてしまうことがあったのを直しました。",
       "カードにカーソルを合わせても拡大が出なくなっていたのを直しました（オンラインの対局中・観戦中）。",
+      "観戦しているだけなのに、色を選ぶ画面が出て選べてしまうことがあったのを直しました。",
     ],
     fixesEn: [
       "Fixed the gate invasion sequence vanishing part-way if you tapped the screen as it appeared.",
       "Fixed the card zoom not appearing when you hover a card, during online play and while spectating.",
+      "Fixed a colour-choice dialog appearing, and being usable, for someone who was only spectating.",
     ],
     devItems: [
+      "**ユーザー報告「観戦中にプレイヤーの色選択モーダルが出て選べる状態でした。前もあった気がするけど」——当たり。同じ系統の3か所目だった。** `getSelfSeat()` は**観戦中「見ている席」を返す**（online.js のコメント「観戦中は座席を持たないが、盤面をどのプレイヤー視点で描くか…**操作は全てブロックされる**」）。ところが `getAutoDriveSeat()` がそれをそのまま返しており、`shouldAutoProcess = player === getAutoDriveSeat() && …` が**見ている席の到達で true** になる＝**観戦者の画面が、その人の効果を自分の仕事だと思って走らせ**、色宣言のモーダルまで出していた。🔴 しかも宣言は `broadcastColorsDeclared` で全員へ流れるので、**観戦者が対局に口を出せる**状態だった。⚠ **2026-09-21 に接触の承認と最後のロックの承認で同じ守り（`!isSpectatingGame()`）を足しているのに、効果を走らせる側には足していなかった**——ユーザーの「前もあった気がする」はそのこと。直しは `getAutoDriveSeat()` の先頭で観戦中は null を返し、時間切れの自動代行（`performPriorityTimeoutAutoAction`）にも同じ守りを足した。⚠ **手元で再現・確認ができていない（正直な限界）**: 到達の処理は盤面の操作から呼ばれる作りで、state を直接動かしても走らない。**3回測り方を変えたが到達を起こせなかった**（途中『再現した』と見えたのは探し方が雑で別の文字に反応していただけ＝続き605 と同じ失敗）。根拠は**コードの読み**と**同じ守りが既に2か所にある**ことで、**実機での確認をお願いしてある**。",
+      "**ユーザー要望「観戦モードの時はその視点プレイヤーの手札が見えるように選べるといいかも！」→ A/B を出して A を採用。** A＝**画面側だけ**（「すべて」モードは元から全員の手札が届いているので、**表向きにするのを視点の人だけに絞る**。情報の出方は1ミリも変わらない）。B＝「公開情報のみ」の部屋で1人分だけ届ける。🔴 **B を採らなかった理由は2つ**: ①手札の中身は**サーバーが送る段階で伏せられている**（`so7_game_tokens_visible`）ので、そもそも届いていない＝サーバーの改修が要る ②観戦者は**視点を自由に切り替えられる**ので、「視点の人だけ見える」＋「切り替え自由」＝**結局全員の手札が見える**（視点の固定か部屋の許可制とセットでないと成立しない）。実装は3行＋バナーのボタン——`isSelf` は `buildPlayerZone(side, seat, self === seat)` 由来で、**観戦中の self は『見ている席』**なので、そのまま「視点の人か」として使える。ボタンは**「すべて」モードの時だけ**出す（「公開情報のみ」では元から全部裏向きで、出しても何も変わらず紛らわしい）。設定は端末に覚える。**実測（4人・観戦allを模して）**: OFF＝他の3人 表2/裏0・視点の人 表2／**ON＝他の3人 裏4/表0・視点の人は表4のまま**、ボタンの文字も入れ替わる。例外0件。",
       "**#425「観戦中にカードの拡大が表示されなくなった」（YGM）——観戦だけの話ではなかった。** 報告に入っていた画面の記録（続き572）に、**id も class も中身も無い `z-index:999` の div が盤面全体（24,0,1232,693）を覆って**写っていた。その形の膜を作るのは2か所だけで、管理者パネルの方は id が付いている＝**セットアップウィザードの膜**。読むと `createBackdrop(close, { dim:false, zIndex:999 })` の直後に **`display:none` を付け忘れていた**（管理者パネルの方は付けてある）。**パネル自身は display:none なのに、膜だけ起動直後からずっと表示**——手元で実測して確認した。🔴 **何が起きるか**: 拡大プレビュー（ホバー）は **`#game-table` の pointermove** で拾っているが、膜は #game-table の子ではないので**マウスの動きが盤面に届かない**。タップ・ドラッグは document の capture で拾うので効き続ける＝**拡大だけが死ぬ**。🔴 **そして膜を隠すのは `closePanel()` だけで、それはセットアップの手順を最後まで実行した時しか呼ばれない**——CPU戦はその手順を通るので隠れるが、**オンラインの対局者・観戦者はずっと覆われたまま**だった。直しは作成直後に `display:none`（＋次に画面の記録を見る時に悩まないよう `id` を付けた）。**A/B**: 起動直後の膜が **block → none**／ウィザードを開くと block・背景を押すと none＝**開閉は壊していない**。⚠ **オンラインでホバーが実際に戻ることの通し確認はできていない**（手元からオンラインの席に入れないため）。要素の状態と、ホバーの受け口の読み合わせまで。",
       "**#428「ゲート侵攻の演出がスキップされました」（YGM）。** 報告のログで**6段積んだのに2段しか出ていない**ことが確定。列を途中で空にできるのは `skipAll`（スキップ／✕／**背景を押す**）か例外だけで、例外の記録（`diag-gate-invasion-modal-error`）は無く、直後に `diag-notice-wait {blocker:\"none\"}` が出ている＝**止まったのではなく空にされた**。🔴 背景は**画面全体を覆う**うえ、この演出は**相手の操作で突然現れる**ので、**盤面を触ろうとしていた指がそのまま背景に当たって6段まとめて消える**。背景を押せるようにしたのは #380 で、それ以前は何も起きなかった（＝比較的新しい事故）。直しは「**出てから500msの間だけ背景を無視する**」。✕とスキップは狙って押す小さな的なので今までどおり即座に効く。**A/B**: 背景が出た**80ms後**に押すと、直す前は**1段で全部消えた**／直した後は**3段続いた**（無視の記録が1件）。**900ms後**に押すと前後とも1段で終了＝狙って飛ばす操作は変えていない。あわせて `diag-gate-invasion-skipped {via}`（背景／✕／スキップのどれで飛ばしたか）を残した——**次に同じ報告が来た時、押されたのか別の原因なのかが1行で分かる**。⚠ **測り方で2回しくじった（記録）**: 最初は「少し待ってから背景を探して押す」形にしたため、**別の要素を押していて何も起きなかった**（守りが効いているのかどうかすら分からなかった）。`MutationObserver` で**背景が body に足されたその瞬間を捕まえて押す**形にして、はじめて A/B が噛み合った。**「効かない」と見えたら、まず操作が届いているかを確かめる**（続き558・562・582 と同じ）。",
     ],
     devItemsEn: [
+      "getSelfSeat returns the viewed seat while spectating, and the function that decides which seat this client drives returned it unchanged, so a spectator's client ran the viewed player's arrival effects and opened the colour dialog — and the declaration is broadcast to everyone. The same guard had been added to two sibling approval paths a month earlier but not to the effect driver. Could not be reproduced locally because arrivals are triggered from board interaction rather than from state changes.",
+      "The spectator hand option was built client-side only: in the mode that already delivers every hand, the face-up rendering is narrowed to the viewed seat. Delivering a single hand in the public-only mode was rejected because hands are masked server-side and because free viewpoint switching would turn it into full visibility anyway.",
       "The setup wizard's backdrop was appended without being hidden, so a transparent full-screen layer sat over the board from launch. Hover zoom listens on the board element, which the layer is not inside, so the zoom never fired, while taps kept working because those are captured on the document. The only thing that hid the layer was finishing the wizard, which online players and spectators never do.",
       "Six steps were queued but only two were shown, and the only paths that empty the queue are the skip button, the close cross and the backdrop, none of which had logged an exception. The backdrop covers the whole screen and the sequence appears without warning on an opponent's turn, so a tap meant for the board wipes the rest; backdrop taps are now ignored for the first half second, and the control that caused a skip is recorded.",
     ],
