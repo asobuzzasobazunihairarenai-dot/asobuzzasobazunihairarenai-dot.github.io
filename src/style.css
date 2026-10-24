@@ -18735,8 +18735,13 @@ body.theme-light .mdb-setting-btn {
   font-family: sans-serif;
 }
 #mds-panel {
-  width: min(56rem, 94vw);
-  max-height: 88vh;
+  /* 【#413・続き611】`94vw` / `88vh` は**ステージの外**の物差しなので使えない（続き575 の★）。
+     このオーバーレイは body（＝1600x900 のステージ）の中に居るので、vw/vh は**ビューポート**を
+     指すのに、描かれる大きさには**ステージ倍率**（iPhone横持ちで 0.478、上下のバーが出ていると
+     0.356）が掛かる。実測で 94vw が画面の 45%、88vh が 41% にしかなっていなかった。
+     ステージ基準の rem（ステージの幅 100rem・高さ 56.25rem）と % で書く。*/
+  width: min(56rem, 94%);
+  max-height: 50rem;
   overflow-y: auto;
   background: radial-gradient(ellipse at 50% -10%, #22303f 0%, #0f172a 70%);
   border: 1px solid rgba(176, 141, 63, 0.45);
@@ -18853,6 +18858,95 @@ body.theme-light .mdb-setting-btn {
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(148, 163, 184, 0.35);
   color: #94a3b8;
+}
+
+/* 【#413・続き611・ユーザー報告】「マイデッキ選択がスマホで横に出きらない」。
+   上の vw/vh を直してもまだ**文字が読めない**（実測で 題9.6px・説明6.5px・デッキ名6.3px・
+   枚数5.5px・ボタン7px／高さ17px）。この画面は**どのデッキで戦うかを60秒で決める**ものなので、
+   読めないと選べない。PCは一切変えず、スマホ・タブレットだけ広げて字を上げる。
+   ⚠ 大きくする時は「どこへ伸びるか」と一緒に考える（続き575）——パネルの高さの上限は
+   50rem（ステージの89%）までなので、収まることを実測で確かめてある。 */
+body.is-phone-device #mds-panel,
+body.is-tablet-device #mds-panel {
+  width: min(94rem, 94%);
+  padding: 1.4rem 1.6rem 1.6rem;
+}
+body.is-phone-device #mds-title,
+body.is-tablet-device #mds-title {
+  font-size: 2rem;
+}
+body.is-phone-device #mds-subtitle,
+body.is-tablet-device #mds-subtitle {
+  font-size: 1.5rem;
+}
+body.is-phone-device #mds-countdown,
+body.is-tablet-device #mds-countdown {
+  font-size: 1.7rem;
+}
+/* デッキの枠。絵も一緒に大きくなるので、1列あたりの数は減っても読みやすさを採る。 */
+body.is-phone-device .mds-grid,
+body.is-tablet-device .mds-grid {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+body.is-phone-device .mds-deck-name,
+body.is-tablet-device .mds-deck-name {
+  font-size: 1.6rem;
+  padding: 0.5rem 0.6rem 0.15rem;
+}
+body.is-phone-device .mds-deck-meta,
+body.is-tablet-device .mds-deck-meta {
+  font-size: 1.45rem;
+  padding: 0 0.6rem 0.6rem;
+}
+/* 押すものは高さも要る（目安28px）。実測17px だったので、字と余白の両方を上げる。 */
+body.is-phone-device .mds-action,
+body.is-tablet-device .mds-action {
+  font-size: 1.7rem;
+  padding: 0.9rem 1.8rem;
+}
+/* 画面の高さが足りない端末（iPhone横持ちで Safari の上下のバーが出ている＝320px 前後）では、
+   説明の1行を省いてから字を上げる。**「字を大きくする」は文章を削ることと一緒に考える**
+   （続き574・589 と同じ）。残り時間とデッキの一覧は消さない——選ぶのに必要なものだから。 */
+@media (max-height: 380px) {
+  body.is-phone-device #mds-subtitle {
+    display: none;
+  }
+  body.is-phone-device #mds-panel {
+    max-height: 54rem;
+    padding: 0.9rem 1.1rem 1rem;
+  }
+  body.is-phone-device .mds-grid {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 0.7rem;
+  }
+  /* この画面ではステージ倍率が 0.356 まで落ちる（1rem が実画面 5.7px）ので、430px の端末と
+     同じ rem では読めない（実測 8.2〜11.4px）。説明の1行を省いて空いた分で字を上げる。
+     上限 54rem（ステージの96%）に収まることは実測で確かめた。 */
+  body.is-phone-device #mds-title {
+    font-size: 2.6rem;
+  }
+  body.is-phone-device #mds-countdown {
+    font-size: 2.1rem;
+    margin-top: 0.3rem;
+  }
+  body.is-phone-device #mds-body {
+    margin-top: 0.6rem;
+  }
+  body.is-phone-device .mds-deck-name {
+    font-size: 2.1rem;
+  }
+  body.is-phone-device .mds-deck-meta {
+    font-size: 1.95rem;
+  }
+  body.is-phone-device .mds-action {
+    font-size: 2.3rem;
+    padding: 0.8rem 1.6rem;
+  }
+  body.is-phone-device #mds-actions {
+    margin-top: 0.8rem;
+    gap: 0.6rem;
+  }
 }
 .mds-action:hover {
   filter: brightness(1.08);
