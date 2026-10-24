@@ -19805,8 +19805,11 @@ subscribe(() => {
     // ようにしてください」。turnPlayerの変化はオンライン中も全クライアントに同期される
     // ため、ここで閉じれば「全員」の画面で閉じることになる。使用モーダルも同じ位置・
     // 同じ「消えない」設定を共有するようになった（続き42）ため、一緒に閉じる。
-    hideCardArrivalModalImmediately();
-    hideHandEffectUseModalImmediately();
+    // 【#411・ユーザー要望】「ターン切り替え時、右の拡大カードをフェードアウトで片付けたい」。
+    // ぱっと消えると、何が起きたのか追う間もなく画面から札が無くなる。出てきた時と同じ動きで
+    // 引っ込める（仕組みはモーダル自身が元から持っているものをそのまま使う）。
+    hideCardArrivalModalImmediately({ fade: true });
+    hideHandEffectUseModalImmediately({ fade: true });
     if (isGateInvasionPending() || isGateInvasionQueueActive()) {
       pendingTurnAnnouncePlayer = turnPlayer;
     } else {

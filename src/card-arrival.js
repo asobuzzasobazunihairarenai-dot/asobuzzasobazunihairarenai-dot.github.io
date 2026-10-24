@@ -20,6 +20,14 @@ function getDurationMs() {
 
 let currentModal = null;
 let currentTimer = null;
+// 【#411】フェードで消えつつあるもの。次の到達が来たら、重なって見えないよう即座に片付ける
+// （このモーダルは右上の同じ場所に出るので、消えかけと新しいものが並ぶと紛らわしい）。
+const FADE_OUT_MS = 300; // style.css の .card-arrival-modal の transition と合わせる
+const fadingModals = new Set();
+function removeFadingModals() {
+  for (const m of fadingModals) m.remove();
+  fadingModals.clear();
+}
 
 // ユーザー要望2026-08-08「到達カードモーダルはターン終了で消えるが、まだ読みたい人もいる。
 // 『キープ』ボタンを新設し、押したらそのカードはターンを跨いでも消えないように」。キープした
@@ -39,11 +47,27 @@ function repositionKeptModals() {
 // ため、効果処理中に見ながら操作している間はよいが、ターンが終わっても開いたままだと
 // 次のプレイヤーの邪魔になる。main.js側がturnPlayerの変化（＝全クライアントに同期される
 // タイミング）を検知して呼ぶ。
-export function hideCardArrivalModalImmediately() {
+// 【#411・2026-10-24】`fade: true` を渡すと、ぱっと消さずに**出てきた時と同じ動きで**
+// 引っ込める（ユーザー要望「ターン切り替え時、右の拡大カードをフェードアウトで片付けたい」）。
+// 仕組みは新しく作っていない——このモーダル自身が持っている `dismiss()` と同じ
+// 「`show` を外して 300ms 後に取り除く」をそのまま使う（CSSの transition も同じ 0.3s）。
+// ⚠ **対局を畳んでホームへ戻る時は fade を渡さない**（`dismissAllInGameTransientUi`）。
+// あちらは「残るとホーム画面に被る」ための後始末なので、消えるまで待つ意味が無い。
+export function hideCardArrivalModalImmediately({ fade = false } = {}) {
   if (!currentModal) return;
   clearTimeout(currentTimer);
-  currentModal.remove();
-  currentModal = null;
+  const modal = currentModal;
+  currentModal = null; // 先に手放す（次の到達がこれを掴まないように）
+  if (!fade) {
+    modal.remove();
+    return;
+  }
+  modal.classList.remove("show");
+  fadingModals.add(modal);
+  setTimeout(() => {
+    modal.remove();
+    fadingModals.delete(modal);
+  }, FADE_OUT_MS);
 }
 
 // options.showAddToHand: 到達した駒の持ち主が自分自身の時だけtrue（main.jsのtriggerCardArrival
@@ -51,6 +75,7 @@ export function hideCardArrivalModalImmediately() {
 // options.onAddToHand: ボタンを押した時に呼ぶコールバック（実際の状態変更・同期はmain.js側の
 // 責務、このモジュールはUIの表示に徹する）。
 export function showCardArrivalModal(cardId, options = {}) {
+  removeFadingModals(); // 【#411】消えかけが残っていたら先に片付ける
   // 短時間で連続して別のカードに到達した場合、前のモーダルを消して最新のものだけ表示する。
   if (currentModal) {
     clearTimeout(currentTimer);

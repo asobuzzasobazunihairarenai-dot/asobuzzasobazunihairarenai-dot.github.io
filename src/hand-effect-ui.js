@@ -42,11 +42,20 @@ function getUseModalDurationMs() {
 
 let currentUseModal = null;
 let currentUseModalTimer = null;
+// 【#411】フェードで消えつつあるもの。次の使用モーダルが来たら即座に片付ける
+// （右上の同じ場所に出るので、消えかけと新しいものが並ぶと紛らわしい）。
+const USE_MODAL_FADE_OUT_MS = 300; // style.css の .hand-effect-use-modal の transition と合わせる
+const fadingUseModals = new Set();
+function removeFadingUseModals() {
+  for (const m of fadingUseModals) m.remove();
+  fadingUseModals.clear();
+}
 
 export async function showHandEffectUseModal(cardId, optionLabel) {
   if (isCelebrationActive()) return;
   await waitForNoticeSlot();
   if (isCelebrationActive()) return;
+  removeFadingUseModals(); // 【#411】消えかけが残っていたら先に片付ける
   if (currentUseModal) {
     clearTimeout(currentUseModalTimer);
     currentUseModal.remove();
@@ -107,11 +116,23 @@ export async function showHandEffectUseModal(cardId, optionLabel) {
 // ユーザー要望「ターンを終了したら、出っ放しの到達拡大モーダルがあれば全員閉じる
 // ようにしてください」と同じ理由で、この使用モーダルも即座に閉じられるようにする
 // （main.jsのturnPlayer変化検知から呼ばれる、hideCardArrivalModalImmediatelyと対）。
-export function hideHandEffectUseModalImmediately() {
+// 【#411・2026-10-24】`fade: true` でフェードアウトにする（到達の拡大モーダルと同じ扱い。
+// 理由は card-arrival.js の hideCardArrivalModalImmediately のコメント）。
+export function hideHandEffectUseModalImmediately({ fade = false } = {}) {
   if (!currentUseModal) return;
   clearTimeout(currentUseModalTimer);
-  currentUseModal.remove();
-  currentUseModal = null;
+  const modal = currentUseModal;
+  currentUseModal = null; // 先に手放す
+  if (!fade) {
+    modal.remove();
+    return;
+  }
+  modal.classList.remove("show");
+  fadingUseModals.add(modal);
+  setTimeout(() => {
+    modal.remove();
+    fadingUseModals.delete(modal);
+  }, USE_MODAL_FADE_OUT_MS);
 }
 
 let currentReasonModal = null;
