@@ -153,6 +153,10 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "不具合報告のボタンを、タイトル画面にも出るようにしました。試遊版をホーム画面から開いた時に通常のタイトルになってしまう件も、ログインしていない方には「アカウントを作らずに試す」を出すようにして直しました。",
     en: "The bug report button is on the title screen again. The trial entry being lost from a home screen shortcut is handled too: logged-out visitors now get a \"Try it without an account\" button.",
   },
+  425: {
+    ja: "カードにカーソルを合わせても拡大が出なくなっていたのを直しました。見えない膜が盤面の上に乗りっぱなしになっていたのが原因で、観戦中だけでなくオンラインの対局中もそうなっていました。",
+    en: "Fixed the card zoom not appearing on hover. An invisible layer was sitting over the board the whole time, which affected online play as well as spectating.",
+  },
   428: {
     ja: "ゲート侵攻の演出が、画面を触った拍子に途中で消えてしまうことがあったのを直しました。出たばかりの背景を押しても飛ばなくなります（少し待ってから押せば、今までどおり飛ばせます）。",
     en: "The gate invasion sequence could vanish part-way if you happened to tap the screen as it appeared. Tapping the backdrop right as it shows up no longer skips it; wait a moment and it still skips as before.",

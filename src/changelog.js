@@ -54,14 +54,18 @@ export const CHANGELOG = [
     date: "2026-10-24",
     fixes: [
       "ゲート侵攻の演出が、画面を触った拍子に途中で消えてしまうことがあったのを直しました。",
+      "カードにカーソルを合わせても拡大が出なくなっていたのを直しました（オンラインの対局中・観戦中）。",
     ],
     fixesEn: [
       "Fixed the gate invasion sequence vanishing part-way if you tapped the screen as it appeared.",
+      "Fixed the card zoom not appearing when you hover a card, during online play and while spectating.",
     ],
     devItems: [
+      "**#425「観戦中にカードの拡大が表示されなくなった」（YGM）——観戦だけの話ではなかった。** 報告に入っていた画面の記録（続き572）に、**id も class も中身も無い `z-index:999` の div が盤面全体（24,0,1232,693）を覆って**写っていた。その形の膜を作るのは2か所だけで、管理者パネルの方は id が付いている＝**セットアップウィザードの膜**。読むと `createBackdrop(close, { dim:false, zIndex:999 })` の直後に **`display:none` を付け忘れていた**（管理者パネルの方は付けてある）。**パネル自身は display:none なのに、膜だけ起動直後からずっと表示**——手元で実測して確認した。🔴 **何が起きるか**: 拡大プレビュー（ホバー）は **`#game-table` の pointermove** で拾っているが、膜は #game-table の子ではないので**マウスの動きが盤面に届かない**。タップ・ドラッグは document の capture で拾うので効き続ける＝**拡大だけが死ぬ**。🔴 **そして膜を隠すのは `closePanel()` だけで、それはセットアップの手順を最後まで実行した時しか呼ばれない**——CPU戦はその手順を通るので隠れるが、**オンラインの対局者・観戦者はずっと覆われたまま**だった。直しは作成直後に `display:none`（＋次に画面の記録を見る時に悩まないよう `id` を付けた）。**A/B**: 起動直後の膜が **block → none**／ウィザードを開くと block・背景を押すと none＝**開閉は壊していない**。⚠ **オンラインでホバーが実際に戻ることの通し確認はできていない**（手元からオンラインの席に入れないため）。要素の状態と、ホバーの受け口の読み合わせまで。",
       "**#428「ゲート侵攻の演出がスキップされました」（YGM）。** 報告のログで**6段積んだのに2段しか出ていない**ことが確定。列を途中で空にできるのは `skipAll`（スキップ／✕／**背景を押す**）か例外だけで、例外の記録（`diag-gate-invasion-modal-error`）は無く、直後に `diag-notice-wait {blocker:\"none\"}` が出ている＝**止まったのではなく空にされた**。🔴 背景は**画面全体を覆う**うえ、この演出は**相手の操作で突然現れる**ので、**盤面を触ろうとしていた指がそのまま背景に当たって6段まとめて消える**。背景を押せるようにしたのは #380 で、それ以前は何も起きなかった（＝比較的新しい事故）。直しは「**出てから500msの間だけ背景を無視する**」。✕とスキップは狙って押す小さな的なので今までどおり即座に効く。**A/B**: 背景が出た**80ms後**に押すと、直す前は**1段で全部消えた**／直した後は**3段続いた**（無視の記録が1件）。**900ms後**に押すと前後とも1段で終了＝狙って飛ばす操作は変えていない。あわせて `diag-gate-invasion-skipped {via}`（背景／✕／スキップのどれで飛ばしたか）を残した——**次に同じ報告が来た時、押されたのか別の原因なのかが1行で分かる**。⚠ **測り方で2回しくじった（記録）**: 最初は「少し待ってから背景を探して押す」形にしたため、**別の要素を押していて何も起きなかった**（守りが効いているのかどうかすら分からなかった）。`MutationObserver` で**背景が body に足されたその瞬間を捕まえて押す**形にして、はじめて A/B が噛み合った。**「効かない」と見えたら、まず操作が届いているかを確かめる**（続き558・562・582 と同じ）。",
     ],
     devItemsEn: [
+      "The setup wizard's backdrop was appended without being hidden, so a transparent full-screen layer sat over the board from launch. Hover zoom listens on the board element, which the layer is not inside, so the zoom never fired, while taps kept working because those are captured on the document. The only thing that hid the layer was finishing the wizard, which online players and spectators never do.",
       "Six steps were queued but only two were shown, and the only paths that empty the queue are the skip button, the close cross and the backdrop, none of which had logged an exception. The backdrop covers the whole screen and the sequence appears without warning on an opponent's turn, so a tap meant for the board wipes the rest; backdrop taps are now ignored for the first half second, and the control that caused a skip is recorded.",
     ],
   },

@@ -504,6 +504,20 @@ export function initGameSetup() {
   const panel = buildPanel(close);
   // ツールパネルなので背景は暗くしない（盤面を見ながら操作したいため）。
   const backdrop = createBackdrop(close, { dim: false, zIndex: 999 });
+  // 🔴【#425・2026-10-24】**最初は隠しておく。** パネル自身は buildPanel で display:none に
+  // なっているのに、**この膜だけ隠し忘れていた**ため、`position: fixed; inset: 0; z-index: 999`
+  // の**透明な膜が、起動した瞬間から画面全体を覆いっぱなし**になっていた。
+  // 何が起きるか: 拡大プレビュー（ホバー）は **#game-table の pointermove** で拾っている
+  // （main.js）。膜は #game-table の子ではないので、**マウスの動きが盤面に届かず拡大が出ない**。
+  // タップ・ドラッグは document の capture で拾っているので効き続ける＝**拡大だけが死ぬ**。
+  // ユーザー報告（YGM）「観戦中にカードの拡大が表示されなくなった」の画面の記録に、
+  // **id も class も中身も無い z-index:999 の div** が盤面を覆って写っていた。
+  // ⚠ **観戦だけの話ではない。** この膜を隠すのは `closePanel()`（セットアップの手順を
+  // 最後まで実行した時だけ呼ばれる）しか無いので、**ウィザードを使わない人＝オンラインの
+  // 対局者・観戦者は、ずっと覆われたまま**だった（CPU戦はその手順を通るので隠れていた）。
+  backdrop.style.display = "none";
+  // 次に画面の記録を見る時、名無しの div で悩まないように名前を付ける。
+  backdrop.id = "game-setup-backdrop";
   const toggleBtn = buildToggleButton(open);
 
   document.body.appendChild(backdrop);
