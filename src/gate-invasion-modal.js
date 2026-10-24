@@ -56,6 +56,18 @@ function resolveIfSelf(attacker, tokenId) {
   return getState().tokens.find((t) => t.id === tokenId)?.cardId ?? null;
 }
 
+// 【#428・2026-10-24】**出たばかりの背景クリックでは飛ばさない。**
+// ユーザー報告（YGM）「ゲート侵攻の演出がスキップされました」。記録では **6段を積んだのに
+// 2段で止まって**いた。列を途中で空にできるのは skipAll（スキップ／✕／**背景を押す**）か
+// 例外だけで、例外の記録（diag-gate-invasion-modal-error）は無かった＝**背景が押された**。
+// 🔴 背景は**画面全体を覆う**うえ、演出は**相手の操作で突然現れる**ので、**盤面を触ろうと
+// していた指がそのまま背景に当たって6段まとめて消える**。背景を押せるようにしたのは #380 で、
+// それ以前は何も起きなかった（＝この事故は比較的新しい）。
+// 対策は「出てから少しの間だけ背景を無視する」。✕とスキップは**狙って押すもの**なので
+// 今までどおり即座に効く（小さい的なので、たまたま当たることはほぼ無い）。
+const BACKDROP_SHIELD_MS = 500; // 1段 3.5秒の約14%。狙って押す人は待たされない長さ
+let stepShownAt = 0;            // いまの段が画面に出た時刻
+
 function getStepDurationMs() {
   const raw = getComputedStyle(document.documentElement).getPropertyValue("--gate-invasion-modal-step-duration").trim();
   const seconds = parseFloat(raw);
@@ -311,7 +323,10 @@ function showStep(step) {
   }
   // この告知の列を終える（スキップ・×・背景の押下で共通）。3か所に同じ処理を散らすと
   // どれかだけ直し忘れる。
-  const skipAll = () => {
+  const skipAll = (via) => {
+    // どの操作で飛ばしたかを残す（次に『勝手にスキップされた』と報告が来た時、
+    // 押されたのか・例外なのかを1行で切り分けられるように）。
+    logAction("diag-gate-invasion-skipped", { via: via || "?", 残り: queue.length });
     queue = [];
     closeCurrent();
     notifyQueueDrained();
@@ -320,7 +335,15 @@ function showStep(step) {
   backdropEl.style.cssText = "position: fixed; inset: 0; z-index: 10001; background: rgba(0, 0, 0, 0.55); cursor: pointer;";
   // 【#380】背景（画面の関係ない所）を押したら、×ボタン・スキップと**同じこと**をする。
   // こちらの告知は自動で進むので「次へ」は無く、できるのは列を終えること。
-  backdropEl.addEventListener("click", () => skipAll());
+  backdropEl.addEventListener("click", () => {
+    const since = Date.now() - stepShownAt;
+    if (since < BACKDROP_SHIELD_MS) {
+      // 出たばかり＝盤面を触ろうとした指が当たった可能性が高いので無視する。
+      logAction("diag-gate-invasion-skip-ignored", { sinceMs: since });
+      return;
+    }
+    skipAll("背景");
+  });
 
   modalEl = document.createElement("div");
   const size = getComputedStyle(document.documentElement).getPropertyValue("--gate-invasion-modal-size").trim() || "28rem";
@@ -343,9 +366,9 @@ function showStep(step) {
   skipBtn.textContent = t("game.gate.skip");
   skipBtn.style.cssText =
     `padding: 0.4rem 1.4rem; ${skin.btn} border: none; border-radius: 0.25rem; cursor: pointer; margin-top: 0.4rem;`;
-  skipBtn.addEventListener("click", () => skipAll());
+  skipBtn.addEventListener("click", () => skipAll("スキップ"));
 
-  modalEl.appendChild(createModalCloseX(() => skipAll()));
+  modalEl.appendChild(createModalCloseX(() => skipAll("✕")));
   modalEl.appendChild(title);
   modalEl.appendChild(body);
   if (step.cardsHtml) {
@@ -363,6 +386,7 @@ function showStep(step) {
   document.body.appendChild(backdropEl);
   document.body.appendChild(modalEl);
   // 調査用: showStepが実際にモーダルをDOMへ追加できたか（ここまで来れば画面に出ているはず）。
+  stepShownAt = Date.now();
   logAction("diag-gate-invasion-showstep", { text: String(step?.text ?? "").slice(0, 24), inDom: document.body.contains(modalEl) });
 
   currentTimer = setTimeout(() => {

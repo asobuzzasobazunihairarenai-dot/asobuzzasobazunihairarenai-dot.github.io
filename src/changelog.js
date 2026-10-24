@@ -84,30 +84,259 @@ export const CHANGELOG = [
     ],
   },
   {
+    date: "2026-10-24",
+    summary: [
+      "ターンが変わる時、右上の拡大カードがふわっと消えるようにしました",
+      "はじめて遊ぶ時の音量を小さくしました",
+      "観戦中に「視点の人の手札だけ」を表示できるようになりました",
+    ],
+    summaryEn: [
+      "The enlarged card in the corner now fades away when the turn changes",
+      "The game now starts quieter the first time you play",
+      "While spectating you can now show only the viewed player's hand",
+    ],
+    items: [
+      "ターンが変わると、画面右上に出ている拡大カード（到達したカード・使ったカード）はぱっと消えていました。出てきた時と同じようにふわっと引っ込むようにしたので、何が起きていたのかを目で追いやすくなります。",
+      "「音が大きすぎる」というお声をいただいたので、はじめて遊ぶ時の音量を小さくしました（BGM・効果音ともに15%）。すでに音量を調整された方の設定はそのままです。音量は⚙オプションの「基本設定」からいつでも変えられます。あわせて、その区画の「戻す」を押した時に、はじめの音量より大きくなってしまっていたのも直しました。",
+      "観戦の「すべて」モードで、手札の見せ方を切り替えられるようにしました。観戦バナーの👁のボタンを押すと、表向きにするのを「いま視点にしている人の手札だけ」に絞れます（もう一度押すと全員ぶんに戻ります）。4人の手札が一度に開いていると追いきれない、という時に、誰か1人の目線で試合を追えます。視点を切り替えれば、その人の手札が表向きになります。この設定はお使いの端末に覚えておきます。",
+    ],
+    itemsEn: [
+      "The enlarged card shown in the top corner — the card you arrived on, or the one you just used — used to vanish the instant the turn changed. It now fades out the same way it faded in, so it is easier to follow what happened.",
+      "After hearing that the game was too loud, the starting volume is now lower for a first play (15% for both music and sound effects). If you have already set your own volume, that is kept. You can change it any time from Settings under the gear menu, and the Reset button in that section no longer turns the volume up above the starting level.",
+      "While spectating in the mode that reveals hands, a new eye button on the spectator bar narrows the face-up hands to just the player you are currently viewing; press it again for everyone. Switching your viewpoint moves which hand is shown. The choice is remembered on your device.",
+    ],
+    fixes: [
+      "スマホでマイデッキを選ぶ画面が小さく出てしまい、デッキの名前や枚数が読めなかったのを直しました。",
+      "駒のジャンプなどの動きが終わる前にカメラが引いてしまい、駒がおかしな位置で動いて見えることがあったのを直しました。",
+      "カメラが駒に寄る移動（ワープなど）で、駒が先に移動先へ出てから出発点に戻って跳びはじめることがあったのを直しました。",
+      "ゲート侵攻の演出が、画面を触った拍子に途中で消えてしまうことがあったのを直しました。",
+      "カードにカーソルを合わせても拡大が出なくなっていたのを直しました（オンラインの対局中・観戦中）。",
+      "観戦しているだけなのに、色を選ぶ画面が出て選べてしまうことがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the deck selection screen appearing too small on phones, which made deck names and card counts unreadable.",
+      "Fixed the camera pulling back before a piece finished moving, which made the piece appear to land in the wrong place.",
+      "Fixed a move the camera zooms in on showing the piece already at its destination before it snapped back and jumped.",
+      "Fixed the gate invasion sequence vanishing part-way if you tapped the screen as it appeared.",
+      "Fixed the card zoom not appearing when you hover a card, during online play and while spectating.",
+      "Fixed a colour-choice dialog appearing, and being usable, for someone who was only spectating.",
+    ],
+    devItems: [
+      "**#413「マイデッキ選択がスマホで横に出きらない」——測ったら `vw`/`vh` の罠だった（続き575 の★が実害になった）。** `#mds-panel` が `width: min(56rem, 94vw)` / `max-height: 88vh` で、🔴 **このオーバーレイは body（＝1600x900 のステージ）の中に居るのに、`vw`/`vh` はビューポートを指す**ので、描かれる大きさにステージ倍率（0.478／0.356）が二重に掛かっていた。**実測（直す前）**: iPhone 932x430 でパネルは **419px＝画面の45%**、932x320 では **311px＝33%** で **84pxはみ出して巻く**。文字は 題9.6px・説明6.5px・デッキ名6.3px・枚数5.5px・ボタン7px（320 では 7.1/4.8/4.7/4.1/5.2px）。**60秒でどのデッキで戦うかを決める画面**なので読めないと選べない。直しは `src/style.css` だけ: ①`94vw`→`94%`・`88vh`→`50rem`（`#my-deck-select` は fixed だが **transform を持つ body が containing block になる**のでステージ基準になる）②スマホ・タブレットだけ広げて字を上げる（**PCの値は一字も変えていない**）③`@media (max-height: 380px)` では**説明の1行を省いてから**字を上げる（残り時間とデッキ一覧は消さない）。🔴 **副産物**: 1920x1080（倍率1.2）では `88vh` が 950 と評価されて**ステージの高さ900を超えて**いた（パネルが外へ出られた）のも直った。小さな窓のPCでは逆に高く使えるようになる（1280x500 で 49%→89%）。**実測（直した後）**: 430＝幅77%・11px未満0種、320＝幅57%（ステージ自体が932のうち569pxしかないのでほぼ上限）・巻かない・11px未満0種、**PC＝56%・128x127・題16px で完全に不変**。デッキ4つ（枠の上限）でも全部1行・はみ出し0。⚠ **私の測り方が間違っていて一度PCが壊れたように見えた**——プローブが3つの端末像すべてを iPhone の UA で開いていたため「PC」の行にも `is-phone-device` が付いていた。**端末ごとの規則を足した時は、プローブが本当にその端末像で開いているかを body の判定クラスで確かめる。** `vw`/`vh` の罠はまだ他に残っている（続き575 の★）。スマホで「小さい」「出きらない」と来たら、まずその画面のCSSで `vw`/`vh` を grep するのが早い。",
+      "**#411「ターン切り替え時、右の拡大カードをフェードアウトで片付けたい」——仕組みは元から在った。** `.card-arrival-modal` / `.hand-effect-use-modal` は自分で消える時の `dismiss()` を持っていて、それが「`show` を外して 300ms 後に DOM から取り除く」形（CSS も `transition: opacity .3s, transform .3s`）。**ターン切り替えの経路だけが `remove()` で即座に消していた**ので、その2つの hide 関数に `{ fade: true }` を足して turnPlayer 変化の subscribe からそちらで呼ぶようにした（新しい演出は1行も書いていない）。🔴 **対局を畳んでホームへ戻る時（`dismissAllInGameTransientUi`）は fade を渡さない**——あちらは #144「ホーム画面に被さって残る」ための後始末なので、待つとむしろ被って見える。**同じ関数でも呼ぶ場面によって正しい振る舞いが違う。** あわせて、この2つは右上の同じ場所に出るので、300ms の間に次の到達が来ると重なる。`fadingModals` に控えて次を出す時に片付け、フェードへ渡す前に `currentModal = null` にしてある。**A/B**（本物の経路＝`hydrateState` で turnPlayer を動かして subscribe に拾わせた）: 直す前＝ターンが変わった直後にもう消えている／直した後＝0ms・120ms は残ってフェード中、**520ms で消える**。消えかけに次を出しても数は1。畳む時は即座に消えるまま。⚠ **一度「フェードインを壊したか」と疑った**が、測り直したら**両方とも 400ms で opacity 1.00・scale 1** で同一。違ったのは 200ms の1点だけ（0.92 対 0.00）＝**ヘッドレスはコマを毎秒1回しか出さないので transition の途中の値は揺れる**。**1点の差で結論を出さない。**",
+      "**ユーザー報告（同じ日の第2報）「駒のアクションが完全に終わる前にカメラが戻るので駒が変な位置でアクションしてしまってます」。** 🔴 **根っこは「飛翔ゴーストがカメラの外に居る」こと**——ゴースト（`.piece-hop-ghost` ほか）は `position: fixed` で **body（＝ステージ）**の上に置かれ、**カメラ変形は `#game-table` にしか掛かっていない**（body に掛かるのはステージの倍率と中央寄せだけ）。出発点・着地点は**ゴーストを作る瞬間に1回だけ**測るので、**飛んでいる間にカメラが動くと盤面だけがずれて、ゴーストは古い座標のまま着地する**。食い込む経路はいくつもある: 効果による移動は **#370 以来、移動が始まる前に 1200ms の戻りを予約している**（到達効果の途中で選択を聞くと答えるまで寄りっぱなしになるため＝あれは正しい）が、**ジャンプは 675ms** かかり、**オンラインは送信の往復**、**コノハナサクヤは霧散待ち（最大1800ms）**が前に挟まる。連鎖の途中で寄らない手があれば前の予約がそのまま残る。🔴 **だから予約の時間を調整するのでは足りず、発火する瞬間に『いま演出中か』を見る**ようにした（`scheduleCameraHome` の中で `isBoardAnimationPlaying()` なら 150ms 後に見に来る）。これは `withBoardAnimation` で包まれた演出すべて（駒の飛翔・接触のタックル・ゲート侵攻の奪取・エターナル獲得）で立つので**1か所で全部守れる**うえ、main.js は #261 で**すでに import 済み**だった。止まる心配も無い——anim-gate.js は取り残されたフラグを 15秒で自力で下ろす。**A/B**（演出をわざと `--piece-move-duration: 3s` に伸ばして、予約が確実に飛翔中に来る状況を作った）: 直す前＝飛翔 835〜6079ms に対し**2940ms で zoom 1.28→1 に戻り切っていた**／直した後＝飛翔の間ずっと 1.28 で、**終わってから 8075ms に zoom 1**。⚠ 実機の通し確認はしていない（ヘッドレスは演出も遅いので時間の絶対値は参考外）。確かめたのは「飛んでいる間に寄りが解けないこと」と「終われば戻ること」の2点。",
+      "**ユーザー報告「初プレイの人は音が大きすぎるといわれる方がいました」→ 選択肢A/B/Cを出して「Aで両方15%」。** 初期音量は `sound.js` の `masterVolume` / `masterBgmVolume` で BGM・効果音ともに 30%（2026-07-30 に 50%→30%）→ **0.15 へ**。🔴 **既定値を下げるのがいちばん効く理由が、調べていて分かった**: **初回のサウンド設定モーダルは試遊の入口からは出さない**作り（`main.js` の `if (!isTrialEntry()) maybeShowFirstRunBgmModal()`＝遊び始めるまでの手順を減らすため）なので、**初めて遊ぶ人こそ、音量を調整する画面を一度も見ずに既定値で始まる**。案内モーダルにつまみを足す案Bは見送り（ユーザー判断）。🔴 **ついでに食い違いを1つ直した**: オプションの「🔊」区画の**「戻す」が 効果音0.8 / BGM0.5 に戻す**作りで、**既定より大きくなっていた**（既定が 0.5 だった頃の名残り）。15%にすると**押すと5倍以上大きくなる**ので、**既定値を `DEFAULT_SOUND_VOLUME` / `DEFAULT_BGM_VOLUME` として sound.js に1か所だけ置き、両方からそれを読む**形にした。⚠ `sound_volume` は 0〜1 だが **`sound_volume_bgm` は 0〜100**（`online.js` の読み込みが `/ 100`）なので同じ値をそのまま入れない。**A/B**: 直す前＝既定 30%/30%・「戻す」で **80%/50%**／直した後＝既定 **15%/15%**・「戻す」でも **15%/15%**。⚠ 保存済みの設定がある人はそちらが優先なので、変わるのは**新しい端末・未設定の人**だけ。**測り方のミス（記録）**: 最初「🔊区画の戻すボタンが見つからない」と出たが、**`openOptionsMenu` という export は無く（あるのは `initOptionsMenu`）パネルが開いていなかった**だけ。`#options-menu-button` を押す形に直して測れた（続き605・607 と同じ失敗を同じ日に3回）。",
+      "**ユーザー報告「ジャンプなどのアクション時にカメラが駒に寄るけど、その際の最初に駒が普通に一瞬移動したのち、移動前のマスにシュって戻ってジャンプの演出します。多分この現象はジャンプに限りません」——通信のラグでもスペックでもなかった。** 駒の移動は ①state を動かす → ②`render()` → ③演出が駒を隠して出発点からゴーストを飛ばす の順で、③は②の直後の**同じ処理の中**なので本来②の絵は出ない。**②と③の間で画面が1回でも描かれると、駒が先に移動先へ現れてから出発点へ戻る**。🔴 **隙は2か所**: ①**ディメンションのワープは、カメラが寄る 380ms を `render()` の『後ろ』で待っていた**（＝寄っている間ずっと移動先に駒が居る絵が見える。A/Bで3回とも漏れた・116〜1398ms）→ **寄りを `render()` の前へ移した**（寄り先は移動先のマスなので、描き直す前でも同じ位置に在る＝測れる）②**オンラインは `moveToken` の往復中に自分の操作のこだま（`state_changed`）が戻ってきて、`fetchAndHydrate` が同期的に hydrate→`subscribe(render)` まで走る**——`online.js` の同じハンドラに「取り直しは同期的に描き直しまで走るので、後から隠しても必ず一度は描かれてしまう」と2026-09-07 の時点で書いてある → **移動を確定させている間だけ汎用の描き直しを据え置く**（`suppressGenericRenderForDrawFlight`＝「ドロー演出の前にもう手札に札が加わっていた」件と同じやり方。入れ子になり得るので数で持ち、必ず `finally` で戻す）。⚠ **据え置きは汎用の描き直し1か所だけ**——隣の `handleRemoteMoveHydrate`（他人の移動の演出）とターン告知には足していない（止める方が実害が大きい）。**測り方で行き詰まった記録**: rAF も `setTimeout(4ms)` も**ヘッドレスでは5秒に3回しか走らない**ので 380ms の窓が測れず、`MutationObserver` ＋ **位置は『どのマスの中に居るか』（`closest('.cell')`）** に替えてやっと測れた。🔴 **画面座標で判定してはいけなかった——カメラが寄ると移動先のマス自体が画面上で動く。カメラを動かす機能を測る時は、座標ではなく親子関係で見る。** 一度「直った後も53ms漏れている」と出たが、計器を足して測り直したら `render()` 直後と駒を隠した直後の差は **34〜108ms＝1つの同期処理の中**＝漏れていなかった（ヘッドレスの揺れ）。⚠ **本物のオンライン部屋での通し確認はできていない**（手元から席に入れない）。こだまの方は `hydrateState` を直接呼んで模した試験で、据え置きが効くことまでを確かめた。",
+      "**ユーザー報告「観戦中にプレイヤーの色選択モーダルが出て選べる状態でした。前もあった気がするけど」——当たり。同じ系統の3か所目だった。** `getSelfSeat()` は**観戦中「見ている席」を返す**（online.js のコメント「観戦中は座席を持たないが、盤面をどのプレイヤー視点で描くか…**操作は全てブロックされる**」）。ところが `getAutoDriveSeat()` がそれをそのまま返しており、`shouldAutoProcess = player === getAutoDriveSeat() && …` が**見ている席の到達で true** になる＝**観戦者の画面が、その人の効果を自分の仕事だと思って走らせ**、色宣言のモーダルまで出していた。🔴 しかも宣言は `broadcastColorsDeclared` で全員へ流れるので、**観戦者が対局に口を出せる**状態だった。⚠ **2026-09-21 に接触の承認と最後のロックの承認で同じ守り（`!isSpectatingGame()`）を足しているのに、効果を走らせる側には足していなかった**——ユーザーの「前もあった気がする」はそのこと。直しは `getAutoDriveSeat()` の先頭で観戦中は null を返し、時間切れの自動代行（`performPriorityTimeoutAutoAction`）にも同じ守りを足した。⚠ **手元で再現・確認ができていない（正直な限界）**: 到達の処理は盤面の操作から呼ばれる作りで、state を直接動かしても走らない。**3回測り方を変えたが到達を起こせなかった**（途中『再現した』と見えたのは探し方が雑で別の文字に反応していただけ＝続き605 と同じ失敗）。根拠は**コードの読み**と**同じ守りが既に2か所にある**ことで、**実機での確認をお願いしてある**。",
+      "**ユーザー要望「観戦モードの時はその視点プレイヤーの手札が見えるように選べるといいかも！」→ A/B を出して A を採用。** A＝**画面側だけ**（「すべて」モードは元から全員の手札が届いているので、**表向きにするのを視点の人だけに絞る**。情報の出方は1ミリも変わらない）。B＝「公開情報のみ」の部屋で1人分だけ届ける。🔴 **B を採らなかった理由は2つ**: ①手札の中身は**サーバーが送る段階で伏せられている**（`so7_game_tokens_visible`）ので、そもそも届いていない＝サーバーの改修が要る ②観戦者は**視点を自由に切り替えられる**ので、「視点の人だけ見える」＋「切り替え自由」＝**結局全員の手札が見える**（視点の固定か部屋の許可制とセットでないと成立しない）。実装は3行＋バナーのボタン——`isSelf` は `buildPlayerZone(side, seat, self === seat)` 由来で、**観戦中の self は『見ている席』**なので、そのまま「視点の人か」として使える。ボタンは**「すべて」モードの時だけ**出す（「公開情報のみ」では元から全部裏向きで、出しても何も変わらず紛らわしい）。設定は端末に覚える。**実測（4人・観戦allを模して）**: OFF＝他の3人 表2/裏0・視点の人 表2／**ON＝他の3人 裏4/表0・視点の人は表4のまま**、ボタンの文字も入れ替わる。例外0件。",
+      "**#425「観戦中にカードの拡大が表示されなくなった」（YGM）——観戦だけの話ではなかった。** 報告に入っていた画面の記録（続き572）に、**id も class も中身も無い `z-index:999` の div が盤面全体（24,0,1232,693）を覆って**写っていた。その形の膜を作るのは2か所だけで、管理者パネルの方は id が付いている＝**セットアップウィザードの膜**。読むと `createBackdrop(close, { dim:false, zIndex:999 })` の直後に **`display:none` を付け忘れていた**（管理者パネルの方は付けてある）。**パネル自身は display:none なのに、膜だけ起動直後からずっと表示**——手元で実測して確認した。🔴 **何が起きるか**: 拡大プレビュー（ホバー）は **`#game-table` の pointermove** で拾っているが、膜は #game-table の子ではないので**マウスの動きが盤面に届かない**。タップ・ドラッグは document の capture で拾うので効き続ける＝**拡大だけが死ぬ**。🔴 **そして膜を隠すのは `closePanel()` だけで、それはセットアップの手順を最後まで実行した時しか呼ばれない**——CPU戦はその手順を通るので隠れるが、**オンラインの対局者・観戦者はずっと覆われたまま**だった。直しは作成直後に `display:none`（＋次に画面の記録を見る時に悩まないよう `id` を付けた）。**A/B**: 起動直後の膜が **block → none**／ウィザードを開くと block・背景を押すと none＝**開閉は壊していない**。⚠ **オンラインでホバーが実際に戻ることの通し確認はできていない**（手元からオンラインの席に入れないため）。要素の状態と、ホバーの受け口の読み合わせまで。",
+      "**#428「ゲート侵攻の演出がスキップされました」（YGM）。** 報告のログで**6段積んだのに2段しか出ていない**ことが確定。列を途中で空にできるのは `skipAll`（スキップ／✕／**背景を押す**）か例外だけで、例外の記録（`diag-gate-invasion-modal-error`）は無く、直後に `diag-notice-wait {blocker:\"none\"}` が出ている＝**止まったのではなく空にされた**。🔴 背景は**画面全体を覆う**うえ、この演出は**相手の操作で突然現れる**ので、**盤面を触ろうとしていた指がそのまま背景に当たって6段まとめて消える**。背景を押せるようにしたのは #380 で、それ以前は何も起きなかった（＝比較的新しい事故）。直しは「**出てから500msの間だけ背景を無視する**」。✕とスキップは狙って押す小さな的なので今までどおり即座に効く。**A/B**: 背景が出た**80ms後**に押すと、直す前は**1段で全部消えた**／直した後は**3段続いた**（無視の記録が1件）。**900ms後**に押すと前後とも1段で終了＝狙って飛ばす操作は変えていない。あわせて `diag-gate-invasion-skipped {via}`（背景／✕／スキップのどれで飛ばしたか）を残した——**次に同じ報告が来た時、押されたのか別の原因なのかが1行で分かる**。⚠ **測り方で2回しくじった（記録）**: 最初は「少し待ってから背景を探して押す」形にしたため、**別の要素を押していて何も起きなかった**（守りが効いているのかどうかすら分からなかった）。`MutationObserver` で**背景が body に足されたその瞬間を捕まえて押す**形にして、はじめて A/B が噛み合った。**「効かない」と見えたら、まず操作が届いているかを確かめる**（続き558・562・582 と同じ）。",
+    ],
+    devItemsEn: [
+      "The deck selection panel sized itself with viewport units while living inside the scaled stage element, so the stage scale was applied on top of a viewport measurement and the panel came out at 45% of the screen on a phone, 33% with the browser bars showing, where it also scrolled. Every label fell between 4 and 10 real pixels on a screen whose whole purpose is choosing a deck within a minute. The sizes are now stage-relative, with separate phone and tablet rules and a short-screen case that drops one line of explanatory text before enlarging the rest; desktop values are untouched. The same change also removes an error in the other direction on large displays, where the old height cap exceeded the stage itself.",
+      "Both corner modals already had a fade-out used by their own auto-dismiss — drop the show class, remove from the DOM 300ms later — and only the turn-change path removed the element outright. The two hide functions now take a fade flag, which the turn-change subscriber passes; the teardown path that runs when leaving a game deliberately does not, because there the point is to stop the overlay covering the home screen. Leftovers mid-fade are tracked and cleared when the next modal appears, since both use the same corner.",
+      "The flight ghost used for piece movement is position-fixed on the stage element, while the camera transform applies only to the board, so the ghost sits outside the camera and its endpoints are measured once when it is created. Any camera movement during the flight therefore slides the board out from under it. Effect-driven moves have scheduled the camera return before the move since an earlier fix, which is correct for the case it was written for, but a jump takes longer than that delay once a network round trip or a preceding effect wait is added. Rather than tune the delay, the scheduled return now checks whether a board animation is in progress when it fires and waits if so, which covers every animation wrapped by the shared gate.",
+      "Starting volume for music and sound effects dropped from 30% to 15% after a report that first-time players found it loud. What makes the default the right lever is that the first-run sound dialog is deliberately skipped for the trial entry, so a first-time player never sees a volume control at all. The Reset button in the volume section of Settings also restored 80%/50%, louder than the default it was supposed to restore, so both the initial value and the reset now read one pair of exported constants; note the two saved fields use different scales (0-1 and 0-100). Players who already set a volume keep theirs.",
+      "A piece briefly appeared at its destination and then snapped back before the jump animation played. The move applies state, renders, and only then does the animation hide the piece and fly a ghost from the origin; any paint between the render and the hide shows the piece already arrived. Two gaps existed: the warp camera zoom was awaited after the render, and online the echo of your own action re-hydrates and renders synchronously during the round trip. The zoom now happens before the render, and the generic render listener is held off while a move is being committed, using the same mechanism already applied to the draw animation.",
+      "getSelfSeat returns the viewed seat while spectating, and the function that decides which seat this client drives returned it unchanged, so a spectator's client ran the viewed player's arrival effects and opened the colour dialog — and the declaration is broadcast to everyone. The same guard had been added to two sibling approval paths a month earlier but not to the effect driver. Could not be reproduced locally because arrivals are triggered from board interaction rather than from state changes.",
+      "The spectator hand option was built client-side only: in the mode that already delivers every hand, the face-up rendering is narrowed to the viewed seat. Delivering a single hand in the public-only mode was rejected because hands are masked server-side and because free viewpoint switching would turn it into full visibility anyway.",
+      "The setup wizard's backdrop was appended without being hidden, so a transparent full-screen layer sat over the board from launch. Hover zoom listens on the board element, which the layer is not inside, so the zoom never fired, while taps kept working because those are captured on the document. The only thing that hid the layer was finishing the wizard, which online players and spectators never do.",
+      "Six steps were queued but only two were shown, and the only paths that empty the queue are the skip button, the close cross and the backdrop, none of which had logged an exception. The backdrop covers the whole screen and the sequence appears without warning on an opponent's turn, so a tap meant for the board wipes the rest; backdrop taps are now ignored for the first half second, and the control that caused a skip is recorded.",
+    ],
+  },
+  {
+    date: "2026-10-20",
+    summary: [
+      "不具合を報告してくださった方に、直ったことをアプリの中でお知らせするようにしました",
+    ],
+    summaryEn: [
+      "If you report a problem, the game now tells you when it is fixed",
+    ],
+    items: [
+      "不具合を報告してくださった方へ、その件が直った時に、ホーム画面で「ご報告ありがとうございました」とお伝えするようにしました。ご自分が書いてくださった文と、何が直ったかを並べて出します。一度見たら二度と出ませんし、別の端末で開いても重ねて出ることはありません。いつもありがとうございます。なお、ログインせずに送っていただいた報告は、どなたの報告か分からないためお伝えできません。",
+    ],
+    itemsEn: [
+      "When something you reported gets fixed, the home screen now says thank you and tells you what changed, next to the words you wrote. It appears once and will not come back, on any of your devices. Reports sent without logging in cannot be answered this way, because there is no way to tell whose they are.",
+    ],
+    fixes: [
+      "公開ドローで出したカードをそのターン中に使った時、ターン終了時にその1枚が置いた先から消えてしまうことがあったのを直しました（盤面に伏せて置いた罠が消え、その下にあったカードが代わりに発動していました）。",
+    ],
+    fixesEn: [
+      "Fixed a card drawn face-up and then played in the same turn being taken back off the board and discarded at the end of that turn, which left the card underneath to trigger instead.",
+    ],
+    devItems: [
+      "**【同じ日に作り替え】ユーザー提案「ここであなたが直してコミットした時にあなたが入力して送るようにしたら？ その文面はコミット前に私が確認する」。** その方がよいので、**お礼の文をコードに置ける**形にした（`handled-bug-reports.js` の `BUG_REPORT_FIX_NOTES`）。理由: ①**文面がコミットに入るので、公開前に必ずユーザーの目を通る**（「聞き忘れ」が構造上起きない）②**Claude は管理者としてログインできない＝DBには書けない**（このファイルの冒頭に元から書いてある制約）③**日本語と英語の両方を書ける**（DBの列は1つなので1言語だけになる）④どの修正でどう伝えたかが git の履歴に残る。🔴 **これに伴い SQL 側の絞りを緩めた**——`fixed_note is not null` で絞ったままだと**コードに書いた文が永久に届かない**。サーバーは「本人のもの・まだ見ていない」だけで返し、**何を見せるか（見せないか）はクライアントが決める**: DBの文 → 無ければコードの文 → **どちらにも無ければ出さない**。「すべて対処済みにする」で嘘の通知が飛ばない保証は、この最後の1行が担っている。🔴 **既読にするのは実際に見せた分だけ**——見せていない報告まで既読にすると、**あとから文を書いても二度と届かない**。**実測**: 3件（コードの文あり／DBの文あり／どちらも無し）を渡すと**2件だけ表示**され、**既読に送られたのもその2件だけ**。画面でも、1件目はコードの文・2件目はDBの文が出ていることを確認した。⚠ **SQLの再実行が必要**（同じファイルを貼り直すだけ。`so7_get_my_fixed_bug_reports` は戻り値の列が増えたので drop → 作り直しにしてある）。",
+      "**ユーザー要望「debug報告者に、内容が解決した際にそのことをアプリ内でお礼とともに通知してあげたい」。** `so7_bug_reports` には **SELECT ポリシーが一切無い**（生ログは管理者しか読めない設計）ので、**報告した本人が自分の報告を読む口すら無かった**。本人の行だけを返す SECURITY DEFINER 関数（`so7_get_my_fixed_bug_reports`）を足し、返すのは **id・日時・本人が書いた文・直った内容** だけにした（ログや画面の状態は本人のものでも返さない）。🔴 **設計で一番考えたところ: 「対処済み」になっただけでは通知しない。** 管理画面には「すべて対処済みにする」という一括ボタンがあり（溜まった一覧を畳むためのもの）、対処済み＝通知にすると**そのボタン1回で全員に「直りました」という嘘が一斉に飛ぶ**。そこで**管理者が「直った内容」を一言書いた時だけ**通知する形にした——事故を仕組みで防げるうえ、中身のある通知になる。「見た」の記録は **DB に持つ**（端末の localStorage ではなく。別の端末で二重に出ないため。iOS はホーム画面アプリと Safari で保管場所が別、という続き596 の件もあるので端から選ばない）。出す場所は**ホーム画面を開いた時・1セッション1回**（対局中は手が止まる／起動直後は案内モーダルと重なる＝続き574）。**閉じた時に初めて「見た」を送る**——開いた瞬間に送ると、読む前に閉じた人の分が永久に消える。**実測**（データ部分だけ差し替えて本物の描画を動かした）: PC 435x361・スマホ 419x362 でどちらも画面内・はみ出し0、スマホの文字は 題17.6px／説明13.4px／直った内容13px／閉じる13px（高さ33px）。閉じると覆いも消え、見た記録が送られる。例外0件。⚠ **`supabase_setup_so7.sql` に追記したので手動実行が必要**（実行するまではお礼が出ないだけで、他は何も壊れない＝関数が無い時は黙って空を返す作りにしてある）。⚠ **ログインせずに送られた報告（user_id が null）には届かない**——誰あてか分からないため。管理画面では「📨 届きません」と出して押せないようにした。",
+      "**#421「罠をおいたのに、そのしたにあったプレゼントの効果が発動されてて、エイドスの処理が速すぎてよくわからなかったです。ばぐなのか、エイドスの効果なのか。」——不具合だった。** 報告のログで経路が全部追えた: `19:54` に A が「選べる罠」の手札効果で `card-320` をマス(2,3)へ**伏せて置き**（直前の `diag-exposed-arrival` の location が `publicDraw` ＝**公開ドロー置き場から出した札**だった）、`19:54:xx` のターン終了時に **`SEND_TOKEN_TO_PILE card-320 → discard`**。その後 `19:55` にエイドスの駒が(2,3)へ来ると、`FLIP_TOKEN card-300` → **`arrival: pink-present`** → さらに下の `red-jump-pad` と続いた。**罠が盤面から消えていたので、下のカードが一番上になって発動していた。** 🔴 原因は `flushPendingTurnEndDiscards`（緑のキューブ ヴァーディアンの「ターン終了時、それらを捨てる」の実装）。`それら` は**まだ公開ドロー置き場に残っているもの**のはずなのに、**「そのトークンがまだ存在するか」しか見ていなかった**ため、**使って置いた先から引き剥がして捨てていた**。直しは、残す対象を「その人の `publicDraw` か `hand` に在るもの」に限定し（手札はターン終了時に公開ドローが合流する先なので未使用と同じ扱い）、外したものは `diag-turn-end-discard-skipped` に残す。**A/B**（一時の出口を付けて実測・確認後に除去＝`grep` 0件）: 直す前は**盤面に伏せた罠・公開ドローの札・手札の札の3つとも消えた**／直した後は**盤面の罠だけが残り**、公開ドローと手札の札はこれまでどおり捨てられる。",
+    ],
+    devItemsEn: [
+      "Reworked the same day so the fix note can live in the code next to the list of handled report numbers, which puts the wording inside the commit for review and allows both languages; the server filter had to be loosened accordingly, because filtering on the database note would have made code-side notes undeliverable. The client now decides what to show — database note, else code note, else nothing — and only marks as seen the ones it actually showed.",
+      "Reporters had no way to read their own reports, since the table deliberately has no select policy, so a definer function returns just their own id, date, words and the fix note. Notifying on the resolved flag alone would have been a trap, because the admin screen has a bulk resolve button for tidying the list, so the trigger is the admin writing a one-line note instead. The seen mark lives in the database rather than on the device, and is only written when the reader closes the dialog.",
+      "The end-of-turn discard that implements the green First card's drawback only checked that the token still existed, not where it was, so a card drawn face-up and then played onto the board was pulled back off it and discarded. It now only takes cards still sitting in that player's face-up draw area or hand, and logs the ones it skips.",
+    ],
+  },
+  {
+    date: "2026-10-19",
+    summary: [
+      "エイドスの黒いカードが、英語でも英語で読めるようになりました",
+    ],
+    summaryEn: [
+      "The Eidos black card now reads in English too",
+    ],
+    items: [
+      "エイドス専用の「黒のキューブ　ノワール」は、絵そのものに日本語が刷り込まれていたため、言語を英語にしてもこのカードだけ日本語のままでした。絵から文字を取り除き、ほかのカードと同じ仕組みで文章を載せるようにしたので、英語でもちゃんと英語で読めます。",
+    ],
+    itemsEn: [
+      "The Eidos-only Black Cube: Noir had its Japanese text printed into the artwork, so it stayed Japanese even when the language was set to English. The text has been taken out of the picture and is now drawn the same way as on every other card, so it reads in English.",
+    ],
+    fixes: [
+      "エイドスの黒いカードで、文章が二重に重なって見えていたのを直しました。",
+      "同じカードの真ん中の紋様が、紫のカードのものになっていたので、黒のものに直しました。",
+      "自分の手札が、途中から本来より上（盤面に重なる位置）にずれたまま戻らなくなることがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the text on the Eidos black card appearing twice, overlapping itself.",
+      "The emblem in the middle of that card was the purple card's; it is now the black one.",
+      "Fixed your hand sometimes drifting upward, over the board, and staying there for the rest of the game.",
+    ],
+    devItems: [
+      "**ユーザー報告「手札が添付の位置に途中からなってしまうことがあります。多分カメラワークの時な気がする」。** 実測で原因が確定した。手札には、画面からはみ出しそうな時だけ内側へ寄せる仕組み（`nudgeHandsIntoStage`。#361/#370）があり、その値は `.hand-area` の `style.translate` に入る。🔴 **ところが「手札を画面下に固定する」が ON の間、自分の手札は `#game-table` の外（`#self-hand-overlay`）へ移される**（`syncFixedHandOverlay`）のに、**寄せの計算も取り消しも `table.querySelectorAll` ＝ 盤面の中しか見ていなかった**。つまり**ONにした時点で付いていた値がそのまま凍りつき、以後どれだけ画面が変わっても戻らない**。しかも `.hand-area` は作り直されずに使い回される要素なので、永久に残る。**A/B（実測）**: 直す前は、固定ONのまま手で寄せを消して描き直しても**付き直らず**、固定OFFにすると**古い値 `-14.09px` を持ち込み**、盤面拡大1→2→切と画面が激変しても（手札の上端 698→1209→-13844→698）**値は `-14.0917px` のまま1ミリも動かなかった**。直した後は、固定ONの間は**常に外れ**、盤面の中にある間だけ毎回ちゃんと計算し直す。直しは2か所——①取り消しの対象にオーバーレイの中も含める ②オーバーレイへ移す時にその場で外す（画面に固定された手札に、ステージの枠を基準にした寄せは意味を持たないため）。⚠ **ユーザーの推測「カメラワークの時」は、凍る『きっかけ』としてはあり得るが確定はしていない**——凍った値の大きさは「最後に盤面の中で計算された瞬間」の画面しだいで、カメラ・窓の高さ・手札の枚数のどれでも大きくなり得る。**凍ること自体を無くしたので、きっかけが何であれ残らない。**",
+      "**#418「赤枠で囲ってる文章が２重に見えます」の原因は、画像の取り違えだった。** カード面は「文字の入っていない下地（`assets/cards-blank/`）の上に、アプリが文章を重ねて描く」仕組み（そうしないと英語に切り替えられない）。🔴 **34種を突き合わせたところ、`first-noir` だけ下地が刷り上がり（`assets/cards/`）とバイト単位で同一**だった——2026-08-25 に下地一式を入れた時、このカードだけ文字無し版が無く、実物をそのまま置いていた（ノワールは 8/15 追加のエイドス専用で、他より後から入った）。だから**文字が刷られた絵の上に同じ文章をもう一度描いて**いた。**ユーザーに文字無しの元データが無かったので、こちらで消した**: 白い文字だけを拾い（その帯の上下の明るさを基準に、+38 より明るい画素）、3回膨張させてから**拡散で埋める**（900回）。消したのは4か所（上の帯／タイトル／《抽出》／下の帯＋◆■の印）で、**BRACK・中央の光・枠線・フッターは残した**。⚠ 文字のあった帯は**わずかにのっぺりする**（完全な復元ではない）。",
+      "**紋様も間違っていた（ユーザー指摘「真ん中の紋様も紫の紋様になってます」）。** 7色の紋様を並べて確かめると**色ごとに形が違い**、ノワールのものは**紫と同一**だった。🔴 **正しい黒の紋様は `assets/pieces/noir.webp`（駒）にあった**——駒と札は色ごとに同じ紋様を使う（紫の駒＝紫の札で確認）。駒から取り出す時、素朴に「中央付近の白い画素」で拾うと**白い丸ごと**拾ってしまう（紋様は「白い丸の上の黒い正方形の中の白」）ので、**黒い正方形を塗りつぶし探索で特定してから、その中の白**を取り出した。札側は、古い紋様を**半径ごとの下位25%の色**で塗り直して（中央値だと紋様自体を拾って白く飛ぶ）光のにじみを残したまま消し、新しい紋様を白＋発光で描いた。⚠ **BRACK と《抽出》の帯は、この塗り直しの対象から外す**——半径に入るので、外さないと文字が消える（実際に一度 A が消えた）。差し替えたのは下地・札の絵・イラスト版の3つで、**「下地と札の絵が同一」のカードは0件になった**。",
+    ],
+    devItemsEn: [
+      "The hand carries an inline nudge that pulls it back inside the stage when it would fall off, but while the fixed-hand option is on the hand lives outside the board element, and both the nudge and its removal only ever scanned inside the board. The value therefore froze at whatever it was when the option took effect and never updated again, on an element that is reused rather than rebuilt. The overlay is now included when clearing, and the nudge is dropped as the hand moves into it.",
+      "The blank used to draw card text was, for this one card out of thirty-four, a byte-identical copy of the printed artwork, so the text was drawn on top of itself. No textless original existed, so the lettering was removed by masking the bright strokes and filling them by diffusion, keeping the latin word, the central glow, the frame and the footer.",
+      "Each colour has its own emblem, and this card was wearing the purple one. The correct black emblem was found on the noir piece artwork, extracted by flood-filling the dark square it sits on, and redrawn over a radially rebuilt glow; the bands holding the latin word and the subtitle are excluded from that rebuild so they survive.",
+    ],
+  },
+  {
+    date: "2026-10-18",
+    summary: [
+      "ログインしなくても、タイトル画面からそのまま遊べるようになりました",
+    ],
+    summaryEn: [
+      "You can now start playing straight from the title screen, without an account",
+    ],
+    items: [
+      "タイトル画面の「ログイン」の下に「アカウントを作らずに試す」を足しました。押すと、物語で遊び方を教わるか、すぐCPUと対戦するかを選べます。ホーム画面に追加したショートカットから開いた時や、お友達にURLをそのまま教えてもらった時など、これまで行き止まりになっていた入り方でも、そのまま遊び始められます。一度押した端末では、次からはこの画面が最初から出ます。ログインしている方にはこれまでどおりの画面が出ます。",
+    ],
+    itemsEn: [
+      "The title screen now offers \"Try it without an account\" under the log-in button. It leads to the same two ways in as the trial page: learn the game through the story, or play the CPU right away. This covers the ways people used to hit a dead end — opening the home screen shortcut, or being handed the plain address by a friend. Once you have used it on a device, that screen comes up first from then on. Nothing changes for people who are logged in.",
+    ],
+    fixes: [
+      "試遊版をホーム画面に追加して開き直すと、ふつうのタイトル画面になってしまう件を直しました（前回の直しでは iPhone で直っていませんでした）。",
+      "なないろの欠片で、すでにロックした札をもう一度使えてしまい、ロックの色が増えることがあったのを直しました。",
+      "不具合報告のボタンを、タイトル画面にも出るようにしました。",
+    ],
+    fixesEn: [
+      "Fixed, for real this time, the trial entry being lost when the game is opened from a home screen shortcut; the previous attempt did not work on iPhone.",
+      "Fixed a Shard of Seven Hues card that was already locked being usable again, which could add a locked colour out of nowhere.",
+      "The bug report button is shown on the title screen again.",
+    ],
+    devItems: [
+      "**#419「七色のカード2枚しかもってなかったけど、クリックしまくってたら2つの色ろっくできて勝っちゃいました」＝勝敗が狂う不具合。** 行動ログで確定した: 1回目の発動で**ロック0番へ置いた**なないろの欠片(card-208)が、2回目の発動でも `ctx.cardTokenId` として使われ、**0番から2番へ引きずり出されていた**（0番には相方が残るので**1色が無から増え**、7色に届いて勝利）。大半のカードは発動の最初に自分自身を捨てるので二重発動が実害にならないが、**なないろの欠片の「2枚をロックする」選択肢は `keepsCardOnUse` でカードを残す**ため、同じ札を何度でもロックし直せた。直しは `runHandEffectOption` の冒頭に**「この札がまだ手札にあるか」の確認**を1つ（ファースト/エターナルは『ロックされていても手札効果を使える』特別枠なので対象外）。**A/B**: 直す前＝ロック済みの札で `ok:true`・**0番→2番へ移動＋2枚ドロー**／直した後＝`ok:false`・**何も起きない**。**正常系（手札の札）は前後で完全に同じ**。`diag-hand-effect-stale` を残したので、次に起きたら経路が分かる。",
+      "**#420 の試遊版の件は、URLにも端末の記憶にも頼らない形へ切り替えた。** 報告 #420 で `href=\"https://seven.asobuzz.net/\"` かつ **version が最新**と分かり、「古いキャッシュ」ではなく **iOS 18.7 が差し替えた manifest を見ていない**ことが確定した（続き596 の手が効かない）。さらに **manifest 系の手はどれも『すでに追加してあるショートカット』には効かない**（追加し直しが要る）。→ **試遊パネルを常に組み立てておき、通常のタイトル画面に「アカウントを作らずに試す」を置いた**。未ログインの時だけ出す。押すと `rememberTrialEntry()`（続き593 の30日の控え）も立てるので、次からは最初から試遊パネルになる。**A/B（iPhoneのUA・932x430）**: ①通常の入口＝ボタンが出る（139x27・画面内）②押すと試遊パネル（321x302・画面内）③開き直すと最初から試遊パネル ④`?trial` で来た人は従来どおり（ボタンは出ない）。例外0件。**なお `manifest-trial.json`（続き596）はそのまま残してある**——効く端末では効くので、二重の備えとして。",
+      "**ユーザー報告 第2報「やっぱり試遊版URLですがホーム追加した後開くと普通のデジタル版になっちゃいます」。** 10/16 の直し（この端末が試遊から入ったことを localStorage に覚える）では**直っていなかった**。🔴 理由: **iOS では、ホーム画面から開いたアプリは Safari とは別の保管場所を持つ**——Cookie・localStorage・IndexedDB は共有されず、共有されるのは Service Worker の登録と CacheStorage だけ（WebKit 側の説明。ウェブで裏を取った）。つまり Safari で覚えた印はホーム画面のアプリからは**見えない**ので、「端末に覚えさせる」やり方ではこの経路は**原理的に越えられない**。→ **ショートカット自身の行き先に残す**のが正解。ホーム画面から開く時のURLは manifest の `start_url` なので、**試遊で来た人の画面でだけ** `start_url` に `?trial=app` を持つ `manifest-trial.json` へ差し替える（`manifest.json` は全員で共有の1枚なので、そちらに書くと試遊で来ていない人の追加まで試遊扱いになる＝誤り）。差し替えは **index.html に直接**書いた——本番では試遊メニューが出るまで10秒前後かかるので、その間に「ホーム画面に追加」を押されても間に合うようにするため。タグを `gm` ではなく **`app`**（＝ホーム画面から開いた）にして、`getTrialSource()` がこれを数えないようにした——数えると「試遊のリンクから来た人」という数字の意味が変わるため。**A/Bで確認**: `?trial=gm` で開くと manifest が `manifest-trial.json`（`start_url: \"./?trial=app\"`）に替わり試遊パネルが出て訪問記録は `trial:gm`／試遊でない人は `manifest.json`（`\"./\"`）のままで試遊パネルは出ない／`?trial=app` では試遊パネルが出て訪問記録は数えない。**10/16 の『端末に覚える』方も残してある**（Android の Chrome など保管場所が共有される端末と、Safari で開き直した時に効く＝二重の備え）。",
+    ],
+    devItemsEn: [
+      "A rainbow shard that had already been locked could be played again as the effect card, dragging itself out of its lock slot into another one while its partner stayed behind, which created a locked colour out of nothing and ended the game. The hand effect runner now checks that the card is still in hand before anything happens, except for First and Eternal cards, which are meant to work from the lock.",
+      "Report #420 showed the newest build still opening the bare address from the home screen, so iOS was ignoring the swapped manifest, and no manifest-based fix can repair shortcuts people have already created. The trial panel is now built on every title screen and reachable from a button shown to logged-out visitors, so the entry no longer depends on the address or on device storage.",
+      "Remembering the trial entry in localStorage could never work on iOS, where a home screen app has its own storage separate from Safari; the shortcut's own destination now carries the flag instead, by swapping in a trial manifest whose start_url keeps the parameter, and only on the page of someone who arrived through the trial link. The swap is inline in the document so that it is already in place during the ten seconds the app takes to load, and the relaunch uses a distinct tag that the visit metric ignores.",
+    ],
+  },
+  {
+    date: "2026-10-16",
+    fixes: [
+      "複数のカードを捨てる画面で、下の「これで捨てる」などのボタンが見切れていたのを直しました。カードが増えても必ず見えます。",
+      "サマリー（早見表）の✕を押しやすい大きさにして、画面が少しスクロールしてしまうのをやめました。",
+      "最初に出る案内（ことば／ホーム画面に追加）が、画面の低い端末で小さすぎて読めなかったのを直しました。",
+      "右下の「○○のターンです」が、名前が入ると折り返してしまうことがあったのを直しました。",
+      "カードのタイトルのふりがなが白くて読みづらかったのを、濃い文字にしました。",
+      "ゴメンナサイを使っている途中で、勝手に承認が進んで相手が勝ってしまうことがあったのを直しました。じっくり選んでも大丈夫です。",
+      "1つのロック宣言に対して、2人目以降もゴメンナサイを使えてしまうことがあったのを直しました。",
+      "試遊版をホーム画面に追加して開き直すと、ふつうのタイトル画面になってしまっていたのを直しました。",
+      "物語のエイドス戦に、CPU戦で選んだ設定（無色あり・ブーストあり）が混ざってしまっていたのを直しました。物語の戦いは誰がやっても同じ中身になります。",
+    ],
+    fixesEn: [
+      "Fixed the confirm buttons being cut off at the bottom of the multi-card discard dialog, however many cards you hold.",
+      "The quick reference sheet now has a larger close button and no longer scrolls slightly.",
+      "Fixed the first-run notice (language / add to home screen) being too small to read on short screens.",
+      "Fixed the turn banner at the bottom right wrapping onto several lines once a player name was in it.",
+      "The furigana above card titles is now dark instead of white, so it can be read.",
+      "Fixed an approval going through on its own while you were still playing So Sorry!, which could hand the win to your opponent. Take your time choosing.",
+      "Fixed a second player being able to play So Sorry! against the same final-lock declaration.",
+      "Fixed the trial entry being lost when the game was opened from a home screen shortcut.",
+      "Fixed the story battles against Eidos picking up the colourless and boost options chosen for ordinary CPU games; the story battles are now the same for everyone.",
+    ],
+    devItems: [
+      "**#412「複数捨てるモーダルの時、下のボタンが見切れてます！カードの上部も少し見切れてる気がします！」**。報告に入っていた**画面の記録（screen2）でその場で確定した**——モーダルの箱は `160,40,612,349` で画面(430)には収まっているのに、**中身が476**（はみ出し112）。`#stack-modal` 自身が `overflow-y: auto` なので**確定ボタンが巻かれて見えなくなっていた**。手元でも同じ箱（`160,40,612,349`）で再現し、**手札4枚では見えるが8枚から見えなくなる**ことを確かめた（続き563 の検証が3〜4枚だったので通ってしまっていた）。直しは、中身を縦3段（題と案内／一覧／確定ボタン）に分けて**巻くのは一覧だけ**にする（`min-height: 0` が無いと flex の子は縮まず結局はみ出す）。あわせてスマホの `max-height: 85vh`（実画面349px＝**vhの罠**）を `26rem`（約398px）に、カードを 8rem→6rem に。**A/Bで確認**——直す前は8枚・12枚で確定ボタンが枠外、直した後はどちらも枠内。**戻ってきたのはボタン1つではなく3つ**（「これで捨てる」「おまかせ」「盤面を見る」が全部隠れていた）。932x320 の低い画面でも枠内。",
+      "**#408「サマリー表示で、バツボタンが小さい。あと少しスクロールになるので動かない方がいい」**。実測（932x430）: ✕ が **19.9x19.9px**（押すものの目安28px未満）、パネルは中身894に対して見える830＝**はみ出し64**で早見表の下が切れていた。直しは #412 と同じ形——パネルを縦3段にして**絵だけが縮む**ようにし（`object-fit: contain` なので形は崩れない）、巻きを止めた。✕ は**この画面の中だけ** 3.8rem に（共通クラスなので他のモーダルに波及させない。題の右余白も一緒に広げないと文字に被る）。実測: **はみ出し 0**・✕ **29x29px**・早見表の下端405.7<430。",
+      "**起動時の案内（ことば／ホーム画面に追加）が、画面の低い端末で読めなかった**（試遊の動線を本番で通して見つけた）。実測（932x320＝iPhone横持ちでSafariのバーが出ている状態・ステージ倍率0.356）: **11行すべてが11px未満**で「このまま遊ぶ」が8.5px、手順8.5px、注記6.5px。**10/17 に来た人が最初に見る画面**で、いちばん伝えたい「ホーム画面に追加してください」が読めない。🔴 **字を大きくするだけでは入らない**（320pxの画面でモーダルは既に268px＝84%を使っていた）ので、`@media (max-height: 380px)` で**長い説明と注記を隠してから字を大きくし、横幅も広げた**（折り返しが減って縦が縮む）。**A/Bで確認**——11px未満が **11行→1行**（「もう出さない」10.3px＝控えめにしたい文字）、「このまま遊ぶ」8.5→**11.9px**、モーダルの高さ 268.6→**213.9**（画面の84%→67%）。**932x430 は箱も行も1つも変わっていない**＝低い画面だけに効いている。",
+      "**#414「右下の『エイドスのターンです』の改行が気になります」**——10/12 に入れた名指しの回帰。原因は `max-width` ではなく**入れ物の幅**だった。この表示は案内板バーの中に `position: absolute; right: 0` で置かれていて、**幅が auto だと入れ物（バー）の幅までしか広がれない**（実測: 上限は352pxと書いてあるのに、折り返した時の箱は実画面168px＝CSS約279pxで頭打ちだった）。`width: max-content` にすると**入れ物をはみ出して左へ伸びられる**ので1行に収まる（右端基準なので伸びる先は画面の内側）。長すぎる時だけ `max-width: 44rem` で折り返す。**A/Bで確認**——長い文（優先権の注記つき）が **3行→1行**、箱は 168→343.5px で**画面内のまま**、短い文は1つも変わっていない。932x320 でも 3行→1行。",
+      "**#415「カードタイトルのルビが白色ですが背景が白なので黒文字がいいかと！」**。2026-09-26 に題の帯が濃くなったとき、題とふりがなをまとめて白にしていた。しかし**ふりがなだけは帯の外（真上）に浮いている**（`bottom: 100%`。実測でもルビの下端が題の箱の上端より上にある）ので、**乗っているのは帯の上の淡い所**だった。ふりがなだけ濃い字（`#141414`＝基底と同じ）に戻し、影も外した。⚠ **ファーストは触っていない**——あちらは題もふりがなも**絵の上**に乗る作りで、全部白が正しい。実測: 通常・エターナルとも ルビ `rgb(20,20,20)`／題は `rgb(255,255,255)` のまま。実際に3枚描いて目でも確かめた。",
+      "**#417「ゴメンナサイが通る前に、次のプレイヤーの承認モーダルが出て承認すると勝っちゃった」＋ #416「1つのロック宣言に対して複数のゴメンナサイが使える？」——同じ根だった。** `main.js` には「ゴメンナサイを使っている最中は自動承認しない」ための `gomennasaiManualUseInFlight` が前からあり（#36/#83 の対策）、**2か所**で使われている。ところが**あとから足した2つの自動承認の経路には付け忘れていた**: ①45秒の自動承認（`checkFinalLockApprovalTimeout`）②60秒の詰まり救済（`checkFinalLockStuckApprove`）。ゴメンナサイは「奪う札を選ぶ→コストの紫を選ぶ→発動宣言と『防いだ！』の演出」と進むので45秒を超えやすく、**本人の画面のタイマーが本人を裏切って承認を送っていた**。承認待ちが先へ進むと、次の人の画面では攻撃側がまだ7色目に届いて見えるので**2人目にもボタンが出る**＝#416。報告のログでも `diag-final-lock-auto-approve`（A 23:57:27 / B 00:00:14）が出ており、**B のぶんは `diag-lock-robbed-notice`（00:00:14）と同じ秒**だった＝奪取とタイマーが競っていた。①は守りを足して時計も進めるようにした。",
+      "**②の60秒の救済は「撃つ前に、承認者が本当に止まっているかを確かめる」形にした。** この救済のコメント自身が目的を「その人の通信が切れていれば誰も解決できない」と書いているのに、**切れているかを確かめずに時間だけで撃っていた**。確かめる材料は既にあった——各席は **25秒ごとに `so7_game_seats.last_seen` を更新し続けており**（`HEARTBEAT_MS`）、「もう一度遊ぶ」の待ち相手判定が同じ値を **70秒**のしきい値で使っている（`REMATCH_FRESH_MS`）。**ゴメンナサイを選んでいる最中でも、生きていればこの値は新しいまま**。`isSeatAlive()` を online.js に新設し、生きていれば撃たずに時計を進め直す。⚠ **読み取りに失敗した時（null）は「落ちている」と読まない**——読めなかっただけで人を撃つことになるため。ただし永久に止めると落ちた人が1人いるだけで対局が終わらないので、**その時だけ180秒まで待ってから撃つ**（迷ったら遅い方へ倒す）。判定そのものは `isLastSeenFresh()` に切り出して、部屋に入らなくても true / false / null を直接確かめられるようにした。",
+      "**ユーザー報告「クラファンページの試遊版、入った後ホームに追加して開き直すと、タイトル画面が通常のになっちゃってる気がする」——気のせいではなかった。** ホーム画面から開く時のURLは `manifest.json` の `start_url`（`\"./\"`）で、**`?trial` が付かない**。つまり**こちらが勧めている道**（起動時の案内で「ホーム画面に追加して、そこから開いてください」と出している）を通ると、試遊の入口が消えてログインを求める通常のタイトルに変わる。🔴 **manifest の `start_url` に `?trial` を入れるのは誤り**——あれは全員で共有の1枚なので、試遊で来ていない人の追加まで試遊扱いになる。**この端末が試遊から入ったことを覚えておく**形にした（`so7-trial-entry`・30日で失効）。ログインへ進む時は `clearTrialParam` と一緒に控えも消すので、登録した人には次から通常のタイトルが出る。⚠ **訪問記録の `getTrialSource` は URL だけを見るまま**にした——あの数字は「試遊のリンクから来た人」という意味で既にコンソールに出ているので、開き直した2回目以降まで数え始めると意味が変わる。**A/Bで確認**——直す前は `?trial` 無しで開くと通常のタイトル（ログインボタンだけ）、直した後は試遊パネルが出る。ログイン後は両方とも通常のタイトル。",
+      "**カードの「持ち物検査」を作った**（`node tools/check-cards.mjs`）。ユーザー「今後カードが増えていった際にスマートに対応できるプログラムになってますか？」への答えとして、まず実測した: カード34種に対し **効果データ34/34・日英の文34/34・画像34/34・テスト34/34** で欠けゼロ、山札も `expandDeck(NORMAL_CARDS)` でデータから自動で組まれる（枚数の決め打ちは無い）。**つまり骨格は良い。ただし揃っているのは人が気をつけているからで、仕組みは何も見ていなかった。** カードを足して効果データや英文やテストを忘れても誰も何も言わない。そこで全カードについて（効果データ／日本語の文／英語の文／カード画像／イラスト版／テスト）の有無と、逆向き（一覧に無いのにデータだけ在る＝消し忘れ）を突き合わせる道具を足した。🔴 **探し方が空振りすると「0件＝合格」になる**ので、まず「それらしい数が取れたか」を確かめ、取れていなければ検査自体を失敗にする。**A/Bで確認**——にせのカードを1枚足すと6件を名指しで報告し終了コード1、戻すと合格。ブーストの白紙カード7種は効果も実画像も持たない作りなので対象外にしてある。あわせて `card-effects.js` の冒頭に残っていた「**まだゲーム本体には一切配線していない、パイロット5枚だけの設計たたき台**」という**古い説明を訂正した**（実際はとっくに全34種を本番で動かしている）。",
+      "**ユーザー報告「本気のエイドスの時、CPU戦の時の選択（ブーストモードとかマイデッキ戦とか）が引き継がれちゃってる？」——そのとおりだった。** `runCpuBattleSetup` は**渡さなかった項目にCPU戦モーダルで選んだ設定を既定で使う**作り。`eidos-story.js` は `myDeck` と人数を明示していたが、**白黒（無色）とブーストを渡し忘れていた**ので、物語戦の中身が「その端末のCPU戦の設定」で変わっていた。**実測**（本気エイドス戦を設定だけ変えて4回開始）: 両方オフ＝白紙0・無色2／**ブーストON＝白紙2枚混ざる**／**白黒ON＝無色3に増える**／両方ON＝白紙2・無色4。コードのコメント自体が「物語のエイドス戦は myDeck を明示で渡してくるので、そちらはこの設定に左右されない」と書いており、**意図はあったのに2つ渡し忘れていた**形。物語戦は作り込まれた筋書き（エイドス＝ノワール＋両隣に烙印）なので**誰がやっても同じ戦い**であるべき、という判断で `includeBlackWhite: false, boost: false` を明示した（ユーザー了承）。設定どうしのぶつかり合いも消える——**#391「本気のエイドスがノワールを3枚ロックしている」は、まさにブーストONの白紙カードがノワールに変換されていたもの**だった。**A/Bで確認**——直した後は4通りすべて同じ中身（白紙0・無色2・ノワール1・烙印2）。易しい方・本気の方どちらも同じ1か所を通るので両方に効く。⚠ **既定は両方オフ**なので、初めて開く端末（ゲムマで来る人）には元から影響が無かった。",
+    ],
+    devItemsEn: [
+      "The multi-card discard dialog clipped its confirm buttons because the modal itself scrolled; it is now a three-row flex column where only the card list scrolls, so the buttons are always visible. The report's captured screen state identified the cause immediately, and the same box was reproduced locally at eight cards.",
+      "The quick reference panel was given the same treatment so only the sheet image shrinks, and its close button was enlarged inside that panel alone, since the class is shared with every other modal.",
+      "The first-run notice was unreadable on short screens, where every line fell below eleven pixels; long explanations are now hidden and the remaining text enlarged under a height media query, leaving taller screens untouched.",
+      "The turn banner wrapped because its width was auto inside the narrow phase-guide bar, so it could never exceed the bar; max-content lets it extend leftwards into the screen and it now stays on one line.",
+      "Card title furigana floats above the title band rather than inside it, so the white introduced when the band darkened left it on a pale background; only the furigana is dark again, and First cards are untouched.",
+      "Both So Sorry! reports shared one cause: the flag that suppresses auto-approval while So Sorry! is being resolved existed in two places but had never been added to the forty-five second timeout or the sixty second stuck rescue, so a player's own client could approve on their behalf mid-resolution and hand the attacker the win, which in turn let a second player see the declaration as still completing and offer them the button too.",
+      "The stuck rescue now checks whether the approver's seat is actually stale before firing, using the per-seat heartbeat the app already writes every twenty-five seconds; an unreadable result is never treated as absence, but it does extend the wait to three minutes so a genuinely dead client cannot freeze the game.",
+      "Adding the game to a home screen dropped the trial entry because the manifest start_url carries no query, so the device now remembers that it arrived through the trial link and forgets it again when the player goes to log in; the visit metric still counts only real link arrivals.",
+      "A card inventory check was added so that adding a card reports anything missing by name: effect data, Japanese and English text, both images and a test. The checker fails loudly if its own search finds implausibly few cards, and a stale comment claiming the effect data was an unwired prototype was corrected.",
+      "The story battles passed only the deck and player-count options to the shared CPU setup, so the colourless and boost options fell back to whatever the device had chosen for ordinary CPU games, changing an authored scenario; both are now passed explicitly.",
+    ],
+  },
+  {
     date: "2026-10-12",
     summary: [
       "対戦が戦績システムに登録されないことがあったのを直しました",
       "「もう一度遊ぶ」で、誰を待っているかが分かるようになりました",
+      "サマリー（早見表）をゲーム中に開けるようになりました",
+      "ホーム画面とマイページの文字の大きさを、前の見え方に戻しました",
+      "「相手のターンです」が「○○のターンです」と名前で出るようになりました",
+      "最後のロックの承認で、ゴメンナサイのボタンに実物のカードが出るようになりました",
     ],
     summaryEn: [
       "Fixed matches sometimes not being recorded in the stats system",
       "The rematch screen now tells you who it is waiting for",
+      "The quick reference sheet can now be opened during a game",
+      "Home and My Page are back to their previous text sizes on phones",
+      "The turn banner now names whose turn it is, instead of saying “your opponent”",
+      "The final-lock approval now shows the actual So Sorry! card on its button",
     ],
     items: [
       "**対戦の結果が戦績システムに登録されないこと**があったのを直しました。**勝った人がゲスト（戦績システムに登録していない人）だと、その対戦がまるごと記録されていませんでした**——勝った人だけでなく、**一緒に遊んだ全員のぶん**が消えていました。これからは記録され、勝者は「ゲスト」と表示されます。",
       "オンラインで「もう一度遊ぶ」を押した後、**誰を待っているのかが名前で分かる**ようになりました（「○○さんを待っています（2/4人が準備OK）」）。この機能は**全員が押すと始まる**作りですが、これまでは「他の参加者を待っています…」としか出ず、1人が席を外しているだけでも**壊れているように見えていました**。",
+      "右下の「自動送り」の左隣に**📋 サマリー**のボタンが付きました。実物に入っている**早見表**を、遊びながらそのまま見られます（**表**＝自分のターンの流れ・勝利条件・移動と接触／**裏**＝覚えておきたい原則・相手ゲート侵攻のボーナス）。タブか画像を押すと表／裏が切り替わります。",
+      "スマホの**ホーム画面とマイページ**の文字の大きさを、**1つ前の見え方に戻しました**。昨日まとめて大きくしたのですが、「する前のがよかった」というご指摘をいただいたので戻しています。あわせて、大きくしたぶんを収めるために狭めていた**余白・タイルの間隔・絵の大きさも元の値に戻りました**。ほかの画面（お知らせ、サウンドの初回設定、物語、対局中の表示、不具合報告、効果の説明など）の文字は大きいままです。",
+      "画面の右下の**ターン表示が名前で出る**ようになりました。これまでは誰の番でも「**相手のターンです**」で、4人で遊んでいると**3人のうち誰の番なのか分からなかった**ところです。これからは「**つづさんのターンです**」のように出ます。**優先権**の一行（効果の処理中などに添えられるもの）も同じく「優先権は**○○**にあります」と名前で出ます。",
+      "相手が**最後のロック**を宣言した時の承認の画面で、**ゴメンナサイのボタンに実物のカードが出る**ようになりました。これまでは「承認する」が**緑**・「ゴメンナサイを使う」が**赤**で、赤が「やめる・キャンセル」に見えて**押し間違いが起きていました**。**色を入れ替えるのではなく**（入れ替えても、今度は逆向きに読み違えるだけなので）、使う方に**カードそのもの**を出して「このカードを使う」と分かるようにし、承認する方からは色を抜きました。",
     ],
     itemsEn: [
       "Fixed match results sometimes not reaching the stats system. When the winner was a guest who is not registered there, the whole match was dropped, taking everyone else's record with it. Those matches are now kept, with the winner shown as a guest.",
       "After tapping play again in an online room, the screen now names who it is still waiting for, with a count. It always needed everyone to tap it, but the old message said only that it was waiting, so one person stepping away looked like a breakage.",
+      "A quick reference button now sits next to the auto-advance button at the bottom right. It opens the reference sheet that comes with the physical game: the front covers your turn, the victory condition and moving versus contact, and the back covers the standing principles and the gate invasion bonus. Tap a tab or the sheet itself to flip it.",
+      "The text sizes on the phone home screen and My Page are back to how they looked before yesterday's change, following your feedback that the earlier look was better. The padding, tile spacing and icon sizes that had been tightened to make room for the larger text are back to their original values as well. Every other screen keeps its larger text.",
+      "The turn banner at the bottom right now names the player whose turn it is. It used to say only that it was your opponent's turn, which told you nothing in a four-player game. The priority note that appears alongside it during effect resolution now names the player too.",
+      "A card is easier to recognise by its own art than by the colour of a button, so the approval banner for a final lock now shows the actual So Sorry! card on the button that plays it, and the approve button no longer competes for attention with a green fill. The colours were not swapped, because swapping them would only move the misreading to the other side.",
     ],
     fixes: [
       "カードの効果を処理している途中なのに、別の手札カードを使えてしまうことがあったのを直しました。",
       "「盤面を見る」で覗いている間、カードにカーソルを合わせても拡大できなかったのを直しました。",
+      "オンラインで、移動したのに駒がその場から動かず、移動先のカードだけめくれてしまうことがあったのを直しました。もう一度マスを選べます。",
     ],
     fixesEn: [
       "Fixed being able to play another hand card while a card effect was still being resolved.",
       "Fixed card previews not appearing while peeking at the board from a selection dialog.",
+      "Fixed an online move sometimes leaving your piece where it was while only flipping the destination card. You can now pick a square again.",
     ],
     devItems: [
       "**戦績に登録されない件の原因**（#405/#406 のログから確定）: `null value in column \"winner_id\" of relation \"matches\" violates not-null constraint`。勝者が戦績システム未登録（ゲスト）だと `winner_id` が null になるが、姉妹プロジェクト側が **not null** だったため insert が例外になり、**参加者全員ぶんの記録が消えていた**。コードのコメントは「nullのまま記録する」と書いてあった＝**実際のスキーマで試していなかった**。実データでも 10/11 夜に `matches` へ入ったデジタル版の試合は**1件だけ**で、21:58 の4人戦は保険の経路（20秒後の再試行）ごと失敗していた。**教訓: 別プロジェクトのテーブルへ書く時は、相手の列の not null / 型を実物で確かめる。**",
@@ -115,6 +344,14 @@ export const CHANGELOG = [
       "**#406「もう一回を押しても次のゲームがはじまらない」**: 報告のログ802行に **rematch の記録が1行も無く**、押したかどうかすら分からなかった。仕組みは「生きている座席が全員押したら再開」なので1人でも押さないと永久に始まらないのに、画面は「他の参加者を待っています…」だけ。**仕組みは変えず**、誰を待っているかを名前と人数で出し、同じ内容を `diag-rematch-waiting`／押した事実を `diag-rematch-ready` に残すようにした。**推測で仕組み（人数で見切る等）を変えると別の壊れ方をする**ので、次の報告で誰が押していないかが分かる状態にしてから判断する。",
       "**合同建設の途中で別のカードを使えた件**: 手札を場へ出して効果を使ってよいかの判定が `isHandPhaseActive() || (usableAnytime && !isAnyEffectProcessingBusy())` で、**ハンドフェイズ側だけ「いま別の効果を処理中か」を見ていなかった**。合同建設は自分のハンドフェイズで使うので、解決の最中（マス選択・山札/手札の選択）もハンドフェイズのまま＝別のカードを出せてしまった。`(isHandPhaseActive() || usableAnytime) && !isAnyEffectProcessingBusy()` に直した。`isAnyEffectProcessingBusy()` には候補の選択待ち（activeEffectPicker）も含まれるので「選択を待っている間は他のカードを使えない」が自然に成立する。候補として手札を選ぶ操作は別経路なので塞がらない（スモークで通常のカード使用が壊れていないことも確認）。",
       "**「盤面を見る」中にホバー拡大が効かない件**: あの機能は**覆いを残したまま透明にする**作り（続き546。盤面を触らせないため）だが、ホバーの入口 `updateHover` が「返事待ちの覆いが出ていたら何もしない」（#317）なので**覗いている間はホバーも死んでいた**。覗いている間だけ `body.so7-peeking-board` を付け、**ホバーの判定だけ**通すようにした。**A/Bで確認**——覆いあり＝拡大出ない／覗き中＝**拡大が出る**／覗き中でも覆いは手前にあり**掴めない**まま。",
+      "**ユーザー要望「サマリーを見るボタンを右下の自動送りボタンの左隣に新設するのはどう？」**。`src/summary-sheet.js` を新設し、フェイズ案内板の**先頭**（自動送りのさらに左）にボタンを置いた。素材は入稿データの PNG（2363x1182・各4MB）。**画像はファイル容量ではなく幅×高さ×4バイトでメモリを食う**（#223 でiPhoneが落ちた）ので、**幅1500pxのWebP（各374KB）に落とし、開いた時だけ読み込み、閉じたら img ごと捨てる**（2枚を同時に持たないよう、切り替えは src の差し替えだけ）。",
+      "**また `vw` の罠を踏んだ（記録）**: パネルを `width: 96vw` にしたら**実画面の46%（405px）にしかならなかった**。`vw` はビューポート基準なのに、描かれる大きさにはステージ倍率0.478が掛かるため（続き575 の★）。ステージ基準の **`96rem`** に直して **718px（画面の77%）** になった。早見表は横長で情報が詰まっているので、**どれだけ大きく映せるかがそのまま読みやすさ**になる。",
+      "横持ちのスマホは**高さが足りない**（早見表は幅の半分の高さ）ので、見出しを詰めて注記は省き、1画面に収めた。実測 **734x398 で画面内**・画像の表示幅718px・見出し13px・タブ11.5px。閉じると**パネルも img も消える**ことを確認。例外0件。",
+      "**続き575〜578 で入れたホーム画面とマイページのスマホ用の拡大を取り消した**（ユーザー「スマホでのホーム画面とマイページ画面ですが昨日文字サイズ調整してるんだけど、する前のがよかったです」）。取り消したのは style.css の4つの塊——①マイページの着せ替え・段位まわり（続き576）②ホーム画面の文字13種と「ホーム画面に追加」の案内バー（続き576）③マイページのパネルの幅・余白・題名（続き577）④②で縦に伸びたぶんを取り返すために詰めた余白・タイルの間隔・絵の大きさ（続き578 の #402 対応）。🔴 **④は②があって初めて必要になったものなので、②だけ戻すと余白が詰まったままの中途半端な見た目になる＝必ずまとめて戻す。** #402「ホーム画面がスクロールする」も②を戻せば一緒に消える。`#my-page-panel` の**基本の規則は残した**——あれは続き577 で my-page.js の inline style から移してきたもので、PCの値は移す前とまったく同じ。消すとパネルの見た目そのものが無くなる（my-page.js 側はもう inline で持っていない）。共通の ✕ だけは全モーダル向けの拡大（2.6rem）が効いてしまうので、ヘルプと同じ形で**このパネルの中だけ 1.8rem に戻した**。",
+      "**A/Bで「良かった状態」と一致することを確かめた**: 続き575 の直前（`739a729^`）の `style.css` と `my-page.js` を**配信のときだけ差し替える**プローブを書き、同じ手順でホーム画面とマイページを描いて、部品ごとに**computed の font-size・幅・高さ・行間・余白**を突き合わせた。ホーム**20種**・マイページ**17種**で**差0件**（マイページの1件はクラス名が `div` → `div.my-page-panel-title` に変わっただけで、値は 13.6px・409.1x9.7・行間20.4px まで同一）。ホーム画面のはみ出しも **30px＝続き575 より前と同じ値**に戻った（この30pxは元からある行の高さの丸め誤差で、見た目には出ていない）。⚠ **最初に「実画面px」だけで見比べたら NEW バッジが 6.3→6.8px と差が出たが、これは `offsetWidth` が整数なので小さい部品では実効倍率の推定がぶれるため**で、computed font-size は両方とも同じだった。**小さい部品を実効倍率で測る時は、派生の数字だけで差を判定しない。**",
+      "**#407「ムーブフェイズにその場から移動できず移動先のカードだけめくれて効果が発動しなかった」**（まっちゃん・オンライン）。報告のログの決め手は `arrival: {\"cardId\":\"purple-trial-ritual\",\"location\":{\"zone\":\"cell\",\"row\":4,\"col\":0},\"player\":null,\"self\":\"B\",\"auto\":false,\"depth\":1}` の **`player` が null**——`triggerCardArrival` が `getPieceOwnerAt(location)` を引いた時点で**そのマスに駒が居なかった**。`player` が null だと `shouldAutoProcess` が false になるので**効果は動かず・手札に加えるボタンも出ない**。つまり `moveToken` は例外を投げずに戻ったのに、取り直した状態では駒が移動先に居なかった。それでも `performPhaseMoveToCell` はそのまま先へ進むので、①移動先のカードだけ表向きになる（全員に見える＝情報が只で漏れる）②到達効果が動かない ③「1手を使った」印は立っているのでそのままターンが終わる、という**報告の文面そのままの壊れ方**になる。なお `depth:1` は異常ではない（`beginPostMoveArrivalGuard` が移動のたびに +1 する）。直しは「確かめてから進む」——オンラインの `moveToken` → `fetchAndHydrate` のあとに `confirmPieceLandedOnline()` を挟み、駒が移動先に居なければ**一度だけ取り直してから**判定する（手元が古いだけならここで直ってそのまま進む）。それでも居なければ**カードをめくらずに止め**、`clearPhaseMoveActionTaken()`（phase-automation.js に新設）で1手の印を戻して**もう一度動ける**ようにし、赤い一行を出す。印を戻す判断の根拠は「**サーバーから取り直した状態が『まだ動いていない』と言っている**」こと——サーバーの言い分に合わせるのが、いちばん食い違わない。⚠ **なぜサーバーに適用されなかったのかは確定できていない**（`callAction` は `ok:false` でも非2xxでも throw するのに、ログに `diag-edge-error` もコンソールのエラーも無い）。`diag-move-not-applied`（refetch / recovered / confirmed の3段）を残したので、次に起きたら1回で切り分けられる。",
+      "**ユーザー報告「CPU2にゴメンナサイでロック阻止された時、押し間違えた」への対応（本人了承済みの案）**。承認＝緑／ゴメンナサイ＝赤だったが、**赤は「やめる・キャンセル」に見える**のに、ここでは**ゴメンナサイの方が能動的な選択**なので読み違える。**色を入れ替えない**（入れ替えると今度は逆向きに誤読される）。ゴメンナサイ側に `getCardImagePath(\"purple-sorry\")` で**実物のカード**を出し（2.4rem角・正方形）、文言を「このカードを使う」に、承認側からは色を抜いた。🔴 **`.final-lock-approval-approve` / `-reject` はタイマーのオン/オフ・自動処理のオン/オフ・接触の承認でも流用されている**ので、`#final-lock-approval-banner` で囲って**このバナーの中だけ**に効かせた（A/Bで、他のバナーが緑・赤のままであることを確認）。⚠ **一度、明るいテーマで承認ボタンの文字が消えた**——共通規則が `color:#f0fdf4`（ほぼ白）を当てており、それは**緑地の上でだけ成り立つ色**だった。`color` を書かないだけでは足りず、`inherit` を明示してバナー自身の文字色を継ぐようにした（教訓15。**撮って初めて気づいた**）。実測: 暗いテーマ＝文字 `rgb(254,243,199)`／明るいテーマ＝`rgb(58,51,38)` で、どちらも読める。",
+      "**ユーザー要望「『相手のターンです』→『○○のターンです』と名指しに」**。`phase-automation.js` のターン表示（`#phase-automation-turn-status`）が `turnPlayer === getSelfSeat()` の二択で「自分／相手」を出していた。`getPlayerName(state.turnPlayer)` を使って名指しにする（新しい文言 `pa.turnOfNamed` / `pa.priorityNamed`）。**名前が空の時だけ従来の「相手のターンです」に落とす**——名前のつもりで空文字が出ると「のターンです」になるため。同じ一文の中にある優先権の一行も名指しにした（片方だけ「相手」だと誰のことか分からない）。`player-identity.js` を `phase-automation.js` から import したが、**循環にはならない**（player-identity は board-layout / ui-text / online / state しか読まず、同じ深さの `gate-invasion.js` が既に同じ import をしている）。**A/Bで確認**——直す前は手番B・C・Dのどれでも「相手のターンです」と**同じ文**が出る／直した後は「CPU 1／CPU 2／プレイヤーD のターンです」と**出し分かれる**。優先権の一行も「優先権は相手に」→「優先権はプレイヤーDに」。どれも実画面12.5px・画面内・見切れなし（長くなった分は折り返して箱が 48.4→67.2 に伸びるだけ）。例外0件。",
     ],
     devItemsEn: [
       "The stats failure was a not-null violation on the winner column: a guest winner produced a null and the insert threw, dropping the whole match for every participant. The comment in the code claimed null was acceptable, which had never been tested against the real schema.",
@@ -122,6 +359,14 @@ export const CHANGELOG = [
       "The rematch report contained no rematch log lines at all, so the fix was to surface who is being waited for and to log it, rather than to guess at changing the rule that everyone must tap it.",
       "Playing another hand card mid-effect was possible because the hand-phase branch of the timing check never looked at whether an effect was already being resolved.",
       "Peeking at the board keeps the modal backdrop in place to block taps, which also disabled hover previews; hover alone is now allowed while peeking, verified by A/B that taps remain blocked.",
+      "A quick reference button was added at the head of the phase guide bar, opening the physical game reference sheet. The source art was 4MB per side, so it was reduced to 1500px WebP and is only loaded while the panel is open, with the image element discarded on close.",
+      "The vw trap appeared again: a 96vw panel rendered at only 46 percent of the screen because vw is viewport based while the rendering is scaled, so it was switched to stage-relative rem and now uses 77 percent.",
+      "On a landscape phone the limiting dimension is height, so the heading was tightened and the footnote hidden to keep the whole sheet on one screen.",
+      "The phone-only enlargements for the home screen and My Page were removed in four blocks, including the padding and spacing that had only been tightened to absorb the larger text; reverting the text without the spacing would have left a half-finished look, and the home screen scrolling report goes away with it. The base rule for the My Page panel was kept because it holds the values that used to be inline, and the shared close button was restored to its original size inside that panel only.",
+      "The revert was confirmed by serving the pre-change style sheet and my-page module from the commit before the enlargement and comparing every element on both screens: twenty on the home screen and seventeen on My Page matched on computed font size, width, height, line height and padding, with the only listed difference being a class name. An apparent difference on one tiny badge turned out to be integer rounding of offsetWidth in the derived figure, not a real change.",
+      "An online move could be acknowledged by the server call yet leave the piece where it was; the client then flipped the destination card and raised an arrival for a square with no piece on it, so no effect ran and the turn was spent. The move is now confirmed against a fresh fetch before going any further, the turn is handed back if it truly did not apply, and three diagnostic stages were added because the server-side cause is still unknown.",
+      "The turn banner now resolves the player's name instead of choosing between you and your opponent, falling back to the old wording only when the name is empty; the priority note in the same sentence was changed the same way. An A/B run confirmed that all three opponents previously produced identical text and now produce distinct names, with no clipping at phone size.",
+      "The approve and reject buttons of the final-lock banner were restyled inside that banner only, because those class names are reused by three other banners; an A/B run confirmed the others are untouched. The approve button now inherits its text colour instead of keeping the near-white value that only worked on the old green fill, which had made it invisible in the light theme.",
     ],
   },
   {
@@ -2573,7 +2818,14 @@ export function openChangelogModal({ admin = false } = {}) {
       // 英語表示では itemsEn があればそちらを出す。無ければ日本語のまま出し、
       // 「この回は日本語のみ」と一言添える（過去分は英訳しない方針＝ユーザー判断）。
       const useEn = getLang() !== "ja" && Array.isArray(entry.itemsEn) && entry.itemsEn.length > 0;
-      if (getLang() !== "ja" && !useEn) {
+      // 【2026-10-16】「この回は日本語のみ」は、**実際に日本語のまま出すものがある時だけ**添える。
+      // 以前は `itemsEn` が無いだけで出していたので、**不具合の直しだけの回（fixes/fixesEn はある）**
+      // に「日本語のみ」と出てしまっていた（英文はちゃんと出ているのに）。
+      const jaOnlyItems =
+        Array.isArray(entry.items) && entry.items.length > 0 && !(Array.isArray(entry.itemsEn) && entry.itemsEn.length > 0);
+      const jaOnlyFixes =
+        Array.isArray(entry.fixes) && entry.fixes.length > 0 && !(Array.isArray(entry.fixesEn) && entry.fixesEn.length > 0);
+      if (getLang() !== "ja" && (jaOnlyItems || jaOnlyFixes)) {
         const note = document.createElement("div");
         note.className = "changelog-ja-only";
         note.textContent = t("chg.jaOnly");

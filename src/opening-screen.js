@@ -38,7 +38,7 @@ import { isTouchPrimaryDevice } from "./device-detect.js";
 import { startTitlePetWalk } from "./title-pet.js";
 import { t } from "./ui-text.js";
 import { getLang, setLangWithNotice, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
-import { isTrialEntry, clearTrialParam } from "./trial-entry.js";
+import { isTrialEntry, clearTrialParam, forgetTrialEntry, rememberTrialEntry } from "./trial-entry.js";
 // （旧CPU戦ボタン撤去に伴い cpu-battle.js の静的importも撤去。これで opening-screen.js が
 //  cpu-battle.js を芋づるで静的に読み込む依存辺が消え、循環import由来の黒画面リスクも下がる。）
 
@@ -474,7 +474,18 @@ export function initOpeningScreen() {
   const trialTexts = [];
   // 試遊パネルの「ログイン中かどうか」の行を描き直す関数（言語切替・ログイン状態の変化で呼ぶ）。
   let refreshTrialAuth = null;
-  if (isTrialEntry()) {
+  // 【#420・2026-10-18】**試遊のパネルは「?trial で来た時」だけでなく、常に組み立てておく。**
+  // クラファのリンクから入った人が「ホーム画面に追加」して開き直すと、URL に `?trial` が
+  // 付かず、ログインしかできない通常のタイトルになってしまう。続き593（端末に覚える）と
+  // 続き596（manifest を差し替える）の2通りを試したが、**iOS ではどちらも効かなかった**
+  // （報告#420: 最新の版なのに href は `https://seven.asobuzz.net/`＝ホーム画面のアプリは
+  // Safari と保管場所が別で、差し替えた manifest も見ていない）。
+  // ★ **URL や端末の記憶に頼らず、画面に入口を置く**形にした。これなら**すでにホーム画面へ
+  // 追加してあるショートカットでも、追加し直さずに次の更新から直る**。
+  // 出すのは**ログインしていない人にだけ**（ログイン済みの人の入口は今までどおり）。
+  const trialEntryMode = isTrialEntry();
+  let trialPanelShown = trialEntryMode;
+  {
     trialPanel = document.createElement("div");
     trialPanel.className = "opening-trial-panel";
     const addTrialEl = (tag, cls, key, parent = trialPanel) => {
@@ -590,12 +601,42 @@ export function initOpeningScreen() {
     loginLink.addEventListener("click", () => {
       // Googleログインはページを離れて「今のURL」へ戻ってくるので、?trial を持ち越さない。
       clearTrialParam();
+      // 【2026-10-16】端末の控えも一緒に消す——ログインする人には、次から通常のタイトルを出す。
+      forgetTrialEntry();
       setTestModeRequested(false);
       showCard();
     });
-    loginToggleBtn.style.display = "none";
+    if (trialEntryMode) loginToggleBtn.style.display = "none";
+    else trialPanel.style.display = "none"; // 通常の入口では、下のボタンを押すまで隠しておく
     content.appendChild(trialPanel);
   }
+
+  // 【#420・2026-10-18】通常のタイトル画面からも試遊へ入れるボタン（ログインの下、控えめ）。
+  // ログイン済みの人には出さない——その人たちの入口は今までどおり。
+  const noAccountBtn = document.createElement("button");
+  noAccountBtn.type = "button";
+  noAccountBtn.className = "opening-screen-menu-btn opening-no-account-btn";
+  noAccountBtn.textContent = t("trial.noAccount");
+  const refreshNoAccountBtn = () => {
+    if (trialEntryMode || trialPanelShown) { noAccountBtn.style.display = "none"; return; }
+    let signedIn = false;
+    try { signedIn = !!getCachedUser(); } catch { signedIn = false; }
+    noAccountBtn.style.display = signedIn ? "none" : "";
+    noAccountBtn.textContent = t("trial.noAccount");
+  };
+  noAccountBtn.addEventListener("click", () => {
+    // この端末を「試遊から入った」扱いにする（続き593の30日の控え）。次回からは
+    // このボタンを押さなくても試遊のパネルが出る。
+    rememberTrialEntry();
+    trialPanelShown = true;
+    noAccountBtn.style.display = "none";
+    loginToggleBtn.style.display = "none";
+    if (trialPanel) trialPanel.style.display = "";
+    refreshTrialAuth?.();
+  });
+  refreshNoAccountBtn();
+  onAuthChange(() => refreshNoAccountBtn());
+  content.insertBefore(noAccountBtn, trialPanel);
 
   // （旧「🤖 CPU戦（1人用）」ボタンはユーザー要望2026-08-14で撤去。CPU戦はログイン後の
   //  ホーム画面「CPUマッチ＆フレンドリーマッチ」から開始できる。）
@@ -851,6 +892,7 @@ export function initOpeningScreen() {
 
   function showCard() {
     loginToggleBtn.style.display = "none";
+    noAccountBtn.style.display = "none";
     if (trialPanel) trialPanel.style.display = "none";
     card.style.display = "flex";
     renderCard();
@@ -860,9 +902,11 @@ export function initOpeningScreen() {
     card.style.display = "none";
     loginToggleBtn.style.display = "inline-block";
     // 試遊の入口から来ていた場合は、ログインのボタンではなく試遊のパネルへ戻す。
-    if (trialPanel) {
+    if (trialPanel && trialPanelShown) {
       loginToggleBtn.style.display = "none";
       trialPanel.style.display = "";
+    } else {
+      refreshNoAccountBtn(); // 通常の入口：ログインしていなければ「試す」を戻す
     }
     // カードを✕で閉じた（＝ログインを完了せずに引き返した）場合、テストモード経由で
     // あったという記憶は捨てる。捨てておかないと、この後に通常の「ログイン」ボタンから

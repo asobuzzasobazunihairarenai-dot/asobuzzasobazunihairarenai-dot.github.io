@@ -272,6 +272,49 @@ body.is-tablet-device .opening-setup-never {
   font-size: 1.4rem;
   padding: 0.7rem 0.8rem;
 }
+/* 【2026-10-12】**画面が低い端末で、この案内が読めなかった。**
+   実測（本番・932x320＝iPhone横持ちで Safari の上下のバーが出ている状態。ステージ倍率0.356）:
+   11行すべてが11px未満で、「このまま遊ぶ」が **8.5px**、手順が 8.5px、注記が 6.5px だった
+   （932x430 なら 11.5px）。**10/17 に来た人が最初に見る画面がこれ**で、いちばん伝えたい
+   「ホーム画面に追加してください」が読めない。
+
+   🔴 **字を大きくするだけでは入らない**——320px の画面でモーダルは既に 268px（84%）を使っていた。
+   **長い説明を隠してから字を大きくする**（続き574 で同じ判断をした。「字を大きくする」は
+   文章を削ることと一緒に考える）。横幅も広げる＝手順の折り返しが減って、そのぶん縦が縮む。
+   `max-height` の境目は**ビューポートの高さ**で見る（`vh` を長さに使うのとは別の話で、
+   メディアクエリの判定はステージ倍率の影響を受けない）。 */
+@media (max-height: 380px) {
+  body.is-phone-device #opening-setup-modal,
+  body.is-tablet-device #opening-setup-modal {
+    width: 88rem; /* 94vw は実画面312pxにしかならない（vwの罠）。rem で広げる＝約501px */
+    padding: 1.2rem 1.6rem;
+  }
+  /* 長い説明と注記は隠す。手順そのものは残すので、やることは分かる。 */
+  body.is-phone-device .opening-setup-why,
+  body.is-tablet-device .opening-setup-why,
+  body.is-phone-device .opening-setup-note,
+  body.is-tablet-device .opening-setup-note {
+    display: none;
+  }
+  body.is-phone-device .opening-setup-title,
+  body.is-tablet-device .opening-setup-title { font-size: 2.8rem; margin-bottom: 0.8rem; }
+  body.is-phone-device .opening-setup-label,
+  body.is-tablet-device .opening-setup-label { font-size: 2.3rem; margin-bottom: 0.5rem; }
+  body.is-phone-device .opening-setup-steps,
+  body.is-tablet-device .opening-setup-steps { font-size: 2rem; line-height: 1.5; }
+  body.is-phone-device .opening-setup-lang-btn,
+  body.is-tablet-device .opening-setup-lang-btn { font-size: 2.3rem; padding: 0.6rem 1rem; }
+  body.is-phone-device .opening-setup-primary,
+  body.is-tablet-device .opening-setup-primary,
+  body.is-phone-device .opening-setup-secondary,
+  body.is-tablet-device .opening-setup-secondary { font-size: 2.3rem; padding: 0.7rem 1.2rem; margin-top: 0.6rem; }
+  body.is-phone-device .opening-setup-play,
+  body.is-tablet-device .opening-setup-play { font-size: 2.1rem; padding: 0.7rem 1.2rem; }
+  body.is-phone-device .opening-setup-never,
+  body.is-tablet-device .opening-setup-never { font-size: 1.8rem; padding: 0.5rem 0.8rem; }
+  body.is-phone-device .opening-setup-section,
+  body.is-tablet-device .opening-setup-section { margin-top: 0.8rem; }
+}
 
 /* 初回起動時のBGM設定モーダル（first-run-bgm.js）。 */
 #first-run-bgm-modal {
@@ -2851,6 +2894,48 @@ body.is-phone-device .update-banner-close {
   transform: translateY(-0.3rem) scale(1.04);
   border-color: rgba(251, 191, 36, 0.95);
   box-shadow: 0 0.7rem 1.4rem rgba(0, 0, 0, 0.6);
+}
+/* 【#412・2026-10-12】ユーザー報告「複数捨てるモーダルの時、**下のボタンが見切れてます**！
+   カードの上部も少し見切れてる気がします！」
+   報告に入っていた画面の記録で**その場で確定した**: モーダルの箱は `160,40,612,349` ＝下端389で
+   画面(430)には収まっているのに、**中身が476ある**（はみ出し112）。`#stack-modal` 自身が
+   `overflow-y: auto` なので、**確定ボタンが巻かれて見えなくなっていた**。巻けば出てくるが、
+   2倍に拡大されたモーダルの中をさらに巻くとは普通は思わない。手元でも再現した
+   （手札4枚＝ボタンは見える／**8枚から見えなくなる**。箱は報告と同じ 160,40,612,349）。
+
+   直し方: 中身を縦に3段（題と案内／カードの一覧／確定ボタン）に分け、**巻くのは一覧だけ**にする。
+   こうすれば枚数がいくら増えても**確定ボタンは必ず見える**。 */
+#stack-modal.is-order-picker {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 巻くのは中の一覧だけ（下の .stack-modal-list） */
+}
+#stack-modal.is-order-picker .stack-modal-title,
+#stack-modal.is-order-picker .stack-modal-note,
+#stack-modal.is-order-picker .stack-modal-confirm {
+  flex: 0 0 auto;
+}
+#stack-modal.is-order-picker .stack-modal-list {
+  /* 残りの高さを全部使う。`min-height: 0` が無いと flex の子は縮まず、結局はみ出す。 */
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+/* スマホ: `max-height: 85vh` は実画面349pxにしかならない（`vh` の罠＝続き575 の★。しかも
+   このモーダルは --center-modal-scale-phone で2倍に拡大される）。ステージ基準の rem にして、
+   画面の9割ほどまで使う（26rem ＝ 実画面約398px / 430px）。画面が低い端末でも同じ割合になる
+   ——rem はステージ倍率と一緒に縮むが、`vh` は縮まないので割合がずれる。 */
+body.is-phone-device #stack-modal.is-order-picker,
+body.is-tablet-device #stack-modal.is-order-picker {
+  max-height: 26rem;
+}
+/* カードを少し小さくして1行に多く並べる（巻く量そのものを減らす）。8rem は実画面122pxで、
+   一覧の幅612pxに4枚しか並ばなかった。 */
+body.is-phone-device #stack-modal.is-order-picker .stack-modal-card,
+body.is-tablet-device #stack-modal.is-order-picker .stack-modal-card {
+  width: 6rem;
+  height: 6rem;
 }
 /* OKボタン1つだけの汎用確認モーダル（山札切れの補充確認等に使う）。 */
 #confirm-modal {
@@ -8066,8 +8151,12 @@ body.opening-screen-active #options-menu-panel {
    上の一括hide（body.opening-screen-active #self-status-online＝id1つ）ではdisplay:flexに
    負けてタイトル/オープニングでも表示されてしまっていた（ユーザー報告）。同等以上の詳細度で
    隠し、表示はホーム画面以降からにする。 */
+/* 不具合報告ボタン(#self-status-bug-report)だけはタイトル画面でも出す（ユーザー要望・不具合
+   報告#420「不具合報告ボタンは設定アイコン同样にタイトル画面から表示させるようにしていたのに
+   いつのまにか表示されなくなってます」2026-10-18）。このボタンはbody直下のz-index:100055なので、
+   #opening-screen(50000)より手前に出る。起動時の案内モーダル(100060)より後ろなので、あちらが
+   出ている間は覆われる＝従来どおり。 */
 body.opening-screen-active #option-area #self-status-online,
-body.opening-screen-active #self-status-bug-report,
 body.opening-screen-active #option-area #self-status-action-log {
   display: none;
 }
@@ -10230,6 +10319,51 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   background: rgba(153, 27, 27, 0.95);
 }
 
+/* 【2026-10-12】ユーザー報告「最後のロックの承認で、承認＝緑／ゴメンナサイ＝赤だったので
+   押し間違えた」。赤は「やめる・キャンセル」に見えるのに、ここでは**ゴメンナサイの方が
+   能動的な選択**なので読み違える。**色を入れ替えない**（入れ替えると今度は逆向きに誤読される）。
+   ゴメンナサイ側に**実際のカードそのもの**を出し、承認側からは色を抜く（ユーザー了承済み）。
+   🔴 `.final-lock-approval-approve` / `-reject` は**他のバナーでも流用されている**
+   （タイマーのオン/オフ・自動処理のオン/オフ・接触の承認）ので、**必ずこのバナーの中だけ**に
+   効くよう `#final-lock-approval-banner` で囲う。囲わないと、関係ないバナーの「いいえ」まで
+   色が変わる。 */
+#final-lock-approval-banner .final-lock-approval-approve {
+  background: rgba(148, 163, 184, 0.22);
+  /* 🔴 文字色を決め打ちしない（教訓15）。このバナーは明るいテーマだとアイボリー地に変わるので、
+     白っぽい色のままだと**明るいテーマで文字が消える**（実際にそうなった＝撮って気づいた）。
+     ⚠ `color` を書かないだけでは足りない——共通の `.final-lock-approval-approve` が
+     `#f0fdf4`（ほぼ白）を当てており、それは緑地の上でだけ成り立つ色だった。明示的に
+     `inherit` にして、バナー自身が両テーマで持っている文字色を継ぐ。 */
+  color: inherit;
+  border-color: currentColor;
+  opacity: 0.85;
+}
+#final-lock-approval-banner .final-lock-approval-approve:hover {
+  background: rgba(148, 163, 184, 0.36);
+}
+#final-lock-approval-banner .final-lock-approval-gomennasai {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(88, 28, 135, 0.55);
+  color: #f5e8ff;
+  border-color: var(--color-purple, #a855f7);
+  padding: 0.3rem 0.8rem 0.3rem 0.35rem;
+}
+#final-lock-approval-banner .final-lock-approval-gomennasai:hover {
+  background: rgba(88, 28, 135, 0.82);
+}
+/* このゲームのカードは正方形（物理のカードがそうなので）。 */
+.final-lock-approval-gomennasai-card {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  border-radius: 0.2rem;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 0 0.4rem rgba(168, 85, 247, 0.75);
+}
+
 /* 「タイマーをオン、オフ」ボタン（src/timer-toggle.js、続き64）。
    ユーザー要望（続き68）「常時表示ではなく、基本時間アイコンを押すとひょこっと出てくる
    仕様にしたい」への対応で、#phase-guide-bar内に常設する横並びボタンから、基本時間
@@ -10991,7 +11125,16 @@ body.is-phone-device #phase-automation-turn-status {
     scale(var(--phase-turn-status-scale-phone, 1));
   /* スマホでは画面幅を越える長文（フェイズ名・優先権の注記付き）は折り返して見切れを防ぐ。 */
   white-space: normal;
-  max-width: min(80vw, 22rem);
+  /* 【#414・2026-10-16】ユーザー報告「右下の『エイドスのターンです』の**改行が気になります**」。
+     原因は `max-width` ではなく**入れ物の幅**だった——この表示は案内板バーの中に
+     `position: absolute; right: 0` で置かれており、**幅を auto にしていると入れ物（バー）の
+     幅までしか広がれない**（実測: 上限は352pxと書いてあるのに、折り返した時の箱は
+     実画面168px＝CSS約279pxで頭打ち）。名前が入って1文字ぶん長くなるだけで折り返す。
+     `width: max-content` にすると**入れ物をはみ出して左へ伸びられる**ので1行に収まる
+     （右端基準なので、伸びる先は画面の内側）。長すぎる時だけ max-width で折り返す。
+     ⚠ `vw` は使わない（ステージ倍率が掛かるので実画面では意図の半分以下になる＝続き575 の★）。 */
+  width: max-content;
+  max-width: 44rem;
 }
 body.reduce-glow #phase-automation-skip-button {
   animation: none;
@@ -18592,8 +18735,13 @@ body.theme-light .mdb-setting-btn {
   font-family: sans-serif;
 }
 #mds-panel {
-  width: min(56rem, 94vw);
-  max-height: 88vh;
+  /* 【#413・続き611】`94vw` / `88vh` は**ステージの外**の物差しなので使えない（続き575 の★）。
+     このオーバーレイは body（＝1600x900 のステージ）の中に居るので、vw/vh は**ビューポート**を
+     指すのに、描かれる大きさには**ステージ倍率**（iPhone横持ちで 0.478、上下のバーが出ていると
+     0.356）が掛かる。実測で 94vw が画面の 45%、88vh が 41% にしかなっていなかった。
+     ステージ基準の rem（ステージの幅 100rem・高さ 56.25rem）と % で書く。*/
+  width: min(56rem, 94%);
+  max-height: 50rem;
   overflow-y: auto;
   background: radial-gradient(ellipse at 50% -10%, #22303f 0%, #0f172a 70%);
   border: 1px solid rgba(176, 141, 63, 0.45);
@@ -18710,6 +18858,95 @@ body.theme-light .mdb-setting-btn {
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(148, 163, 184, 0.35);
   color: #94a3b8;
+}
+
+/* 【#413・続き611・ユーザー報告】「マイデッキ選択がスマホで横に出きらない」。
+   上の vw/vh を直してもまだ**文字が読めない**（実測で 題9.6px・説明6.5px・デッキ名6.3px・
+   枚数5.5px・ボタン7px／高さ17px）。この画面は**どのデッキで戦うかを60秒で決める**ものなので、
+   読めないと選べない。PCは一切変えず、スマホ・タブレットだけ広げて字を上げる。
+   ⚠ 大きくする時は「どこへ伸びるか」と一緒に考える（続き575）——パネルの高さの上限は
+   50rem（ステージの89%）までなので、収まることを実測で確かめてある。 */
+body.is-phone-device #mds-panel,
+body.is-tablet-device #mds-panel {
+  width: min(94rem, 94%);
+  padding: 1.4rem 1.6rem 1.6rem;
+}
+body.is-phone-device #mds-title,
+body.is-tablet-device #mds-title {
+  font-size: 2rem;
+}
+body.is-phone-device #mds-subtitle,
+body.is-tablet-device #mds-subtitle {
+  font-size: 1.5rem;
+}
+body.is-phone-device #mds-countdown,
+body.is-tablet-device #mds-countdown {
+  font-size: 1.7rem;
+}
+/* デッキの枠。絵も一緒に大きくなるので、1列あたりの数は減っても読みやすさを採る。 */
+body.is-phone-device .mds-grid,
+body.is-tablet-device .mds-grid {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+body.is-phone-device .mds-deck-name,
+body.is-tablet-device .mds-deck-name {
+  font-size: 1.6rem;
+  padding: 0.5rem 0.6rem 0.15rem;
+}
+body.is-phone-device .mds-deck-meta,
+body.is-tablet-device .mds-deck-meta {
+  font-size: 1.45rem;
+  padding: 0 0.6rem 0.6rem;
+}
+/* 押すものは高さも要る（目安28px）。実測17px だったので、字と余白の両方を上げる。 */
+body.is-phone-device .mds-action,
+body.is-tablet-device .mds-action {
+  font-size: 1.7rem;
+  padding: 0.9rem 1.8rem;
+}
+/* 画面の高さが足りない端末（iPhone横持ちで Safari の上下のバーが出ている＝320px 前後）では、
+   説明の1行を省いてから字を上げる。**「字を大きくする」は文章を削ることと一緒に考える**
+   （続き574・589 と同じ）。残り時間とデッキの一覧は消さない——選ぶのに必要なものだから。 */
+@media (max-height: 380px) {
+  body.is-phone-device #mds-subtitle {
+    display: none;
+  }
+  body.is-phone-device #mds-panel {
+    max-height: 54rem;
+    padding: 0.9rem 1.1rem 1rem;
+  }
+  body.is-phone-device .mds-grid {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 0.7rem;
+  }
+  /* この画面ではステージ倍率が 0.356 まで落ちる（1rem が実画面 5.7px）ので、430px の端末と
+     同じ rem では読めない（実測 8.2〜11.4px）。説明の1行を省いて空いた分で字を上げる。
+     上限 54rem（ステージの96%）に収まることは実測で確かめた。 */
+  body.is-phone-device #mds-title {
+    font-size: 2.6rem;
+  }
+  body.is-phone-device #mds-countdown {
+    font-size: 2.1rem;
+    margin-top: 0.3rem;
+  }
+  body.is-phone-device #mds-body {
+    margin-top: 0.6rem;
+  }
+  body.is-phone-device .mds-deck-name {
+    font-size: 2.1rem;
+  }
+  body.is-phone-device .mds-deck-meta {
+    font-size: 1.95rem;
+  }
+  body.is-phone-device .mds-action {
+    font-size: 2.3rem;
+    padding: 0.8rem 1.6rem;
+  }
+  body.is-phone-device #mds-actions {
+    margin-top: 0.8rem;
+    gap: 0.6rem;
+  }
 }
 .mds-action:hover {
   filter: brightness(1.08);
@@ -19882,11 +20119,18 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
    印字カードと同じく、通常・エターナルのタイトル（ふりがな含む）を白にする。
    ファーストは元から全て白（上の規則）。 */
 .card-face[data-card-type=normal] .card-face-title,
+.card-face[data-card-type=eternal] .card-face-title { color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.55); }
+/* 【#415・2026-10-16】ユーザー報告「カードタイトルのルビが白色ですが**背景が白**なので黒文字が
+   いいかと！」。**ふりがなだけは題の帯の外（真上）に浮いている**（`bottom: 100%`。実測でも
+   ルビの下端が題の箱の上端より上にある）。帯そのものは濃いので題の白は正しいが、**ルビが乗って
+   いるのは帯の上の淡い所**なので、白いままだと読めない。ルビだけ濃い字に戻す
+   （基底の `.card-face-title-rt` が持っている #141414 と同じ）。
+   ⚠ **ファーストは触らない**——あちらは題もルビも**絵の上**に乗る作りで、全部白が正しい
+   （上の `[data-card-type="first"]` の規則）。 */
 .card-face[data-card-type=normal] .card-face-title rt,
 .card-face[data-card-type=normal] .card-face-title .card-face-title-rt,
-.card-face[data-card-type=eternal] .card-face-title,
 .card-face[data-card-type=eternal] .card-face-title rt,
-.card-face[data-card-type=eternal] .card-face-title .card-face-title-rt { color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.55); }
+.card-face[data-card-type=eternal] .card-face-title .card-face-title-rt { color: #141414; text-shadow: none; }
 
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,
@@ -20780,22 +21024,23 @@ body.is-tablet-device .start-player-announce {
    一度2.35remまで上げて32.3pxにしてしまったので撤去した（前回は ×16 を落として計算して
    いたため「7.1px」と誤読していた）。 */
 
-/* マイページ: **元から3倍に拡大されている部分（名前・✎）は触らない**（既に12.2px/11.3px）。
-   拡大されていない「着せ替え」まわり（実効倍率0.726＝1.5倍）だけが7.4〜8.5pxで小さい。 */
-body.is-phone-device .my-page-cosmetic-thumb.is-none,
-body.is-tablet-device .my-page-cosmetic-thumb.is-none { font-size: 1rem; }
-body.is-phone-device .my-page-cosmetic-label,
-body.is-tablet-device .my-page-cosmetic-label { font-size: 1.1rem; }
-body.is-phone-device .my-page-cosmetics-title,
-body.is-tablet-device .my-page-cosmetics-title { font-size: 1.1rem; }
-body.is-phone-device .my-page-friends-btn,
-body.is-tablet-device .my-page-friends-btn { font-size: 1.1rem; padding: 0.4rem 0.8rem; }
-/* 【訂正2】称号のボタンは元から3倍（倍率1.439）で実画面13.8px＝十分だった。触らない。 */
-/* 段位まわりは拡大されていない（倍率0.478）のでそのまま大きくする。 */
-body.is-phone-device .my-page-rank-title,
-body.is-tablet-device .my-page-rank-title { font-size: 1.6rem; }
-body.is-phone-device .my-page-rank-none,
-body.is-tablet-device .my-page-rank-none { font-size: 1.5rem; }
+/* 【続き585・2026-10-12】**マイページのスマホ用の文字拡大は取り消した。**
+   ユーザー「スマホでのホーム画面とマイページ画面ですが昨日文字サイズ調整してるんだけど、
+   する前のがよかったです」。続き576 で着せ替え・段位まわり（7.9〜9.1px）を12px台へ、
+   続き577 でパネルの幅・余白・題名を大きくしていたが、**読みやすさより見た目の
+   まとまりの方が大事だった**という判断。数字の上では「11px以上」の目安を満たしていても、
+   ユーザーが見て良くないなら戻す。
+   ⚠ **`#my-page-panel` の基本の規則（上）は残す。**あれは続き577 で my-page.js の
+   inline style から移してきたもので、PC の値は移す前とまったく同じ。消すとパネルの
+   見た目そのものが無くなる（my-page.js 側はもう inline で持っていない）。
+   共通の ✕ だけは全モーダル向けの拡大（2.6rem）が効いてしまうので、ヘルプと同じ形で
+   このパネルの中だけ元の大きさに戻す。 */
+body.is-phone-device #my-page-panel .modal-close-x,
+body.is-tablet-device #my-page-panel .modal-close-x {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1.1rem;
+}
 
 /* 【訂正2】ヘルプのパネルは**元から2倍**（実効倍率0.956）なので、共通の ✕ の拡大が効いて
    実画面24.2pxになっていた。ヘルプの中だけ元の大きさへ戻す。
@@ -20808,47 +21053,15 @@ body.is-tablet-device #help-panel .modal-close-x {
   font-size: 1.1rem;
 }
 
-/* ホーム画面（実効倍率0.478＝**拡大なし**。13種のうち12種が11px未満で、ここが本命だった）。
-   実測: 「次にやること」5.4px／説明6.0px／NEW 6.9px／✕6.6px／「ホーム」6.9px／
-   「対戦する」7.3px／タイルの名前7.6px。 */
-body.is-phone-device #home-screen-subtitle,
-body.is-tablet-device #home-screen-subtitle { font-size: 1.4rem; margin: 0; }
-body.is-phone-device .home-screen-tile-label,
-body.is-tablet-device .home-screen-tile-label { font-size: 1.55rem; }
-body.is-phone-device .home-screen-tile-badge,
-body.is-tablet-device .home-screen-tile-badge { font-size: 1.5rem; }
-/* NEW のバッジは実効倍率0.54（タイルが少し拡大されている）のでこの値で約12px。 */
-body.is-phone-device .home-screen-tile-new-badge,
-body.is-tablet-device .home-screen-tile-new-badge { font-size: 1.4rem; }
-body.is-phone-device .home-screen-tile-waiting-badge,
-body.is-tablet-device .home-screen-tile-waiting-badge { font-size: 1.45rem; }
-body.is-phone-device .home-screen-tile-notify-badge,
-body.is-tablet-device .home-screen-tile-notify-badge { font-size: 1.3rem; }
-body.is-phone-device .home-first-step-label,
-body.is-tablet-device .home-first-step-label { font-size: 1.45rem; }
-body.is-phone-device .home-first-step-title,
-body.is-tablet-device .home-first-step-title { font-size: 1.55rem; }
-body.is-phone-device .home-first-step-desc,
-body.is-tablet-device .home-first-step-desc { font-size: 1.45rem; }
-body.is-phone-device .home-first-step-badge,
-body.is-tablet-device .home-first-step-badge { font-size: 1.7rem; }
-body.is-phone-device .home-first-step-go,
-body.is-tablet-device .home-first-step-go { font-size: 1.7rem; padding: 0.6rem 1.3rem; }
-body.is-phone-device .home-first-step-close,
-body.is-tablet-device .home-first-step-close { font-size: 1.5rem; }
-
-/* タイルの名前は scrollHeight が clientHeight より2〜5px大きいと出るが、**これは元からで
-   私の変更のせいではない**——A/Bで確かめた（文字を元の1remに戻しても8個中8個で 21>19 と
-   出る。1.5remで61>58、1.8remで74>69＝倍率に比例するだけ）。行の高さの丸め誤差で、
-   見た目には出ていないので触らない。**「はみ出し」が出たらまず元の値でも出るか試す。** */
-
-/* 「ホーム画面に追加」の案内バー（ホーム画面の下。実測 本文6.1px／ボタン6.1px／あとで5.8px）。 */
-body.is-phone-device .pwa-install-text,
-body.is-tablet-device .pwa-install-text { font-size: 1.55rem; }
-body.is-phone-device .pwa-install-add,
-body.is-tablet-device .pwa-install-add { font-size: 1.6rem; padding: 0.6rem 1.2rem; }
-body.is-phone-device .pwa-install-later,
-body.is-tablet-device .pwa-install-later { font-size: 1.45rem; padding: 0.5rem 0.8rem; }
+/* 【続き585・2026-10-12】**ホーム画面のスマホ用の文字拡大も取り消した**（上と同じ理由）。
+   取り消したのは3つの塊: ①続き576 の文字の拡大（タイルの名前・「次にやること」・
+   副題・各バッジ・「ホーム画面に追加」の案内バー）②続き578 の #402 対応（①で縦に
+   伸びた分を取り返すために余白・タイルの間隔・絵の大きさを詰めたもの）。
+   🔴 **②は①があって初めて必要になったものなので、①だけ戻すと余白が詰まったままの
+   中途半端な見た目になる。必ず両方まとめて戻す。**
+   ③ #402「ホーム画面がスクロールするようになった」は①を戻すことで一緒に解消する
+   （実測: はみ出し 30px＝続き575 より前と同じ値に戻った。この30pxは元からある
+   丸め誤差で、見た目には出ていない）。 */
 
 /* 【続き577・2026-10-11】マイページのパネル。**my-page.js の inline style から移してきた**
    （inline だと CSS から上書きできず、スマホ用の文字サイズを足せなかった）。
@@ -20871,69 +21084,6 @@ body.is-tablet-device .pwa-install-later { font-size: 1.45rem; padding: 0.5rem 0
   color: #e2e8f0;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
 }
-/* スマホ: 文字は実測6.5px、幅は実画面184pxしか無かった。`max-height: 85vh` は実画面の
-   41%にしかならない（vhの罠＝続き575 の★）のでステージ基準の rem にする。 */
-body.is-phone-device #my-page-panel,
-body.is-tablet-device #my-page-panel {
-  width: min(76rem, 94vw);
-  max-height: 50rem;
-  /* 計測で overflow-y が hidden と出たので明示しておく（高さの上限に達した時に
-     中身が切れると詰むため。どこで上書きされているかは追えていないが、ここで明示すれば確実）。 */
-  overflow-y: auto;
-  padding: 2rem;
-  border-radius: 1rem;
-  /* 【訂正】ここで font-size を上げてはいけない。マイページは部分ごとに拡大倍率が違い
-     （0.478／0.726／0.899／1.438）、継承で一括して上げると**元から3倍の所が36.8pxに**なる。
-     小さいのは拡大されていない題名だけなので、そこだけ個別に上げる（下）。 */
-}
-body.is-phone-device .my-page-panel-title,
-body.is-tablet-device .my-page-panel-title {
-  font-size: 1.6rem;
-}
-
-/* 【続き578・2026-10-11】#402「ホーム画面がスクロールするようになっちゃった、多分文字
-   大きくした影響です」。そのとおりで、続き576 で文字を大きくした分だけ縦に伸びた
-   （A/B実測: 中身の高さ 930→1054。見える高さは900なので、はみ出しが30→154に）。
-   **文字は戻さず、縦の余白を削って収める**——読みやすさを守るのが目的なので、
-   そこを戻したら元の木阿弥になる。 */
-
-/* いちばん膨らんだのは「ホーム画面に追加」の案内バー（39→103px）。文字を大きくしたら
-   折り返して3行になっていた。1行に収まる大きさに抑え、余白も詰める。 */
-body.is-phone-device #pwa-install-banner,
-body.is-tablet-device #pwa-install-banner {
-  padding: 0.35rem 0.8rem;
-  gap: 0.25rem 0.5rem;
-  /* `flex-wrap: nowrap` は**逆効果**だった——文字の箱が細くなって何行にも折り返し、
-     バーの高さが 179→275（ステージpx）に増えた。折り返しは許したまま字を抑える。 */
-}
-body.is-phone-device .pwa-install-text,
-body.is-tablet-device .pwa-install-text { font-size: 1.4rem; }
-body.is-phone-device .pwa-install-add,
-body.is-tablet-device .pwa-install-add { font-size: 1.3rem; padding: 0.35rem 0.8rem; }
-body.is-phone-device .pwa-install-later,
-body.is-tablet-device .pwa-install-later { font-size: 1.3rem; padding: 0.25rem 0.5rem; }
-
-/* 画面の上下の余白とタイルの間隔を詰める（文字を大きくしたぶんをここで取り返す）。 */
-body.is-phone-device #home-screen,
-body.is-tablet-device #home-screen {
-  padding: 0.8rem 1rem;
-  gap: 0.2rem;
-}
-body.is-phone-device #home-screen-grid,
-body.is-tablet-device #home-screen-grid {
-  gap: 0.9rem 1.6rem;
-}
-body.is-phone-device .home-screen-tile,
-body.is-tablet-device .home-screen-tile {
-  gap: 0.2rem;
-  padding: 0.3rem;
-}
-/* タイルの絵を小さくする（2段あるので効きが大きい）。文字は11px以上を保ったまま少し抑える。 */
-body.is-phone-device #home-screen-grid,
-body.is-tablet-device #home-screen-grid {
-  --home-tile-icon-size: 4rem;
-}
-
 /* 【続き578】#403「こういった中央のモーダル、スマホだと文字小さいかも！」。
    画面中央に出る効果の説明（main.js の showEffectReasonModal）。文字は名前0.75rem・
    本文0.8rem で、幅も min(20rem, 80vw)＝実画面153pxしか無かった。 */
@@ -20952,6 +21102,141 @@ body.is-phone-device .effect-reason-modal-text,
 body.is-tablet-device .effect-reason-modal-text {
   font-size: 1.6rem;
   line-height: 1.6;
+}
+
+/* 【続き583】サマリー（早見表）を見る画面（summary-sheet.js）とフェイズ案内板のボタン。
+   早見表は横長（1500x750）なので、画面の幅いっぱいに置いて読ませる。文字の大きさは
+   画像なので、**どれだけ大きく映せるか**がそのまま読みやすさになる。 */
+#summary-sheet-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10461; /* backdrop(10460)より前面 */
+  width: min(96rem, 96vw);
+  max-height: 54rem;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 1rem 1.2rem 1.2rem;
+  border-radius: 0.8rem;
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.summary-sheet-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fbbf24;
+  margin-bottom: 0.6rem;
+  padding-right: 2rem;
+}
+.summary-sheet-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+.summary-sheet-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(2, 6, 12, 0.35);
+  color: inherit;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.summary-sheet-tab.is-current {
+  border-color: rgba(251, 191, 36, 0.9);
+  background: rgba(251, 191, 36, 0.18);
+  font-weight: 700;
+}
+.summary-sheet-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.summary-sheet-hint {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+/* ライトテーマでも読めるように（他のモーダルと同じ扱い）。 */
+body.theme-light #summary-sheet-panel {
+  background: #fdfbf5;
+  border-color: rgba(176, 141, 63, 0.6);
+  color: #3a3326;
+}
+body.theme-light .summary-sheet-title { color: #8a6d2f; }
+body.theme-light .summary-sheet-tab { background: rgba(176, 141, 63, 0.12); border-color: rgba(176, 141, 63, 0.45); }
+/* スマホ: 1rem が実画面7.6pxにしかならないので、文字は2倍前後に（続き575 の物差し）。
+   早見表そのものは幅いっぱいに出す。 */
+body.is-phone-device #summary-sheet-panel,
+body.is-tablet-device #summary-sheet-panel {
+  /* 【vwの罠】`96vw` だと実画面の46%にしかならない（vwはビューポート基準なのに、描かれる
+     大きさにはステージ倍率0.478が掛かるため＝続き575 の★）。ステージ基準の rem で書く
+     （ステージの幅は100rem）。実測 405px → 734px に広がる。 */
+  width: 96rem;
+  max-height: 52rem;
+  padding: 0.9rem 1rem 1rem;
+}
+/* 早見表は横長（幅の半分の高さ）。横持ちのスマホは**高さが足りない**ので、見出しを詰めて
+   注記は省き、1画面に収める（画像を押せば表裏が切り替わることはタブを見れば分かる）。 */
+body.is-phone-device .summary-sheet-hint,
+body.is-tablet-device .summary-sheet-hint { display: none; }
+body.is-phone-device .summary-sheet-title,
+body.is-tablet-device .summary-sheet-title { font-size: 1.7rem; margin-bottom: 0.5rem; padding-right: 3.4rem; }
+body.is-phone-device .summary-sheet-tab,
+body.is-tablet-device .summary-sheet-tab { font-size: 1.5rem; padding: 0.45rem 1rem; border-radius: 0.6rem; }
+body.is-phone-device .summary-sheet-hint,
+body.is-tablet-device .summary-sheet-hint { font-size: 1.3rem; margin-top: 0.8rem; }
+
+
+/* 【#408・2026-10-12】ユーザー報告「スマホでの、サマリー表示で、**バツボタンが小さい**です。
+   あと**少しスクロールになるので動かない方がいい**です！」
+   実測（932x430）: ✕ は **19.9x19.9px**（押すものの目安28pxに足りない）、パネルは中身894に対して
+   見える830＝**はみ出し64** で、早見表の下がわずかに切れて巻かれていた（932x320 では ✕ が14.8px）。
+
+   巻かないようにする直し方: パネルを縦の3段（題／タブ／絵）にして**絵だけが縮む**ようにする。
+   `object-fit: contain` なので縮んでも形は崩れない。`min-height: 0` が無いと flex の子は縮まず、
+   結局はみ出す（#412 と同じ）。 */
+#summary-sheet-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 巻かない（中の絵が縮んで収まる） */
+}
+.summary-sheet-title,
+.summary-sheet-tabs,
+.summary-sheet-hint {
+  flex: 0 0 auto;
+}
+.summary-sheet-image {
+  flex: 0 1 auto;
+  min-height: 0;
+  object-fit: contain;
+}
+/* ✕ は全モーダル共通のクラスなので、**この画面の中だけ**大きくする（他のモーダルに波及させない）。
+   3.8rem ＝ 実画面約29px で「押すものは28px以上」を満たす。題の右の余白も一緒に広げないと
+   題の文字に被る（続き575 で実際に被らせた）。 */
+body.is-phone-device #summary-sheet-panel .modal-close-x,
+body.is-tablet-device #summary-sheet-panel .modal-close-x {
+  width: 3.8rem;
+  height: 3.8rem;
+  font-size: 2.3rem;
+}
+body.is-phone-device #summary-sheet-panel .summary-sheet-title,
+body.is-tablet-device #summary-sheet-panel .summary-sheet-title {
+  padding-right: 4.6rem;
+}
+/* フェイズ案内板の「サマリー」ボタン（自動送りの左隣）。絵文字を中央に置くだけ。 */
+.phase-summary-glyph {
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 /* ── マイページ: 名前の上のお気に入り称号（続き317）────────────────────────
@@ -22847,6 +23132,35 @@ body.reduce-glow .gomennasai-declare-card { box-shadow: none; }
     0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
   animation: lock-robbed-label 2600ms ease-out forwards;
 }
+/* 【#407・2026-10-12】オンラインの移動がサーバーに反映されなかった時の一行。
+   ゴメンナサイの一行（is-lock-robbed）と同じ置き方・同じ動きで、色だけ赤にする。
+   ⚠ 幅に `vw` を使わない（ビューポート基準なのに描画にはステージ倍率が掛かるので、
+   92vw が実画面の46%にしかならない＝続き575 の★）。親基準の % で書く。 */
+.board-flash-label.is-move-failed {
+  top: auto;
+  bottom: 13%;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  max-width: min(44rem, 92%);
+  text-align: center;
+  line-height: 1.5;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.7rem;
+  background: rgba(26, 10, 10, 0.86);
+  border: 0.1rem solid var(--color-red, #ef4444);
+  text-shadow:
+    0 0 0.6rem rgba(239, 68, 68, 0.85),
+    0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
+  animation: lock-robbed-label 3400ms ease-out forwards;
+}
+/* スマホでは 1.5rem が**実画面10.8px**にしかならなかった（実測。この一行は中に居て
+   ステージ倍率0.449が掛かる）。これは「もう一度マスを選んでください」という**指示**なので、
+   読めないと意味が無い。目安の13px以上になるまで上げる（1.9rem＝約13.7px）。 */
+body.is-phone-device .board-flash-label.is-move-failed,
+body.is-tablet-device .board-flash-label.is-move-failed {
+  font-size: 1.9rem;
+}
 @keyframes lock-robbed-label {
   0% { opacity: 0; transform: translate(-50%, 0.8rem) scale(0.94); }
   8% { opacity: 1; transform: translate(-50%, 0) scale(1); }
@@ -23566,3 +23880,94 @@ body.is-phone-device .opening-trial-cf {
   margin-top: 0.5rem;
   opacity: 0.95;
 }
+
+/* 【続き602・2026-10-20】不具合報告をくれた人へのお礼（bug-report-thanks.js）。
+   起動時の案内モーダル（#opening-setup-modal）と同じ「自前で地と文字色を持つ暗いパネル」に
+   する——明暗2テーマのどちらでも読めるようにするいちばん確実な形（教訓15。色を書かずに
+   継承させると、片方のテーマで文字が消える事故が起きる）。
+   ホーム画面はスマホでも開くので、スマホ用の寸法も一緒に決める（1600x900 のステージを
+   縮めて描くため、iPhone 横持ちでは 1rem が実画面 7〜8px にしかならない）。 */
+#bug-thanks-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(34rem, 92vw);
+  z-index: 100061; /* 上の覆い(100060)より前面 */
+  box-sizing: border-box;
+  padding: 1.3rem;
+  border-radius: 0.6rem;
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  /* ⚠ vh ではなく rem（ステージの高さ = 56.25rem）。vh はビューポート基準なので、
+     スマホの実画面では意図の半分以下にしかならない（続き575 の★の罠）。 */
+  max-height: 44rem;
+  overflow-y: auto;
+}
+.bug-thanks-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #fbbf24;
+  text-align: center;
+  margin-bottom: 0.6rem;
+}
+.bug-thanks-lead {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 0.9rem;
+}
+.bug-thanks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.bug-thanks-item {
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.4rem;
+  background: rgba(148, 163, 184, 0.12);
+  border-left: 3px solid rgba(251, 191, 36, 0.6);
+}
+.bug-thanks-when {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+.bug-thanks-quote {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0.25rem 0 0.4rem;
+  opacity: 0.85;
+  font-style: italic;
+}
+.bug-thanks-fixed {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #bbf7d0;
+}
+.bug-thanks-close {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.18);
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+/* スマホ: 実画面のpxで測ってから決める（読ませるもの13px以上／押すもの高さ28px以上）。 */
+body.is-phone-device #bug-thanks-modal {
+  width: min(78rem, 94vw);
+  padding: 1.3rem;
+  max-height: 49rem;
+}
+body.is-phone-device .bug-thanks-title { font-size: 2.3rem; }
+body.is-phone-device .bug-thanks-lead { font-size: 1.75rem; }
+body.is-phone-device .bug-thanks-when { font-size: 1.4rem; }
+body.is-phone-device .bug-thanks-quote { font-size: 1.62rem; }
+body.is-phone-device .bug-thanks-fixed { font-size: 1.7rem; }
+body.is-phone-device .bug-thanks-close { font-size: 1.7rem; padding: 0.8rem; }

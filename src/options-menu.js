@@ -30,7 +30,7 @@ import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confir
 import { isCellConfirmEnabled, setCellConfirmEnabled } from "./cell-confirm.js";
 import { isBoardIllustOnly, setBoardIllustOnly } from "./board-card-display.js";
 import { isFixedHandEnabled, setFixedHandEnabled } from "./fixed-hand.js";
-import { getSoundVolume, setSoundVolume, getBgmVolume, setBgmVolume, supportsVibration, isVibrationEnabled, setVibrationEnabled} from "./sound.js";
+import { getSoundVolume, setSoundVolume, getBgmVolume, setBgmVolume, supportsVibration, isVibrationEnabled, setVibrationEnabled, DEFAULT_SOUND_VOLUME, DEFAULT_BGM_VOLUME} from "./sound.js";
 import { setCardPreviewSize, getCardPreviewSide, setCardPreviewSide } from "./card-preview-size.js";
 import {
   getCpuSpeed,
@@ -1055,10 +1055,14 @@ export function initOptionsMenu() {
           },
           {
             icon: "🔊",
+            // 【続き608】**既定値は sound.js の定数から読む。** 以前はここに 0.8 / 0.5 と
+            // 書いてあり、既定（0.3→0.15）と食い違って**リセットすると既定より大きくなって**いた。
+            // ⚠ sound_volume は 0〜1 だが sound_volume_bgm は 0〜100（online.js の読み込みが
+            // `/ 100` している）。単位が違うので、そのまま同じ値を入れない。
             onReset: () => {
-              setSoundVolume(0.8);
-              setBgmVolume(0.5);
-              saveMyPreference({ sound_volume: 0.8, sound_volume_bgm: 50 });
+              setSoundVolume(DEFAULT_SOUND_VOLUME);
+              setBgmVolume(DEFAULT_BGM_VOLUME);
+              saveMyPreference({ sound_volume: DEFAULT_SOUND_VOLUME, sound_volume_bgm: Math.round(DEFAULT_BGM_VOLUME * 100) });
               renderContent();
             },
           }

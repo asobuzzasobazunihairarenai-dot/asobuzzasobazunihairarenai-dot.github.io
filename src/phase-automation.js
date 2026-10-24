@@ -29,6 +29,7 @@ import { runGateInvasionsIfNeeded } from "./gate-invasion.js";
 import { isGateInvasionQueueActive } from "./gate-invasion-modal.js";
 import { playSound } from "./sound.js";
 import { announceHandPickups } from "./hand-announcer.js";
+import { getPlayerName } from "./player-identity.js";
 import { SIDE_TO_SEAT, COLORS, SEAT_ORDER } from "./board-layout.js";
 import { getCardDefinition } from "./cards-data.js";
 import { hasAnyoneWon } from "./victory.js";
@@ -315,6 +316,20 @@ export function markPhaseMoveActionTaken(reason = "unknown") {
   clearMovableHighlights();
   // #167: 「このターンはもう動いた」ことも残す（更新して戻ってきても再度動けないように）。
   if (phaseOwner) persistTurnPhase(phaseOwner, "move", true);
+}
+// 【#407・2026-10-12】立てた印を**戻す**。オンラインの移動がサーバーに適用されていなかった
+// と分かった時だけ使う（main.js の confirmPieceLandedOnline）。印を立てる markPhaseMoveActionTaken
+// と対になる処理をそのまま裏返す——印を下ろし、保存してある「このターンはもう動いた」も
+// 下ろし、移動先のハイライトを貼り直す（reconcileMovePhase は印が立っている間は何もしないので、
+// 先に印を下ろしてから呼ぶ）。
+export function clearPhaseMoveActionTaken(reason = "unknown") {
+  if (!moveActionTaken) return;
+  logAction("diag-move-action-cleared", { reason, phase: currentPhase, owner: phaseOwner });
+  moveActionTaken = false;
+  if (phaseOwner) {
+    persistTurnPhase(phaseOwner, "move", false);
+    reconcileMovePhase(phaseOwner);
+  }
 }
 // main.jsの手札効果トリガー（Task 5）が、コスト選択等で待っている間はフェイズの
 // 自動進行を一時止める（選んでいる最中にハンドフェイズが終わってしまうのを防ぐ）。
@@ -932,7 +947,17 @@ export function updateSkipButtonVisibility() {
     statusEl.style.display = "none";
   } else {
     statusEl.style.display = "block";
-    let text = state.turnPlayer === getSelfSeat() ? t("phaseautomation.L731") : t("phaseautomation.L731_2");
+    // 【#?・2026-10-12】ユーザー要望「『相手のターンです』ではなく『○○のターンです』と
+    // **名指し**にしてほしい」。4人対戦では「相手」が3人いるので、誰の番かが分からなかった。
+    // 名前が取れない時（座席はあるのに名前が空＝参加直後など）だけ、従来の「相手のターンです」に
+    // 落とす——名前のつもりで空文字が出ると「のターンです」になってしまうため。
+    const turnName = state.turnPlayer === getSelfSeat() ? null : (getPlayerName(state.turnPlayer) || "").trim();
+    let text =
+      state.turnPlayer === getSelfSeat()
+        ? t("phaseautomation.L731")
+        : turnName
+          ? t("pa.turnOfNamed", { name: turnName })
+          : t("phaseautomation.L731_2");
     // ユーザー要望「今相手が何のフェイズかをフェイズ案内板でわかるようにしたい」。案内板の
     // ボタン発光（updatePhaseGuideGlow）に加え、相手の手番中はこのターン表示にも相手の
     // 現在フェイズ名を添える（中継で受け取ったremotePhaseベース。まだ届いていなければ何も
@@ -949,7 +974,14 @@ export function updateSkipButtonVisibility() {
     // スリカエ等の割り込み処理中等）だけ、ここに一言添える。一致している間（通常の
     // ほとんどの時間）は「自分のターンです」だけで十分なため表示しない。
     if (isAutoProcessingEnabled() && state.priorityPlayer && state.priorityPlayer !== state.turnPlayer) {
-      text += state.priorityPlayer === getSelfSeat() ? t("phaseautomation.L748") : t("phaseautomation.L748_2");
+      // 同じ一文の中なので、こちらも名指しにする（片方だけ「相手」だと誰のことか分からない）。
+      const prioName = state.priorityPlayer === getSelfSeat() ? null : (getPlayerName(state.priorityPlayer) || "").trim();
+      text +=
+        state.priorityPlayer === getSelfSeat()
+          ? t("phaseautomation.L748")
+          : prioName
+            ? t("pa.priorityNamed", { name: prioName })
+            : t("phaseautomation.L748_2");
     }
     statusEl.textContent = text;
   }

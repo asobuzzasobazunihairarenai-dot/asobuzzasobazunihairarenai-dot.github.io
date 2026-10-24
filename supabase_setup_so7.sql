@@ -1543,6 +1543,13 @@ create policy "so7_bug_reports_insert" on so7_bug_reports for insert to anon, au
   with check (user_id = auth.uid() or user_id is null);
 
 -- 管理者（メール一致）だけが不具合報告の一覧を読める。so7_get_admin_visit_log等と同じ方式。
+-- 🔴【続き604・2026-10-20】**この drop が無いと、ファイル全体の2回目の実行が落ちる。**
+-- 続き602 でこの関数の戻り値の列を増やした（ファイル末尾で drop → 作り直している）ので、
+-- 2回目以降は「DBは12列・ここは9列」となり、この create or replace が
+-- `cannot change return type of existing function` で止まる（実際にユーザーが踏んだ）。
+-- このファイルの既存の作法（so7_get_admin_visit_log / so7_get_admin_user_list は
+-- **どの定義の前にも drop が置いてある**）に合わせる。
+drop function if exists so7_get_admin_bug_reports();
 create or replace function so7_get_admin_bug_reports()
 returns table (
   id bigint,
@@ -3078,3 +3085,147 @@ as $$
 $$;
 revoke execute on function so7_public_counts() from public;
 grant execute on function so7_public_counts() to anon, authenticated;
+
+-- ============================================================================
+-- 追加(2026-10-20・続き602): 不具合報告をくれた人へ、アプリの中でお礼と結果を伝える
+--   ユーザー要望「debug報告者に、内容が解決した際にそのことをアプリ内でお礼とともに
+--   通知してあげたい」。
+--
+-- 【設計の勘所】
+--  ① so7_bug_reports には SELECT ポリシーが一切無い（＝生ログは管理者しか読めない）ので、
+--     報告した本人が「自分の報告」を読む口が存在しなかった。そこで本人の行だけを返す
+--     SECURITY DEFINER 関数を足す。返すのは **id・日時・本人が書いた文・直った内容** だけで、
+--     アクションログ/コンソールログ/画面の状態は返さない（本人のものでも、出す必要が無い）。
+--  ② 🔴 **「対処済み」になっただけでは通知しない。管理者が「直った内容(fixed_note)」を
+--     書いた時だけ通知する。** 管理画面には「すべて対処済みにする」という一括ボタンがあり
+--     （so7_resolve_all_bug_reports、溜まった一覧を畳むためのもの）、対処済み＝通知の条件に
+--     すると、**そのボタン1回で全員に「直りました」という嘘が一斉に飛ぶ**。一言を書く手間を
+--     トリガーにすることで、事故を仕組みで防ぎ、同時に中身のある通知になる。
+--  ③ 一度見せたら二度と出さないため thanked_at を立てる（端末のlocalStorageではなくDBに
+--     持つ＝別の端末で見ても二重に出ない）。
+--  ⚠ ログインせずに送られた報告（user_id が null。試遊・ゲストの経路）には届かない。
+--     誰の報告か分からないため。これは仕組み上の限界。
+-- ============================================================================
+
+alter table so7_bug_reports add column if not exists fixed_note text;      -- 直った内容（管理者が書く）
+alter table so7_bug_reports add column if not exists thanked_at timestamptz; -- 本人がお礼を見た時刻
+
+-- ① 本人が「自分あての、まだ見ていないお知らせ」を取る。
+-- 【続き603・2026-10-20で作り替え】**「直した内容」はコード側（handled-bug-reports.js の
+-- BUG_REPORT_FIX_NOTES）にも置けるようにした**ので、ここで `fixed_note is not null` で絞って
+-- しまうと**コードに書いた文が永久に届かない**（Claude は管理者としてログインできないので
+-- DB には書けない）。絞りは「本人のもの」「まだ見ていない」だけにして、**何を見せるか
+-- （見せないか）はクライアント側が決める**:
+--   ・DBに文があればそれを使う（管理画面の「📨 お礼を書く」。言い回しの上書き用）
+--   ・無ければコード側の文を使う
+--   ・どちらにも無ければ**何も出さない**（＝「すべて対処済みにする」ボタンを押しても
+--     嘘の通知は飛ばない。この保証は維持されている）
+-- 件数の上限は50（報告がたくさんある人でも1回の問い合わせで済む）。
+-- ⚠ 戻り値の列を増やしたので `create or replace` では変更できない＝先に drop する。
+drop function if exists so7_get_my_fixed_bug_reports();
+create or replace function so7_get_my_fixed_bug_reports()
+returns table (
+  id bigint,
+  created_at timestamptz,
+  comment text,
+  fixed_note text,
+  resolved boolean
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select b.id, b.created_at, b.comment, b.fixed_note, b.resolved
+  from so7_bug_reports b
+  where b.user_id = auth.uid()
+    and b.thanked_at is null
+  order by b.created_at asc
+  limit 50
+$$;
+revoke execute on function so7_get_my_fixed_bug_reports() from public;
+grant execute on function so7_get_my_fixed_bug_reports() to authenticated;
+
+-- ② 見たことを記録する（本人の行だけ）。実際に更新した件数を返す
+--    （0なら「自分の行ではない」＝静かに失敗していないか呼び出し側で分かる。
+--     姉妹リポジトリでRLS欠落を「エラー無し・0件」で踏んだ教訓と同じ考え方）。
+create or replace function so7_ack_bug_report(p_ids bigint[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n integer;
+begin
+  update so7_bug_reports
+     set thanked_at = now()
+   where id = any(coalesce(p_ids, '{}'::bigint[]))
+     and user_id = auth.uid()
+     and thanked_at is null;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+revoke execute on function so7_ack_bug_report(bigint[]) from public;
+grant execute on function so7_ack_bug_report(bigint[]) to authenticated;
+
+-- ③ 管理者が「直った内容」を書く。空文字を渡したら消す（通知を取り消せるように）。
+--    あわせて対処済みにもする（書いたのに未対処のまま、という食い違いを作らない）。
+create or replace function so7_set_bug_report_note(p_id bigint, p_note text)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n integer;
+  v_note text;
+begin
+  if (auth.jwt() ->> 'email') not in ('asobuzz.asobazunihairarenai@gmail.com','shogoshogo0929@gmail.com') then
+    return 0;
+  end if;
+  v_note := nullif(btrim(coalesce(p_note, '')), '');
+  update so7_bug_reports
+     set fixed_note = v_note,
+         resolved = case when v_note is null then resolved else true end
+   where id = p_id;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+revoke execute on function so7_set_bug_report_note(bigint, text) from public;
+grant execute on function so7_set_bug_report_note(bigint, text) to authenticated;
+
+-- ④ 管理者の一覧にも「直った内容」と「本人が見たか」を出す（列を増やすので drop → 作り直し）。
+--    列は**末尾に足す**（既存の呼び出し側は列名で読むので、増えても壊れない）。
+drop function if exists so7_get_admin_bug_reports();
+create or replace function so7_get_admin_bug_reports()
+returns table (
+  id bigint,
+  created_at timestamptz,
+  email text,
+  display_name text,
+  comment text,
+  action_log text,
+  console_log text,
+  context jsonb,
+  resolved boolean,
+  fixed_note text,
+  thanked_at timestamptz,
+  has_account boolean
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select b.id, b.created_at, u.email, p.display_name,
+         b.comment, b.action_log, b.console_log, b.context, b.resolved,
+         b.fixed_note, b.thanked_at, (b.user_id is not null) as has_account
+  from so7_bug_reports b
+  left join auth.users u on u.id = b.user_id
+  left join so7_user_profiles p on p.user_id = b.user_id
+  where (auth.jwt() ->> 'email') in ('asobuzz.asobazunihairarenai@gmail.com','shogoshogo0929@gmail.com')
+  order by b.created_at desc
+$$;
+revoke execute on function so7_get_admin_bug_reports() from public;
+grant execute on function so7_get_admin_bug_reports() to authenticated;

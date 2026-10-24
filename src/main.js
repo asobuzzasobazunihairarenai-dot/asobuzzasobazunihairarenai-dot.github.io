@@ -62,6 +62,7 @@ import {
   noteHandEffectProgress,
   isMovePhaseActive,
   markPhaseMoveActionTaken,
+  clearPhaseMoveActionTaken,
   notePublicDrawForHandPhase,
   setTurnAnnounceActive,
   getCurrentPhase,
@@ -332,6 +333,7 @@ import {
   onAuthChange,
   fetchMyTitleKey,
   fetchAndHydrate,
+  isSeatAlive,
   onGateInvasionEvents,
   broadcastContactTackle,
   onContactTackleEvents,
@@ -430,7 +432,7 @@ function cardDisplayName(cardId) {
   return getCardName(cardId) || getCardDefinition(cardId)?.name || cardId;
 }
 import { isBoardIllustOnly } from "./board-card-display.js";
-import { invalidateBoard3d, flushBoard3d } from "./board-3d-setting.js";
+import { invalidateBoard3d, flushBoard3d, noteBoard3dTransform } from "./board-3d-setting.js";
 // 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
 import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, isCinematicCameraHome, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
@@ -459,6 +461,36 @@ import {
 let setupPendingTokenIds = new Set();
 function setSetupPendingTokenIds(ids) {
   setupPendingTokenIds = ids;
+}
+
+// 【続き608・ユーザー報告】「ジャンプなどのアクション時にカメラが駒に寄るけど、その際の
+// 最初に駒が普通に一瞬移動したのち、移動前のマスにシュって戻ってジャンプの演出します」。
+// 駒の移動は ①state を動かす ②render() ③演出が駒を隠してゴーストを出発点から飛ばす
+// の順で進む。②と③の間で画面が1回でも描かれると、**駒が先に移動先へ現れてから出発点へ
+// 戻る**ことになる。描かれる隙は実際に2か所あった:
+//   ・ディメンションのワープは、カメラが寄る 380ms を render() の**後ろ**で待っていた
+//     （実測で、実物の駒が移動先に見えたまま寄りが終わるのを待っていた＝続き608の計測）。
+//   ・オンラインは moveToken の往復中に**自分の操作のこだま**（state_changed broadcast）が
+//     戻ってきて、fetchAndHydrate が同期的に hydrate→subscribe(render) まで走る
+//     （online.js の state_changed ハンドラのコメント「取り直しは同期的に描き直しまで
+//     走るので、後から隠しても必ず一度は描かれてしまう」と同じ現象）。
+// そこで、移動を確定させている間だけ**汎用の描き直しを据え置く**。DOM は移動前のまま＝
+// 駒は出発点に見えたままなので、演出がそこからゴーストを飛ばせば continuity が切れない。
+// suppressGenericRenderForDrawFlight（ドロー演出の前に札が手札へ現れていた件）と同じやり方。
+// 入れ子になり得る（効果の移動の中で更に移動が起きる）ので数で持つ。
+let pieceFlightRenderHolds = 0;
+function isPieceFlightRenderHeld() {
+  return pieceFlightRenderHolds > 0;
+}
+// 戻し忘れると盤面が更新されなくなるので、必ず finally で呼ぶ。2回呼んでも安全。
+function holdGenericRenderForPieceFlight() {
+  pieceFlightRenderHolds++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    pieceFlightRenderHolds = Math.max(0, pieceFlightRenderHolds - 1);
+  };
 }
 
 // side引数は常に「実際の物理side」（ゲート/座席と紐づく本当のside）を渡す。
@@ -877,7 +909,10 @@ function buildPlayerZone(side, player, isSelf) {
     if (isSpectatingGame()) {
       // 観戦中は「自分の座席」の概念を使わない。allモードは全プレイヤーの手札を表向き
       // （god-view）、publicモードは全て裏向き（公開情報のみ）。自分専用の演出は付けない。
-      if (spectateAll && token.cardId) {
+      // 「視点の人の手札だけ」がONなら、表向きにするのは見ている席だけにする。
+      // isSelf は buildPlayerZone(side, seat, self === seat) 由来で、**観戦中の self は
+      // 『見ている席』**（online.js の getSelfSeat 参照）＝ここでは「視点の人か」と同じ意味。
+      if (spectateAll && token.cardId && (!isSpectateOneHand() || isSelf)) {
         cardEl.className = "hand-card is-self";
         showCardFace(cardEl, token.cardId, getCardImagePath(token.cardId));
       } else {
@@ -1779,47 +1814,57 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
       ? `url("${getCardImagePath(movingToken.cardId)}")`
       : `url("${getCardBackImagePath(movingToken.cardId)}")`
     : null;
-  if (isOnlineMode()) {
-    try {
-      // 【#285】印は送信より前に付ける（理由は self-handled-tokens.js の冒頭）。
-      markSelfHandled([tokenId]);
-      await moveToken(tokenId, location, suppressArrival);
-      await fetchAndHydrate(getCurrentGameId());
-    } catch (err) {
-      console.error("moveAndSyncForEffect failed", err);
-    }
-  } else {
-    moveToken(tokenId, location, suppressArrival);
-  }
-  if (soundName) playSound(soundName);
-  // 【ユーザー要望2026-09-05】カード効果による駒の移動（ジャンプ台・試練の儀式・コノハナサクヤ・
-  // ゴメンナサイ等）にも移動演出を付ける（続き406では通常の移動だけだった）。距離で見え方を
-  // 変える: 1マス=ぴょんと跳ねる／2〜3マス=高く長く跳ぶ（ジャンプ台）／4マス以上＝ワープ
-  // （自分のゲートへ戻る等、盤面を横断する移動を跳ねさせると間延びするため）。
-  // animOpts.skipPieceMove: マスチェンジの入れ替えのように、専用の演出を別に持つ経路用。
-  if (
+  // 【続き608】この移動にも跳ねる演出が付くなら、確定させている間は汎用の描き直しを
+  // 据え置く（理由は holdGenericRenderForPieceFlight のコメント）。オンラインは往復中に
+  // 自分の操作のこだまが戻ってきて、演出の前に駒が移動先へ描かれてしまう。
+  const willAnimateMove =
     movingToken?.kind === "piece" &&
     fromLocation?.zone === "cell" &&
     location?.zone === "cell" &&
-    !animOpts?.skipPieceMove
-  ) {
-    const dist = Math.abs(location.row - fromLocation.row) + Math.abs(location.col - fromLocation.col);
-    // 【演出・2026-09-06】結ばれの一本桜 コノハナサクヤ（相手を自分の周囲へ引き寄せる）。
-    // マスチェンジには駒と駒をつなぐ電撃のアークがあるのに、こちらは説明モーダルが出るだけだった。
-    // 桜のカードなので電撃は流用せず、**花びらが舞って手繰り寄せる**形にする。移動そのものは
-    // この後の跳ねる演出が担うので、ここでは「引き寄せる糸」だけを先に見せて重ならないようにする。
-    if (currentEffectCardIdForReason === "eternal-pink") {
-      // 追色コストで捨てた札の霧散演出が、まだ画面の真ん中を覆っていることがある（実測で
-      // 桜がその裏に隠れていた。あちらは全画面のキャンバスで、投げっぱなしで再生される）。
-      // 終わるのを少しだけ待ってから出す。上限は必ず置く——待ち続けて効果が止まる方が実害が大きい。
-      await waitForCardDissolveToClear(1800);
-      playKonohanaPull(fromLocation, location);
-      await new Promise((r) => setTimeout(r, KONOHANA_PULL_LEAD_MS));
+    !animOpts?.skipPieceMove;
+  const releaseFlightHold = willAnimateMove ? holdGenericRenderForPieceFlight() : () => {};
+  try {
+    if (isOnlineMode()) {
+      try {
+        // 【#285】印は送信より前に付ける（理由は self-handled-tokens.js の冒頭）。
+        markSelfHandled([tokenId]);
+        await moveToken(tokenId, location, suppressArrival);
+        await fetchAndHydrate(getCurrentGameId());
+      } catch (err) {
+        console.error("moveAndSyncForEffect failed", err);
+      }
+    } else {
+      moveToken(tokenId, location, suppressArrival);
     }
-    // 演出は「移動後の駒のDOM位置」を着地点として測るので、先に描き直しておく
-    // （この関数は dispatch しても自動では render しない＝performPhaseMoveToCell と同じ作法）。
-    render();
-    await playPieceMoveAnimation(tokenId, fromLocation, { style: dist >= 4 ? "warp" : dist >= 2 ? "jump" : "hop" });
+    if (soundName) playSound(soundName);
+    // 【ユーザー要望2026-09-05】カード効果による駒の移動（ジャンプ台・試練の儀式・コノハナサクヤ・
+    // ゴメンナサイ等）にも移動演出を付ける（続き406では通常の移動だけだった）。距離で見え方を
+    // 変える: 1マス=ぴょんと跳ねる／2〜3マス=高く長く跳ぶ（ジャンプ台）／4マス以上＝ワープ
+    // （自分のゲートへ戻る等、盤面を横断する移動を跳ねさせると間延びするため）。
+    // animOpts.skipPieceMove: マスチェンジの入れ替えのように、専用の演出を別に持つ経路用。
+    if (willAnimateMove) {
+      const dist = Math.abs(location.row - fromLocation.row) + Math.abs(location.col - fromLocation.col);
+      // 【演出・2026-09-06】結ばれの一本桜 コノハナサクヤ（相手を自分の周囲へ引き寄せる）。
+      // マスチェンジには駒と駒をつなぐ電撃のアークがあるのに、こちらは説明モーダルが出るだけだった。
+      // 桜のカードなので電撃は流用せず、**花びらが舞って手繰り寄せる**形にする。移動そのものは
+      // この後の跳ねる演出が担うので、ここでは「引き寄せる糸」だけを先に見せて重ならないようにする。
+      if (currentEffectCardIdForReason === "eternal-pink") {
+        // 追色コストで捨てた札の霧散演出が、まだ画面の真ん中を覆っていることがある（実測で
+        // 桜がその裏に隠れていた。あちらは全画面のキャンバスで、投げっぱなしで再生される）。
+        // 終わるのを少しだけ待ってから出す。上限は必ず置く——待ち続けて効果が止まる方が実害が大きい。
+        await waitForCardDissolveToClear(1800);
+        playKonohanaPull(fromLocation, location);
+        await new Promise((r) => setTimeout(r, KONOHANA_PULL_LEAD_MS));
+      }
+      // 演出は「移動後の駒のDOM位置」を着地点として測るので、先に描き直しておく
+      // （この関数は dispatch しても自動では render しない＝performPhaseMoveToCell と同じ作法）。
+      // この直後の playPieceMoveAnimation が**同じ処理の中で**駒を隠すので、間に画面は描かれない。
+      releaseFlightHold();
+      render();
+      await playPieceMoveAnimation(tokenId, fromLocation, { style: dist >= 4 ? "warp" : dist >= 2 ? "jump" : "hop" });
+    }
+  } finally {
+    releaseFlightHold(); // 途中で抜けた経路でも必ず戻す（戻し忘れると盤面が更新されなくなる）
   }
   // #163: 呼び出し側が露出到達コンボを別途（明示的に順序制御して）発動する場合は、ここでの
   // 自動発動を抑止する（例: マスチェンジ自身の回収時。回収の露出コンボでB(相手)の到達がA(発動者)
@@ -6057,6 +6102,55 @@ async function playPieceMoveAnimation__inner(pieceId, fromLocation, animOpts = {
   }
 }
 
+// 【#407・2026-10-12】**オンラインの移動が本当に反映されたか**を、先へ進む前に確かめる。
+// ユーザー報告（まっちゃん）「ムーブフェイズにその場から移動できず移動先のカードだけめくれて
+// 効果が発動しなかった」。報告のログの決め手はこの1行:
+//   arrival: {"cardId":"purple-trial-ritual","location":{"zone":"cell","row":4,"col":0},
+//             "player":null,"self":"B","auto":false,"depth":1}
+// **player が null** ＝ triggerCardArrival が getPieceOwnerAt(location) を引いた時点で、その
+// マスに駒が居なかった。つまり moveToken は例外を投げずに戻ったのに、取り直した状態では駒が
+// 移動先に居ない。それでも performPhaseMoveToCell はそのまま先へ進むので、
+//   ①移動先のカードだけ表向きになる（全員に見える＝情報が只で漏れる）
+//   ②到達効果は player が null なので動かない（auto:false・手札に加えるボタンも出ない）
+//   ③「1手を使った」印は立っているので、そのままターンが終わる
+// という、報告の文面そのままの壊れ方になる。**なぜ適用されなかったのかはログからは確定
+// できなかった**（moveToken は投げておらず、コンソールにもエラーは無い）ので、原因の方は
+// diag-move-not-applied を残して次の報告で切り分ける。ここで直すのは「確かめずに先へ進む」方。
+function pieceIsAt(pieceId, location) {
+  const l = getState().tokens.find((x) => x.id === pieceId)?.location;
+  return !!l && l.zone === location.zone && l.row === location.row && l.col === location.col;
+}
+async function confirmPieceLandedOnline(pieceId, location, player) {
+  if (pieceIsAt(pieceId, location)) return true;
+  const where = () => getState().tokens.find((x) => x.id === pieceId)?.location ?? null;
+  // **一度だけ取り直してから判定する**——手元の状態が古いだけのことがあるため。その場合は
+  // ここで直って、そのまま通常どおり（カードをめくる→到達効果）へ進む。
+  logAction("diag-move-not-applied", { phase: "refetch", pieceId, want: location, got: where() });
+  try {
+    await fetchAndHydrate(getCurrentGameId());
+  } catch (err) {
+    console.error("confirmPieceLandedOnline refetch failed", err);
+  }
+  if (pieceIsAt(pieceId, location)) {
+    logAction("diag-move-not-applied", { phase: "recovered", pieceId, want: location });
+    render();
+    return true;
+  }
+  logAction("diag-move-not-applied", { phase: "confirmed", pieceId, want: location, got: where(), player });
+  // サーバーから取り直した状態でも駒が移動先に居ない＝この移動は適用されていない。**その状態が
+  // 正**なので、1手を使った印を戻してもう一度動けるようにする（取り直した状態が「まだ動いて
+  // いない」と言っているのだから、それに合わせるのが、サーバーといちばん食い違わない）。
+  clearPhaseMoveActionTaken("move-not-applied");
+  render();
+  document.getElementById("move-failed-label")?.remove();
+  const label = document.createElement("div");
+  label.id = "move-failed-label";
+  label.className = "board-flash-label is-move-failed";
+  label.textContent = t("game.move.notApplied");
+  document.body.appendChild(label);
+  setTimeout(() => label.remove(), 3400);
+  return false;
+}
 async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
   // actingSeat: 通常は自分の席。ローカルCPU戦では自動処理がCPU(C)の席を渡してくる。
   const player = actingSeat;
@@ -6072,6 +6166,11 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
   // （beginPostMoveArrivalGuard参照）。着地先のカードがオンライン再同期を挟んで
   // triggerCardArrivalに至るまでの間、到達処理中扱いにしておく。finallyで必ず解除する。
   beginPostMoveArrivalGuard();
+  // 【続き608】移動を確定させている間は汎用の描き直しを据え置く（理由は
+  // holdGenericRenderForPieceFlight のコメント）。オンラインは往復中に自分の操作の
+  // こだまが戻ってきて、演出が始まる前に駒が移動先へ描かれてしまう。
+  const willAnimateMove = moveFrom?.zone === "cell" && location?.zone === "cell";
+  const releaseFlightHold = willAnimateMove ? holdGenericRenderForPieceFlight() : () => {};
   try {
     if (isOnlineMode()) {
       try {
@@ -6085,14 +6184,16 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
         await fetchAndHydrate(getCurrentGameId());
       } catch (err) {
         console.error("performPhaseMoveToCell failed", err);
+        releaseFlightHold(); // 据え置きを戻してから描き直す
         render();
         return;
       }
+      // 【#407】ここまでで駒が移動先に居なければ、カードをめくる前に止める（上の説明参照）。
+      if (!(await confirmPieceLandedOnline(piece.id, location, player))) return;
     } else {
       moveToken(piece.id, location);
     }
     playSound("piecePlace");
-    render();
     // 「一瞬で次のマスに現れる」のを避け、実際に移動して見えるようにする。到達効果は
     // この演出が終わってから始まる（動き終わってから効果が出る方が分かりやすい）。
     // 【ユーザー要望2026-09-05】紫のキューブ ディメンションで移動範囲が伸びている時は、
@@ -6101,6 +6202,10 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     // 【#379】ディメンションで伸びた移動（ワープ）だけはカメラが寄る。通常の移動は毎ターン
     // 起きるので決め所に入れていない（続き547）が、こちらは限られた場面の特別な移動。
     // 現れる側（移動先のマス）に寄せる。つまみで「寄り1・角度0」にすればここだけ切れる。
+    // 🔴【続き608】**この寄りは render() より前に待つ**。後ろに置くと、寄っている 380ms の間
+    // ずっと「駒が移動先に居る」絵が見えてしまい、演出が始まった瞬間に出発点へ戻る
+    // （ユーザー報告の「シュって戻ってジャンプの演出」。実測で 1 回の寄りぶん丸ごと漏れていた）。
+    // 寄り先は**移動先のマス**なので、まだ描き直していない盤面でも同じ位置に在る＝測れる。
     if (moveStyle === "warp" && cinematicAllows("highlight")) {
       const tu = getCinematicTuning();
       if (!cinematicShotOff(tu.warpZoom, tu.warpYaw, tu.warpTilt)) {
@@ -6109,6 +6214,10 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
         if (destEl) await focusCameraOnElement(destEl, { zoom: tu.warpZoom, ms: 380, yaw: tu.warpYaw, tilt: tu.warpTilt });
       }
     }
+    // 演出は「移動後の駒のDOM位置」を着地点として測るので、ここで描き直す。この直後の
+    // playPieceMoveAnimation が**同じ処理の中で**駒を隠すので、間に画面は描かれない。
+    releaseFlightHold();
+    render();
     await playPieceMoveAnimation(piece.id, moveFrom, { style: moveStyle });
     // 戻りは予約にする（続けて到達効果が動くなら、その寄りが取り消す＝寄ったまま繋がる）。
     if (moveStyle === "warp") scheduleCameraHome(900);
@@ -6141,6 +6250,7 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     if (freshCard) triggerCardArrival(freshCard.cardId, location, () => fireAnytimeCheckpoint(player));
     else fireAnytimeCheckpoint(player);
   } finally {
+    releaseFlightHold(); // 途中で抜けた経路でも必ず戻す（戻し忘れると盤面が更新されなくなる）
     endPostMoveArrivalGuard();
   }
 }
@@ -6322,6 +6432,16 @@ function pickRandomFrom(arrayOrSet) {
 // 自動で流すため、その時だけ今のターンプレイヤーを対象にする（phase-automation.js側の
 // getAutoDriveSeatと同じ考え方。ここでは移動・ロック・接触の実行対象席として使う）。
 function getAutoDriveSeat() {
+  // 🔴【2026-10-24・ユーザー報告「観戦中にプレイヤーの色選択モーダルが出て選べる状態でした」】
+  // **観戦者はどの席も代行しない。** `getSelfSeat()` は観戦中「**見ている席**」を返す
+  // （online.js のコメント「観戦中は座席を持たないが、盤面をどのプレイヤー視点で描くか…
+  // 操作は全てブロックされる」）。ここがそれを返していたため、**見ている人の到達効果を
+  // 観戦者の画面が自分の仕事だと思って走らせ**、色宣言のモーダルまで出して選べてしまった。
+  // しかも宣言は `broadcastColorsDeclared` で全員へ流れるので、**観戦者が対局に口を出せる**。
+  // ⚠ これは 2026-09-21 に**接触の承認**と**最後のロックの承認**で直したのと同じ系統
+  // （ユーザーも『前もあった気がする』と言っている）。あの時は2か所に守りを足したが、
+  // **効果を走らせる側（ここ）には足していなかった**。
+  if (isSpectatingGame()) return null;
   if (isCpuBattleActive() && !isOnlineMode()) return getState().turnPlayer || getSelfSeat();
   return getSelfSeat();
 }
@@ -6412,6 +6532,8 @@ setInterval(() => {
 }, 500);
 
 export function performPriorityTimeoutAutoAction() {
+  // 観戦者は誰の代行もしない（上の getAutoDriveSeat 参照）。null が流れ込む前にここで止める。
+  if (isSpectatingGame()) return false;
   // ローカルCPU戦ではCPU(C)の番を、それ以外は自分の席を代行する。
   const driveSeat = getAutoDriveSeat();
   if (activeEffectPicker) {
@@ -12000,6 +12122,26 @@ let suppressGenericRenderForContactTackle = false;
 // 先回りして実カードを手札に描いてしまっていた。着地後の手動render()まで抑止する。
 let suppressGenericRenderForDrawFlight = false;
 
+// 【2026-10-24・ユーザー要望】「観戦モードの時はその視点プレイヤーの手札が見えるように
+// 選べるといいかも！」。**案A（画面側だけ）**で入れた——「すべて」モードは元から全員の手札が
+// 見えているので、**表向きにするのを『視点の人』だけに絞る**（情報の出方は1ミリも変わらない）。
+// 🔴 **案B（『公開情報のみ』の部屋で1人分だけ届ける）は採らなかった**: 手札の中身は
+// **サーバーが送る段階で伏せられている**ので、そもそも届いていない＝サーバーの改修が要る。
+// しかも観戦者は**視点を自由に切り替えられる**ので、「視点の人だけ見える」＋「切り替え自由」
+// ＝結局全員の手札が見えることになる（視点の固定か部屋の許可制とセットでないと成立しない）。
+// ユーザーに A/B を出して **A** を選んでもらった。
+const SPECTATE_ONE_HAND_KEY = "so7-spectate-one-hand";
+let spectateOneHand = (() => {
+  try { return localStorage.getItem(SPECTATE_ONE_HAND_KEY) === "1"; } catch { return false; }
+})();
+function isSpectateOneHand() {
+  return spectateOneHand;
+}
+function setSpectateOneHand(v) {
+  spectateOneHand = !!v;
+  try { localStorage.setItem(SPECTATE_ONE_HAND_KEY, spectateOneHand ? "1" : "0"); } catch { /* 覚えられなくても動く */ }
+}
+
 // 観戦中の告知バナー（ユーザー要望）。観戦モード（すべて/公開）を表示し、観戦をやめる導線を出す。
 let spectatorBannerEl = null;
 function updateSpectatorBanner() {
@@ -12052,6 +12194,21 @@ function updateSpectatorBanner() {
           seatsEl.appendChild(btn);
         }
       }
+    }
+    // 「視点の人の手札だけ表向き」の切り替え。**全員の手札が見える『すべて』モードの時だけ出す**
+    // （『公開情報のみ』では元から全部裏向きなので、出しても何も変わらず紛らわしい）。
+    if (spectatorBannerEl._oneHandBtn) spectatorBannerEl._oneHandBtn.remove();
+    if (getSpectateMode() === "all") {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "spectator-banner-seat" + (isSpectateOneHand() ? " is-current" : "");
+      btn.textContent = isSpectateOneHand() ? t("game.spectate.oneHandOn") : t("game.spectate.oneHandOff");
+      btn.addEventListener("click", () => {
+        setSpectateOneHand(!isSpectateOneHand());
+        render();
+      });
+      spectatorBannerEl._seats.after(btn);
+      spectatorBannerEl._oneHandBtn = btn;
     }
     spectatorBannerEl.style.display = "flex";
   } else if (spectatorBannerEl) {
@@ -12505,6 +12662,10 @@ function writeTableTransform(override) {
     flat,
     c.yaw || 0,
   );
+  // 【2026-10-18】**書いた瞬間**を board-3d へ知らせる（ユーザー報告「マットだけ動いて、
+  // 少し後に駒がジャンプする」を実機で測るため）。DOM はここで動くので、ここから
+  // 「WebGLがその変形で描き終える」までがズレの長さになる。記録に出すだけで、描き方は変えない。
+  noteBoard3dTransform(table.style.transform);
   // 【2026-10-06】カメラが原点へ**戻り切った瞬間**に、画面に合わせる計算をやり直す。
   // 寄っている間は手札の寄せとミニロックエリアを止めてあるので（#370・#373）、戻った時に
   // 1回だけ正しい画角で測り直す必要がある。**ここが全てのカメラ変更が通る1か所**なので、
@@ -12815,6 +12976,23 @@ window.addEventListener("so7:preview-final-lock", () => {
 // 効果が連鎖すると移動が何回も続く（試練の儀式・増殖する樹々など）。1回ごとに寄って戻ってを
 // 繰り返すと待ち時間だけ増えるので、**戻りは予約にして、次の寄りが来たら取り消す**。
 // 結果として「連続する間は寄ったまま、終わってから1回だけ戻る」動きになる。
+//
+// 【続き608・ユーザー報告】「駒のアクションが完全に終わる前にカメラが戻るので、駒が変な位置で
+// アクションしてしまってます」。🔴 **飛翔ゴースト（.piece-hop-ghost ほか）は `position: fixed` で
+// body（＝ステージ）の上に置かれていて、カメラ変形は `#game-table` にしか掛かっていない。**
+// つまりゴーストはカメラの外に居る。出発点・着地点はゴーストを作る瞬間に1回だけ測るので、
+// **飛んでいる最中にカメラが動くと、盤面だけがずれてゴーストは古い座標のまま着地する**
+// ＝「変な位置でアクションする」。
+// 予約が演出に食い込む経路は実際にいくつもある: 効果による移動（moveAndSyncForEffect）は
+// **#370 以来、移動が始まる前に 1200ms の戻りを予約している**（到達効果の途中でプレイヤーに
+// 選択を聞くと、答えるまで寄りっぱなしで盤面がずれたまま固まるため）。ところがジャンプは 675ms
+// かかり、オンラインは送信の往復が、コノハナサクヤは霧散待ち（最大1800ms）が前に挟まる。
+// 連鎖の途中の寄らない手（cinematicAllows が偽の場面）でも、前の予約がそのまま残る。
+// 🔴 **だから「予約の時間を調整する」のでは足りない。発火する瞬間に『いま演出中か』を見る。**
+// `isBoardAnimationPlaying()` は駒の飛翔・接触のタックル・ゲート侵攻の奪取・エターナル獲得など
+// **withBoardAnimation で包まれた演出すべて**で立つので、1か所でまとめて守れる。
+// 止まらない心配は無い——あちらは取り残されたフラグを自力で下ろす（anim-gate.js の STUCK_MS）。
+const CAMERA_HOME_RETRY_MS = 150; // 演出中だった時に、もう一度見に来る間隔
 let cameraHomeTimer = null;
 function cancelScheduledCameraHome() {
   if (cameraHomeTimer) {
@@ -12826,6 +13004,12 @@ function scheduleCameraHome(delay = 700, ms = 420) {
   cancelScheduledCameraHome();
   cameraHomeTimer = setTimeout(() => {
     cameraHomeTimer = null;
+    // 演出の最中なら戻らずに待ち直す（上の説明）。新しい寄りが来れば取り消されるので、
+    // 待ち直しが残り続けることはない。
+    if (isBoardAnimationPlaying()) {
+      scheduleCameraHome(CAMERA_HOME_RETRY_MS, ms);
+      return;
+    }
     void cameraHome(ms);
   }, delay);
 }
@@ -12841,8 +13025,18 @@ function scheduleCameraHome(delay = 700, ms = 420) {
 // ・3D変形（perspective+rotateX）の中では「1px寄せたら画面上で何px動くか」が座席ごとに違う
 //   ので、計算では求めず2点を実測して比例で解く（撤去した倍率ループと同じ考え方）。
 const HAND_NUDGE_PROBE_PX = 24; // 反応の傾きを測るための試しずらし量
+// 【2026-10-19】**固定オーバーレイの中の手札も必ず取り消す。**
+// 「手札を画面下に固定する」が ON の間、自分の手札は #game-table の外（#self-hand-overlay）へ
+// 移される（syncFixedHandOverlay）。寄せの計算も取り消しも **盤面の中しか見ていなかった**ので、
+// 🔴 **ONにした時点で付いていた寄せの値がそのまま凍りつき、以後どれだけ画面が変わっても戻らなかった**
+// （ユーザー報告「手札が途中からこの位置になってしまうことがあります」）。.hand-area は
+// 作り直されずに使い回される要素なので、一度付いた値は永久に残る（実測で確認）。
+// オーバーレイの中は画面に対する固定配置で、ステージの枠を基準にした寄せは意味を持たないため、
+// **見つけたら常に外す**のが正しい。
 function clearHandStageNudges(table) {
-  for (const area of table.querySelectorAll(".hand-area")) {
+  const areas = [...table.querySelectorAll(".hand-area")];
+  if (selfHandOverlayEl) areas.push(...selfHandOverlayEl.querySelectorAll(".hand-area"));
+  for (const area of areas) {
     if (area.style.translate) area.style.translate = "";
   }
 }
@@ -13797,7 +13991,12 @@ function syncFixedHandOverlay(table) {
   selfHandOverlayEl.style.display = "";
   const self = getSelfSeat();
   const handArea = table.querySelector(`.hand-area[data-player="${self}"]`);
-  if (handArea) selfHandOverlayEl.appendChild(handArea);
+  if (handArea) {
+    // 盤面の中で付いた寄せ（nudgeHandsIntoStage）は、画面固定のこちらでは意味を持たない。
+    // 持ち込むと、この後どこからも取り消されずに残り続ける（上の clearHandStageNudges 参照）。
+    handArea.style.translate = "";
+    selfHandOverlayEl.appendChild(handArea);
+  }
   const revealArea = table.querySelector(`.hand-reveal-area[data-player="${self}"]`);
   if (revealArea) selfHandOverlayEl.appendChild(revealArea);
 }
@@ -16627,7 +16826,25 @@ async function flushPendingTurnEndDiscards(player) {
   pendingTurnEndDiscards.delete(player);
   // 既に何らかの理由で盤面/publicDrawゾーンから無くなっている可能性もゼロではないため
   // （善処の原則）、現存するトークンだけを対象にする。
-  let ids = [...set].filter((id) => getState().tokens.some((t) => t.id === id));
+  // 🔴【#421・2026-10-19】**もう使ったカードは対象外にする。**
+  // ヴァーディアンの「ターン終了時、それらを捨てる」の『それら』は、**まだ公開ドロー置き場に
+  // 残っているもの**のこと。ところがここは「そのトークンがまだ存在するか」しか見ていなかったので、
+  // **公開ドローした札をそのターン中に使ってしまうと、置いた先から引き剥がして捨てていた**。
+  // ユーザー報告「罠をおいたのに、そのしたにあったプレゼントの効果が発動されてて」がこれ——
+  // 公開ドローで出た「選べる罠」を盤面へ伏せて置いた直後、ターン終了時にその罠だけが捨て場へ
+  // 消え、次に誰かがそのマスへ来た時は**下に居たカード（プレゼント）が一番上になって発動**した。
+  // 残すのは「公開ドロー置き場に在る」か「その人の手札に在る」もの（手札はターン終了時に
+  // 公開ドローが合流する先なので、まだ使っていないのと同じ扱い）。盤面・ロック・捨て場へ
+  // 行ったものは**使い終わっている**ので触らない。
+  const stillUnused = (tk) =>
+    tk && tk.location?.player === player && (tk.location.zone === "publicDraw" || tk.location.zone === "hand");
+  let ids = [];
+  for (const id of set) {
+    const tk = getState().tokens.find((t) => t.id === id);
+    if (!tk) continue;
+    if (stillUnused(tk)) ids.push(id);
+    else logAction("diag-turn-end-discard-skipped", { tokenId: id, cardId: tk.cardId ?? null, zone: tk.location?.zone ?? null });
+  }
   // 【#357】2枚以上をまとめて捨てる時は、本人に順番を選んでもらう。ユーザー報告は
   // 「ヴァディアンで引いたカードを2枚捨てる時、順番を指定できるように！」——ヴァーディアン
   // （first-green）がこの経路。※マンズウッド（eternal-green）は「【追色１】１枚ドロー。」で
@@ -18482,6 +18699,9 @@ function checkContactStuckApprove() {
 // queue の先頭を1つ進めるだけなので**Edge Function の変更は不要**。承認者が複数いる
 // 3・4人戦では、この砦が順番に効いて最後まで進む。
 const FINAL_LOCK_STUCK_APPROVE_MS = 60000;
+// 生存を確かめられなかった時に、それでも救済するまでの待ち時間（迷ったら遅い方へ倒す）。
+const FINAL_LOCK_STUCK_UNKNOWN_MS = 180000;
+let finalLockStuckCheckInFlight = false;
 let finalLockStuckKey = "";
 let finalLockStuckSince = 0;
 function checkFinalLockStuckApprove() {
@@ -18498,16 +18718,60 @@ function checkFinalLockStuckApprove() {
     finalLockStuckSince = Date.now();
     return;
   }
+  // 自分がゴメンナサイを処理している最中は、この救済も撃たない（45秒側と同じ理由）。
+  if (gomennasaiManualUseInFlight || gomennasaiAutoApprovalInFlight || cpuFinalLockInFlight) {
+    finalLockStuckSince = Date.now();
+    return;
+  }
   if (Date.now() - finalLockStuckSince < FINAL_LOCK_STUCK_APPROVE_MS) return;
-  finalLockStuckSince = Date.now(); // 連続発火を防ぐ
-  logAction("diag-final-lock-stuck-approve", {
-    attacker: pending.attacker,
-    approver: pending.queue[0],
-    selfSeat: getSelfSeat(),
-    iAmApprover: getSelfSeat() === pending.queue[0],
-    waitedMs: FINAL_LOCK_STUCK_APPROVE_MS,
-  });
-  respondFinalLock(true);
+  // 🔴【#416/#417・2026-10-16】**撃つ前に、承認者が本当に止まっているかを確かめる。**
+  // この救済の目的は上のコメントのとおり「その人の通信が切れていれば誰も解決できない」
+  // なのに、**切れているかを確かめずに時間だけで撃っていた**。そのため、ゴメンナサイを
+  // じっくり選んでいる**生きている人**まで撃ってしまい、勝敗が狂っていた。
+  // 各席は25秒ごとに so7_game_seats.last_seen を更新し続けるので、**選んでいる最中でも
+  // 生きていれば新しいまま**。これで「本当に落ちた人」だけを対象にできる。
+  // 読み取りは非同期なので、重なって何度も走らないように印を立てる。
+  if (finalLockStuckCheckInFlight) return;
+  finalLockStuckCheckInFlight = true;
+  const attackerAtCheck = pending.attacker;
+  const approverAtCheck = pending.queue[0];
+  void (async () => {
+    let alive = null;
+    try {
+      alive = await isSeatAlive(approverAtCheck);
+    } catch (_) {
+      alive = null;
+    } finally {
+      finalLockStuckCheckInFlight = false;
+    }
+    // 待っている相手が変わっていたら、この結果はもう使えない。
+    const now = getState().pendingFinalLock;
+    if (!now || !now.queue || now.queue[0] !== approverAtCheck || now.attacker !== attackerAtCheck) return;
+    const waited = Date.now() - finalLockStuckSince;
+    if (alive === true) {
+      // 生きている＝救済の出番ではない。時計を進めて、また60秒後に見直す。
+      finalLockStuckSince = Date.now();
+      logAction("diag-final-lock-stuck-alive", { attacker: attackerAtCheck, approver: approverAtCheck, waitedMs: waited });
+      return;
+    }
+    // alive === null ＝ **確かめられなかった**。ここで撃つと「読めなかっただけ」で人を
+    // 撃つことになるが、永久に止めると落ちた人が1人いるだけで対局が終わらなくなる。
+    // そこで**待ち時間を長くして**から撃つ（迷った時は遅い方へ倒す）。
+    if (alive === null && waited < FINAL_LOCK_STUCK_UNKNOWN_MS) {
+      logAction("diag-final-lock-stuck-unknown", { attacker: attackerAtCheck, approver: approverAtCheck, waitedMs: waited });
+      return;
+    }
+    finalLockStuckSince = Date.now(); // 連続発火を防ぐ
+    logAction("diag-final-lock-stuck-approve", {
+      attacker: attackerAtCheck,
+      approver: approverAtCheck,
+      selfSeat: getSelfSeat(),
+      iAmApprover: getSelfSeat() === approverAtCheck,
+      waitedMs: waited,
+      approverAlive: alive,
+    });
+    respondFinalLock(true);
+  })();
 }
 
 function checkFinalLockApprovalTimeout() {
@@ -18521,6 +18785,19 @@ function checkFinalLockApprovalTimeout() {
   const key = pending.attacker + "|" + pending.queue[0] + "|" + (pending.tokenId ?? "");
   if (key !== finalLockPromptKey) {
     finalLockPromptKey = key;
+    finalLockPromptSince = Date.now();
+    return;
+  }
+  // 🔴【#416/#417・2026-10-16】**ゴメンナサイを処理している最中は撃たない。**
+  // この守りは checkGomennasaiAutoApproval（#36/#83）に前からあるのに、**あとから足した
+  // この45秒の経路には付け忘れていた**。ゴメンナサイは「奪う札を選ぶ → コストの紫を選ぶ →
+  // 発動宣言と『防いだ！』の演出」と進むので45秒を超えやすく、**本人の画面のタイマーが
+  // 本人を裏切って承認を送り、攻撃側が勝ってしまっていた**（報告 #417。ログでも
+  // diag-final-lock-auto-approve と diag-lock-robbed-notice が同じ秒に並んでいた）。
+  // 承認待ちが先へ進むと、次の人の画面では攻撃側がまだ7色目に届いて見えるので、
+  // **2人目にもゴメンナサイのボタンが出る**（報告 #416）——同じ根。
+  // 時計も進めておく（解決し終わった瞬間に即発火しないように）。
+  if (gomennasaiManualUseInFlight || gomennasaiAutoApprovalInFlight || cpuFinalLockInFlight) {
     finalLockPromptSince = Date.now();
     return;
   }
@@ -19528,8 +19805,11 @@ subscribe(() => {
     // ようにしてください」。turnPlayerの変化はオンライン中も全クライアントに同期される
     // ため、ここで閉じれば「全員」の画面で閉じることになる。使用モーダルも同じ位置・
     // 同じ「消えない」設定を共有するようになった（続き42）ため、一緒に閉じる。
-    hideCardArrivalModalImmediately();
-    hideHandEffectUseModalImmediately();
+    // 【#411・ユーザー要望】「ターン切り替え時、右の拡大カードをフェードアウトで片付けたい」。
+    // ぱっと消えると、何が起きたのか追う間もなく画面から札が無くなる。出てきた時と同じ動きで
+    // 引っ込める（仕組みはモーダル自身が元から持っているものをそのまま使う）。
+    hideCardArrivalModalImmediately({ fade: true });
+    hideHandEffectUseModalImmediately({ fade: true });
     if (isGateInvasionPending() || isGateInvasionQueueActive()) {
       pendingTurnAnnouncePlayer = turnPlayer;
     } else {
@@ -19629,7 +19909,9 @@ function computeStateFingerprint(state) {
 // render()呼び出しはローカルモードのためにそのまま残してある）。上のオンラインゲーム開始
 // アニメーション中だけは、このリスナーの発火をスキップする（理由は上のコメント参照）。
 subscribe(() => {
+  // isPieceFlightRenderHeld: 駒の移動を確定させている間は描き直さない（続き608）。
   if (suppressGenericRenderForOnlineStart || suppressGenericRenderForContactTackle || suppressGenericRenderForDrawFlight) return;
+  if (isPieceFlightRenderHeld()) return;
   const fingerprint = computeStateFingerprint(getState());
   if (fingerprint === lastRenderedFingerprint) return;
   lastRenderedFingerprint = fingerprint;

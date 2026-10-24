@@ -497,7 +497,16 @@ export function initGameBgmAutoStart() {
 // への対応でデフォルトを0.5にした（効果音は毎回new Audio()で鳴らす時に参照するため、
 // この値を変えるだけで次に鳴る音から反映される）。ユーザー要望（2026-07-30）でデフォルトを
 // 0.3（30%）に変更（保存済み設定がある人はそちらが優先されるため、新規/未設定ユーザー向け）。
-let masterVolume = 0.3;
+// 【2026-10-24・続き608】さらに 0.15（15%）へ。ユーザー報告「初プレイの人は音が大きすぎると
+// いわれる方がいました」。🔴 **初回のサウンド設定モーダルは試遊の入口からは出さない**作りなので
+// （main.js の `if (!isTrialEntry()) maybeShowFirstRunBgmModal()`）、**初めて遊ぶ人こそ音量を
+// 調整する画面を一度も見ずにこの既定値で始まる**。だから既定値そのものを下げるのが効く。
+// 🔴 **既定値はここだけに書く。** オプションの「🔊」区画のリセットは別の値（0.8 / 0.5）を
+// 持っていて、**リセットを押すと既定より大きくなる**という食い違いになっていた（既定が 0.5 だった
+// 頃の名残り）。両方からこの定数を読む形にして、二度とズレないようにした。
+export const DEFAULT_SOUND_VOLUME = 0.15;
+export const DEFAULT_BGM_VOLUME = 0.15;
+let masterVolume = DEFAULT_SOUND_VOLUME;
 
 export function getSoundVolume() {
   return masterVolume;
@@ -515,7 +524,8 @@ export function setSoundVolume(next) {
 // そのまま残す（効果音の個別スライダーと同じ「マスター×個別」の二段構え）。
 // デフォルトはユーザー要望（2026-07-30）により0.3（初期音量30%）。保存済み設定がある人は
 // そちらが優先される（新規/未設定ユーザー向けの初期値）。
-let masterBgmVolume = 0.3;
+// 【2026-10-24・続き608】効果音と揃えて 0.15（15%）へ（理由は masterVolume のコメント）。
+let masterBgmVolume = DEFAULT_BGM_VOLUME;
 
 export function getBgmVolume() {
   return masterBgmVolume;

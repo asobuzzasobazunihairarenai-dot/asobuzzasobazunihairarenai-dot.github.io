@@ -282,7 +282,24 @@ async function startStoryBattle(stage, { practice = false } = {}) {
     // 「誘惑の黒の烙印」を置く。myDeckCardsA: 本気戦のデッキ選択ウィンドウで確定したデッキ。
     const beginSetup = (myDeckA = null) => {
       setTimeout(() => {
-        runCpuBattleSetup({ noirSeat: "C", noirBrands: stage === "advanced", myDeck: stage === "advanced", myDeckA, count: 2 }).catch((err) =>
+        runCpuBattleSetup({
+          noirSeat: "C",
+          noirBrands: stage === "advanced",
+          myDeck: stage === "advanced",
+          myDeckA,
+          count: 2,
+          // 🔴【2026-10-16】ユーザー報告「本気のエイドスの時、CPU戦の時の選択（ブーストモードとか
+          // マイデッキ戦とか）が引き継がれちゃってる？」——**そのとおりだった。**
+          // runCpuBattleSetup は渡さなかった項目に**CPU戦モーダルで選んだ設定**を既定で使う。
+          // myDeck と人数は明示していたが、**白黒（無色）とブーストを渡し忘れていた**ので、
+          // 物語戦の中身が「その端末のCPU戦の設定」で変わっていた（実測: ブーストONで白紙カードが
+          // 2枚混ざる／白黒ONで無色が増える）。
+          // 物語戦は**作り込まれた筋書き**（エイドス＝ノワール＋両隣に烙印）なので、**誰がやっても
+          // 同じ戦い**であるべき。設定どうしのぶつかり合いも消える（#391「本気のエイドスがノワールを
+          // 3枚ロックしている」は、まさにブーストONの白紙カードがノワールに変換されていたもの）。
+          includeBlackWhite: false,
+          boost: false,
+        }).catch((err) =>
           console.error("runCpuBattleSetup(story) failed", err)
         );
       }, 60);
