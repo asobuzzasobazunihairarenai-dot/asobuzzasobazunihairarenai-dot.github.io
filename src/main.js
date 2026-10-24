@@ -463,6 +463,36 @@ function setSetupPendingTokenIds(ids) {
   setupPendingTokenIds = ids;
 }
 
+// 【続き608・ユーザー報告】「ジャンプなどのアクション時にカメラが駒に寄るけど、その際の
+// 最初に駒が普通に一瞬移動したのち、移動前のマスにシュって戻ってジャンプの演出します」。
+// 駒の移動は ①state を動かす ②render() ③演出が駒を隠してゴーストを出発点から飛ばす
+// の順で進む。②と③の間で画面が1回でも描かれると、**駒が先に移動先へ現れてから出発点へ
+// 戻る**ことになる。描かれる隙は実際に2か所あった:
+//   ・ディメンションのワープは、カメラが寄る 380ms を render() の**後ろ**で待っていた
+//     （実測で、実物の駒が移動先に見えたまま寄りが終わるのを待っていた＝続き608の計測）。
+//   ・オンラインは moveToken の往復中に**自分の操作のこだま**（state_changed broadcast）が
+//     戻ってきて、fetchAndHydrate が同期的に hydrate→subscribe(render) まで走る
+//     （online.js の state_changed ハンドラのコメント「取り直しは同期的に描き直しまで
+//     走るので、後から隠しても必ず一度は描かれてしまう」と同じ現象）。
+// そこで、移動を確定させている間だけ**汎用の描き直しを据え置く**。DOM は移動前のまま＝
+// 駒は出発点に見えたままなので、演出がそこからゴーストを飛ばせば continuity が切れない。
+// suppressGenericRenderForDrawFlight（ドロー演出の前に札が手札へ現れていた件）と同じやり方。
+// 入れ子になり得る（効果の移動の中で更に移動が起きる）ので数で持つ。
+let pieceFlightRenderHolds = 0;
+function isPieceFlightRenderHeld() {
+  return pieceFlightRenderHolds > 0;
+}
+// 戻し忘れると盤面が更新されなくなるので、必ず finally で呼ぶ。2回呼んでも安全。
+function holdGenericRenderForPieceFlight() {
+  pieceFlightRenderHolds++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    pieceFlightRenderHolds = Math.max(0, pieceFlightRenderHolds - 1);
+  };
+}
+
 // side引数は常に「実際の物理side」（ゲート/座席と紐づく本当のside）を渡す。
 // ロックエリア自体の判定（トークンのdataset.side・手番ハイライト）は全てこのsideを使う。
 // stepsはビューア視点回転量（main.jsのrender()参照）で、CSSクラス名（＝画面上の表示位置）
@@ -1784,47 +1814,57 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
       ? `url("${getCardImagePath(movingToken.cardId)}")`
       : `url("${getCardBackImagePath(movingToken.cardId)}")`
     : null;
-  if (isOnlineMode()) {
-    try {
-      // 【#285】印は送信より前に付ける（理由は self-handled-tokens.js の冒頭）。
-      markSelfHandled([tokenId]);
-      await moveToken(tokenId, location, suppressArrival);
-      await fetchAndHydrate(getCurrentGameId());
-    } catch (err) {
-      console.error("moveAndSyncForEffect failed", err);
-    }
-  } else {
-    moveToken(tokenId, location, suppressArrival);
-  }
-  if (soundName) playSound(soundName);
-  // 【ユーザー要望2026-09-05】カード効果による駒の移動（ジャンプ台・試練の儀式・コノハナサクヤ・
-  // ゴメンナサイ等）にも移動演出を付ける（続き406では通常の移動だけだった）。距離で見え方を
-  // 変える: 1マス=ぴょんと跳ねる／2〜3マス=高く長く跳ぶ（ジャンプ台）／4マス以上＝ワープ
-  // （自分のゲートへ戻る等、盤面を横断する移動を跳ねさせると間延びするため）。
-  // animOpts.skipPieceMove: マスチェンジの入れ替えのように、専用の演出を別に持つ経路用。
-  if (
+  // 【続き608】この移動にも跳ねる演出が付くなら、確定させている間は汎用の描き直しを
+  // 据え置く（理由は holdGenericRenderForPieceFlight のコメント）。オンラインは往復中に
+  // 自分の操作のこだまが戻ってきて、演出の前に駒が移動先へ描かれてしまう。
+  const willAnimateMove =
     movingToken?.kind === "piece" &&
     fromLocation?.zone === "cell" &&
     location?.zone === "cell" &&
-    !animOpts?.skipPieceMove
-  ) {
-    const dist = Math.abs(location.row - fromLocation.row) + Math.abs(location.col - fromLocation.col);
-    // 【演出・2026-09-06】結ばれの一本桜 コノハナサクヤ（相手を自分の周囲へ引き寄せる）。
-    // マスチェンジには駒と駒をつなぐ電撃のアークがあるのに、こちらは説明モーダルが出るだけだった。
-    // 桜のカードなので電撃は流用せず、**花びらが舞って手繰り寄せる**形にする。移動そのものは
-    // この後の跳ねる演出が担うので、ここでは「引き寄せる糸」だけを先に見せて重ならないようにする。
-    if (currentEffectCardIdForReason === "eternal-pink") {
-      // 追色コストで捨てた札の霧散演出が、まだ画面の真ん中を覆っていることがある（実測で
-      // 桜がその裏に隠れていた。あちらは全画面のキャンバスで、投げっぱなしで再生される）。
-      // 終わるのを少しだけ待ってから出す。上限は必ず置く——待ち続けて効果が止まる方が実害が大きい。
-      await waitForCardDissolveToClear(1800);
-      playKonohanaPull(fromLocation, location);
-      await new Promise((r) => setTimeout(r, KONOHANA_PULL_LEAD_MS));
+    !animOpts?.skipPieceMove;
+  const releaseFlightHold = willAnimateMove ? holdGenericRenderForPieceFlight() : () => {};
+  try {
+    if (isOnlineMode()) {
+      try {
+        // 【#285】印は送信より前に付ける（理由は self-handled-tokens.js の冒頭）。
+        markSelfHandled([tokenId]);
+        await moveToken(tokenId, location, suppressArrival);
+        await fetchAndHydrate(getCurrentGameId());
+      } catch (err) {
+        console.error("moveAndSyncForEffect failed", err);
+      }
+    } else {
+      moveToken(tokenId, location, suppressArrival);
     }
-    // 演出は「移動後の駒のDOM位置」を着地点として測るので、先に描き直しておく
-    // （この関数は dispatch しても自動では render しない＝performPhaseMoveToCell と同じ作法）。
-    render();
-    await playPieceMoveAnimation(tokenId, fromLocation, { style: dist >= 4 ? "warp" : dist >= 2 ? "jump" : "hop" });
+    if (soundName) playSound(soundName);
+    // 【ユーザー要望2026-09-05】カード効果による駒の移動（ジャンプ台・試練の儀式・コノハナサクヤ・
+    // ゴメンナサイ等）にも移動演出を付ける（続き406では通常の移動だけだった）。距離で見え方を
+    // 変える: 1マス=ぴょんと跳ねる／2〜3マス=高く長く跳ぶ（ジャンプ台）／4マス以上＝ワープ
+    // （自分のゲートへ戻る等、盤面を横断する移動を跳ねさせると間延びするため）。
+    // animOpts.skipPieceMove: マスチェンジの入れ替えのように、専用の演出を別に持つ経路用。
+    if (willAnimateMove) {
+      const dist = Math.abs(location.row - fromLocation.row) + Math.abs(location.col - fromLocation.col);
+      // 【演出・2026-09-06】結ばれの一本桜 コノハナサクヤ（相手を自分の周囲へ引き寄せる）。
+      // マスチェンジには駒と駒をつなぐ電撃のアークがあるのに、こちらは説明モーダルが出るだけだった。
+      // 桜のカードなので電撃は流用せず、**花びらが舞って手繰り寄せる**形にする。移動そのものは
+      // この後の跳ねる演出が担うので、ここでは「引き寄せる糸」だけを先に見せて重ならないようにする。
+      if (currentEffectCardIdForReason === "eternal-pink") {
+        // 追色コストで捨てた札の霧散演出が、まだ画面の真ん中を覆っていることがある（実測で
+        // 桜がその裏に隠れていた。あちらは全画面のキャンバスで、投げっぱなしで再生される）。
+        // 終わるのを少しだけ待ってから出す。上限は必ず置く——待ち続けて効果が止まる方が実害が大きい。
+        await waitForCardDissolveToClear(1800);
+        playKonohanaPull(fromLocation, location);
+        await new Promise((r) => setTimeout(r, KONOHANA_PULL_LEAD_MS));
+      }
+      // 演出は「移動後の駒のDOM位置」を着地点として測るので、先に描き直しておく
+      // （この関数は dispatch しても自動では render しない＝performPhaseMoveToCell と同じ作法）。
+      // この直後の playPieceMoveAnimation が**同じ処理の中で**駒を隠すので、間に画面は描かれない。
+      releaseFlightHold();
+      render();
+      await playPieceMoveAnimation(tokenId, fromLocation, { style: dist >= 4 ? "warp" : dist >= 2 ? "jump" : "hop" });
+    }
+  } finally {
+    releaseFlightHold(); // 途中で抜けた経路でも必ず戻す（戻し忘れると盤面が更新されなくなる）
   }
   // #163: 呼び出し側が露出到達コンボを別途（明示的に順序制御して）発動する場合は、ここでの
   // 自動発動を抑止する（例: マスチェンジ自身の回収時。回収の露出コンボでB(相手)の到達がA(発動者)
@@ -6126,6 +6166,11 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
   // （beginPostMoveArrivalGuard参照）。着地先のカードがオンライン再同期を挟んで
   // triggerCardArrivalに至るまでの間、到達処理中扱いにしておく。finallyで必ず解除する。
   beginPostMoveArrivalGuard();
+  // 【続き608】移動を確定させている間は汎用の描き直しを据え置く（理由は
+  // holdGenericRenderForPieceFlight のコメント）。オンラインは往復中に自分の操作の
+  // こだまが戻ってきて、演出が始まる前に駒が移動先へ描かれてしまう。
+  const willAnimateMove = moveFrom?.zone === "cell" && location?.zone === "cell";
+  const releaseFlightHold = willAnimateMove ? holdGenericRenderForPieceFlight() : () => {};
   try {
     if (isOnlineMode()) {
       try {
@@ -6139,6 +6184,7 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
         await fetchAndHydrate(getCurrentGameId());
       } catch (err) {
         console.error("performPhaseMoveToCell failed", err);
+        releaseFlightHold(); // 据え置きを戻してから描き直す
         render();
         return;
       }
@@ -6148,7 +6194,6 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
       moveToken(piece.id, location);
     }
     playSound("piecePlace");
-    render();
     // 「一瞬で次のマスに現れる」のを避け、実際に移動して見えるようにする。到達効果は
     // この演出が終わってから始まる（動き終わってから効果が出る方が分かりやすい）。
     // 【ユーザー要望2026-09-05】紫のキューブ ディメンションで移動範囲が伸びている時は、
@@ -6157,6 +6202,10 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     // 【#379】ディメンションで伸びた移動（ワープ）だけはカメラが寄る。通常の移動は毎ターン
     // 起きるので決め所に入れていない（続き547）が、こちらは限られた場面の特別な移動。
     // 現れる側（移動先のマス）に寄せる。つまみで「寄り1・角度0」にすればここだけ切れる。
+    // 🔴【続き608】**この寄りは render() より前に待つ**。後ろに置くと、寄っている 380ms の間
+    // ずっと「駒が移動先に居る」絵が見えてしまい、演出が始まった瞬間に出発点へ戻る
+    // （ユーザー報告の「シュって戻ってジャンプの演出」。実測で 1 回の寄りぶん丸ごと漏れていた）。
+    // 寄り先は**移動先のマス**なので、まだ描き直していない盤面でも同じ位置に在る＝測れる。
     if (moveStyle === "warp" && cinematicAllows("highlight")) {
       const tu = getCinematicTuning();
       if (!cinematicShotOff(tu.warpZoom, tu.warpYaw, tu.warpTilt)) {
@@ -6165,6 +6214,10 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
         if (destEl) await focusCameraOnElement(destEl, { zoom: tu.warpZoom, ms: 380, yaw: tu.warpYaw, tilt: tu.warpTilt });
       }
     }
+    // 演出は「移動後の駒のDOM位置」を着地点として測るので、ここで描き直す。この直後の
+    // playPieceMoveAnimation が**同じ処理の中で**駒を隠すので、間に画面は描かれない。
+    releaseFlightHold();
+    render();
     await playPieceMoveAnimation(piece.id, moveFrom, { style: moveStyle });
     // 戻りは予約にする（続けて到達効果が動くなら、その寄りが取り消す＝寄ったまま繋がる）。
     if (moveStyle === "warp") scheduleCameraHome(900);
@@ -6197,6 +6250,7 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     if (freshCard) triggerCardArrival(freshCard.cardId, location, () => fireAnytimeCheckpoint(player));
     else fireAnytimeCheckpoint(player);
   } finally {
+    releaseFlightHold(); // 途中で抜けた経路でも必ず戻す（戻し忘れると盤面が更新されなくなる）
     endPostMoveArrivalGuard();
   }
 }
@@ -12922,6 +12976,23 @@ window.addEventListener("so7:preview-final-lock", () => {
 // 効果が連鎖すると移動が何回も続く（試練の儀式・増殖する樹々など）。1回ごとに寄って戻ってを
 // 繰り返すと待ち時間だけ増えるので、**戻りは予約にして、次の寄りが来たら取り消す**。
 // 結果として「連続する間は寄ったまま、終わってから1回だけ戻る」動きになる。
+//
+// 【続き608・ユーザー報告】「駒のアクションが完全に終わる前にカメラが戻るので、駒が変な位置で
+// アクションしてしまってます」。🔴 **飛翔ゴースト（.piece-hop-ghost ほか）は `position: fixed` で
+// body（＝ステージ）の上に置かれていて、カメラ変形は `#game-table` にしか掛かっていない。**
+// つまりゴーストはカメラの外に居る。出発点・着地点はゴーストを作る瞬間に1回だけ測るので、
+// **飛んでいる最中にカメラが動くと、盤面だけがずれてゴーストは古い座標のまま着地する**
+// ＝「変な位置でアクションする」。
+// 予約が演出に食い込む経路は実際にいくつもある: 効果による移動（moveAndSyncForEffect）は
+// **#370 以来、移動が始まる前に 1200ms の戻りを予約している**（到達効果の途中でプレイヤーに
+// 選択を聞くと、答えるまで寄りっぱなしで盤面がずれたまま固まるため）。ところがジャンプは 675ms
+// かかり、オンラインは送信の往復が、コノハナサクヤは霧散待ち（最大1800ms）が前に挟まる。
+// 連鎖の途中の寄らない手（cinematicAllows が偽の場面）でも、前の予約がそのまま残る。
+// 🔴 **だから「予約の時間を調整する」のでは足りない。発火する瞬間に『いま演出中か』を見る。**
+// `isBoardAnimationPlaying()` は駒の飛翔・接触のタックル・ゲート侵攻の奪取・エターナル獲得など
+// **withBoardAnimation で包まれた演出すべて**で立つので、1か所でまとめて守れる。
+// 止まらない心配は無い——あちらは取り残されたフラグを自力で下ろす（anim-gate.js の STUCK_MS）。
+const CAMERA_HOME_RETRY_MS = 150; // 演出中だった時に、もう一度見に来る間隔
 let cameraHomeTimer = null;
 function cancelScheduledCameraHome() {
   if (cameraHomeTimer) {
@@ -12933,6 +13004,12 @@ function scheduleCameraHome(delay = 700, ms = 420) {
   cancelScheduledCameraHome();
   cameraHomeTimer = setTimeout(() => {
     cameraHomeTimer = null;
+    // 演出の最中なら戻らずに待ち直す（上の説明）。新しい寄りが来れば取り消されるので、
+    // 待ち直しが残り続けることはない。
+    if (isBoardAnimationPlaying()) {
+      scheduleCameraHome(CAMERA_HOME_RETRY_MS, ms);
+      return;
+    }
     void cameraHome(ms);
   }, delay);
 }
@@ -19829,7 +19906,9 @@ function computeStateFingerprint(state) {
 // render()呼び出しはローカルモードのためにそのまま残してある）。上のオンラインゲーム開始
 // アニメーション中だけは、このリスナーの発火をスキップする（理由は上のコメント参照）。
 subscribe(() => {
+  // isPieceFlightRenderHeld: 駒の移動を確定させている間は描き直さない（続き608）。
   if (suppressGenericRenderForOnlineStart || suppressGenericRenderForContactTackle || suppressGenericRenderForDrawFlight) return;
+  if (isPieceFlightRenderHeld()) return;
   const fingerprint = computeStateFingerprint(getState());
   if (fingerprint === lastRenderedFingerprint) return;
   lastRenderedFingerprint = fingerprint;
