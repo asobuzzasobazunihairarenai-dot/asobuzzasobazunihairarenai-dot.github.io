@@ -256,6 +256,7 @@ import { initJankLogger } from "./jank-logger.js";
 import { initRankedNotify } from "./ranked-notify.js";
 import { initPushNotify, subscribeToPush } from "./push-notify.js";
 import { initAppCache } from "./sw-cache.js";
+import { beginEffectDelegation } from "./effect-delegation.js";
 import { registerRecommendedViewHelper } from "./tablet-2d-warning.js";
 import { registerRenderHelpers, animateFirstCardsDealt, animateBoardFilled } from "./setup-animation.js";
 import {
@@ -4329,7 +4330,23 @@ async function runDiscardWholeHandOrderedTask(player) {
 // その場で直接解決する。オンライン中の他プレイヤーの番は、broadcast往復
 // （online.jsのbroadcastArrivalDelegateRequest/Resolved）で対象プレイヤー本人の
 // 画面に委任し、終わるまで待つ。
+// 【続き626】**委任している間は「誰が処理中か」を記録する**（右下の表示用）。
+// ユーザー報告「スラム上がりの役人の到達効果で相手に捨てさせてる時に、右下の『自分のターンです』が
+// 優先権は○○です的な表示になってなかった」。下の transferPriorityTo は**ターンタイマーがOFFだと
+// 何もしない**（優先権がまだ一度も初期化されていない対局では早期 return する）ので、既定のOFFの
+// 対局では表示に出ていなかった。ゲームの状態には触らず、表示のための記録だけを足す
+// （理由は src/effect-delegation.js の冒頭に書いた）。
+// 🔴 **ここ1か所で全員効果を網羅できる**——合同建設・スラム上がりの役人・パーティー・
+// 色落ちキャットの4つとも、この関数を通って委任される。
 async function delegateToPlayerForEffect(player, taskType) {
+  const releaseDelegation = beginEffectDelegation(player, taskType);
+  try {
+    return await delegateToPlayerForEffect__inner(player, taskType);
+  } finally {
+    releaseDelegation();
+  }
+}
+async function delegateToPlayerForEffect__inner(player, taskType) {
   if (!isOnlineMode() || player === getSelfSeat()) {
     // ローカルのCPU戦（#23）: 委任先が自分以外（＝CPU、疑似CPU対象）なら、人間が相手の選択を
     // 代行しなくて済むよう、その席へ一時的に優先権を移して疑似CPUに自動解決させる。優先権を

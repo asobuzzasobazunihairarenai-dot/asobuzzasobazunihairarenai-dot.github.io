@@ -26,6 +26,7 @@ import {
 } from "./card-effect-engine.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 import { runGateInvasionsIfNeeded } from "./gate-invasion.js";
+import { getEffectDelegationTarget, onEffectDelegationChange } from "./effect-delegation.js"; // 続き626
 import { isGateInvasionQueueActive } from "./gate-invasion-modal.js";
 import { playSound } from "./sound.js";
 import { announceHandPickups } from "./hand-announcer.js";
@@ -171,6 +172,21 @@ queueMicrotask(() => {
     console.error("updateSkipButtonVisibility failed", err);
     logAction("diag-skip-button-error", { message: String(err?.message ?? err) });
   }
+  });
+});
+
+// 【続き626】委任の始まり／終わりで右下の表示を描き直す。
+// 🔴 これが無いと、委任の間に render() が走らない経路（ローカルのCPU戦など）で
+// 表示が変わらない＝直したのに出ない、になる。
+// ⚠ import 順に依存しないよう、anim-gate の登録と同じく queueMicrotask で遅らせる
+// （続き573 の TDZ と同じ事故を避ける）。
+queueMicrotask(() => {
+  onEffectDelegationChange(() => {
+    try {
+      updateSkipButtonVisibility();
+    } catch (err) {
+      console.error("delegation status update failed", err);
+    }
   });
 });
 
@@ -982,6 +998,18 @@ export function updateSkipButtonVisibility() {
           : prioName
             ? t("pa.priorityNamed", { name: prioName })
             : t("phaseautomation.L748_2");
+    }
+    // 【続き626】**全員効果で誰かに処理を委ねている間は、その人を名指しで添える。**
+    // ユーザー報告「スラム上がりの役人の到達効果で相手に捨てさせてる時に、右下の
+    // 『自分のターンです』が優先権は○○です的な表示になってなかった」。
+    // 文言は上の優先権の一言と同じものを使う——プレイヤーから見れば「いまその人が動いている」
+    // という同じ意味で、見慣れた言い方の方が伝わる（ユーザーも「優先権は○○です的な表示」と
+    // 言っている）。⚠ 上の優先権の一言が既に出ている時は**重ねない**（同じ文が2回出る）。
+    const delegateTo = getEffectDelegationTarget();
+    const priorityShown = isAutoProcessingEnabled() && state.priorityPlayer && state.priorityPlayer !== state.turnPlayer;
+    if (delegateTo && delegateTo !== getSelfSeat() && !priorityShown) {
+      const delName = (getPlayerName(delegateTo) || "").trim();
+      text += delName ? t("pa.priorityNamed", { name: delName }) : t("phaseautomation.L748_2");
     }
     statusEl.textContent = text;
   }

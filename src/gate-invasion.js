@@ -9,7 +9,7 @@
 // ポップアップ→OKで実行、という形で順番に自動処理する。該当者がいない時は何もせずdone()を呼ぶ。
 
 import { getState, gateInvasionStealHand, gateInvasionEternal, gateInvasionReturnHome } from "./state.js";
-import { GATE_POSITIONS, SIDE_TO_SEAT, SEAT_TO_SIDE, SEAT_ORDER, COLORS } from "./board-layout.js";
+import { GATE_POSITIONS, SIDE_TO_SEAT, SEAT_TO_SIDE, SEAT_ORDER, COLORS, rotateSeatsFrom } from "./board-layout.js";
 import { getPlayerName } from "./player-identity.js";
 import { getCardDefinition } from "./cards-data.js";
 import { announceHandPickups } from "./hand-announcer.js";
@@ -313,7 +313,20 @@ export function isLocalGateInvasionActive() {
 // 次のプレイヤーへターンを渡してよい）。複数人が同時に該当する場合は時計回り順に1人ずつ
 // 処理し、全員分終わってから初めてdone()を呼ぶ。
 export function runGateInvasionsIfNeeded(done) {
-  const order = SEAT_ORDER.filter((p) => getState().activePlayers.includes(p));
+  // 🔴【続き626】**ターンプレイヤーから時計回りに処理する。** ユーザー報告 2026-10-25
+  // 「複数プレイヤーがゲート侵攻成功した時にターンプレイヤーから成功処理が始まっていなかった」。
+  // 以前は SEAT_ORDER のまま＝**誰のターンでも必ず A→B→C→D の順**だったので、例えば C の
+  // ターンに A と C が同時に成功していると A の処理が先に走っていた。ルールブックの処理順の
+  // 原則（複数のプレイヤーを対象にした効果は使用者から時計回り）に合わせる。
+  // 🔴 **順番は勝敗に効く**——先に処理した人が相手の手札を奪い、エターナルを先に取る。
+  // ⚠ ここは nextTurn() より前に呼ばれるので、state.turnPlayer はまだ「ターンを終えようと
+  // している人」のまま（main.js / phase-automation.js のどの経路でも、nextTurn は完了の
+  // コールバックの中で呼ばれる）。
+  // ⚠ オンラインでも**全クライアントが同じ順番になる**（turnPlayer は共有の状態なので）。
+  const order = rotateSeatsFrom(
+    SEAT_ORDER.filter((p) => getState().activePlayers.includes(p)),
+    getState().turnPlayer
+  );
   // ユーザー報告「オンライン対戦でゲート侵攻の演出が表示されない」の調査用（続き59）。
   // この関数自体がどのクライアントで・誰を対象に呼ばれたか（そもそも該当者を検知した
   // かどうか）を記録し、「演出が表示されない」原因が①検知自体がされていない

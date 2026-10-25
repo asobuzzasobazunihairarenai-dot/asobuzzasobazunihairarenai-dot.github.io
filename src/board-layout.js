@@ -83,3 +83,16 @@ export function getFinalLockApprovalOrder(attacker, activePlayers) {
   const rotated = [...SEAT_ORDER.slice(idx + 1), ...SEAT_ORDER.slice(0, idx + 1)];
   return rotated.filter((s) => activePlayers.includes(s) && s !== attacker);
 }
+
+// 「この席から時計回りに」の並びを作る（処理順の原則）。
+// 🔴 **ルールブックの原則**: 複数のプレイヤーを対象にした効果は、効果の使用者から時計回りに
+// 処理する。ゲート侵攻（ターン終了時の判定）も同じ考え方で、**ターンプレイヤーから**始める
+// （ユーザー報告 2026-10-25「複数プレイヤーがゲート侵攻成功した時にターンプレイヤーから
+// 成功処理が始まっていなかった」）。
+// ⚠ `start` が並びに居なければ、元の並びをそのまま返す（席を外した人を起点にされても落ちない）。
+// ⚠ この関数は**状態を見ない**（board-layout.js は import を持たない葉モジュールのまま保つ）。
+// 参加者の絞り込みは呼ぶ側で行い、その結果を seats として渡す。
+export function rotateSeatsFrom(seats, start) {
+  const i = seats.indexOf(start);
+  return i >= 0 ? [...seats.slice(i), ...seats.slice(0, i)] : seats;
+}

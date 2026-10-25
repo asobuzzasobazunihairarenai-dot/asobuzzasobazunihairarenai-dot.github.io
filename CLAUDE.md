@@ -1828,3 +1828,110 @@ looking for matching` の単一引用符）。**原因は特定できていな�
   **「検査器が🔴と言った」で止めず、実物を見に行く**（続き551・576・604・613 と同じ）。
 **検査**: `npm run check` 6つとも合格（`check-sw` を追加）、`npm test` 63/63 PASS、
 `node test/smoke.mjs 2` PASS。サーバー側（SQL・Edge Function）の変更は無い。
+
+### 2026-10-25（続き626）：全員効果で「誰が処理中か」を右下に出した／ゲート侵攻をターンプレイヤーから始めるようにした
+
+ユーザー報告2件。**どちらも原因はコードを読んだ段階で確定し、A/Bで裏も取れた。**
+
+#### ① 「スラム上がりの役人の到達効果で相手に捨てさせてる時に、右下の『自分のターンです』が
+優先権は○○です的な表示になってなかった」
+
+**仕組みは元から在った。効かない条件だった。** `delegateToPlayerForEffect`（main.js）は、
+委任している間だけ `transferPriorityTo(player)` で優先権をその席へ移している（ユーザー要望で
+入れたもの）。ところが **`transferPriorityTo()` は、その対局でまだ一度も優先権が初期化されて
+いないと何もしない**（早期 return）。**ターンタイマーは既定でOFF**なので、普通の対局では
+`priorityPlayer` が終始 null ＝**この移譲が丸ごと無効**だった。右下の表示も
+`state.priorityPlayer && state.priorityPlayer !== state.turnPlayer` を条件にしているので、
+出るはずがない。**報告時もタイマーOFFだったとユーザーが確認済み**（私の診断と一致）。
+
+- ⚠ **優先権の方を初期化する手（`initializeIfUnset: true`）は採らなかった。** 接触の解決では
+  #61 でそれをやっているが、**全員効果にも広げるとその対局の以後ずっと優先権が存在する**ことに
+  なり、`nextTurn()` を呼ぶ経路のどれか1つでも同期を忘れていると**右下が嘘をつき続ける**
+  （`NEXT_TURN` リデューサーは `priorityPlayer` を触らないので、`transferPriorityToNextTurnPlayer`
+  の呼び忘れがそのまま表に出る。実際には main.js の4経路と phase-automation の1経路で
+  同期が取れていることは確認したが、**見せたいのは表示だけなのでゲームの状態には触らない**
+  方を選んだ）。🔴 **直す範囲は、直したいものの範囲に合わせる。**
+- **入れたもの**: [src/effect-delegation.js](src/effect-delegation.js)（新設・**import を一切持たない葉モジュール**。
+  anim-gate.js / celebration-state.js と同じ作り）。`beginEffectDelegation(player, taskType)` が
+  `release()` を返し、`getEffectDelegationTarget()` で「いま誰に委ねているか」が読める。
+  **入れ子になり得る**（効果の解決中にさらに委任が起きる）ので積んで持つ。
+  🔴 **`release()` の呼び忘れで表示が永久に残らないよう、古い記録は自動で無視する**
+  （150秒。タイマーを持たず、見る時に判定するだけ）。委任の返事待ちは main.js 側で90秒なので、
+  それより十分長くとった。
+- 🔴 **`onEffectDelegationChange` で表示を描き直す合図も要った。** 委任の間に `render()` が
+  走らない経路（ローカルのCPU戦など）があるので、これが無いと**直したのに出ない**。
+  登録は `queueMicrotask` で遅らせる（続き573 の TDZ と同じ事故を避ける）。
+- 🔴 **入口は1か所で足りた。** `delegateToPlayerForEffect` を薄く包むだけで、**全員効果4つ
+  （合同建設・スラム上がりの役人・パーティー・色落ちキャット）が全部通る**。
+- **文言は優先権の一言を流用した**——プレイヤーから見れば「いまその人が動いている」という
+  同じ意味で、見慣れた言い方の方が伝わる（ユーザーも「優先権は○○です的な表示」と言っている）。
+  上の優先権の一言が既に出ている時は**重ねない**。
+
+**A/B**（`scratchpad/p626.mjs`。直す前の5ファイルを配信・4人CPU戦）:
+
+| 場面 | 直す前 | 直した後 |
+|---|---|---|
+| 委任なし | 自分のターンです | 自分のターンです |
+| **Bへ委任中** | **自分のターンです** | **自分のターンです（優先権はCPU 1にあります）** |
+| 委任を終えた後 | 自分のターンです | **自分のターンです**（戻る） |
+| 自分(A)へ委任中 | 自分のターンです | **自分のターンです**（添えない＝自分の画面にはモーダルが出ている） |
+| **入れ子（B→Cの中）** | 自分のターンです | **（優先権はCPU 2にあります）**＝一番内側 |
+| 内側を終えた後 | — | **（優先権はCPU 1にあります）**＝外側に戻る |
+| Cのターン・Bへ委任中 | CPU 2のターンです | **CPU 2のターンです（優先権はCPU 1にあります）** |
+
+例外0件。
+
+#### ②「複数プレイヤーがゲート侵攻成功した時にターンプレイヤーから成功処理が始まっていなかった」
+
+`runGateInvasionsIfNeeded` が **`SEAT_ORDER.filter(参加者)` のまま**使っていた＝**誰のターンでも
+必ず A→B→C→D**。例えば C のターンに A と C が同時に成功していると、**A の処理が先に走る**。
+🔴 **順番は勝敗に効く**——先に処理した人が相手の手札を奪い、エターナルを先に取る。
+ルールブックの**処理順の原則**（複数のプレイヤーを対象にした効果は使用者から時計回り）に
+合わせ、**ターンプレイヤーから時計回り**にした。
+
+- ⚠ **`runGateInvasionsIfNeeded` は `nextTurn()` より前に呼ばれる**ので、`state.turnPlayer` は
+  まだ「ターンを終えようとしている人」のまま（main.js の4経路・phase-automation の1経路の
+  **どれも nextTurn を完了のコールバックの中で呼んでいる**ことを読んで確かめた）。
+- ⚠ **オンラインでも全クライアントが同じ順番になる**（`turnPlayer` は共有の状態なので）。
+- 🔴 **回転の関数は [src/board-layout.js](src/board-layout.js) に置いた**（`rotateSeatsFrom`）。
+  同じものが `card-effect-engine.js` の `rotatedActivePlayersFrom` に在ったが、**そちらを
+  import すると循環 import になる**（gate-invasion → card-effect-engine → victory → gate-invasion）
+  ——続き573 で実際に TDZ で落ちているので、**import する前に経路を確かめた**。
+  board-layout.js は **import を1つも持たない葉**で、CLAUDE.md の「座席順は board-layout.js に
+  集約」にも合う。`rotatedActivePlayersFrom` もこれを使う形にして**定義を1つにした**。
+
+**A/B**（同じプローブ）:
+
+| ターンプレイヤー | 直す前 | 直した後 |
+|---|---|---|
+| A | A→B→C→D | A→B→C→D |
+| **B** | **A→B→C→D** | **B→C→D→A** |
+| **C** | **A→B→C→D** | **C→D→A→B** |
+| **D** | **A→B→C→D** | **D→A→B→C** |
+
+`rotateSeatsFrom` 単体も試した（`scratchpad/p626pure.mjs`）: 4人の4通り・2人・3人・
+**居ない席を起点（元の並びのまま）**・**null（元の並びのまま）**・空の並び・
+**元の配列を壊さない**——全部期待どおり。
+
+#### ユーザー要望「ほかの全員効果も総点検した方が良いかも！」→ やった
+
+- **全員効果の動詞は4つ**（`ALL_PLAYERS_DISCARD_TO_THREE` / `_CHOOSE_PARTY_OPTION` /
+  `_DISCARD_HAND_AND_DRAW` / `_PLACE_ONE_CARD_IN_EMPTY_CELL`）。**4つとも**
+  `rotatedActivePlayersFrom(ctx.player)`（＝使用者から時計回り・原則どおり）で回し、
+  **4つとも `helpers.delegateToPlayer` を通る**。配線は main.js の2か所だけで、
+  **どちらも `delegateToPlayerForEffect`**（残る1件はテストの差し替え）。
+  ＝**①の直しは4つ全部に効く。**
+- **`SEAT_ORDER` で並びを作っている所を全部見た**（board-layout 以外の20か所）。
+  順番が**勝敗に効く**のはゲート侵攻だけで、他は「次の手番を求める」（main.js:16963 /
+  phase-automation:1618 / state.js:736 の NEXT_TURN＝**SEAT_ORDER で正しい**）、
+  `.some()`（順不同）、**表示順**（優先権譲渡のアイコン配置・プレイヤーゾーンの描画・
+  戦績画像・セットアップ画面・ロスター）だけだった。**②と同じ穴は他に無い。**
+
+#### 教訓
+
+🔴 **「仕組みは入れた」と「効いている」は別。** ①は要望どおり優先権を移す実装が**在った**のに、
+**既定でOFFの設定に依存していた**ので一度も効いていなかった。**条件付きで何もしない関数に
+機能を預ける時は、その条件が既定でどちらかを確かめる。**
+
+**検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`npm run check` 6つとも合格。
+サーバー側（SQL・Edge Function）の変更は無い。

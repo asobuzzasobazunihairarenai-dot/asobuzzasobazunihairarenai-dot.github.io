@@ -25,7 +25,7 @@ import { t } from "./ui-text.js";
 function cardDisplayName(cardId) {
   return getCardName(cardId) || getCardDefinition(cardId)?.name || cardId;
 }
-import { COLORS, SEAT_TO_SIDE, SIDE_TO_SEAT, GATE_POSITIONS, SEAT_ORDER } from "./board-layout.js";
+import { COLORS, SEAT_TO_SIDE, SIDE_TO_SEAT, GATE_POSITIONS, SEAT_ORDER, rotateSeatsFrom } from "./board-layout.js";
 import { logAction } from "./action-log.js";
 // 桃のキューブ セレナーデ専用（LOCK_ONE_HAND_CARD_EXCEPT_FINAL）:「最後のロックは
 // できない」の判定に、victory.jsの既存の「最後のロック承認」機能用の関数
@@ -762,9 +762,9 @@ function isFewestLocked(player) {
 // 回転させる。プレゼント・色落ちキャット等、複数箇所で同じ回転を個別に書いて
 // いたのをここへ集約した。
 export function rotatedActivePlayersFrom(player) {
-  const order = SEAT_ORDER.filter((p) => getState().activePlayers.includes(p));
-  const startIdx = order.indexOf(player);
-  return startIdx >= 0 ? [...order.slice(startIdx), ...order.slice(0, startIdx)] : order;
+  // 【続き626】回転そのものは board-layout.js の rotateSeatsFrom に移した
+  // （ゲート侵攻でも同じ並べ方が要るので、2か所に書かない）。中身は変えていない。
+  return rotateSeatsFrom(SEAT_ORDER.filter((p) => getState().activePlayers.includes(p)), player);
 }
 
 // 1つのactionを実行する。helpers:
