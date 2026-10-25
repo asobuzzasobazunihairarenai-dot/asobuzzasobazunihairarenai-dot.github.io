@@ -18,6 +18,7 @@ import { getGlossary, getFaqCategories, getDigitalFeatures } from "./help-conten
 import { getRankExplainSections } from "./rank-explain.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ8
 import { linkifyGlossary } from "./glossary-linkify.js";
+import { RULE_VIDEO_SHORT_ID, RULE_VIDEO_FULL_ID, ruleVideoUrl } from "./rule-videos.js";
 import { getOptionArea } from "./option-area.js";
 import { closeShopPanel } from "./shop.js";
 import { closeProfilePage } from "./profile-page.js";
@@ -90,9 +91,10 @@ function openItemModal(title, bodyParagraphs, icon) {
 // 再生され、BGMと音がぶつかる ②画面全体が縮小されて描かれる作りなので動画も一緒に小さくなる
 // ③画像と同じくメモリを食う（#223 で iPhone が落ちた）。**別タブで開く**なら、ホーム画面から
 // 起動したアプリでも上に重なって開き、閉じれば対局に戻れる。
+// 【続き616】URLは rule-videos.js に集約した（試遊の入口からも同じ動画を開くため）。
 const HELP_VIDEOS = [
-  { id: "MKDBGe3pLaQ", key: "help.video.short" }, // 80秒でわかるルール
-  { id: "wPGUp6sHp2s", key: "help.video.full" }, // 遊び方ガイド【完全版】（12分10秒）
+  { id: RULE_VIDEO_SHORT_ID, key: "help.video.short" },
+  { id: RULE_VIDEO_FULL_ID, key: "help.video.full" },
 ];
 
 // 索引の項目と同じ見た目で、押すとYouTubeを別タブで開くリンク。既にある CAMPFIRE のリンクと
@@ -100,7 +102,7 @@ const HELP_VIDEOS = [
 function buildVideoLink(video) {
   const a = document.createElement("a");
   a.className = "help-index-item help-index-video";
-  a.href = "https://youtu.be/" + video.id;
+  a.href = ruleVideoUrl(video.id);
   a.target = "_blank";
   a.rel = "noopener noreferrer";
   a.textContent = t(video.key);
