@@ -428,7 +428,11 @@ export function openCardDevMode() {
 }
 
 export function initCardDevMode() {
+  let panel = null;
+  let backdrop = null;
+  let miniIcon = null;
   function close() {
+    if (!panel) return; // まだ組み立てていない＝開いていないので何もしない
     panel.style.display = "none";
     backdrop.style.display = "none";
     miniIcon.style.display = "none";
@@ -437,6 +441,7 @@ export function initCardDevMode() {
   // オンにしてほしい」。開発モードを開く目的はほぼ常にこの自動処理のテストのため、
   // 毎回オプションを別途開いてトグルする手間を省く。
   function open() {
+    ensureBuilt();
     panel.style.display = "block";
     backdrop.style.display = "block";
     miniIcon.style.display = "none";
@@ -447,32 +452,39 @@ export function initCardDevMode() {
   // 変更済みのものも含む）はDOMごと保持したまま表示を切り替えるだけなので、
   // 再表示時に元の位置・サイズへそのまま戻る。
   function minimize() {
+    if (!panel) return;
     panel.style.display = "none";
     backdrop.style.display = "none";
     miniIcon.style.display = "flex";
   }
   function restoreFromMini() {
+    if (!panel) return;
     panel.style.display = "block";
     backdrop.style.display = "block";
     miniIcon.style.display = "none";
   }
   openFn = open;
 
-  const panel = buildPanel(close, minimize);
-  panel.style.display = "none";
-  // ユーザー報告「適当な場所をクリックしたらウィンドウが消えてどこかに行ってしまう」
-  // への対応。backdrop（パネル外側）のクリックはcloseではなくminimizeにして、
-  // 必ずミニアイコン経由で戻れる状態にする（closeだと「×」を押した時と見分けが
-  // つかず、次にどこから開き直せばいいか分かりにくかった）。
-  const backdrop = createBackdrop(minimize, { dim: true, zIndex: 2700 });
-  backdrop.style.display = "none";
-  const miniIcon = document.createElement("button");
-  miniIcon.type = "button";
-  miniIcon.id = "card-dev-mode-mini-icon";
-  miniIcon.textContent = "🃏";
-  miniIcon.title = "カード開発モードを再表示";
-  miniIcon.addEventListener("click", restoreFromMini);
-  document.body.appendChild(backdrop);
-  document.body.appendChild(panel);
-  document.body.appendChild(miniIcon);
+  // 【続き624】**パネルの組み立ては「初めて開く時」まで遅らせる**（続き623 の管理者パネルと同じ形）。
+  // 🔴 ミニアイコンも一緒に遅らせてよい——元から display:none で、minimize() を通った後にしか出ない。
+  function ensureBuilt() {
+    if (panel) return;
+    panel = buildPanel(close, minimize);
+    panel.style.display = "none";
+    // ユーザー報告「適当な場所をクリックしたらウィンドウが消えてどこかに行ってしまう」
+    // への対応。backdrop（パネル外側）のクリックはcloseではなくminimizeにして、
+    // 必ずミニアイコン経由で戻れる状態にする（closeだと「×」を押した時と見分けが
+    // つかず、次にどこから開き直せばいいか分かりにくかった）。
+    backdrop = createBackdrop(minimize, { dim: true, zIndex: 2700 });
+    backdrop.style.display = "none";
+    miniIcon = document.createElement("button");
+    miniIcon.type = "button";
+    miniIcon.id = "card-dev-mode-mini-icon";
+    miniIcon.textContent = "🃏";
+    miniIcon.title = "カード開発モードを再表示";
+    miniIcon.addEventListener("click", restoreFromMini);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+    document.body.appendChild(miniIcon);
+  }
 }

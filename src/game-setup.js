@@ -483,7 +483,12 @@ function buildToggleButton(open) {
 }
 
 export function initGameSetup() {
+  let panel = null;
+  let backdrop = null;
   function close() {
+    // 【続き624】まだ組み立てていない＝開いていない。toggleBtn の display も
+    // open() でしか触らないので、ここで何もしなくて食い違わない。
+    if (!panel) return;
     panel.style.display = "none";
     backdrop.style.display = "none";
     // インラインスタイルはCSSの `body.is-online-mode #game-setup-toggle-button { display: none; }`
@@ -496,31 +501,38 @@ export function initGameSetup() {
   }
   closePanel = close;
   function open() {
+    ensureBuilt();
     panel.style.display = "block";
     backdrop.style.display = "block";
     toggleBtn.style.display = "none";
   }
 
-  const panel = buildPanel(close);
-  // ツールパネルなので背景は暗くしない（盤面を見ながら操作したいため）。
-  const backdrop = createBackdrop(close, { dim: false, zIndex: 999 });
-  // 🔴【#425・2026-10-24】**最初は隠しておく。** パネル自身は buildPanel で display:none に
-  // なっているのに、**この膜だけ隠し忘れていた**ため、`position: fixed; inset: 0; z-index: 999`
-  // の**透明な膜が、起動した瞬間から画面全体を覆いっぱなし**になっていた。
-  // 何が起きるか: 拡大プレビュー（ホバー）は **#game-table の pointermove** で拾っている
-  // （main.js）。膜は #game-table の子ではないので、**マウスの動きが盤面に届かず拡大が出ない**。
-  // タップ・ドラッグは document の capture で拾っているので効き続ける＝**拡大だけが死ぬ**。
-  // ユーザー報告（YGM）「観戦中にカードの拡大が表示されなくなった」の画面の記録に、
-  // **id も class も中身も無い z-index:999 の div** が盤面を覆って写っていた。
-  // ⚠ **観戦だけの話ではない。** この膜を隠すのは `closePanel()`（セットアップの手順を
-  // 最後まで実行した時だけ呼ばれる）しか無いので、**ウィザードを使わない人＝オンラインの
-  // 対局者・観戦者は、ずっと覆われたまま**だった（CPU戦はその手順を通るので隠れていた）。
-  backdrop.style.display = "none";
-  // 次に画面の記録を見る時、名無しの div で悩まないように名前を付ける。
-  backdrop.id = "game-setup-backdrop";
+  // 【続き624】**パネルの組み立ては「初めて開く時」まで遅らせる**（続き623 の管理者パネルと同じ形）。
+  // ⚠ **toggleBtn（見える入口のボタン）はここに入れない**——あれが無いとパネルを開けない。
+  // 🔴 副産物: #425 の「透明な膜が起動した瞬間から覆いっぱなし」は、**膜そのものが
+  //   開くまで存在しなくなる**ので、同じ種類の事故が起きなくなる。
+  function ensureBuilt() {
+    if (panel) return;
+    panel = buildPanel(close);
+    // ツールパネルなので背景は暗くしない（盤面を見ながら操作したいため）。
+    backdrop = createBackdrop(close, { dim: false, zIndex: 999 });
+    // 🔴【#425・2026-10-24】**最初は隠しておく。** パネル自身は buildPanel で display:none に
+    // なっているのに、**この膜だけ隠し忘れていた**ため、`position: fixed; inset: 0; z-index: 999`
+    // の**透明な膜が、起動した瞬間から画面全体を覆いっぱなし**になっていた。
+    // 何が起きるか: 拡大プレビュー（ホバー）は **#game-table の pointermove** で拾っている
+    // （main.js）。膜は #game-table の子ではないので、**マウスの動きが盤面に届かず拡大が出ない**。
+    // タップ・ドラッグは document の capture で拾っているので効き続ける＝**拡大だけが死ぬ**。
+    // ユーザー報告（YGM）「観戦中にカードの拡大が表示されなくなった」の画面の記録に、
+    // **id も class も中身も無い z-index:999 の div** が盤面を覆って写っていた。
+    // ⚠ **観戦だけの話ではない。** この膜を隠すのは `closePanel()`（セットアップの手順を
+    // 最後まで実行した時だけ呼ばれる）しか無いので、**ウィザードを使わない人＝オンラインの
+    // 対局者・観戦者は、ずっと覆われたまま**だった（CPU戦はその手順を通るので隠れていた）。
+    backdrop.style.display = "none";
+    // 次に画面の記録を見る時、名無しの div で悩まないように名前を付ける。
+    backdrop.id = "game-setup-backdrop";
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+  }
   const toggleBtn = buildToggleButton(open);
-
-  document.body.appendChild(backdrop);
-  document.body.appendChild(panel);
   document.body.appendChild(toggleBtn);
 }

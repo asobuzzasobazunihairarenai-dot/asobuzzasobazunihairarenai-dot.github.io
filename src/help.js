@@ -226,24 +226,34 @@ export function openHelpPanel() {
 }
 
 export function initHelpButton() {
+  let panel = null;
+  let backdrop = null;
   function close() {
+    if (!panel) return; // まだ組み立てていない＝開いていないので何もしない
     panel.style.display = "none";
     backdrop.style.display = "none";
   }
   function open() {
+    ensureBuilt();
     panel.style.display = "block";
     backdrop.style.display = "block";
   }
   openFn = open;
   closeFn = close;
 
-  const panel = buildPanel(close);
-  const backdrop = createBackdrop(close, { dim: true, zIndex: 2500 });
-  backdrop.style.display = "none";
-  panel.style.display = "none";
+  // 【続き624】**パネルの組み立ては「初めて開く時」まで遅らせる**（続き623 の管理者パネルと同じ形）。
+  // 🔴 副産物: **初めて開く時の言語で組み立てられる**ので、下の onLangChange の作り直し
+  //   （続き617）は「開いたことがある時」だけの話になる。
+  function ensureBuilt() {
+    if (panel) return;
+    panel = buildPanel(close);
+    backdrop = createBackdrop(close, { dim: true, zIndex: 2500 });
+    backdrop.style.display = "none";
+    panel.style.display = "none";
 
-  document.body.appendChild(backdrop);
-  document.body.appendChild(panel);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+  }
 
   const launcherBtn = document.createElement("button");
   launcherBtn.id = "help-button";
@@ -273,13 +283,16 @@ export function initHelpButton() {
   // ⚠ 折りたたみ（用語集など）は閉じた状態に戻る。言語が変わる時に開き直すのは自然なので
   // そのままにする。
   onLangChange(() => {
+    captionEl.textContent = t("help.iconCaption");
+    if (tooltipEl) tooltipEl.textContent = t("help.iconTip");
+    // 【続き624】まだ一度も開いていなければパネルは存在しない。次に開く時に
+    // その時の言語で組み立てられるので、ここでは何もしなくてよい。
+    if (!panel) return;
     const titleNow = panel.querySelector("#help-panel-title");
     if (titleNow) titleNow.textContent = t("help.title");
     const tutorialNow = panel.querySelector("#help-panel-tutorial-btn");
     if (tutorialNow) tutorialNow.textContent = t("help.tutorialBtn");
     const listNow = panel.querySelector(".help-panel-list");
     if (listNow) listNow.replaceWith(buildHelpList());
-    captionEl.textContent = t("help.iconCaption");
-    if (tooltipEl) tooltipEl.textContent = t("help.iconTip");
   });
 }

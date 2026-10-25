@@ -72,7 +72,7 @@ export const CHANGELOG = [
       "**HP相談からの指摘「アプリ側のフェイズの文面も確認を」は、確認して問題なしだった。** HP側は3つのフェイズがどれも「自分のターンできる第2のこと」という壊れた文になっていた（旧サイトから写した時点で崩れていたもの）。**アプリ側は続き612 で総合ルールの条文（502.1・503.1・504.1・505.1・508）から書き起こしたばかり**なので、この崩れは入っていない。",
       "**表記ゆれ4件も、アプリ側は既に総合ルールの見出しと同じだった**（1番上の原則／一気に移動／無色のカード／ロックする）。HP側が揃えたことで、3者の見出しが一致した。",
       "**英語版はアプリにしかない**（HPは日本語のみ）。HP相談から「英語が要る場合はそちらで」と申し送りがあったので、この3語の英訳はこちらで用意した。",
-    ],
+      "**続き623 と同じ形で、見えていない4つのパネルの組み立ても「初めて開く時」まで遅らせた**（`card-dev-mode-panel` 342・`help-panel` 159・`deck-viewer-panel` 144・`game-setup-panel` 88 要素）。🔴 **決め手は時間ではなく決まった値**——起動直後のDOM全体が **1,646 → 897 要素（−46%）**、続き623 と合わせると **5,095 → 897（−82%）**。A/Bで、4つとも起動直後には**存在せず**、開けば**同じ要素数・同じ大きさ**で組み立たれ（342/159/144/88・箱 435x486 / 358x309 / 1280x720 / 243x443）、閉じて開き直しても動き、**3往復しても id は全部1つずつ**（＝二重に組み立てていない）ことを確認した。例外0件。⚠ **`options-menu-panel`（42要素）は対象外**——中身は既に開く度に作り直す作り（ログイン直後の設定値を反映するため）で、殻しか残っていない。🔴 **山札一覧の拡大モーダルは「初めてカードを押した時」に作る形にした**——起動時に作るのをやめると、山札一覧を開かずに `buildDeckSections()` だけを使う側（図鑑）から押された時に落ちるため。副産物として「initDeckViewer より後に呼ぶこと」という前提が消えた（古い注意書きも直した）。🔴 **ゲーム準備は `toggleBtn`（見える入口のボタン）だけ起動時に作る**——あれが無いと開けない。こちらも副産物があり、#425 の「透明な膜が起動した瞬間から盤面を覆いっぱなし」は**膜そのものが開くまで存在しなくなる**ので、同じ種類の事故が起きなくなった。⚠ **`close()` には全部 `if (!panel) return;` を足した**——`closePanel()`（クイックスタートの完了時に呼ぶ）や`nav-layering-check` の全部閉じる処理が、まだ開いたことのないパネルに対して走るため。ヘルプの `onLangChange`（続き617）は**アイコンの文字を先に引き直してから** `if (!panel) return;` する順番にした（パネルが無い時もアイコンだけは更新が要る。パネルは次に開く時その言語で組み立たれる）。",    ],
     devItemsEn: [
       "Follow-up to the twelve terms added two days ago. The site session had meanwhile added eleven terms and unified four spelling variants, then reported three more that the comprehensive rules index but neither the site nor the app carried. The same wording was used on both so that the two places read identically.",
       "The naming follows what the app already had: the index heading says fewest-locked, but both the app and the site have long carried player-with-the-most-locked-cards, so the new entry was named to pair with it.",
@@ -80,7 +80,7 @@ export const CHANGELOG = [
       "The site reported that its three phase entries were corrupted text inherited from the old site. The app's versions were written from the numbered rules two days ago and were checked to be correct.",
       "The four spelling variants were already correct in the app, so the site's unification brought all three sources into line.",
       "English exists only in the app, as the site is Japanese-only, so the translations for these three were written here.",
-    ],
+      "Following the same pattern as the admin panel, four more panels that are built at startup but never visible are now built the first time you open them (card dev mode 342, help 159, deck list 144, game setup 88 elements). The evidence is a fixed count rather than a timing: the whole DOM right after startup went from 1,646 to 897 elements (-46%), or 5,095 to 897 (-82%) together with the admin panel change. A/B confirmed all four are absent at startup, build with the same element counts and the same box sizes when opened, work after close and reopen, and still have exactly one of each id after three round trips, with no exceptions. The options panel (42 elements) was left alone because its contents are already rebuilt on every open so that account settings loaded after login are reflected. The deck list's card zoom modal is now built the first time a card is tapped, so the codex page can use the deck sections without the deck viewer having been opened. Game setup still builds its visible toggle button at startup, and as a side effect the invisible overlay behind it no longer exists until the panel opens, which removes the class of bug reported in #425. Every close function got a guard for the not-yet-built case, and Help's language handler now refreshes the icon label before returning early.",    ],
   },
   {
     date: "2026-10-25",
@@ -95,12 +95,12 @@ export const CHANGELOG = [
       "You can now open the official rules videos (80 seconds and 12 minutes) from Help",
     ],
     items: [
-      "起動する時に、その場では使わないものまで全部読み込んでいたのをやめました。お知らせの本文と、開発者向けの調整パネルは「開いた時」に読み込みます。これで起動時に組み立てる部品が3分の1以下（約5,100個→約1,650個）になりました。回線の細い所やスマホで効きます。なお、お知らせを初めて開く時だけ少し待つことがあります。",
+      "起動する時に、その場では使わないものまで全部用意していたのをやめました。お知らせの本文・ヘルプ・山札一覧・ゲームの準備・開発者向けの調整パネルは、どれも「開いた時」に用意します。これで起動時に組み立てる部品が約5分の1（約5,100個→約900個）になりました。回線の細い所やスマホで効きます。なお、お知らせを初めて開く時だけ少し待つことがあります。",
       "登録なしで試せる入口（試遊版の画面）にも、「🎬 80秒の動画でルールを見る」を置きました。「遊び方を教わりながら遊ぶ」のすぐ下にあります。その場でさっと全体をつかみたい時にどうぞ。別のタブで開くので、閉じればそのまま遊び始められます。あわせて、画面の縦が短い端末（スマホを横向きにしてブラウザの上下のバーが出ている時）で、この行とクラウドファンディングの行の文字が小さくて読みづらかったのも直しました。",
       "ヘルプ（❓）を開くと、いちばん上に「🎬 動画で見る」が増えています。押すと公式のルール説明動画をYouTubeで開きます。短い方は80秒で全体をつかめる早わかり版、長い方は12分でひととおり説明した完全版です。読むより早いという方はこちらからどうぞ。別のタブで開くので、対局中に開いても盤面はそのまま残ります。図鑑（ルールブックの全画面表示）からも同じように開けます。",
     ],
     itemsEn: [
-      "The app no longer loads everything it might ever need before you can play. The news text and the developer tuning panel are now loaded when you open them, which cut the number of parts built at startup to under a third (about 5,100 to about 1,650). This helps most on phones and slow connections. Opening the news for the first time may pause briefly.",
+      "The app no longer prepares everything it might ever need before you can play. The news text, the help pages, the deck list, the game setup screen and the developer tuning panel are all prepared when you open them, which cut the number of parts built at startup to about a fifth (about 5,100 to about 900). This helps most on phones and slow connections. Opening the news for the first time may pause briefly.",
       "The trial screen — the one you reach without signing up — now also offers the 80-second rules video, right under the guided tutorial, for when you want the whole picture quickly. It opens in a separate tab, so closing it drops you straight back. The text of that line and of the crowdfunding line was also too small to read on short screens, such as a phone held sideways with the browser bars showing; both are now legible.",
       "Help now starts with a new section that opens the official rules videos on YouTube: a quick 80-second overview and a full 12-minute walkthrough. They are in Japanese, but the board and the cards are on screen throughout. The links open in a separate tab, so your game is still there when you come back, and the same section appears in the full-screen rulebook.",
     ],

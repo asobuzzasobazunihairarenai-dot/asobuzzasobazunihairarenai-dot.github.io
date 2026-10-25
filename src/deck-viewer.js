@@ -115,6 +115,11 @@ function buildCardTile(def) {
       return; // 長押しプレビュー後のクリックは無視
     }
     hideDeckPreview();
+    // 【続き624】拡大モーダルも初めて必要になった時に作る（起動時には作らない）。
+    // 🔴 ここで作る形にしておくと、山札一覧を開かずに buildDeckSections() だけを
+    //    使う側（図鑑）から押された時も落ちない（元は initDeckViewer で作っていたので
+    //    「initDeckViewer後に呼ぶこと」という前提が要っていた）。
+    if (!showCardModal) showCardModal = buildCardModal();
     showCardModal(def);
   });
 
@@ -232,8 +237,8 @@ function buildPanel(close) {
 }
 
 // 山札一覧の中身（3セクション）だけを組み立てて返す。図鑑／ルールブックの全画面版
-// （codex-page.js）からも使う。カードのクリック→拡大は showCardModal（initDeckViewerで生成）
-// を参照するため、initDeckViewer後に呼ぶこと。
+// （codex-page.js）からも使う。カードのクリック→拡大のモーダルは初めて押された時に
+// 作られるので（続き624）、initDeckViewer より先に呼んでも構わない。
 export function buildDeckSections() {
   const wrap = document.createElement("div");
   wrap.appendChild(buildSection(t("deckviewer.normal"), NORMAL_CARDS));
@@ -251,27 +256,33 @@ export function openDeckViewer() {
 }
 
 export function initDeckViewer() {
-  showCardModal = buildCardModal();
-
+  let panel = null;
+  let backdrop = null;
   function close() {
+    if (!panel) return; // まだ組み立てていない＝開いていないので何もしない
     panel.style.display = "none";
     backdrop.style.display = "none";
   }
   function open() {
+    ensureBuilt();
     panel.style.display = "block";
     backdrop.style.display = "block";
   }
   openDeckViewerFn = open;
 
-  const panel = buildPanel(close);
-  const backdrop = createBackdrop(close, { dim: true, zIndex: 2000 });
-  // ハマりどころ: 他のパネル（admin.js/options-menu.js等）と違い、ここだけ生成直後に
-  // display:noneを付け忘れていたため、ページを開いた瞬間から画面全体が薄暗いbackdropで
-  // 覆われていた。1回目のクリックはこのbackdrop自身をclose()するだけに消費され、
-  // 実際にはマウスがまだ動いていない（クリックだけでは新しいpointermoveが発生しない）ため、
-  // 盤面のホバー演出が効き始めるにはもう1回の操作が必要になる、という体感になっていた。
-  backdrop.style.display = "none";
+  // 【続き624】**パネルの組み立ては「初めて開く時」まで遅らせる**（続き623 の管理者パネルと同じ形）。
+  function ensureBuilt() {
+    if (panel) return;
+    panel = buildPanel(close);
+    backdrop = createBackdrop(close, { dim: true, zIndex: 2000 });
+    // ハマりどころ: 他のパネル（admin.js/options-menu.js等）と違い、ここだけ生成直後に
+    // display:noneを付け忘れていたため、ページを開いた瞬間から画面全体が薄暗いbackdropで
+    // 覆われていた。1回目のクリックはこのbackdrop自身をclose()するだけに消費され、
+    // 実際にはマウスがまだ動いていない（クリックだけでは新しいpointermoveが発生しない）ため、
+    // 盤面のホバー演出が効き始めるにはもう1回の操作が必要になる、という体感になっていた。
+    backdrop.style.display = "none";
 
-  document.body.appendChild(backdrop);
-  document.body.appendChild(panel);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+  }
 }
