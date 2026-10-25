@@ -51,6 +51,27 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-25",
+    summary: [
+      "ヘルプから、公式のルール説明動画（80秒と12分）を見られるようにしました",
+    ],
+    summaryEn: [
+      "You can now open the official rules videos (80 seconds and 12 minutes) from Help",
+    ],
+    items: [
+      "ヘルプ（❓）を開くと、いちばん上に「🎬 動画で見る」が増えています。押すと公式のルール説明動画をYouTubeで開きます。短い方は80秒で全体をつかめる早わかり版、長い方は12分でひととおり説明した完全版です。読むより早いという方はこちらからどうぞ。別のタブで開くので、対局中に開いても盤面はそのまま残ります。図鑑（ルールブックの全画面表示）からも同じように開けます。",
+    ],
+    itemsEn: [
+      "Help now starts with a new section that opens the official rules videos on YouTube: a quick 80-second overview and a full 12-minute walkthrough. They are in Japanese, but the board and the cards are on screen throughout. The links open in a separate tab, so your game is still there when you come back, and the same section appears in the full-screen rulebook.",
+    ],
+    devItems: [
+      "**ユーザー要望「ヘルプのところに動画のリンクはどう？」→ URLを聞いたら「確認して！」だったので、自分で辿った。** リポジトリと手元の資料には0件（`youtube|youtu.be` を grep）。BOOTH の1st EDITION の商品ページには4本あったが**全部別物**（ストーリー・YouTuber様のルール説明編・プレイ編2本）。CAMPFIRE のページは**220,305文字を2回に分けて読んだがYouTubeのリンクは無し**。公式サイトの `/7-shades-of-s-even` → `/howtoplay/#movie` に「早わかり版（1分18秒）」「ひととおり説明した版（12分10秒）」が在った。🔴 **ただし WebFetch では URL が取れなかった**——「押すと再生されます」の遅延読み込みで `iframe` は空・`a` も無く、**`<button class=\"ytlite\" data-yt=\"...\">` の属性**に入っていた。**内蔵ブラウザで DOM を読んで初めて取れた。** そのうえで**HPの表記を信用せず YouTube の oembed で裏を取った**: `MKDBGe3pLaQ`＝「80秒でわかるルール」、`wPGUp6sHp2s`＝「遊び方ガイド【完全版】」、投稿者はどちらも「7 SHADES OF S:EVEN」。ⓘ 公式サイトは見出しで「1分18秒」本文で「80秒」と食い違っているので、動画の題に合わせて80秒と書いた。**入れ方**: `buildHelpList()` のいちばん上に節を1つ（**図鑑の全画面版とも共有している関数**なので両方に出る）。🔴 **iframe での埋め込みは採らなかった**——①対局中にもヘルプは開けるので盤面の上で再生されBGMと音がぶつかる ②画面全体が縮小される作りなので動画も小さくなる ③メモリを食う（#223）。別タブなら閉じれば対局に戻れる。リンクは CAMPFIRE と同じ `target=_blank` + `rel=noopener noreferrer`、`a` の既定の下線と色を打ち消し、**色は決め打ちせず inherit**（明暗2テーマ＝教訓15）。英語でも出す（ユーザー判断A・「(Japanese audio)」を添える）。**実測**: 節は1番目、iPhone 12.5px・高さ30px、PC 10.5px・高さ25px、ja/en とも正しい文言・href・target・rel、画面内、例外0件。⚠ **途中で元からの別の問題を見つけた（直していない）: ヘルプのパネルは言語を切り替えても作り直されない。** `help.js` は起動時に1回だけ組み立て `onLangChange` を購読していないので、**ヘルプ全体が起動時の言語のまま固定**（再読み込みで直る）。私の追加のせいでないことは切り分け済み——`setLang(\"en\")` の直後に `t()` は英語を返すのに DOM だけが古く、**最初から英語で起動する本当の道では英語で出る**。直すなら3行だがヘルプ全体に効くのでユーザーの判断を待つ。",
+    ],
+    devItemsEn: [
+      "The owner asked for the links and then asked me to find them myself. They were not in the repository, not on the first-edition product page (whose four videos are all different), and not on the crowdfunding page; they turned out to be on the official how-to-play page, stored in a data attribute on a click-to-play button rather than in an iframe or anchor, so reading the rendered DOM in a browser was the only way to get them. Both ids were then confirmed against YouTube itself for visibility, title and channel. Embedding was rejected because Help is reachable during a match, the whole screen is drawn scaled down, and video costs memory on phones; the links open in a separate tab instead. A pre-existing issue surfaced along the way: the Help panel is built once at startup and does not subscribe to language changes, so it stays in the launch language until reload.",
+    ],
+  },
+  {
     date: "2026-10-24",
     summary: [
       "ヘルプの用語集に、言葉を12個足しました",

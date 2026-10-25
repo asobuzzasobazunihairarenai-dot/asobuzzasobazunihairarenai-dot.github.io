@@ -82,6 +82,31 @@ function openItemModal(title, bodyParagraphs, icon) {
   itemModalEl.style.display = "block";
 }
 
+// 【続き615・ユーザー要望】「ヘルプのところに動画のリンクはどう？80秒と12分のルール説明動画が
+// もうYouTubeにアップしてあります」。**公式サイト（asobuzz.net/howtoplay）に載っている2本と
+// 同じものを指す**（URLは私が公式サイトの埋め込みから読み、YouTube の oembed で公開状態・題・
+// 投稿者が「7 SHADES OF S:EVEN」であることを確かめた）。
+// ⚠ **アプリの中に埋め込む（iframe）形は採らなかった**: ①対局中にもヘルプは開けるので盤面の上で
+// 再生され、BGMと音がぶつかる ②画面全体が縮小されて描かれる作りなので動画も一緒に小さくなる
+// ③画像と同じくメモリを食う（#223 で iPhone が落ちた）。**別タブで開く**なら、ホーム画面から
+// 起動したアプリでも上に重なって開き、閉じれば対局に戻れる。
+const HELP_VIDEOS = [
+  { id: "MKDBGe3pLaQ", key: "help.video.short" }, // 80秒でわかるルール
+  { id: "wPGUp6sHp2s", key: "help.video.full" }, // 遊び方ガイド【完全版】（12分10秒）
+];
+
+// 索引の項目と同じ見た目で、押すとYouTubeを別タブで開くリンク。既にある CAMPFIRE のリンクと
+// 同じ作法（target=_blank + rel=noopener noreferrer）。
+function buildVideoLink(video) {
+  const a = document.createElement("a");
+  a.className = "help-index-item help-index-video";
+  a.href = "https://youtu.be/" + video.id;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.textContent = t(video.key);
+  return a;
+}
+
 function buildIndexButton(label, onClick) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -138,6 +163,10 @@ function buildPanel(close) {
 export function buildHelpList() {
   const list = document.createElement("div");
   list.className = "help-panel-list";
+
+  // 【続き615】動画をいちばん上に置く。読むより早い人が多いので、最初に目に入る位置にする
+  // （この関数は図鑑の全画面版 codex-page.js とも共有しているので、両方に同じように出る）。
+  list.appendChild(buildIndexSection(t("help.sec.video"), buildFlatList(HELP_VIDEOS.map(buildVideoLink))));
 
   // 基本ルール（tutorial.jsの説明文をそのまま流用、二重管理を避ける）。
   const ruleButtons = getHelpSections().map((section) =>

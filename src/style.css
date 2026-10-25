@@ -23995,3 +23995,16 @@ body.is-phone-device #card-note-modal {
 body.is-phone-device #admin-panel {
   max-height: 34.914rem; /* 50.625rem ÷ 1.45倍 */
 }
+
+/* 【続き615】ヘルプの動画リンク。索引の項目（.help-index-item）と同じ見た目にしたいが、
+   `a` は既定で下線と青い文字が付くので打ち消す。色は**決め打ちしない**——このアプリは明暗2テーマ
+   あり、`.help-index-item` 側がテーマごとの色を持っている（CLAUDE.md の教訓15）。 */
+a.help-index-video {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+a.help-index-video::after {
+  content: " ↗"; /* 別タブで開くことを示す */
+  opacity: 0.6;
+}
