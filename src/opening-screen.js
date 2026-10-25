@@ -38,6 +38,7 @@ import { isTouchPrimaryDevice } from "./device-detect.js";
 import { startTitlePetWalk } from "./title-pet.js";
 import { t } from "./ui-text.js";
 import { getLang, setLangWithNotice, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
+import { RULE_VIDEO_SHORT_ID, ruleVideoUrl } from "./rule-videos.js";
 import { isTrialEntry, clearTrialParam, forgetTrialEntry, rememberTrialEntry } from "./trial-entry.js";
 // （旧CPU戦ボタン撤去に伴い cpu-battle.js の静的importも撤去。これで opening-screen.js が
 //  cpu-battle.js を芋づるで静的に読み込む依存辺が消え、循環import由来の黒画面リスクも下がる。）
@@ -507,6 +508,21 @@ export function initOpeningScreen() {
     addTrialEl("div", "opening-trial-lead", "trial.lead");
     const storyBtn = addTrialEl("button", "opening-screen-menu-btn opening-trial-btn is-primary", "trial.story");
     addTrialEl("div", "opening-trial-desc", "trial.storyDesc");
+    // 【続き616・ユーザー要望】**80秒の動画を試遊の入口にも置く。** ゲームマーケットのように
+    // 「その場で短時間に分かってほしい」場面に80秒はちょうどいい長さなので、遊び方を教わる
+    // ボタンのすぐ下に置く（読むより早い人がそのまま押せる位置）。
+    // ⚠ **ボタンにはしない**——ここは「遊ぶ」導線が主役で、同じ大きさのボタンを増やすと
+    // 画面の低い端末（iPhone横持ちで上下のバーが出ていると実画面320px）で収まらなくなる。
+    // 既にある CAMPFIRE のテキストリンクと**同じ見た目・同じスマホ用の拡大規則**に乗せる
+    // （`.opening-trial-cf` はスマホで 1.7rem＝実画面13px へ拡大される）。
+    const trialVideoLink = document.createElement("a");
+    trialVideoLink.className = "opening-trial-cf opening-trial-video";
+    trialVideoLink.href = ruleVideoUrl(RULE_VIDEO_SHORT_ID);
+    trialVideoLink.target = "_blank";
+    trialVideoLink.rel = "noopener noreferrer";
+    trialVideoLink.textContent = t("trial.video");
+    trialTexts.push([trialVideoLink, "trial.video"]);
+    trialPanel.appendChild(trialVideoLink);
     const cpuBtn = addTrialEl("button", "opening-screen-menu-btn opening-trial-btn", "trial.cpu");
     addTrialEl("div", "opening-trial-desc", "trial.cpuDesc");
     // ユーザー要望「ログインしてすべてを利用する的なボタンをほかの試遊のボタンと同等に目立たせよう」。

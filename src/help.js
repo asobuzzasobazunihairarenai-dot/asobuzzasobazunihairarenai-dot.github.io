@@ -18,6 +18,8 @@ import { getGlossary, getFaqCategories, getDigitalFeatures } from "./help-conten
 import { getRankExplainSections } from "./rank-explain.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ8
 import { linkifyGlossary } from "./glossary-linkify.js";
+import { RULE_VIDEO_SHORT_ID, RULE_VIDEO_FULL_ID, ruleVideoUrl } from "./rule-videos.js";
+import { onLangChange } from "./i18n.js";
 import { getOptionArea } from "./option-area.js";
 import { closeShopPanel } from "./shop.js";
 import { closeProfilePage } from "./profile-page.js";
@@ -82,6 +84,32 @@ function openItemModal(title, bodyParagraphs, icon) {
   itemModalEl.style.display = "block";
 }
 
+// 【続き615・ユーザー要望】「ヘルプのところに動画のリンクはどう？80秒と12分のルール説明動画が
+// もうYouTubeにアップしてあります」。**公式サイト（asobuzz.net/howtoplay）に載っている2本と
+// 同じものを指す**（URLは私が公式サイトの埋め込みから読み、YouTube の oembed で公開状態・題・
+// 投稿者が「7 SHADES OF S:EVEN」であることを確かめた）。
+// ⚠ **アプリの中に埋め込む（iframe）形は採らなかった**: ①対局中にもヘルプは開けるので盤面の上で
+// 再生され、BGMと音がぶつかる ②画面全体が縮小されて描かれる作りなので動画も一緒に小さくなる
+// ③画像と同じくメモリを食う（#223 で iPhone が落ちた）。**別タブで開く**なら、ホーム画面から
+// 起動したアプリでも上に重なって開き、閉じれば対局に戻れる。
+// 【続き616】URLは rule-videos.js に集約した（試遊の入口からも同じ動画を開くため）。
+const HELP_VIDEOS = [
+  { id: RULE_VIDEO_SHORT_ID, key: "help.video.short" },
+  { id: RULE_VIDEO_FULL_ID, key: "help.video.full" },
+];
+
+// 索引の項目と同じ見た目で、押すとYouTubeを別タブで開くリンク。既にある CAMPFIRE のリンクと
+// 同じ作法（target=_blank + rel=noopener noreferrer）。
+function buildVideoLink(video) {
+  const a = document.createElement("a");
+  a.className = "help-index-item help-index-video";
+  a.href = ruleVideoUrl(video.id);
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.textContent = t(video.key);
+  return a;
+}
+
 function buildIndexButton(label, onClick) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -138,6 +166,10 @@ function buildPanel(close) {
 export function buildHelpList() {
   const list = document.createElement("div");
   list.className = "help-panel-list";
+
+  // 【続き615】動画をいちばん上に置く。読むより早い人が多いので、最初に目に入る位置にする
+  // （この関数は図鑑の全画面版 codex-page.js とも共有しているので、両方に同じように出る）。
+  list.appendChild(buildIndexSection(t("help.sec.video"), buildFlatList(HELP_VIDEOS.map(buildVideoLink))));
 
   // 基本ルール（tutorial.jsの説明文をそのまま流用、二重管理を避ける）。
   const ruleButtons = getHelpSections().map((section) =>
@@ -215,15 +247,39 @@ export function initHelpButton() {
 
   const launcherBtn = document.createElement("button");
   launcherBtn.id = "help-button";
-  const { captionEl } = buildIconButtonContent(launcherBtn, {
+  const { captionEl, tooltipEl } = buildIconButtonContent(launcherBtn, {
     icon: "assets/icons/help.svg",
     tooltip: t("help.iconTip"),
   });
   captionEl.textContent = t("help.iconCaption");
+  // 【続き617】長押しで出る説明は**関数で渡す**。wireIconButtonClick は
+  // `typeof === "function"` を見る作りなので、押された時点の言語で引ける
+  // （文字列で渡すと、起動時の言語のまま固定されてしまう）。
   wireIconButtonClick(launcherBtn, {
-    detailTitle: t("help.iconCaption"),
-    detailParagraphs: [t("help.iconDetail")],
+    detailTitle: () => t("help.iconCaption"),
+    detailParagraphs: () => [t("help.iconDetail")],
     onAction: open,
   });
   getOptionArea().appendChild(launcherBtn);
+
+  // 【続き617・ユーザー判断A】**言語を切り替えたら、ヘルプも作り直す。**
+  // このパネルは起動時に1回だけ組み立てていて `onLangChange` を購読していなかったため、
+  // **ヘルプ全体が「起動した時の言語」のまま固定**だった（途中で英語にしても日本語のまま。
+  // 再読み込みで直るので気づきにくい）。home-screen / main / opening-screen / options-menu は
+  // 購読しているので、ここだけが取り残されていた。続き615 で動画の節を足した時に見つけた。
+  // ⚠ **作り直すのは一覧だけ**にして、パネルそのものは置き換えない——`openFn`/`closeFn` が
+  // この `panel` を掴んでいるうえ、`display` の切り替えで開閉している（置き換えると開いて
+  // いる時に消える）。題とボタンの文字は id で引ける。
+  // ⚠ 折りたたみ（用語集など）は閉じた状態に戻る。言語が変わる時に開き直すのは自然なので
+  // そのままにする。
+  onLangChange(() => {
+    const titleNow = panel.querySelector("#help-panel-title");
+    if (titleNow) titleNow.textContent = t("help.title");
+    const tutorialNow = panel.querySelector("#help-panel-tutorial-btn");
+    if (tutorialNow) tutorialNow.textContent = t("help.tutorialBtn");
+    const listNow = panel.querySelector(".help-panel-list");
+    if (listNow) listNow.replaceWith(buildHelpList());
+    captionEl.textContent = t("help.iconCaption");
+    if (tooltipEl) tooltipEl.textContent = t("help.iconTip");
+  });
 }

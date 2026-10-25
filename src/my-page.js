@@ -16,7 +16,7 @@ import { TITLE_DEFS, computeUnlockedTitleKeys, getTitleGroups, formatTitle } fro
 import { openStatsPlayerLinkModal } from "./stats-player-link.js";
 import { buildFriendsButton } from "./friends-ui.js"; // フレンド機能（2026-09-04）
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
-import { buildIconButtonContent, wireIconButtonClick, openIconDetailModal } from "./icon-action-button.js";
+import { buildIconButtonContent, wireIconButtonClick, openIconDetailModal, onIconLabelRefresh } from "./icon-action-button.js";
 import { openOnlinePanel } from "./online-ui.js";
 import { getShopCompletionStats } from "./shop-content.js";
 import { getOptionArea } from "./option-area.js";
@@ -734,14 +734,18 @@ export function initMyPage() {
   // （profile-page.js）へ変更した。
   const launcherBtn = document.createElement("button");
   launcherBtn.id = "my-page-button";
-  const { captionEl } = buildIconButtonContent(launcherBtn, {
+  const { captionEl, tooltipEl } = buildIconButtonContent(launcherBtn, {
     icon: "assets/icons/my-page.svg",
-    tooltip: t("mypage.L703"),
+    tooltip: "",
   });
-  captionEl.textContent = t("mypage.L252");
+  // 【続き618】言語が変わったら貼り直す（文字と吹き出しを1か所で決める）。
+  onIconLabelRefresh(() => {
+    captionEl.textContent = t("mypage.L252");
+    if (tooltipEl) tooltipEl.textContent = t("mypage.L703");
+  });
   wireIconButtonClick(launcherBtn, {
-    detailTitle: t("mypage.L252"),
-    detailParagraphs: [t("mypage.L708")],
+    detailTitle: () => t("mypage.L252"),
+    detailParagraphs: () => [t("mypage.L708")],
     onAction: () => (profilePageOpenerFn ? profilePageOpenerFn() : open()),
   });
   getOptionArea().appendChild(launcherBtn);

@@ -213,7 +213,7 @@ import {
   protagonistPathForSeat,
 } from "./player-identity.js";
 import { applyAvatarContent, getAvatarVariant, getAwakenedVariant, getEnragedVariant } from "./avatar-render.js";
-import { buildIconButtonContent, wireIconButtonClick, openIconDetailModal } from "./icon-action-button.js";
+import { buildIconButtonContent, wireIconButtonClick, openIconDetailModal, onIconLabelRefresh } from "./icon-action-button.js";
 import { buildAvatarUploadSection } from "./avatar-upload.js";
 import { isLockAreaBarVisible, setLockAreaBarVisible } from "./lock-area-bar.js";
 import { isLockColorVisible } from "./lock-color.js";
@@ -16369,11 +16369,15 @@ const ONLINE_STATUS_ICONS = {
 function buildBugReportWidget() {
   const btn = document.createElement("button");
   btn.id = "self-status-bug-report";
-  const { captionEl } = buildIconButtonContent(btn, {
+  const { captionEl, tooltipEl } = buildIconButtonContent(btn, {
     icon: "assets/icons/bug-report.svg",
-    tooltip: t("game.bug.tip"),
+    tooltip: "",
   });
-  captionEl.textContent = t("game.bug.caption");
+  // 【続き618】言語が変わったら貼り直す。
+  onIconLabelRefresh(() => {
+    captionEl.textContent = t("game.bug.caption");
+    if (tooltipEl) tooltipEl.textContent = t("game.bug.tip");
+  });
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     openBugReportModal();
@@ -16610,11 +16614,15 @@ function closeActionLogWindow() {
 function buildActionLogToggleWidget() {
   const btn = document.createElement("button");
   btn.id = "self-status-action-log";
-  const { captionEl } = buildIconButtonContent(btn, {
+  const { captionEl, tooltipEl } = buildIconButtonContent(btn, {
     icon: "assets/icons/action-log.svg",
-    tooltip: t("game.log.toggleTip"),
+    tooltip: "",
   });
-  captionEl.textContent = t("game.log.caption");
+  // 【続き618】言語が変わったら貼り直す。
+  onIconLabelRefresh(() => {
+    captionEl.textContent = t("game.log.caption");
+    if (tooltipEl) tooltipEl.textContent = t("game.log.toggleTip");
+  });
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     if (isActionLogWindowOpen()) closeActionLogWindow();

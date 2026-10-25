@@ -1528,6 +1528,10 @@ const UI = {
     // --- フェーズ8: ヘルプ（見出し・用語ポップアップ）／ランク戦の説明 ---
     "help.title": "❓ ヘルプ",
     "help.tutorialBtn": "🎓 チュートリアルを見る",
+    "trial.video": "🎬 80秒の動画でルールを見る",
+    "help.sec.video": "🎬 動画で見る",
+    "help.video.short": "80秒でわかるルール",
+    "help.video.full": "遊び方ガイド【完全版】（12分）",
     "help.sec.rules": "📖 基本ルール",
     "help.sec.digital": "🖥️ デジタル版だけの機能",
     "help.sec.ranked": "🏆 ランク戦について",
@@ -3477,6 +3481,10 @@ const UI = {
     // --- Phase 8: help headings, glossary popup, ranked explanation ---
     "help.title": "❓ Help",
     "help.tutorialBtn": "🎓 View the tutorial",
+    "trial.video": "🎬 The rules in 80 seconds (Japanese)",
+    "help.sec.video": "🎬 Watch a video",
+    "help.video.short": "The rules in 80 seconds (Japanese audio)",
+    "help.video.full": "Full how-to-play guide, 12 min (Japanese audio)",
     "help.sec.rules": "📖 Basic rules",
     "help.sec.digital": "🖥️ Digital-only features",
     "help.sec.ranked": "🏆 About ranked play",
