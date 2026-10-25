@@ -3469,9 +3469,20 @@ export function openAdminPanel() {
   if (openAdminPanelFn) openAdminPanelFn();
 }
 
+// 【続き623】**パネルの組み立ては「初めて開く時」まで遅らせる。**
+// 🔴 実測（続き622）: このパネルは **3,437要素**あり、**起動時のDOM全体 4,959 の69%**を
+// 占めていた。一般のプレイヤーは一生開かないのに、毎回組み立てて、3,091個のCSS規則を
+// 照合してスタイルを計算していた。組み立てを飛ばす実験で **JSの実行 1,227→902ms**、
+// ブラウザの作業の合計が **約3,743→3,280ms（−12%）** になった。
+// ⚠ **モジュールごと後回しにはできない**——設定の値（CPU戦の人数・疑似CPU・寸法のつまみ等）を
+// 13個のファイルが読んでいる。だから**組み立てだけ**を遅らせる。
+// ⚠ 安全を確かめてから入れた: `updateExportRef` は既定が空の関数（モジュール先頭で定義済み）、
+// 外から `#admin-panel` を見ているのは options-menu.js の `closest()` 判定1か所だけで、
+// 無ければ一致しないだけ。`closeAdminPanelFn`（会話プレビューが呼ぶ）も未組み立てなら何もしない。
 export function initAdminMode() {
   const rebuildSlidersRef = { current: () => {} };
-  const panel = buildPanel(rebuildSlidersRef);
+  let panel = null;
+  let backdrop = null;
 
   // icon-rearrange.jsが、アイコンのドラッグ再配置が1回終わるたびに発火する。スライダーの
   // 表示値・出力欄をその場で最新化する（パネルが閉じていても軽い処理なので無条件に行う）。
@@ -3492,26 +3503,31 @@ export function initAdminMode() {
   });
 
   function close() {
+    if (!panel) return; // まだ組み立てていない＝開いていないので何もしない
     panel.style.display = "none";
     backdrop.style.display = "none";
   }
+  // 【続き623】初めて開く時に組み立てる。2回目以降はそのまま使う。
+  function ensureBuilt() {
+    if (panel) return;
+    panel = buildPanel(rebuildSlidersRef);
+    // ツールパネルなので背景は暗くしない（盤面を見ながら調整したいため）が、外側クリックで
+    // 閉じられるようにする（今後追加するパネル/モーダルもこの閉じ方に統一する）。
+    backdrop = createBackdrop(close, { dim: false, zIndex: 999 });
+    // タイトル画面（#opening-screen, z-index:50000）から開いた時に、パネルもバックドロップも
+    // その裏に隠れてしまう（ユーザー報告「管理者パネルボタンを押しても何も起きない＝背面」）ため、
+    // opening-screen-active時だけCSSで手前へ引き上げられるようにidを付けておく。
+    backdrop.id = "admin-panel-backdrop";
+    backdrop.style.display = "none";
+    panel.appendChild(createModalCloseX(close));
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+  }
   function open() {
+    ensureBuilt();
     panel.style.display = "block";
     backdrop.style.display = "block";
   }
   openAdminPanelFn = open;
   closeAdminPanelFn = close;
-
-  // ツールパネルなので背景は暗くしない（盤面を見ながら調整したいため）が、外側クリックで
-  // 閉じられるようにする（今後追加するパネル/モーダルもこの閉じ方に統一する）。
-  const backdrop = createBackdrop(close, { dim: false, zIndex: 999 });
-  // タイトル画面（#opening-screen, z-index:50000）から開いた時に、パネルもバックドロップも
-  // その裏に隠れてしまう（ユーザー報告「管理者パネルボタンを押しても何も起きない＝背面」）ため、
-  // opening-screen-active時だけCSSで手前へ引き上げられるようにidを付けておく。
-  backdrop.id = "admin-panel-backdrop";
-  backdrop.style.display = "none";
-  panel.appendChild(createModalCloseX(close));
-
-  document.body.appendChild(backdrop);
-  document.body.appendChild(panel);
 }

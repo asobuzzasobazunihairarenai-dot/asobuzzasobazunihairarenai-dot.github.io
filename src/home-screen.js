@@ -40,7 +40,23 @@ import { buildFirstStepCard, noteCpuBattlePlayed } from "./first-steps.js";
 //   「Cannot access 'phaseChangeEventListeners' before initialization」で起動時に真っ黒になった
 //   （不具合2026-08-08）。必要時だけ読み込む動的importにして静的な依存辺を作らない。
 // お知らせ／更新情報（デプロイのたびに概要を追記）。
-import { openChangelogModal, hasUnreadChangelog } from "./changelog.js";
+// 【続き621】**お知らせの本文（592KB）は起動時に読まない。** 押された時に読む。
+// NEW の印だけは起動時に要るので、3つの数字を持つ小さなモジュールから引く。
+import { hasUnreadChangelog } from "./changelog-signature.js";
+
+// 【続き621】お知らせを押された時に本文を読み込んで開く。
+// 🔴 **わざと先読みしない。** 暇な時に先に読んでおく手もあるが、592KB の解析は
+// **弱い端末では引っかかり**になるので、遊んでいる最中に突然それが走る方が困る
+// （起動が遅かった原因そのものが「解析の重さ」だった＝続き620 の測定）。
+// 読み込みに失敗しても、ホーム画面は壊さない（記録だけ残して何もしない）。
+async function openChangelogLazily() {
+  try {
+    const { openChangelogModal } = await import("./changelog.js");
+    openChangelogModal({ admin: isAdminUser() });
+  } catch (err) {
+    console.error("changelog load failed", err);
+  }
+}
 // CPU戦の強さ選択（対戦モード選択モーダルで選べるようにする。ユーザー要望2026-08-09）。
 // cpu-battle-state.js は依存ゼロの葉モジュールなので静的importでも循環参照の心配はない
 // （cpu-battle.js 本体の動的importとは別物）。選んだ値は端末に保存され、CPU戦開始時に効く。
@@ -148,7 +164,9 @@ const TILES = [
       openCodexPage(() => openHomeScreen());
     },
   },
-  { icon: "📰", image: "assets/home-icons/news.webp", labelKey: "home.tile.news", status: "ready", onOpen: () => openChangelogModal({ admin: isAdminUser() }), showNewIfUnread: () => hasUnreadChangelog() },
+  // 【続き621】押された時に本文を読む（動的 import）。ホーム画面の他のタイル
+  // （デッキ構築・不具合のお礼）と同じやり方。
+  { icon: "📰", image: "assets/home-icons/news.webp", labelKey: "home.tile.news", status: "ready", onOpen: () => void openChangelogLazily(), showNewIfUnread: () => hasUnreadChangelog() },
 ];
 
 // 「近日公開」タイルを押した時の軽いトースト。モーダルを挟むほどの重さは不要

@@ -60,6 +60,26 @@ for (const e of CHANGELOG) {
   }
 }
 
+// ⑤ 【続き621】NEW の印の「署名」が、本文から計算した値と一致しているか。
+// 🔴 本文（592KB）を起動時に読まないようにしたので、印の判断に必要な3つの数字を
+// `src/changelog-signature.js` に**写してある**。同じ事実が2か所にあるので、ここで守る。
+// ズレたら落ちて、**正しい値をそのまま出す**（直す時に迷わないように）。
+let sigProblem = null;
+try {
+  const { computeChangelogSignature } = await import("../src/changelog.js");
+  const { CHANGELOG_SIGNATURE } = await import("../src/changelog-signature.js");
+  const want = computeChangelogSignature();
+  if (CHANGELOG_SIGNATURE !== want) {
+    sigProblem =
+      "changelog-signature.js の CHANGELOG_SIGNATURE が古い。\n"
+      + '      いま: "' + CHANGELOG_SIGNATURE + '"\n'
+      + '      正解: "' + want + '"   ← これに書き換える';
+  }
+} catch (e) {
+  sigProblem = "署名の照合ができなかった: " + e.message;
+}
+if (sigProblem) problems.push(sigProblem);
+
 if (problems.length) {
   console.error("❌ お知らせに問題 " + problems.length + " 件");
   for (const p of problems) console.error("  ・" + p);

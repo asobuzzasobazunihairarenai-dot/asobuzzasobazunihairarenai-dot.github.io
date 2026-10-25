@@ -48,6 +48,7 @@
 import { createBackdrop } from "./ui-helpers.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 import { getLang } from "./i18n.js";
+import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
@@ -84,18 +85,22 @@ export const CHANGELOG = [
   {
     date: "2026-10-25",
     summary: [
+      "起動が軽くなりました（使う時まで読み込みを待つようにしました）",
       "試遊の入口からも、80秒の動画をすぐ見られるようにしました",
       "ヘルプから、公式のルール説明動画（80秒と12分）を見られるようにしました",
     ],
     summaryEn: [
+      "The app starts lighter, loading parts of itself only when you use them",
       "The 80-second video is now one tap away from the trial screen too",
       "You can now open the official rules videos (80 seconds and 12 minutes) from Help",
     ],
     items: [
+      "起動する時に、その場では使わないものまで全部読み込んでいたのをやめました。お知らせの本文と、開発者向けの調整パネルは「開いた時」に読み込みます。これで起動時に組み立てる部品が3分の1以下（約5,100個→約1,650個）になりました。回線の細い所やスマホで効きます。なお、お知らせを初めて開く時だけ少し待つことがあります。",
       "登録なしで試せる入口（試遊版の画面）にも、「🎬 80秒の動画でルールを見る」を置きました。「遊び方を教わりながら遊ぶ」のすぐ下にあります。その場でさっと全体をつかみたい時にどうぞ。別のタブで開くので、閉じればそのまま遊び始められます。あわせて、画面の縦が短い端末（スマホを横向きにしてブラウザの上下のバーが出ている時）で、この行とクラウドファンディングの行の文字が小さくて読みづらかったのも直しました。",
       "ヘルプ（❓）を開くと、いちばん上に「🎬 動画で見る」が増えています。押すと公式のルール説明動画をYouTubeで開きます。短い方は80秒で全体をつかめる早わかり版、長い方は12分でひととおり説明した完全版です。読むより早いという方はこちらからどうぞ。別のタブで開くので、対局中に開いても盤面はそのまま残ります。図鑑（ルールブックの全画面表示）からも同じように開けます。",
     ],
     itemsEn: [
+      "The app no longer loads everything it might ever need before you can play. The news text and the developer tuning panel are now loaded when you open them, which cut the number of parts built at startup to under a third (about 5,100 to about 1,650). This helps most on phones and slow connections. Opening the news for the first time may pause briefly.",
       "The trial screen — the one you reach without signing up — now also offers the 80-second rules video, right under the guided tutorial, for when you want the whole picture quickly. It opens in a separate tab, so closing it drops you straight back. The text of that line and of the crowdfunding line was also too small to read on short screens, such as a phone held sideways with the browser bars showing; both are now legible.",
       "Help now starts with a new section that opens the official rules videos on YouTube: a quick 80-second overview and a full 12-minute walkthrough. They are in Japanese, but the board and the cards are on screen throughout. The links open in a separate tab, so your game is still there when you come back, and the same section appears in the full-screen rulebook.",
     ],
@@ -2806,7 +2811,12 @@ let backdropEl = null;
 // 未読お知らせの判定（ユーザー要望「未読があればメニューアイコンにNEW表示」）。
 // 最新エントリの日付＋項目数＋エントリ総数を「署名」とし、開いた時にlocalStorageへ保存する。
 // 署名が保存値と違えば未読（新しいお知らせがある）とみなす。
-const CHANGELOG_READ_KEY = "so7-changelog-read";
+// 【続き621】署名（NEW を付けるかの判断）は `changelog-signature.js` へ移した。
+// このファイルは592KBあり、**起動時に読み込むと解析だけで時間を食う**ため、本文は
+// 「お知らせを開いた時」に読む形にした。印の判断だけは起動時に要るので、あちらに
+// 3つの数字（日付・件数・回数）を写してある。**ズレないよう `tools/check-changelog.mjs`
+// が毎回一致を確かめる**（GitHub Actions でも走る）。
+// ⚠ 下の `currentSignature()` は**その検査が参照する「正しい値」の作り方**なので残す。
 // 続き484: 一般向けの項目（items）が1つでもある回だけを数える。
 // **署名は管理者かどうかで変えない**——isAdminUser() はログインの読み込みが終わるまで false を
 // 返すので、署名に混ぜると起動直後だけ NEW が付いたり消えたりする。管理者向けの項目のために
@@ -2825,19 +2835,10 @@ function currentSignature() {
   // 【2026-09-28】fixes も数に入れる（不具合の直しだけの回でも「NEW」が付くようにする）。
   return `${top.date}|${(top.items?.length ?? 0) + (top.fixes?.length ?? 0)}|${list.length}`;
 }
-export function hasUnreadChangelog() {
-  try {
-    return localStorage.getItem(CHANGELOG_READ_KEY) !== currentSignature();
-  } catch (e) {
-    return false;
-  }
-}
-export function markChangelogRead() {
-  try {
-    localStorage.setItem(CHANGELOG_READ_KEY, currentSignature());
-  } catch (e) {
-    /* localStorage不可でも致命的ではない */
-  }
+// 【続き621】`changelog.js` の中身から計算した「正しい署名」。`changelog-signature.js` の
+// 定数がこれと一致しているかを `tools/check-changelog.mjs` が確かめる。
+export function computeChangelogSignature() {
+  return currentSignature();
 }
 
 function close() {
@@ -2853,7 +2854,7 @@ function close() {
 // phase-automation / board-3d と同じく、必要なものは外から渡す形にしておく。
 export function openChangelogModal({ admin = false } = {}) {
   if (modalEl) return;
-  markChangelogRead(); // 開いた時点で既読に（メニューのNEW表示を消す）
+  markChangelogRead(); // 開いた時点で既読に（メニューのNEW表示を消す。署名は別モジュール）
   backdropEl = createBackdrop(close, { dim: true, blocksGame: false, zIndex: 2400 });
   modalEl = document.createElement("div");
   modalEl.id = "changelog-modal";
