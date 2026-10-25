@@ -1324,3 +1324,61 @@ options-menu は購読している）。つまり**ヘルプ全体が「起動�
 **検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`node tools/check-undeclared.mjs` 0件
 （171ファイル）、`node tools/check-cards.mjs` 0件、CSSブレース平衡（3549/3549）、
 お知らせ ja/en 件数一致。サーバー側の変更は無い。
+
+### 2026-10-25（続き617）：ヘルプが「起動した時の言語」のまま固定されていたのを直した（続き615 の⚠・ユーザー判断A）
+
+続き615 で動画の節を足した時に見つけた、**元からの問題**。ユーザー「Aもやろうか！！」で着手。
+
+#### 何が起きていたか
+
+`help.js` はパネルを `initHelpButton()` で**起動時に1回だけ**組み立て、**`onLangChange` を
+購読していなかった**。だから**ヘルプ全体が「起動した時の言語」のまま固定**で、途中で英語に
+切り替えても日本語のままだった（**再読み込みで直るので気づきにくい**）。
+`home-screen` / `main` / `opening-screen` / `options-menu` は購読しているので、**ここだけが
+取り残されていた**。
+
+- **図鑑（codex-page.js）は大丈夫だった**——`closeCodexPage()` が `overlayEl.remove()` して
+  null に戻すので、**開くたびに作り直される**。同じ `buildHelpList()` を使っているが問題ない。
+- **ヘルプの項目モーダル（`#help-item-modal`）も大丈夫**——題と本文は開く時に渡される作りで、
+  自前の文言を持っていない。
+
+#### 直し（[src/help.js](src/help.js) だけ）
+
+`onLangChange` で **一覧（`.help-panel-list`）を作り直し**、題・チュートリアルのボタン・
+起動ボタンの文字と吹き出しを引き直す。
+
+- ⚠ **作り直すのは一覧だけで、パネルそのものは置き換えない。** 開閉が `display` の切り替えで
+  行われていて、`openFn` / `closeFn` がその `panel` を掴んでいるので、**置き換えると開いている
+  最中に消える**。題とボタンは id（`#help-panel-title` / `#help-panel-tutorial-btn`）で引ける。
+- ⚠ **折りたたみ（用語集など）は閉じた状態に戻る。** 言語が変わる時に開き直すのは自然なので
+  そのままにした。
+- 🔴 **起動ボタンの長押しの説明も直した。** `wireIconButtonClick` は `typeof === "function"` を
+  見る作り＝**関数を渡せる**のに、文字列（`t("help.iconCaption")`）で渡していたので起動時の
+  言語で固定されていた。**関数にして、押された時点の言語で引く**ようにした。
+  （`refreshActionButtonLabels` は main.js 自身のボタンだけを面倒見ていて、ここは対象外だった。）
+- **循環 import にならないことを確かめてから足した**（続き573 で実際に TDZ で落ちている）:
+  **`i18n.js` は何も import しない葉モジュール**。
+
+#### A/B（`scratchpad/p617.mjs`。直す前の `help.js` を配信。**「開いたまま切り替える」最悪の順番**で試した）
+
+| 見たもの | 直す前 | 直した後 |
+|---|---|---|
+| 題 | ❓ ヘルプ（変わらない） | **❓ Help** |
+| チュートリアルのボタン | 変わらない | **🎓 View the tutorial** |
+| 最初の節 | 変わらない | **🎬 Watch a video** |
+| 動画のリンク | 変わらない | **The rules in 80 seconds (Japanese audio)** |
+| 用語集の節 | 変わらない | **🔤 Glossary** |
+| 起動ボタンの文字／吹き出し | 変わらない | **Help / Open help** |
+| パネルは開いたまま | ✅ | **✅**（作り直しで消えない） |
+
+日本語へ戻すと全部戻る。例外0件。
+
+#### 申し送り
+
+**同じ形（起動時に1回だけ組み立てて `onLangChange` を購読していない）が他にもあり得る。**
+今回は `refreshActionButtonLabels` が main.js 自身のボタンだけを見ていることも分かったので、
+**オプションエリアの他のアイコンボタン**（⚙ など）が同じ状態かは未点検。
+気になるようなら、`buildIconButtonContent` を使っている所を洗えば一覧にできる。
+
+**検査**: `npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、`node tools/check-undeclared.mjs` 0件
+（171ファイル）、`node tools/check-cards.mjs` 0件、お知らせ ja/en 件数一致。サーバー側の変更は無い。

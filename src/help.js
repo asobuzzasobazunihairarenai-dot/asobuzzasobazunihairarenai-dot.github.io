@@ -19,6 +19,7 @@ import { getRankExplainSections } from "./rank-explain.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ8
 import { linkifyGlossary } from "./glossary-linkify.js";
 import { RULE_VIDEO_SHORT_ID, RULE_VIDEO_FULL_ID, ruleVideoUrl } from "./rule-videos.js";
+import { onLangChange } from "./i18n.js";
 import { getOptionArea } from "./option-area.js";
 import { closeShopPanel } from "./shop.js";
 import { closeProfilePage } from "./profile-page.js";
@@ -246,15 +247,39 @@ export function initHelpButton() {
 
   const launcherBtn = document.createElement("button");
   launcherBtn.id = "help-button";
-  const { captionEl } = buildIconButtonContent(launcherBtn, {
+  const { captionEl, tooltipEl } = buildIconButtonContent(launcherBtn, {
     icon: "assets/icons/help.svg",
     tooltip: t("help.iconTip"),
   });
   captionEl.textContent = t("help.iconCaption");
+  // 【続き617】長押しで出る説明は**関数で渡す**。wireIconButtonClick は
+  // `typeof === "function"` を見る作りなので、押された時点の言語で引ける
+  // （文字列で渡すと、起動時の言語のまま固定されてしまう）。
   wireIconButtonClick(launcherBtn, {
-    detailTitle: t("help.iconCaption"),
-    detailParagraphs: [t("help.iconDetail")],
+    detailTitle: () => t("help.iconCaption"),
+    detailParagraphs: () => [t("help.iconDetail")],
     onAction: open,
   });
   getOptionArea().appendChild(launcherBtn);
+
+  // 【続き617・ユーザー判断A】**言語を切り替えたら、ヘルプも作り直す。**
+  // このパネルは起動時に1回だけ組み立てていて `onLangChange` を購読していなかったため、
+  // **ヘルプ全体が「起動した時の言語」のまま固定**だった（途中で英語にしても日本語のまま。
+  // 再読み込みで直るので気づきにくい）。home-screen / main / opening-screen / options-menu は
+  // 購読しているので、ここだけが取り残されていた。続き615 で動画の節を足した時に見つけた。
+  // ⚠ **作り直すのは一覧だけ**にして、パネルそのものは置き換えない——`openFn`/`closeFn` が
+  // この `panel` を掴んでいるうえ、`display` の切り替えで開閉している（置き換えると開いて
+  // いる時に消える）。題とボタンの文字は id で引ける。
+  // ⚠ 折りたたみ（用語集など）は閉じた状態に戻る。言語が変わる時に開き直すのは自然なので
+  // そのままにする。
+  onLangChange(() => {
+    const titleNow = panel.querySelector("#help-panel-title");
+    if (titleNow) titleNow.textContent = t("help.title");
+    const tutorialNow = panel.querySelector("#help-panel-tutorial-btn");
+    if (tutorialNow) tutorialNow.textContent = t("help.tutorialBtn");
+    const listNow = panel.querySelector(".help-panel-list");
+    if (listNow) listNow.replaceWith(buildHelpList());
+    captionEl.textContent = t("help.iconCaption");
+    if (tooltipEl) tooltipEl.textContent = t("help.iconTip");
+  });
 }
