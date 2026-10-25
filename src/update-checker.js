@@ -9,6 +9,7 @@
 import { APP_VERSION } from "./app-version.js";
 import { markCleanExit } from "./crash-blackbox.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
+import { purgeAppCache } from "./sw-cache.js"; // 続き625
 
 const CHECK_INTERVAL_MS = 60000; // 60秒ごと
 // 更新時のファイル取り直しに待つ上限。これを超えたら待ち切らずに再読み込みへ進む
@@ -157,6 +158,10 @@ async function applyUpdate(btn) {
   } catch (e) {
     /* sessionStorage不可でも続行 */
   }
+  // 🔴【続き625】取り直しの**前に**自前のキャッシュを捨てる（こちらは待つ）。
+  // 検知時にも捨てているが、ここは「順番」が大事——捨てる前に取り直すと、
+  // 古いものをそのまま溜め直してしまう。
+  await purgeAppCache();
   try {
     // 進捗を出しながら取り直す。回線が遅い・一部が応答しない時に永久に待たないよう、
     // 上限（ASSET_REFRESH_TIMEOUT_MS）を超えたら待ち切らずに再読み込みへ進む
@@ -238,6 +243,13 @@ async function check(isInitial = false) {
   latestVersion = v;
   if (v !== loadedVersion) {
     updateAvailable = true;
+    // 🔴【続き625】**新しい版を見つけたら、その場で自前のキャッシュを捨てる。**
+    // これが無いと、下の applyUpdate() の取り直しや次回の読み込みが**古いキャッシュに
+    // 横取りされて、永久に更新できない端末**ができる。ここで捨てておけば、
+    // ①このあと自動更新に進む場合も ②ユーザーがバナーを無視してタブを閉じた場合も、
+    // 次に取るものは必ずネットワークから来る。待たない（捨てるのは一瞬で、
+    // 失敗しても従来どおりの動きに戻るだけ）。
+    void purgeAppCache();
     dismissed = false; // 新バージョン検知時は、以前閉じていても改めて出せるようにする
     // 自動更新の条件: 初回（読み込み直後）＆ 対局中でない（canShowBanner）＆ 直前の更新試行が
     // 空振りでない（priorUpdateAttemptFailed=false）。空振り済みなら自動でループさせず、

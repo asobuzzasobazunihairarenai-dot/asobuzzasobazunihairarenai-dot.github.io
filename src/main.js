@@ -255,6 +255,7 @@ import { initDeviceDetect, isTouchPrimaryDevice } from "./device-detect.js";
 import { initJankLogger } from "./jank-logger.js";
 import { initRankedNotify } from "./ranked-notify.js";
 import { initPushNotify, subscribeToPush } from "./push-notify.js";
+import { initAppCache } from "./sw-cache.js";
 import { registerRecommendedViewHelper } from "./tablet-2d-warning.js";
 import { registerRenderHelpers, animateFirstCardsDealt, animateBoardFilled } from "./setup-animation.js";
 import {
@@ -18987,6 +18988,11 @@ registerPhaseAutomationHelpers({
 });
 initHelpButton();
 initRankingIcon();
+// 【続き625】2回目以降の読み込みを速くするキャッシュ（sw.js）を登録する。
+// ⚠ **initUpdateChecker より先に呼ぶ。** あちらは読み込み直後に version.json を見て、
+// 新しい版なら purgeAppCache() を呼ぶので、登録が済んでいる方が素直
+// （登録前でも caches.delete は効くので事故にはならないが、順番を揃えておく）。
+initAppCache();
 initUpdateChecker(); // デプロイ検知＆更新案内バナー（version.jsonを定期チェック）
 initPiecePets(); // 駒に遅れて追従する飾りのペット（見た目だけ・ゲームには無関係）
 // ユーザー要望「更新バナーは対局中は出さない、対局が終われば出す」。対局が進行中
