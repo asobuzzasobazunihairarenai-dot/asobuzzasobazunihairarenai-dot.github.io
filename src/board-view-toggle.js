@@ -5,7 +5,7 @@
 // アイコンボタンからも切り替えられるようにし、今の表示状態をアイコン/キャプションに反映する。
 // discord-link.js と同じ buildIconButtonContent / wireIconButtonClick パターン。
 
-import { buildIconButtonContent, wireIconButtonClick } from "./icon-action-button.js";
+import { buildIconButtonContent, wireIconButtonClick, onIconLabelRefresh } from "./icon-action-button.js";
 import { getOptionArea } from "./option-area.js";
 import { isFlatten2dMode, setFlatten2dMode, onFlatten2dModeChange } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -26,11 +26,12 @@ export function initBoardViewToggle() {
     captionEl.textContent = flat ? "2D" : "3D";
     if (tooltipEl) tooltipEl.textContent = flat ? t("bvt.tip2d") : t("bvt.tip3d");
   }
-  applyState();
+  // 【続き618】言語が変わったら貼り直す（初回の設定もこの中で行われる）。
+  onIconLabelRefresh(applyState);
 
   wireIconButtonClick(btn, {
-    detailTitle: t("bvt.title"),
-    detailParagraphs: [
+    detailTitle: () => t("bvt.title"),
+    detailParagraphs: () => [
       t("bvt.detail1"),
       t("bvt.detail2"),
     ],

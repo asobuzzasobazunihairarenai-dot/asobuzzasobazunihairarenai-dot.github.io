@@ -5,7 +5,7 @@
 // 要素の全画面化に非対応の環境では、ボタンを押しても何も起きない（安全にno-op）。
 // board-view-toggle.js と同じ buildIconButtonContent / wireIconButtonClick パターン。
 
-import { buildIconButtonContent, wireIconButtonClick } from "./icon-action-button.js";
+import { buildIconButtonContent, wireIconButtonClick, onIconLabelRefresh } from "./icon-action-button.js";
 import { getOptionArea } from "./option-area.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
@@ -101,11 +101,13 @@ export function initFullscreenToggle() {
     captionEl.textContent = on ? t("fs.captionOff") : t("fs.captionOn");
     if (tooltipEl) tooltipEl.textContent = on ? t("fs.tipOn") : t("fs.tipOff");
   }
-  applyState();
+  // 【続き618】言語が変わったら貼り直す（初回の設定もこの中で行われる）。
+  onIconLabelRefresh(applyState);
 
   wireIconButtonClick(btn, {
-    detailTitle: t("fs.title"),
-    detailParagraphs: [
+    // 長押しの説明は**関数で渡す**（押された時点の言語で引く）。
+    detailTitle: () => t("fs.title"),
+    detailParagraphs: () => [
       t("fs.detail1"),
       t("fs.detail2"),
       t("fs.detail3"),

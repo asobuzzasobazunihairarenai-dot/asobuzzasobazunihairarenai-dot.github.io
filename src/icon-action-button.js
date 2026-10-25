@@ -10,6 +10,8 @@
 // ターン終了）もあるため、後から書き換えられるようcaptionEl参照を返す。
 
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
+// 【続き618】⚠ i18n.js は何も import しない葉モジュールなので循環 import にはならない（続き573 の教訓）。
+import { onLangChange } from "./i18n.js";
 
 let modalBackdrop = null;
 let modalEl = null;
@@ -60,6 +62,32 @@ export function openIconDetailModal(title, paragraphs) {
 // btn（既存の<button>要素）の中身を、アイコン+キャプションのDOM構造に差し替える。
 // 戻り値のcaptionEl/tooltipElに後からtextContentを設定すれば、キャプション文字・ホバー説明を
 // 動的に更新できる（例: ターン終了ボタンは「今誰の番か」に応じてtooltipの文言が変わる）。
+// 【続き618】**言語が変わった時に、アイコンボタンの文字を貼り直す。**
+// このアプリのアイコンボタンは**起動時に1回だけ**作られるものが多く、作った時の言語のまま
+// 固定になっていた（続き617 でヘルプが同じ状態だったので、同じ系統を洗って見つけた。実測で
+// マイページ・全画面・ログ・オプション・不具合報告・Discord・3D の**7つが日本語のまま**だった）。
+// 🔴 **1つずつ onLangChange を書くのではなく、ここで預かる。** 文字の作り方はボタンごとに
+// 違う（固定のものと、ON/OFF で変わるもの）ので、**「貼り直す処理」を関数で渡してもらう**のが
+// いちばん素直だった。状態で変わるボタンは、既にある applyState() をそのまま渡せる。
+// 渡した関数は**その場で1回呼ぶ**ので、呼ぶ側は初期設定を別に書かなくてよい。
+const labelRefreshers = new Set();
+export function onIconLabelRefresh(fn) {
+  labelRefreshers.add(fn);
+  callRefresher(fn);
+  return () => labelRefreshers.delete(fn);
+}
+function callRefresher(fn) {
+  try {
+    fn();
+  } catch (e) {
+    // 1つのボタンの失敗で、他のボタンまで古いままにしない。
+    console.error("icon label refresh failed", e);
+  }
+}
+onLangChange(() => {
+  for (const fn of labelRefreshers) callRefresher(fn);
+});
+
 export function buildIconButtonContent(btn, { icon, tooltip }) {
   btn.classList.add("icon-action-button");
   btn.innerHTML = "";

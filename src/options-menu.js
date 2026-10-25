@@ -70,7 +70,7 @@ import {
   getCurrentGameId,
   isRankedGame,
 } from "./online.js";
-import { buildIconButtonContent, wireIconButtonClick } from "./icon-action-button.js";
+import { buildIconButtonContent, wireIconButtonClick, onIconLabelRefresh } from "./icon-action-button.js";
 import { openStatsPlayerLinkModal } from "./stats-player-link.js";
 import { fetchStatsProfile } from "./stats-profile.js";
 import { isFlatten2dMode, setFlatten2dMode } from "./tablet-2d-mode.js";
@@ -1674,14 +1674,18 @@ export function initOptionsMenu() {
 
   const toggleBtn = document.createElement("button");
   toggleBtn.id = "options-menu-button";
-  const { captionEl } = buildIconButtonContent(toggleBtn, {
+  const { captionEl, tooltipEl } = buildIconButtonContent(toggleBtn, {
     icon: "assets/icons/options.svg",
-    tooltip: t("opt.iconTip"),
+    tooltip: "",
   });
-  captionEl.textContent = t("opt.title");
+  // 【続き618】言語が変わったら貼り直す。
+  onIconLabelRefresh(() => {
+    captionEl.textContent = t("opt.title");
+    if (tooltipEl) tooltipEl.textContent = t("opt.iconTip");
+  });
   wireIconButtonClick(toggleBtn, {
-    detailTitle: t("opt.title"),
-    detailParagraphs: [
+    detailTitle: () => t("opt.title"),
+    detailParagraphs: () => [
       t("opt.iconDetail"),
     ],
     onAction: open,
