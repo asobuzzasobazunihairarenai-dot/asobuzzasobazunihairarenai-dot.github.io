@@ -1,0 +1,66 @@
+# 【続き619】push するたびに検査を自動で走らせる。
+#
+# 🔴 **なぜ入れたか**: これまで検査（`npm test`・カードの持ち物検査・未宣言の検査・SQLの
+# 再実行検査・CSS・お知らせ）は**人が手で走らせていた**。人が覚えている限り動く検査は、
+# 忘れた回に静かに通ってしまう。このリポジトリは**本番に直結**している（main に push すると
+# GitHub Pages がそのまま公開する）ので、**壊れたものが公開されるのを止める網**が要る。
+#
+# ⚠ **これは公開を止める仕組みではない**（GitHub Pages の公開は別に走る）。落ちたら
+# **赤い印が付いて知らせる**もの。止めたいなら、将来ブランチ保護を足す。
+#
+# 走る条件: main への push と、main 向けの pull request。手動でも回せる。
+name: 検査
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同じブランチで新しい push が来たら、古い実行は打ち切る（待ち時間と無駄を減らす）。
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ブラウザを使わない検査。数秒で終わるので、重いテストより先に出す
+  # （壊れていたら早く分かる）。
+  static:
+    name: 静的な検査（ブラウザ不要）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 未宣言の名前（import 漏れ）
+        run: node tools/check-undeclared.mjs
+      - name: カードの持ち物検査
+        run: node tools/check-cards.mjs
+      - name: SQL の全文再実行が安全か
+        run: node tools/check-sql-rerun.mjs
+      - name: CSS（ブレースの平衡・max-height の vh）
+        run: node tools/check-css.mjs
+      - name: お知らせ（日本語と英語の件数）
+        run: node tools/check-changelog.mjs
+
+  # カード効果のテストとスモーク。Playwright のブラウザを入れるので時間がかかる。
+  browser:
+    name: カード効果のテストとスモーク
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: 依存を入れる
+        run: npm ci
+      # Chromium だけ入れる（このリポジトリのテストは Chromium しか使わない）。
+      - name: Chromium を入れる
+        run: npx playwright install --with-deps chromium
+      - name: カード効果のテスト（63件）
+        run: npm test
+      - name: スモーク（2人CPU戦を8ターン回す）
+        run: node test/smoke.mjs 2

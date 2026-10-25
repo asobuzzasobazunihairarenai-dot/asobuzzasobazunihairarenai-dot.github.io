@@ -4,9 +4,11 @@
   "private": true,
   "description": "7 SHADES OF S:EVEN デジタル版。無ビルドのバニラESM（index.html が src/main.js を読み込む）。この package.json は開発用スモークテスト（Playwright）専用で、デプロイ（GitHub Pages）には一切影響しない。",
   "scripts": {
-    "smoke": "node test/smoke.mjs",
-    "effects": "node test/effects.mjs",
+    "check": "node tools/check-undeclared.mjs && node tools/check-cards.mjs && node tools/check-sql-rerun.mjs && node tools/check-css.mjs && node tools/check-changelog.mjs",
+    "check:all": "npm run check && npm test && node test/smoke.mjs 2",
     "test": "node test/effects.mjs",
+    "effects": "node test/effects.mjs",
+    "smoke": "node test/smoke.mjs",
     "smoke:online": "node test/online-smoke.mjs"
   },
   "devDependencies": {
