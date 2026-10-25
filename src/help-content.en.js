@@ -109,6 +109,13 @@ export const GLOSSARY_EN = [
     body: ["The player with the greatest number of cards locked in their own Lock Area."],
   },
   {
+    term: "Player with the fewest locked cards",
+    body: [
+      "The player with the fewest cards locked in their own lock area.",
+      "If several players are tied, all of them count.",
+    ],
+  },
+  {
     term: "Move at once",
     body: [
       "Moving directly to the destination without passing through the squares in between. Cards or opposing pieces on the way do not matter.",
@@ -190,6 +197,12 @@ export const GLOSSARY_EN = [
   { term: "Contact", body: ["Take one card at random from an opponent's hand; that opponent is then force-moved back to their own gate."] },
   { term: "S:EVEN", body: ["Short for 7 SHADES OF S:EVEN."] },
   {
+    term: "Everyone",
+    body: [
+      "Every player, including you.",
+    ],
+  },
+  {
     term: "Best-effort principle",
     body: [
       "Players must do their best to satisfy what a card says, as far as it is possible.",
@@ -259,6 +272,13 @@ export const GLOSSARY_EN = [
     term: "Hand Phase",
     body: [
       "The second phase of a turn. You may use any number of hand effects, or none at all.",
+    ],
+  },
+  {
+    term: "Half",
+    body: [
+      "Fractions are rounded down.",
+      "With seven cards in hand, half is 3.5, which becomes three.",
     ],
   },
   {

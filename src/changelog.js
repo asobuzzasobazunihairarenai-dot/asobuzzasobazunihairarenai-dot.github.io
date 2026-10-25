@@ -51,6 +51,37 @@ import { getLang } from "./i18n.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-25",
+    summary: [
+      "ヘルプの用語集に、さらに3つの言葉を足しました",
+    ],
+    summaryEn: [
+      "Added three more terms to the glossary in Help",
+    ],
+    items: [
+      "ヘルプの用語集に**3つの言葉**を足しました——**1番少なくロックしているプレイヤー**（同数なら全員が該当します）、**全員**（あなたを含むすべてのプレイヤー）、**半分**（小数点以下は切り捨て）。公式サイトの用語集にも同じ文面で入っているので、**どちらを見ても同じ説明**になります。用語集はこれで61語になりました。",
+    ],
+    itemsEn: [
+      "Added three more entries to the glossary in Help: the player with the fewest locked cards (ties count everyone), everyone (every player including you), and half (fractions round down). The official site now carries the same wording, so both places read the same. The glossary is now 61 terms.",
+    ],
+    devItems: [
+      "**経緯**: 続き612 でアプリに12語足した際の申し送り（HPに無い語・表記ゆれ）をHP相談セッションへ渡したところ、**HP側が10/24に11語の追加と表記ゆれ4件の統一を完了**。そのうえで「総合ルールの索引に在るのにHPにもアプリにも無い語が3つある」と返ってきた（1番少なくロックしているプレイヤー／全員／半分）。本人が「3語とも両方に足す」と判断したとの連絡を受けての追加。**文面はHPに入れたものと同一**にした（両方を見比べる人にとって、違う文が並んでいる方が困る）。",
+      "**名前はアプリ側の既存に合わせた**。総合ルールの索引の見出しは「1番少なくロックしている」だが、アプリにもHPにも前から「1番**多く**ロックしているプレイヤー」が在るので、**対になるよう「〜プレイヤー」で揃えた**（HP側も同じ判断をしている）。",
+      "**英語は「全員」を `Everyone` にした**。既存の「プレイヤー全員」が `All players` を使っているので、同じ訳にすると一覧で区別がつかなくなる。中身は同じだが、**カードに実際に印字されるのは「全員」**なので項目としては別に立てた（HP側も同じ理由で別項目にしている）。",
+      "**HP相談からの指摘「アプリ側のフェイズの文面も確認を」は、確認して問題なしだった。** HP側は3つのフェイズがどれも「自分のターンできる第2のこと」という壊れた文になっていた（旧サイトから写した時点で崩れていたもの）。**アプリ側は続き612 で総合ルールの条文（502.1・503.1・504.1・505.1・508）から書き起こしたばかり**なので、この崩れは入っていない。",
+      "**表記ゆれ4件も、アプリ側は既に総合ルールの見出しと同じだった**（1番上の原則／一気に移動／無色のカード／ロックする）。HP側が揃えたことで、3者の見出しが一致した。",
+      "**英語版はアプリにしかない**（HPは日本語のみ）。HP相談から「英語が要る場合はそちらで」と申し送りがあったので、この3語の英訳はこちらで用意した。",
+    ],
+    devItemsEn: [
+      "Follow-up to the twelve terms added two days ago. The site session had meanwhile added eleven terms and unified four spelling variants, then reported three more that the comprehensive rules index but neither the site nor the app carried. The same wording was used on both so that the two places read identically.",
+      "The naming follows what the app already had: the index heading says fewest-locked, but both the app and the site have long carried player-with-the-most-locked-cards, so the new entry was named to pair with it.",
+      "In English, everyone is rendered as Everyone rather than All players, which an existing entry already uses; the two mean the same but need to be distinguishable in a list, and cards print the shorter word.",
+      "The site reported that its three phase entries were corrupted text inherited from the old site. The app's versions were written from the numbered rules two days ago and were checked to be correct.",
+      "The four spelling variants were already correct in the app, so the site's unification brought all three sources into line.",
+      "English exists only in the app, as the site is Japanese-only, so the translations for these three were written here.",
+    ],
+  },
+  {
     date: "2026-10-24",
     summary: [
       "ヘルプの用語集に、言葉を12個足しました",
