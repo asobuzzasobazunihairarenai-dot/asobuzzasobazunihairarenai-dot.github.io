@@ -13,9 +13,10 @@
 // メールアドレスをチェック）にあり、ここでのisAdmin判定は表示の出し分けだけ。
 
 import { isBugReportHandledInCode, getBugReportFixNote } from "./handled-bug-reports.js";
+import { getSupabaseEndpoint } from "./supabase-endpoint.js"; // 続き630
 
-const SUPABASE_URL = "https://prnddzrnblfysggiuzmo.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_YFYWr0FghhXbrqNQJ9Jzgw_hu31kvw9";
+// 【続き630】接続先は supabase-endpoint.js が決める（online.js と同じ値を2か所に書かない）。
+const { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY } = getSupabaseEndpoint();
 const ADMIN_EMAIL = "asobuzz.asobazunihairarenai@gmail.com";
 const VISIT_LOG_PAGE_SIZE = 200;
 // ユーザー要望「登録ユーザー一覧・ログイン履歴・不具合報告は直近5件のみ表示し、あとは

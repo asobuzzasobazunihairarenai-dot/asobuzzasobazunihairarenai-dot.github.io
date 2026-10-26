@@ -40,6 +40,18 @@ const KEEP_OPEN = ARGS.includes("--keep"); // 失敗時に画面を残して観�
 // それは食い違い検知の側で「取り直したら揃うか」で切り分ける。--isolated を付けると
 // 抑制自体が起きないぶん厳密になる代わりに、人数分のブラウザを起動するので重い。
 const ISOLATED = ARGS.includes("--isolated");
+// 【続き630】`--local` で、自分のPCで動かした Supabase（`supabase start`）へ向けて回す。
+// 🔴 **これが無いと本番のデータに部屋・試合・匿名アカウントが積もり続ける**ので、
+// 繰り返し自動で回すには必須。接続先の差し替えは src/supabase-endpoint.js が受け持ち、
+// **ローカルの開発ホストで開いた時だけ**効く（本番では無視される＝あちらの冒頭に理由）。
+// 鍵は `supabase start` が出す anon key を SO7_LOCAL_ANON_KEY に入れて渡す。
+const USE_LOCAL = ARGS.includes("--local");
+const LOCAL_SUPABASE_URL = process.env.SO7_LOCAL_SUPABASE_URL || "http://127.0.0.1:54321";
+const LOCAL_ANON_KEY = process.env.SO7_LOCAL_ANON_KEY || "";
+if (USE_LOCAL && !LOCAL_ANON_KEY) {
+  console.error("🔴 --local には SO7_LOCAL_ANON_KEY が要る（`npx supabase status` の anon key）。");
+  process.exit(2);
+}
 
 const TARGET_TURN = 8;
 // 【2026-09-07】45秒だと**アプリ自身の立て直しより先にテストが諦めていた**。接触の申し込みが
@@ -172,7 +184,7 @@ const LAUNCH_ARGS = [
 async function openClient(sharedBrowser, index, errors) {
   const browser = sharedBrowser || (await chromium.launch({ args: LAUNCH_ARGS }));
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await context.addInitScript(() => {
+  await context.addInitScript((cfg) => {
     try {
       // 自動更新のリロードは検査を壊すので止める（smoke.mjsと同じ）。
       localStorage.setItem("so7-disable-update-checker", "1");
@@ -181,8 +193,17 @@ async function openClient(sharedBrowser, index, errors) {
       // 停止と誤検知する（実測でオンラインの決着まで対戦がこれで失敗した）。ここで見たいのは
       // ゲームの進行であって描画性能ではないので、従来のCSS描画で回す。
       localStorage.setItem("so7-board-3d-enabled", "0");
+      // 【続き630】--local の時だけ、接続先を自分のPCの Supabase に向ける。
+      if (cfg.useLocal) {
+        localStorage.setItem("so7-dev-supabase-url", cfg.url);
+        localStorage.setItem("so7-dev-supabase-anon-key", cfg.key);
+      } else {
+        // 前回 --local で回した端末像が残っていても、本番向けの回では必ず外す。
+        localStorage.removeItem("so7-dev-supabase-url");
+        localStorage.removeItem("so7-dev-supabase-anon-key");
+      }
     } catch (e) {}
-  });
+  }, { useLocal: USE_LOCAL, url: LOCAL_SUPABASE_URL, key: LOCAL_ANON_KEY });
   const page = await context.newPage();
   const tag = "p" + (index + 1);
   page.on("pageerror", (e) => errors.push("[" + tag + "] pageerror: " + e.message));
@@ -331,7 +352,9 @@ async function run() {
 
   log("starting: " + PLAYER_COUNT + " players" + (RUN_TO_COMPLETION ? " (run to completion)" : "") + (ISOLATED ? " [isolated]" : ""));
   log("browsers are starting up — this takes 30-60s before the match begins. please wait.");
-  const sharedBrowser = ISOLATED ? null : await chromium.launch({ args: LAUNCH_ARGS });
+  // 🔴 どこへ繋いでいるかを必ず出す（本番を汚しているのに気づかない、が最悪）。
+console.log(USE_LOCAL ? "接続先: 自分のPCの Supabase （" + LOCAL_SUPABASE_URL + "）" : "接続先: 🔴 本番の Supabase（部屋・試合・匿名アカウントが残る）");
+const sharedBrowser = ISOLATED ? null : await chromium.launch({ args: LAUNCH_ARGS });
   try {
     for (let i = 0; i < PLAYER_COUNT; i++) {
       log("opening client " + (i + 1) + "/" + PLAYER_COUNT + " ...");

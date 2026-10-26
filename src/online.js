@@ -66,8 +66,12 @@ import { applySyncedPrefs, takeChangedSyncedPrefs, resetSyncedPrefTracking } fro
 // ここでは呼び出し側（online-ui.js）の利便性のためだけに再エクスポートする。
 export { isOnlineMode };
 
-const SUPABASE_URL = "https://prnddzrnblfysggiuzmo.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_YFYWr0FghhXbrqNQJ9Jzgw_hu31kvw9";
+import { getSupabaseEndpoint } from "./supabase-endpoint.js"; // 続き630
+
+// 【続き630】接続先は supabase-endpoint.js が決める（既定は本番。**ローカルの開発ホストで
+// 開いた時だけ**、自分のPCで動かした Supabase へ向けられる）。オンラインの自動テストを
+// 本番のデータを汚さずに回せるようにするため。安全の理由はあちらの冒頭に書いた。
+const { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY } = getSupabaseEndpoint();
 const EDGE_FUNCTION_NAME = "so7-apply-action";
 
 // index.htmlでCDN UMD版(<script src=".../supabase.js">)を読み込んでいる前提。
