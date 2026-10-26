@@ -474,7 +474,9 @@ const GROUPS = [
         min: 0,
         max: 100,
         step: 5,
-        default: 40,
+        // 🔴【続き627】他のBGMは40だが、勝利時だけ20。**音源そのものが 5.6〜7.3 dB 大きい**
+        // （統合ラウドネスの実測。style.css の同じ変数のコメントに数字を書いた）。
+        default: 20,
         previewOnInteract: () => previewBgmVolume("--sound-volume-victory-bgm"),
         previewToggle: () => toggleBgmPreview("--sound-volume-victory-bgm"),
       },

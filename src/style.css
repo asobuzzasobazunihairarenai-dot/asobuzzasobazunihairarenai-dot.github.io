@@ -15023,7 +15023,16 @@ body.is-phone-device .opening-lang-toggle-seg.is-current {
   --sound-volume-turn-switch: 80%;
   --sound-volume-swap: 80%;
   --sound-volume-jump: 80%;
-  --sound-volume-victory-bgm: 40%;
+  /* 🔴【続き627】勝利時だけ 40% ではなく 20%。ユーザー報告「勝利時の音がでかすぎる」。
+     音源そのものの大きさを測ったら、**勝利時だけ 5.6〜7.3 dB 大きかった**
+     （統合ラウドネス: 勝利 -8.3 LUFS / 対局 -13.9 / オープニング -15.6 / 待機 -15.2。
+     真のピークも +3.6 dBFS で 0 を超えていて、音が割れ得る）。
+     直前に鳴っている対局BGM（-13.9）と揃えるには 40% × 10^(-5.6/20) ≒ 21% なので、
+     つまみの刻み（5%）に合わせて 20% にした。この値での出力は対局BGMより 0.4 dB 小さい。
+     ⚠ 音源を作り直して揃える方が本筋だが、素材はユーザーのものなので値で合わせた。
+     ⚠ admin.js の同じつまみの default も 20 に合わせてある（片方だけ直すと、
+     管理者モードで「戻す」を押した時に元のうるさい値へ戻ってしまう）。 */
+  --sound-volume-victory-bgm: 20%;
   --sound-volume-opening-bgm: 40%;
   --sound-volume-game-bgm: 40%;
   --sound-volume-waiting-bgm: 40%;

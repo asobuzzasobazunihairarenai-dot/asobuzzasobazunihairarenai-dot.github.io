@@ -52,6 +52,21 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-27",
+    fixes: [
+      "勝利した時の音が大きすぎたので、ほかのBGMと同じくらいに下げました。",
+    ],
+    fixesEn: [
+      "The victory music was too loud, so it now matches the other background music.",
+    ],
+    devItems: [
+      "ユーザー報告「勝利時の音がでかすぎるみたい！！」。**ffmpeg で音源の統合ラウドネスを測ったら一発だった**——勝利 **-8.3 LUFS** に対し、対局 -13.9 / オープニング -15.6 / 待機 -15.2。**勝利だけ音源そのものが5.6〜7.3 dB 大きく**、しかも**真のピークが +3.6 dBFS ＝ 0 を超えていて割れ得る**。🔴 **設定は何も間違っていなかった**（個別音量は4つとも40%で、BGMスライダーもちゃんと掛かっている）。揃える相手は**直前に鳴っている対局BGM**（勝利BGMは他のBGMを止めてから鳴るので、段差はそれとの差）＝5.6 dB なので `40% × 10^(-5.6/20) ≒ 21%` → つまみの刻み（5%）に合わせて **20%**（出力は対局BGMより0.4 dB 小さい。苦情が「大きい」なので小さい側へ倒した）。🔴 **2か所を揃えて直した**——style.css の既定値だけ直すと**管理者モードのつまみの `default` が 40 のままで、「戻す」で元のうるさい値へ戻る**（続き608 で同じ形の食い違いを直したばかり）。🔴 **測り方: 本当に適用された音量は `GainNode` を捕まえないと読めない**——sound.js は iOS の都合で音量を GainNode に入れ `audio.volume` は常に1に固定するので、後者を見ても分からない。`AudioContext.prototype.createGain` をアプリの読み込み前に差し替えて作られたノードを集め、鳴らした後に値を読んだ（0.06→0.03＝-6.0 dB）。⚠ 対局BGMの読みは**フェードインするので回ごとに揺れる**（0.0385/0.0465）。勝利BGMは即値なので正確。**揺れる数字と揺れない数字を混ぜて比べない。** ⚠ 本筋は音源を -14 LUFS 前後へ作り直すことだが、素材はユーザーのものなので値で合わせた。",
+    ],
+    devItemsEn: [
+      "The victory music was reported as too loud. Measuring the integrated loudness of the source files settled it at once: the victory track is -8.3 LUFS while the others sit between -13.9 and -15.6, so the file itself is 5.6 to 7.3 dB hotter, and its true peak exceeds 0 dBFS so it can distort. Nothing was wrong with the settings, since all four background tracks share the same per-track volume. The reference to match is the gameplay track, because the victory track starts right after it stops, so the per-track volume was lowered to 20 percent, leaving the output 0.4 dB below the gameplay track. Both the stylesheet default and the admin slider default were changed together, because changing only the former would make the slider's reset button restore the loud value. Reading the volume that is actually applied required capturing the gain node, since the audio element's own volume is pinned to one for iOS; measured 0.06 before and 0.03 after.",
+    ],
+  },
+  {
     date: "2026-10-25",
     summary: [
       "ヘルプの用語集に、さらに3つの言葉を足しました",
