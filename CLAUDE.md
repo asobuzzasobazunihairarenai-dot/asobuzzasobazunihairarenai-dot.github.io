@@ -2159,3 +2159,61 @@ Supabase CLI は **winget には無く、npm にある**（`supabase` 2.122.0）
 **検査**: `npm run check` 6つとも合格、`npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS。
 **プレイヤーから見える変化は無い**（既定は本番のままで、挙動は一切変わらない）ので、
 お知らせには書いていない。サーバー側の変更も無い。
+
+### 2026-10-27（続き631）：ローカルのSupabaseを立てる段取りを作った／**SQLが移植できるかを先に調べた**
+
+続き630 の続き。Docker の導入はユーザー待ちなので、**待っている間にいちばん詰まりそうな所を
+先に調べた**——「このSQLは本番のSQLエディタ向けに書かれているので、ローカルで素通りするとは
+限らない」と自分で申し送った点。
+
+#### 調べた結果：**移植できる**（心配していたほど危なくなかった）
+
+| 見たもの | 結果 |
+|---|---|
+| 拡張（`create extension`） | **`pgcrypto` だけ**（ローカルにもある） |
+| `vault.` / `pg_net` / `net.http` / `pg_cron` / `supabase_functions` / `graphql` / `realtime.` | **1件も無い** |
+| `storage.` | 7件。ただし**既に `exception when others then raise notice` で包まれている**（続き602 でユーザーが権限で止まった経験から）＝**失敗しても全体が止まらない** |
+| ロール | **`anon` 4件・`authenticated` 69件だけ**（どちらもローカルに在る） |
+| `auth.uid()` / `auth.users` / `auth.jwt()` | 56件ほか。**ローカルの Supabase にも在る** |
+| Edge Function が要る環境変数 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` の3つ＝**`functions serve` が自動で入れる** |
+
+🔴 **ただし1つ、確実に引っかかる所が見つかった: 匿名ログインは既定で無効。**
+`supabase start` の設定（`config.toml`）は `enable_anonymous_sign_ins` が**既定 false** で、
+**このアプリのテストはアプリ自身の匿名ログインでセッションを得る**（続き630）。
+有効にしないと**ローカルでは1人も部屋に入れない**。調べずに始めたら、ここで止まって
+「SQLが悪いのか鍵が悪いのか」を切り分ける羽目になっていた。
+
+#### 作ったもの: [tools/local-backend.mjs](tools/local-backend.mjs)
+
+`up`（立ち上げ→SQL→実行コマンドまで出す）／`sql`（流し直し）／`status`（鍵を出す）／
+`down`／`reset`／**`selftest`**。
+
+- 🔴 **Supabase CLI は `devDependencies` に入れない。** CI は `npm ci` を走らせるので、
+  入れると**検査のたびに CLI を落とすことになって遅くなる**（CIはこれを必要としない）。
+  その場で `npx --yes supabase@2.122.0` を使う（版を打ってあるので勝手に上がらない）。
+- 🔴 **設定の書き換えは「何度当てても同じ結果」にした。** 既に有効なら触らない／false なら
+  直す／項目が無ければ `[auth]` 節へ足す／節が無ければ節ごと足す。
+  **`[auth.email]` のような似た名前の節に間違って入れない**ように、行末まで見て `[auth]` を探す。
+- 🔴 **Docker が無くても試せる部分を分けた（`selftest`）。** 書き換えの判断は Docker と無関係
+  なので、**入る前に確かめられる**。5通り（既に有効／false／項目なし／節なし／似た名前の節あり）
+  とも期待どおりで、**2回当てても変わらない**ことも確認した。
+- **SQL は標準入力から psql へ渡す**（ホストに psql を入れなくてよい。入れ物の中のものを使う）。
+  `ON_ERROR_STOP=1` にする——**どこで失敗したかを知りたい**ので止める。ERROR と NOTICE の
+  件数を出し、ERROR は先頭10件を名指しで出す。
+- **Docker が無い時は、やることを3行で出して終了コード2**（＝検査の失敗と区別できる）。
+
+**確かめたこと**: `selftest` 5通りOK・冪等／Docker 無しの案内が出て**終了コード2**／
+知らない命令も**終了コード2**／`npm run check` 6つとも合格。
+
+#### 残り（ユーザーの導入待ち。入ったら私が通す）
+
+```
+wsl --install                                   （管理者・再起動あり）
+winget install --id Docker.DockerDesktop ...     （4.96.3 が入手可能）
+→ Docker Desktop を起動して Engine running
+→ node tools/local-backend.mjs up               （ここから私がやる）
+```
+
+⚠ **まだ本物を1回も通していない。** 上の調べは**静的な読みだけ**で、`supabase start` が
+実際に通るか・SQL が1件もERRORを出さないかは**やってみないと分からない**。
+**「移植できるはず」と「移植できた」は別**なので、通したら結果をここに書き足す。
