@@ -2270,7 +2270,10 @@ turn 1〜8 … reached target turn 8 — PASS
 反映されない。** ファイル自身のコメントが「1つでもエラーが出るとそこで止まる」と書いているのに、
 その罠に自分で掛かっている。**続き604 で私が踏んだのと同じ形。**
 
-**(B) `players` にデジタル版が使う列が1つも書かれていない。** 本番の表には在り、CLAUDE.md にも
+**(B) 🔴 ここは私の数え方が雑で、続き633 で訂正した（下記）。** 正しくは「**`players.user_id` /
+`matches.source` / `matches.guest_names` の3つだけが本当に無く、残りは在るが(A)より後ろなので
+届かない**」。最初「1つも書かれていない」と書いたのは、`user_id` しか grep していなかったため。
+本番の表には在り、CLAUDE.md にも
 「`players.user_id` に本アプリのアカウントが紐づく」と書いてあるのに、**設定SQLが本番に
 追いついていない**。ローカルで `column players.user_id does not exist` が出て判明した。
 
@@ -2331,3 +2334,67 @@ turn 1〜8 … reached target turn 8 — PASS
 **検査**: `npm run check` 6つとも合格、`npm test` 63/63 PASS、`node test/smoke.mjs 2` PASS、
 **`node test/online-smoke.mjs 4 --local` PASS**。**プレイヤーから見える変化は無い**ので、
 お知らせには書いていない（続き595・601・619・630 と同じ）。
+
+### 2026-10-28（続き633）：戦績管理システムの設定SQLを直した（**これから戦績側もこのセッションで見る**）
+
+続き632 で見つけた2件について、ユーザー「**戦績システムはもうこれからこっちでやろう！！**」。
+⇒ 以後、戦績管理システム（`G:\マイドライブ\Cloud Code　作業フォルダ\`・GitHub `BATTLE-log`）も
+このセッションで面倒を見る。**別のリポジトリなので、コミットは別々に・それぞれ承認を取る。**
+
+#### 🔴 まず自分の訂正: 続き632 の (B) は数え方が雑だった
+
+「`players` にデジタル版が使う列が1つも書かれていない」と書いたが、**誤り**。
+`user_id` しか grep していなかった。9つ全部をきちんと数えたら:
+
+| | |
+|---|---|
+| **ファイルに在る**（ただし**全部110行目より後**＝貼り直しても届かない） | players: `seed_matches_count` `seed_wins_count` `is_staff` `title_key`／matches: `feedback` `duration_minutes` |
+| **本当に無い** | **`players.user_id`**／`matches.source`／`matches.guest_names` |
+
+⇒ **いちばん重いのは (A) の `do $` の方**（これ1つで152行が死ぬ）。(B) は3列だけ。
+**「1件見て全体を語らない」**——同じ失敗を続き605・607 でもしている。
+
+#### 直したもの（`supabase_setup.sql`・263行 → 279行）
+
+1. **110行目 `do $` → `do $$`、127行目 `end $;` → `end $$;`**。ファイル内の他6か所は全部 `$$` なので、
+   タイプミスで1つ落ちたもの。**psql で実際に落ちること・`$$` なら通ることを対で確かめてから**直した。
+2. **本当に無い3列を足した**（`players.user_id uuid` ＋索引・`matches.source text`・
+   `matches.guest_names jsonb`）。型は推測せず、**戦績サイト自身の `index.html` の使われ方**から
+   決めた（`user_id` は `page_visits.user_id uuid` と突き合わせるので uuid）。
+
+#### 🔴 「直したつもり」で終わらせず、まっさらなスキーマに流して確かめた
+
+`drop schema / create schema sistertest` を作り、`set search_path to sistertest, public;` を
+頭に付けて流した＝**本番にも既存のローカルにも1行も触らない**形で試した。
+
+| | 直す前 | 直した後 |
+|---|---|---|
+| ERROR | **110行目で停止**（以降152行が未適用） | **0件・最後まで流れた** |
+| 出来た表 | players / matches / app_settings の3つ | **7つ全部**（`game_comments` `page_visits` `admin_news` `match_feedback_replies` が復活） |
+| デジタル版が要る列12個 | `user_id` 等が欠ける | **12個すべて ✅** |
+
+試した後は `drop schema sistertest cascade` で片付け、**残っていないことを数えて確認**した（0件）。
+
+- ⇒ **`tools/local-prereq.sql` は本来もう要らない**が、**古いファイルを持つ端末のための保険**として
+  残した（全部 `if not exists` なので、新しい版で作られた後に流しても何も起きない）。
+  役割が変わったので、ファイル冒頭の説明を書き換えた。
+
+#### ⚠ 測り方のミス（記録）
+
+🔴 **改行コードの判定を間違えて、置換が0件で空振りした。** `head -5 | od -c | grep '\\r'` が
+「CRLF」と答えたので CRLF 前提で書いたが、**実際は LF のみ**（`tr -cd '\r' | wc -c` = **0**）。
+`file` コマンドの方が正しかった。**改行コードは `tr -cd` で数える**のが確実
+（続き611・550 で同じ所を踏んでいる）。
+- 救われたのは**置換の前に件数を数えて、想定と違ったら例外にする**形にしていたこと。
+  **1件も置き換わっていないのに「直した」と報告する**ところだった。
+
+#### ⚠ まだやっていないこと
+
+- 🔴 **戦績側のリポジトリ（BATTLE-log）はまだコミットしていない**（別リポジトリなので別途承認）。
+- ⚠ **本番のDBには何もしていない。** 本番には既に全部の列が在るので**急ぎではない**が、
+  直した `supabase_setup.sql` を本番で流し直すと、**(A)より後ろの152行が初めて適用される**
+  （`match_feedback_replies` の UPDATE ポリシー・`admin_news` の UPDATE ポリシー・
+  `title_key`・`ticker_speed_seconds` など）。**それらが本番で効いているかは未確認。**
+  効いていないなら、直した今が流し時。
+- ⚠ **ストレージのポリシー**（avatars / match-proofs）は、直した後も `exception when others` に
+  飲まれる可能性がある（権限の都合）。本番で効いているかは別途確認が要る。
