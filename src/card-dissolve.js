@@ -33,6 +33,32 @@ export function isCardDissolvePlaying() {
   return dissolveRequestedAt > 0 && performance.now() - dissolveRequestedAt < DISSOLVE_STARTUP_GRACE_MS;
 }
 
+// 【#441 / #432・2026-10-28】いま何枚ぶんの霧散が生きているか。**呼ぶ側が重さを見て
+// 手加減するため**の数字。
+//
+// 🔴 なぜ `dissolvePlayingCount` では駄目か: あれが上がるのは**カードの画像を読み終わってから**
+//    （下の `await Promise.all` の後）。手札をまとめて捨てる時は `playHandCardBurn` が
+//    待たずに次々呼ばれるので、**10枚が全部「0枚」を見て**、全部が canvas を作ってしまう。
+//
+// 🔴 なぜ重いのか: この演出は1回につき**ステージ全面の canvas を1枚**作る
+//    （1600×900 × dpr2 ＝ 3200×1800×4バイト ＝ **約23MB**）。10枚同時なら 230MB で、
+//    iPhone の Safari はタブごと捨てる（例外は出ないので「落ちてタイトルに戻る」に見える）。
+//    ⚠ 画像の重さを見る `crash-blackbox.js` の計測は **`<img>` しか数えておらず canvas は
+//      勘定に入らない**ので、報告の `imgMB` にこの分は出ない。
+//
+// 予約した時刻を並べて数える。**取り残されても時間で自然に消える**ので、
+// 数え間違いで演出が二度と出なくなることは無い（effect-delegation.js と同じ考え方）。
+const dissolveSlots = [];
+const DISSOLVE_SLOT_TTL_MS = 8000; // 演出は長くても数秒。これを超えたものは数えない
+function pruneDissolveSlots() {
+  const now = performance.now();
+  while (dissolveSlots.length && now - dissolveSlots[0] > DISSOLVE_SLOT_TTL_MS) dissolveSlots.shift();
+}
+export function getCardDissolveLoad() {
+  pruneDissolveSlots();
+  return dissolveSlots.length;
+}
+
 // 演出パラメータは管理者モードで調整できるよう CSS変数から読む（--table-tilt等と同じ方式）。
 // mist/residue はスマホで間引く。速さ(speed)は小さいほど“ゆっくり長い”演出になる。
 function readDissolveSettings(mobile) {
@@ -112,6 +138,15 @@ export async function playCardDissolve(usedCardId, opts = {}) {
     return;
   }
   noteCardDissolveRequested(); // 画像の読み込みを待っている間も「再生中」として見えるように
+  // 🔴 **画像を読む前に**席を取る（読み終わってからでは、まとめて呼ばれた時に全部が0を見る）。
+  pruneDissolveSlots();
+  dissolveSlots.push(performance.now());
+  let slotReleased = false;
+  const releaseSlot = () => {
+    if (slotReleased) return;
+    slotReleased = true;
+    dissolveSlots.shift(); // 数が合っていればよいので、どれを抜いても同じ
+  };
   const isV5 = !!costCardId;
   const [cardImg, costImg] = await Promise.all([
     loadImage(getCardImagePath(usedCardId)),
@@ -488,6 +523,7 @@ export async function playCardDissolve(usedCardId, opts = {}) {
       if (done) return;
       done = true;
       dissolvePlayingCount = Math.max(0, dissolvePlayingCount - 1); // 続き223: 再生中フラグOFF
+      releaseSlot(); // #441: 席を返す（返し忘れても TTL で自然に消える）
       cancelAnimationFrame(raf);
       canvas.remove();
       if (!modalShown) {

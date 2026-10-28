@@ -52,6 +52,27 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-10-29",
+    fixes: [
+      "手札をまとめて捨てた時に、アプリが落ちてタイトル画面に戻ってしまうことがあったのを直しました。",
+      "ターンが切り替わる時、右上の拡大カードがふわっと消えるようになりました。",
+    ],
+    fixesEn: [
+      "Fixed the app dropping back to the title screen when you discarded several cards at once.",
+      "When the turn changes, the enlarged card in the top right now fades out.",
+    ],
+    devItems: [
+      "**#441「ギャンブルで10枚近い手札をおまかせで捨てた時、落ちてタイトルに戻っちゃった」/ #432「色落ちキャットの到達効果で捨てるカードをおまかせしたタイミングで落ちた」。同じ原因だった。**報告の墜落検知（`diag-crash-recovery`）が `suspectedCrash: true` / `navType: \"back_forward\"` / **`prevLastError: null`** を残していて、**例外は出ていないのにタブが作り直されている**＝OSがメモリ不足でタブを捨てた、と読めた。原因は `playHandCardBurn`（捨てる瞬間の霧散演出）が **fire-and-forget** で、`playCardDissolve` は**1回につきステージ全面の canvas を1枚**作ること（1600×900 × dpr2 = **3200×1800×4 ＝ 約23MB**）。A/Bで実測: **直す前は同時に9枚＝197.8MB**、直した後は**1枚＝22MB（−89%）**。🔴 同じ危険は既に `spawnBoardCardDiscardBurst` のコメントが「全画面のキャンバスを使う手札の霧散演出をここで流用すると端末が持たない」と書いて軽い作りを用意していた——**手札側だけが重い方に取り残されていた**。直しは「既に霧散が生きていれば、その軽い方へ回す」。1枚ずつ使う普段の見た目は変えていない。⚠ **`dissolvePlayingCount` は使えなかった**——あれは**画像を読み終わってから**上がるので、まとめて呼ばれると**全部が0を見る**。予約の時点で数える `getCardDissolveLoad()` を足した（取り残されても TTL で自然に消えるので、数え間違いで演出が止まることは無い）。⚠ **`crash-blackbox.js` の `imgMB` は `<img>` しか数えておらず canvas は勘定に入らない**ので、報告の数字にこの200MBは一度も現れていなかった。",
+      "画像メモリの内訳を測って分かったこと（直していない・申し送り）: `assets/avatars/*.webp` は **768×768 なのに 74×65 や 58×39 で表示**されていて、3枚で **6.75MB**（256px なら 0.75MB 相当）。`assets/opening-start-btn.png`（1024×336・**1.31MB**）は、オープニングを閉じた後も **0×0 のまま DOM に残っている**。対局中の画像メモリ 27.6MB のうち **8MB ほどが削れる**計算。",
+      "#411（ターン切り替え時に右上の拡大カードをフェードで片付ける）と #413（マイデッキ選択がスマホで横に出きらない）は続き610・611 で直していたが、**`handled-bug-reports.js` への追記を忘れていて未対処のまま並んでいた**。番号とお礼の文を足した。",
+    ],
+    devItemsEn: [
+      "**#441 and #432 had the same cause.** The crash recovery record in both reports shows `suspectedCrash: true`, `navType: \"back_forward\"` and **`prevLastError: null`** - no JavaScript exception, yet the tab was recreated, which means the OS discarded it for memory. `playHandCardBurn` is fire-and-forget and `playCardDissolve` allocates **one full-stage canvas per call** (1600x900 at dpr 2 = 3200x1800x4 = **about 23MB**). Measured A/B: **9 canvases alive at once = 197.8MB before**, **1 = 22MB after (-89%)**. The same danger was already known - the comment on `spawnBoardCardDiscardBurst` says reusing the full-screen dissolve there would be too much for the device, and a light DOM version exists; only the hand path was left on the heavy one. The fix routes overflow to that light version. A single discard looks exactly as before. Note `dissolvePlayingCount` could not be used: it only rises *after* the card image loads, so a burst of calls all see zero. `getCardDissolveLoad()` counts reservations instead, with a TTL so a miscount can never stop the effect permanently. Also note `crash-blackbox.js` measures `<img>` only, so canvases never appeared in the reported `imgMB`.",
+      "Found while measuring image memory, not yet fixed: the avatar images are 768x768 but drawn at 74x65 or 58x39, costing 6.75MB for three of them, and the opening button image (1024x336, 1.31MB) stays in the DOM at 0x0 after the opening closes. About 8MB of the 27.6MB in-game image budget could be recovered.",
+      "#411 and #413 were fixed earlier but never recorded in `handled-bug-reports.js`, so they still showed as open. Added, with thank-you notes.",
+    ],
+  },
+  {
     date: "2026-10-27",
     fixes: [
       "勝利した時の音が大きすぎたので、ほかのBGMと同じくらいに下げました。",

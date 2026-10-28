@@ -165,6 +165,23 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "置いた罠がターン終了時に消えてしまい、下にあったカードが代わりに発動していました。直しました。",
     en: "A trap you placed was being removed at the end of your turn, so the card underneath triggered instead. Fixed.",
   },
+  411: {
+    ja: "ターンが切り替わる時、右上に出ていた拡大カードがふわっと消えるようにしました。",
+    en: "When the turn changes, the enlarged card in the top right now fades out instead of vanishing.",
+  },
+  413: {
+    ja: "マイデッキを選ぶ画面が、スマホで横に入り切らなかったのを直しました。あわせて文字も読める大きさにしています。",
+    en: "Fixed the deck picker not fitting across the screen on phones. The text is readable at that size now, too.",
+  },
+  // 🔴 #441 と #432 は同じ原因（たくさん捨てた時に端末のメモリが足りなくなる）。
+  441: {
+    ja: "手札をまとめて捨てた時にアプリが落ちてタイトルに戻ってしまうことがあったのを直しました。カードが燃える演出が1枚ずつ画面いっぱいの絵を用意していたため、枚数が多いと端末のメモリが足りなくなっていました。2枚目からは軽い演出に切り替わります。",
+    en: "Fixed the app dropping back to the title screen when you discarded a lot of cards at once. The burn effect was preparing a full-screen image for every single card, which ran the device out of memory. From the second card onward it now uses a lighter effect.",
+  },
+  432: {
+    ja: "色落ちキャットなどでまとめてカードを捨てた時にアプリが落ちてタイトルに戻ってしまうことがあったのを直しました。カードが燃える演出が1枚ずつ画面いっぱいの絵を用意していたため、枚数が多いと端末のメモリが足りなくなっていました。2枚目からは軽い演出に切り替わります。",
+    en: "Fixed the app dropping back to the title screen when an effect like the Faded Cat made you discard several cards at once. The burn effect was preparing a full-screen image for every single card, which ran the device out of memory. From the second card onward it now uses a lighter effect.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

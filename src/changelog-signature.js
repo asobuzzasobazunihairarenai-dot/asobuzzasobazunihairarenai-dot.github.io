@@ -18,7 +18,7 @@
 // 一般に見せる回＝`items` か `fixes` が1件以上ある回（管理者だけの回は数えない。
 // 管理者かどうかで署名を変えないのは、ログインの読み込みが終わるまで判定が false を返すため
 // ——混ぜると起動直後だけ NEW が付いたり消えたりする＝続き484 の経緯）。
-export const CHANGELOG_SIGNATURE = "2026-10-27|1|74";
+export const CHANGELOG_SIGNATURE = "2026-10-29|2|75";
 
 const CHANGELOG_READ_KEY = "so7-changelog-read";
 

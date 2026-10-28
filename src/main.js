@@ -218,7 +218,7 @@ import { buildAvatarUploadSection } from "./avatar-upload.js";
 import { isLockAreaBarVisible, setLockAreaBarVisible } from "./lock-area-bar.js";
 import { isLockColorVisible } from "./lock-color.js";
 import { isArrivalEffectDisabled, isFlightAnimationDisabled } from "./motion-prefs.js";
-import { playCardDissolve, isCardDissolvePlaying } from "./card-dissolve.js";
+import { playCardDissolve, isCardDissolvePlaying, getCardDissolveLoad } from "./card-dissolve.js";
 import { rectCenter, flyGhost } from "./ghost-flight.js";
 import { showCardArrivalModal, hideCardArrivalModalImmediately } from "./card-arrival.js";
 import {
@@ -1120,6 +1120,24 @@ function playHandCardBurn(tokenId) {
     if (!getCardDefinition(token.cardId)) return; // 中身不明(マスク)は出さない
     const clientRect = cardElRectForToken(tokenId);
     if (!clientRect || clientRect.width < 1) return;
+    // 【#441 / #432・2026-10-28】🔴 **まとめて捨てる時はここで端末が死ぬ。**
+    // この霧散演出は1回につき**ステージ全面の canvas を1枚**使う（約23MB）。この関数は
+    // fire-and-forget なので、ザ・ギャンブルや色落ちキャットで「おまかせ」を押すと
+    // **10枚ぶんが同時に生きて 230MB** になり、iPhone の Safari がタブごと捨てる
+    // （JSの例外は出ないので、プレイヤーには「落ちてタイトルに戻った」としか見えない。
+    //  報告 #441「ギャンブルで10枚近い手札をおまかせで捨てた時」・#432「色落ちキャットの
+    //  到達効果で捨てるカードをおまかせしたタイミング」がどちらもこれ）。
+    //
+    // 🔴 **同じ危険は既に分かっていた**——下の spawnBoardCardDiscardBurst のコメントが
+    //    「1枚ずつ全画面のキャンバスを使う手札の霧散演出をここで流用すると端末が持たない」と
+    //    書いて軽い作りを用意している。**手札側だけが重い方に取り残されていた。**
+    //
+    // 直し: 既に霧散が生きている間は、**その軽い方**（1枚あたりDOM数個）に回す。
+    // 1枚ずつ使う普段の見た目は**今までと一字も変わらない**（0枚の時は従来どおり）。
+    if (getCardDissolveLoad() >= 1) {
+      spawnBoardCardDiscardBurst([{ id: tokenId, cardId: token.cardId, zone: token.location?.zone }], { sound: false });
+      return;
+    }
     const s = toStageLocalRect(clientRect);
     playCardDissolve(token.cardId, {
       atRect: { x: s.left, y: s.top, w: s.right - s.left, h: s.bottom - s.top },
@@ -5844,7 +5862,11 @@ function colorRgbForCard(cardId) {
 }
 
 const BOARD_DISCARD_MS = 820;
-function spawnBoardCardDiscardBurst(victims) {
+// 【#441・2026-10-28】`options.sound: false` で音を鳴らさない。手札をまとめて捨てる時の
+// あふれ分をここへ回すようになったため——**1枚ごとに呼ばれるので、鳴らすと枚数ぶん鳴る**
+// （下の「枚数ぶん鳴らすと耳が痛いので必ず1回だけ」と同じ理由）。その場面では先頭の1枚が
+// 重い霧散を再生していて、そちらが音を持っている。
+function spawnBoardCardDiscardBurst(victims, options = {}) {
   if (isArrivalEffectDisabled()) return;
   // 白の意思の覚醒は場のカードを一斉に捨てるので枚数が多くなる。1枚ずつ全画面のキャンバスを
   // 使う手札の霧散演出（playCardDissolve）をここで流用すると端末が持たないので、**その場に
@@ -5889,6 +5911,7 @@ function spawnBoardCardDiscardBurst(victims) {
     setTimeout(() => ghost.remove(), BOARD_DISCARD_MS + delay + 200);
   }
   if (!shown) return;
+  if (options.sound === false) return;
   // 専用の音源は持たない。紙が翻る音を1回だけ鳴らし、まとめて捨てられた時だけ
   // 合成音の重い一撃を添える（枚数ぶん鳴らすと耳が痛いので必ず1回だけ）。
   try {
