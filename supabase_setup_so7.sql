@@ -3007,10 +3007,22 @@ grant execute on function so7_get_admin_visit_log(int, int) to authenticated;
 -- 補足: これ以降に保存される行は、その時点のアドレス＝新しいアドレスになるので対処不要。
 --   対局を登録するたびに書き直されるため、遊び続けている人の行は自然に直る。
 -- ============================================================================
-update players
-   set avatar_url = 'https://seven.asobuzz.net'
-                    || substring(avatar_url from position('/assets/' in avatar_url))
- where avatar_url like 'https://asobuzzasobazunihairarenai-dot.github.io/%/assets/%';
+-- 🔴 注(2026-10-28 続き632): players は**戦績管理システム側のテーブル**で、このファイルは
+--   作っていない。本番には相手側が作ったものが在るので通るが、**無い環境ではここで止まり、
+--   これ以降の全部（約200行）が反映されない**（続き604 で踏んだのと同じ形の事故）。
+--   ローカルのSupabaseで通した時に実際にここで止まったので、**在る時だけ実行する**形にした。
+--   本番では今までどおり実行される（挙動は変わらない）。
+do $$
+begin
+  if to_regclass('public.players') is null then
+    raise notice 'players が無いので、アバターのアドレスの付け替えは飛ばした（戦績管理システム側のテーブル）';
+  else
+    update players
+       set avatar_url = 'https://seven.asobuzz.net'
+                        || substring(avatar_url from position('/assets/' in avatar_url))
+     where avatar_url like 'https://asobuzzasobazunihairarenai-dot.github.io/%/assets/%';
+  end if;
+end $$;
 
 -- ============================================================================
 -- 追加(2026-09-18 続き517): 試遊の入口（?trial）から来た人を数える（宣伝の効果測定）

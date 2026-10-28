@@ -1,0 +1,17 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# 【続き632】自分のPCで動かす時だけ使うもの。git には入れない。
+# ・入口（index.ts）… 本番はダッシュボードへ貼る運用なので、追跡すると
+#   誰かが `functions deploy` した時に ../ の参照ごと持って行って壊れる。
+functions/so7-apply-action/
+functions/so7-send-push/
+# ・config.toml … `supabase init` が作る。project_id に**作業フォルダの名前**が
+#   入るので、追跡すると他の人の所で変な名前になる。道具が毎回作り直す。
+config.toml

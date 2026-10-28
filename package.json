@@ -9,7 +9,11 @@
     "test": "node test/effects.mjs",
     "effects": "node test/effects.mjs",
     "smoke": "node test/smoke.mjs",
-    "smoke:online": "node test/online-smoke.mjs"
+    "smoke:online": "node test/online-smoke.mjs",
+    "local:up": "node tools/local-backend.mjs up",
+    "local:sql": "node tools/local-backend.mjs sql",
+    "local:status": "node tools/local-backend.mjs status",
+    "local:down": "node tools/local-backend.mjs down"
   },
   "devDependencies": {
     "playwright": "^1.49.0"
