@@ -446,9 +446,31 @@ const waitingFadeTimer = { get: () => waitingBgmFadeIntervalId, set: (v) => { wa
 let wasGameStartedForBgm = false;
 // 盤面から離れている（ホーム画面・オープニング画面が開いている）かどうか。DOMだけを見るので
 // 他モジュールへの依存が増えない（sound.jsは葉モジュールに近い状態を保ちたい）。
+// 🔴 【#439・2026-10-29】ここは「在るか」ではなく**見えているか**を見なければならない。
+//    オープニング画面は閉じる時に `overlay.style.display = "none"` にするだけで、**要素は
+//    DOM に残りっぱなし**（opening-screen.js の close() / forceCloseOpeningScreen）。
+//    `getElementById` で在るかだけを見ていたため、**起動してから一度もオープニングを通れば
+//    その後ずっと「盤面を離れている」と判定**され、下の retryOnGesture が毎回素通りしていた
+//    ＝ **自動再生の制限で弾かれた対局BGMを取り直す保険が、一度も効いていなかった。**
+//    （報告 #439「効果音は出てるけどBGMが止まってる」の実機ログ: 対局開始の3秒後に
+//     `diag-bgm-play-failed {name:"game", errorName:"NotAllowedError"}` → その後 8 分間
+//     paused:true のまま。効果音は Web Audio なので鳴り続ける＝報告どおりの壊れ方。
+//     #343 で pointerup / touchend を足したのも、この素通りのせいで効かなかった。）
+//    ⚠ ホーム画面は閉じる時に remove() されるので「在るか」でも正しかったが、**同じ落とし穴を
+//      作らないため両方とも見え方で判定する**。
 function isAwayFromBoard() {
   if (typeof document === "undefined") return false;
-  return Boolean(document.getElementById("home-screen") || document.getElementById("opening-screen"));
+  const showing = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    if (el.style && el.style.display === "none") return false;
+    try {
+      return getComputedStyle(el).display !== "none";
+    } catch {
+      return true; // 読めない時は「見えている」側に倒す（鳴らし直さない方が安全）
+    }
+  };
+  return showing("home-screen") || showing("opening-screen");
 }
 
 export function initGameBgmAutoStart() {

@@ -206,6 +206,10 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "入れました。フレンド申請が届いていると、画面上部のマイページのアイコンに赤い数字が出ます。ホーム画面を開いた時とログインした時に見に行き、申請に返事をするとすぐ減ります。",
     en: "Added. When friend requests are waiting, a red number now appears on the My Page icon at the top of the screen. It is checked when you open the home screen and when you log in, and it goes down as soon as you answer a request.",
   },
+  439: {
+    ja: "ご報告のとおりでした。スマホでは「音を鳴らしてよい操作」の外から対局のBGMを鳴らそうとすると端末に止められることがあり、その時に鳴らし直す仕組みが入っていたのですが、それが一度も働いていませんでした。効果音は別の仕組みで鳴るので出続ける——まさにご報告の症状でした。画面を触った時に鳴り直すようにしました。",
+    en: "You were right. On phones the device can block the match BGM when it is started outside a tap, and the safety net that should retry it had never actually been running. Sound effects use a different path, which is why they kept playing - exactly what you described. It now retries when you touch the screen.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。
