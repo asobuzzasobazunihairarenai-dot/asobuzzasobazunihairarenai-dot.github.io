@@ -182,6 +182,22 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "色落ちキャットなどでまとめてカードを捨てた時にアプリが落ちてタイトルに戻ってしまうことがあったのを直しました。カードが燃える演出が1枚ずつ画面いっぱいの絵を用意していたため、枚数が多いと端末のメモリが足りなくなっていました。2枚目からは軽い演出に切り替わります。",
     en: "Fixed the app dropping back to the title screen when an effect like the Faded Cat made you discard several cards at once. The burn effect was preparing a full-screen image for every single card, which ran the device out of memory. From the second card onward it now uses a lighter effect.",
   },
+  429: {
+    ja: "ご指摘のとおりでした。「このターン移動できない」時にまで、移動先が1つもない時の救済（隣に山札から1枚置く）が働いてしまっていました。移動を封じられている時は何も置かずにターンを終えるようにし、その旨をお知らせするようにしました。",
+    en: "You were right. The relief for having nowhere to move (placing one deck card next to your piece) was also firing when an effect had forbidden movement for the turn. Now nothing is placed in that case, and the game says so.",
+  },
+  431: {
+    ja: "2点とも直しました。不具合報告の画面を常に一番手前に出すようにしたので、ほかの案内の後ろに隠れなくなりました。また、移動先の確認が出ている間は盤面を触れないようにしたので、接触の確認が重なって出ることがなくなりました（確認の「はい」「いいえ」は今までどおり押せます）。",
+    en: "Both are fixed. The bug report window now always sits in front, so it no longer hides behind other notices. And while the move confirmation is open the board no longer responds, so the contact confirmation can no longer appear on top of it (the confirmation's own Yes/No still work).",
+  },
+  434: {
+    ja: "ご指摘のとおりでした。誘惑の黒の烙印が置かれた色にロックするには、ロックするカードのほかに手札が2枚必要（＝2枚捨てる分）なのに、それが足りなくてもロックできてしまっていました。足りない時はロックできないようにし、光らないカードを押した時はその理由もお伝えするようにしました。",
+    en: "You were right. Locking onto the colour where the Brand of Black Temptation sits requires two more cards in hand besides the one you lock, but the game let you do it without them. Now it does not, and tapping the card tells you why.",
+  },
+  436: {
+    ja: "どちらも直しました。練習モードのバナーの文字とボタンをスマホで大きくし（ボタンの高さは3割ほどから倍以上に）、バナーの位置を少し下げて不具合報告ボタンと重ならないようにしました。",
+    en: "Both are fixed. The practice banner's text and button are now much larger on a phone, and the banner sits a little lower so it no longer overlaps the bug report button.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

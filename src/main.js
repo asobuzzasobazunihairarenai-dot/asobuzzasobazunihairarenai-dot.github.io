@@ -67,6 +67,8 @@ import {
   setTurnAnnounceActive,
   getCurrentPhase,
   isCardLockable,
+  getLockBlockReason,
+  isContractBrandLockCostUnpayable,
   forceEndCurrentPhase,
   registerContractBrandHandler,
   registerMyDeckDrawAnnouncer,
@@ -4841,7 +4843,15 @@ document.addEventListener(
     // 見せ隠ししており、閉じている間もDOMに残る（実測: 起動直後から常に7個ある）。
     // 存在で判定すると盤面が永久に触れなくなる（続き396で踏んだのと同じ罠）。
     // 実際に画面に出ているもの（矩形を持つもの）だけを数える。
-    if (isBlockingBackdropVisible() || isBoardCoveredByOtherScreen()) return;
+    // 🔴 【#431】「このマスでいいですか？」の返事待ちの間も盤面を触らせない。
+    // ユーザー報告「移動先を選択して、確認モーダルが出ている最中に相手のコマを選択すると
+    // 移動先の確認モーダルが出たまま接触確認モーダルが出る」。
+    // あのモーダルの背景は**盤面を見せるため dim していない**（cell-confirm.js の冒頭参照）
+    // ので `.so7-modal-backdrop` が付かず、isBlockingBackdropVisible() に映らない。
+    // しかも盤面のタップは document の capture で自前に拾う作り（教訓4）なので、
+    // **背景を置いただけでは止まらない**（接触の確認モーダルは dim:true なので元から
+    // 止まっていた＝逆向きは起きない）。ここで事実（開いているか）で止める。
+    if (isBlockingBackdropVisible() || isBoardCoveredByOtherScreen() || isCellConfirmOpen()) return;
     if (!activeEffectPicker) {
       // ユーザー要望2026-08-17「相手のアバターをクリックすると『このプレイヤーのエモートを
       // 非表示』的なボタンが出るようにしたい」。選択待ち(activeEffectPicker)中は手品師の技等の
@@ -4935,6 +4945,14 @@ document.addEventListener(
             e.preventDefault();
             e.stopPropagation();
             performLockPhaseClick(cardEl.dataset.tokenId);
+          } else {
+            // 【#434】光っていない手札をタップした時、**理由が分かるものだけ**伝える。烙印の
+            // コスト不足は盤面を見ても分からない（色枠は「空いている」ように見える）ので、
+            // 黙って何も起きないと不具合に見える。
+            const tapped = getState().tokens.find((t) => t.id === cardEl.dataset.tokenId);
+            if (tapped && tapped.location.player === getSelfSeat() && getLockBlockReason(tapped, getSelfSeat()) === "contract-brand-cost") {
+              showQuickNote(t("game.lock.brandNeedsTwoSpare", { brand: cardDisplayName("black-contract-brand") || t("game.brand.name") }));
+            }
           }
           return;
         }
@@ -16285,6 +16303,19 @@ async function onDragEnd(e) {
         render();
         return;
       }
+      // 【#434】烙印が置かれた色へのロックは、手札が余分に2枚ないとできない（★(b)の
+      // 「手札を２枚捨て」を払えないため）。⚠ ロックフェイズの**本物のロック**だけを弾く
+      // ——このドラッグ経路は自由配置の入口でもあるので（findDropTarget のコメント参照）、
+      // セットアップや管理者の自由配置には効かせない。
+      if (
+        getCurrentPhase() === "lock" &&
+        cardSourceLocation?.zone === "hand" &&
+        isContractBrandLockCostUnpayable(SIDE_TO_SEAT[dropTarget.side], getCardDefinition(token?.cardId)?.color, tokenId)
+      ) {
+        showQuickNote(t("game.lock.brandNeedsTwoSpare", { brand: cardDisplayName("black-contract-brand") || t("game.brand.name") }));
+        render();
+        return;
+      }
       if (!(await confirmTouchAction(t("game.confirm.lockCard", { card: cardDisplayName(token?.cardId) || t("game.thisCard") }), { cardId: token?.cardId }))) {
         render();
         return;
@@ -19022,8 +19053,11 @@ registerPhaseAutomationHelpers({
   notifyPlayerDecision,
   // 【#316】動けなかった時の救済（隣へ山札から1枚置く）を画面で知らせる。中央は一度に1つ
   // （#266）の列に乗るので、他のお知らせと重ならず順番に出る。
-  announceMoveFallback: (player) => {
-    void showEffectReasonModal(null, t("game.move.fallbackPlaced", { name: getPlayerName(player) }));
+  // 【#429】kind: "placed"（既定）＝隣へ山札から1枚置いた／"cant-move"＝効果で移動を
+  // 封じられていたので何も置かずに終える。文言を分ける所をここ1か所に集める。
+  announceMoveFallback: (player, kind) => {
+    const key = kind === "cant-move" ? "game.move.cantMoveTurnEnds" : "game.move.fallbackPlaced";
+    void showEffectReasonModal(null, t(key, { name: getPlayerName(player) }));
   },
 });
 initHelpButton();

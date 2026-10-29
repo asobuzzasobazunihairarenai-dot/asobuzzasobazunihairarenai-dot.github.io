@@ -561,11 +561,59 @@ export function isCardLockable(token, player) {
   if (token.cardId === "rainbow-shard") return false; // ロックフェイズでは常にロック不可
   const color = getCardDefinition(token.cardId)?.color;
   if (!color || color === "white" || color === "black") return false; // 無色は「ロックした」扱いにならない
+  // 【#434】烙印が置かれた色へロックするには、ロックする札のほかに手札が2枚必要。
+  if (hasContractBrandInSlot(player, color) && !canPayContractBrandLockCost(player, token.id)) return false;
   if (!isLockSlotOccupied(player, color)) return true;
   // 黒の契約の烙印がその色スロットを塞いでいるだけなら、その色はロックできる（ロックすると烙印が
   // 外れる＝★(b)。ユーザー訂正2026-08-09「その色をロックしなければ烙印は外れない」）。これが無いと
   // 塞がれた色を永久にロックできず、烙印が外せない詰みになる。
   return isSlotOccupiedOnlyByContractBrand(player, color);
+}
+// 【#434】誘惑の黒の烙印の★(b)は「これの置かれた色のロックエリアにロックしたなら、あなたの
+// 手札を２枚捨て、これを任意のマスに裏向きで置く」。ユーザー裁定（debug #434「手札が余分に2枚
+// なかったのに誘惑の黒の烙印にロックできてしまった」）＝**2枚を払えないなら、その色へはロック
+// できない**。総合ルール 607.4（コストを支払えない場合、その効果の使用を宣言できない）と同じ
+// 考え方で、善処の原則 114.4（できる分だけ実行する）はここでは適用しない。
+//
+// 🔴 これを入れる前は、手札1枚（＝余分0枚）でも烙印の色へロックでき、runContractBrandCurseOnLock
+// の「手札が尽きたらそれ以上は捨てられない（善処）」に落ちて**コストを1枚も払わずに烙印が外れて
+// いた**（＝烙印を只で片付ける抜け道）。
+//
+// ⚠ 詰みにはならない。烙印は placed＝「置いている」だけなので他の色の勝利条件には影響せず、
+// ★(a)「ロックしないなら1枚ドローしてよい」とドローフェイズで手札は増えるので、2枚貯まれば
+// またロックできる（一時的な制限）。
+function hasContractBrandInSlot(player, color) {
+  const colorIndex = COLORS.indexOf(color);
+  if (colorIndex === -1) return false;
+  return getState().tokens.some(
+    (t) =>
+      t.kind === "card" &&
+      t.cardId === "black-contract-brand" &&
+      t.location.zone === "lock" &&
+      SIDE_TO_SEAT[t.location.side] === player &&
+      t.location.index === colorIndex
+  );
+}
+// ロックする札そのもの（excludeTokenId）は数えない＝「余分に2枚」。
+function canPayContractBrandLockCost(player, excludeTokenId) {
+  const spare = getState().tokens.filter(
+    (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === player && t.id !== excludeTokenId
+  ).length;
+  return spare >= 2;
+}
+// isCardLockable が偽になった理由のうち、**プレイヤーに伝えるべきもの**だけを返す。
+// 「その色は既に埋まっている」等は盤面を見れば分かるので伝えない（黙って光らせないだけ）。
+export function getLockBlockReason(token, player) {
+  if (!token || isCardLockable(token, player)) return null;
+  const color = getCardDefinition(token.cardId)?.color;
+  if (!color) return null;
+  if (hasContractBrandInSlot(player, color) && !canPayContractBrandLockCost(player, token.id)) return "contract-brand-cost";
+  return null;
+}
+// 【#434】ドラッグでロックスロットへ落とす経路（main.js）からも同じ判定をするための入口。
+export function isContractBrandLockCostUnpayable(player, color, excludeTokenId) {
+  if (!color) return false;
+  return hasContractBrandInSlot(player, color) && !canPayContractBrandLockCost(player, excludeTokenId);
 }
 function isSlotOccupiedOnlyByContractBrand(player, color) {
   const colorIndex = COLORS.indexOf(color);
@@ -1475,9 +1523,10 @@ function reconcileMovePhase(player) {
   const boosted = isMovementBoostActiveThisTurn(player);
   // マルメゴで橙が出た時の「このターン移動できない」を強制する（不具合#57）。移動候補を空にして
   // ハイライトを出さず（＝タップ移動も発火しない）、下の手動ドラッグ移動もmain.js側で弾く。
-  // 接触は禁止しない（効果文は移動のみ）ので contactCandidates はそのまま計算する。移動候補も
-  // 接触相手も無い場合は既存のフォールバック（隣へ山札から1枚裏向きに置く＝「移動先が無い」時と
-  // 同じ扱い、ルール上も妥当）が働く。
+  // 接触は禁止しない（効果文は移動のみ）ので contactCandidates はそのまま計算する。
+  // 🔴 【#429】ここに元は「移動候補も接触相手も無い場合は既存のフォールバック（隣へ山札から
+  // 1枚裏向きに置く＝『移動先が無い』時と同じ扱い、ルール上も妥当）が働く」と書いてあったが、
+  // **これが誤りだった**（下の分岐で正しい扱いにしてある）。
   const moveCandidates = isMovementDisabledThisTurn(player) ? [] : getMoveCandidates(piece.location, boosted ? 2 : 1, boosted);
   const contactCandidates = getContactableCells(piece.location, player);
   clearMovableHighlights();
@@ -1502,6 +1551,19 @@ function reconcileMovePhase(player) {
     }
   }
   if (moveCandidates.length === 0 && contactCandidates.length === 0) {
+    // 🔴 【#429】「このターン移動できない」（マルメゴで橙が出た等）の時は、隣へ山札から1枚
+    // 置く救済を**行わない**。ユーザー裁定（debug #429「マルメゴで失敗した時隣に自動的に
+    // カードが置かれたが、それは移動先が１つもない時なので今回は置かないが正解」）。
+    //
+    // あの救済は「**盤面の都合で**移動先が1つもない」時のもの（移動は『カードの置かれた別の
+    // マス』へ行くことなので、隣が全部空マスだと動けなくなる＝そのための救済）。効果で移動を
+    // 封じられた時は**ただ移動できないだけ**で、カードを置くと盤面が1枚増えて**得をしてしまう**。
+    if (isMovementDisabledThisTurn(player)) {
+      markPhaseMoveActionTaken("movement-disabled");
+      announceMoveFallbackHelper?.(player, "cant-move");
+      performMoveFallbackAndEndTurn(player, null); // location が null ＝置かずにターンだけ終える
+      return;
+    }
     const emptyCells = getAdjacentEmptyCells(piece.location);
     if (emptyCells.length > 0) {
       // ユーザー要望（ルール修正）: 移動先も接触相手も無い場合は「隣の任意の1マスへ山札から

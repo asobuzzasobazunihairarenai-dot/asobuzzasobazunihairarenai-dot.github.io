@@ -11699,7 +11699,11 @@ body.theme-light .draw-targets-modal-name {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(34rem, 94vw);
-  z-index: 10041;
+  /* 【#431】「不具合報告モーダルは常に最前面に表示された方がいい」。アプリ側の覆い
+     （オープニングの設定 100061・AFKの帯 100060・山札の案内 100058・初回の音設定 100051・
+     スモークの窓 100091）より前へ。背景は bug-report.js 側で 100094。
+     ⚠ #rotate-device-overlay（2147483000＝「端末を横にしてください」）は上に残す。 */
+  z-index: 100095;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(251, 191, 36, 0.5);
   border-radius: 0.6rem;
@@ -19342,6 +19346,43 @@ body.opening-screen-active.is-admin-user #smoke-test-launch-btn {
   white-space: nowrap;
 }
 #ranked-practice-banner button:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* 【#436】ユーザー報告「練習をやめて待機に戻るバナー、ボタンが小さくて押せない。
+   あと不具合報告ボタンと場所が被ってしまってます」。実測（iPhone 932x430・ステージ倍率0.478）:
+   ボタンの文字 5.49px・箱 66x13・右上の不具合報告アイコン（546〜569）とバナー（347〜585）が
+   **重なっていた**。932x320 では 4.08px・49x10。PC（1280x760）は 9.19px・110x22 で重なりも無い。
+   🔴 字を上げるとバナーは**横にも広がる**ので、重なりは余計にひどくなる。だから
+   「大きくする」と「アイコン列の下へ下げる」はセットで入れる（続き574・589 と同じ考え方）。
+   ⚠ PC の値は一字も変えない（続き585「する前のがよかった」）。 */
+body.is-phone-device #ranked-practice-banner,
+body.is-tablet-device #ranked-practice-banner {
+  /* 右上のアイコン列（top 0.6rem ＋ スマホでは 3rem 角）より下へ逃がす */
+  top: 4.7rem;
+  /* ⚠ 92vw はステージ（1600x900）基準では小さく評価される（続き613 の罠）。% はステージ基準。 */
+  max-width: 92%;
+  font-size: 1.7rem;
+  gap: 1rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 1rem;
+}
+body.is-phone-device #ranked-practice-banner button,
+body.is-tablet-device #ranked-practice-banner button {
+  font-size: 1.6rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: 0.8rem;
+}
+/* 画面の低い端末（932x320 等）はステージ倍率がさらに小さい（0.356）ので、もう一段上げる。 */
+@media (max-height: 380px) {
+  body.is-phone-device #ranked-practice-banner {
+    top: 4.2rem;
+    font-size: 2.2rem;
+    padding: 0.6rem 1.1rem;
+  }
+  body.is-phone-device #ranked-practice-banner button {
+    font-size: 2.1rem;
+    padding: 0.9rem 1.5rem;
+  }
+}
 
 #ranked-ready-modal {
   position: fixed;

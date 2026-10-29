@@ -1743,6 +1743,7 @@ const UI = {
     "game.fizzle.nothing": "不発のため、何も起きませんでした。",
     "game.handEffect.onlyHandPhase": "このカードの効果は、あなたのハンドフェイズ（自分のターン）に使えます。",
     "game.lock.alreadyLockedThisPhase": "このロックフェイズでは、もう1枚ロックしています。",
+    "game.lock.brandNeedsTwoSpare": "{brand}が置かれた色にロックするには、ロックするカードのほかに手札が2枚必要です（2枚捨てる効果があるため）。",
     "game.handEffect.noCost": "捨てられる同じ色のカードが手札にありません。",
     "game.handEffect.cantUseNow": "今はこのカードの効果を使えません。",
     "game.handEffect.dropToUse": "そのカードを場にドロップすると、手札効果が発動します。",
@@ -1925,6 +1926,7 @@ const UI = {
     // 【#316】移動先も接触相手も無い時のルール上の救済を知らせる。
     "game.contact.stuckApproved": "接触の返事が返ってこなかったので、この接触は承認されました。",
     "game.move.fallbackPlaced": "{name}は移動できるマスも接触できる相手もいなかったので、隣のマスに山札から1枚を裏向きで置いてターンを終わります。",
+    "game.move.cantMoveTurnEnds": "{name}はこのターン移動できないので、何も置かずにターンを終わります。",
     // 右下「このターンの出来事」のチップ（ツールチップ文言）
     "game.chip.gainedN": "{name}が{n}枚獲得",
     "game.chip.gained": "{name}が獲得",
@@ -3696,6 +3698,7 @@ const UI = {
     "game.fizzle.nothing": "Nothing happened.",
     "game.handEffect.onlyHandPhase": "You can use this card's effect during your own Hand phase.",
     "game.lock.alreadyLockedThisPhase": "You have already locked a card in this Lock phase.",
+    "game.lock.brandNeedsTwoSpare": "To lock onto the colour where {brand} sits, you need two more cards in hand besides the one you lock (it makes you discard two).",
     "game.handEffect.noCost": "You have no same-color card in hand to discard as the cost.",
     "game.handEffect.cantUseNow": "You can't use this card's effect right now.",
     "game.handEffect.dropToUse": "Drop that card onto the board to trigger its Hand Effect.",
@@ -3876,6 +3879,7 @@ const UI = {
     "game.toast.discardedMany": "{name} discarded {n} cards",
     "game.contact.stuckApproved": "No answer came back for the contact, so it was approved.",
     "game.move.fallbackPlaced": "{name} had nowhere to move and no one to contact, so a card from the deck is placed face down on an adjacent square and the turn ends.",
+    "game.move.cantMoveTurnEnds": "{name} cannot move this turn, so the turn ends without placing anything.",
     "game.chip.gainedN": "{name} gained {n} card(s)",
     "game.chip.gained": "{name} gained a card",
     "game.chip.gate": "{name} invaded a gate",

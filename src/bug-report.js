@@ -569,7 +569,9 @@ export function openBugReportModal() {
   // blocker "backdrop>div#bug-report-modal" でフェイズが最大16秒待たされていた）。
   // 報告は対局中に書くものなので、報告している最中に対局が固まるのは本末転倒。
   // 対局の流れに属さない「アプリが出すウィンドウ」なので、進行の妨害からは外す。
-  backdropEl = createBackdrop(close, { dim: true, zIndex: 10040, blocksGame: false });
+  // 【#431】モーダル（style.css で 100095）とセットで最前面へ。10040 のままだと
+  // 背景だけが他の覆いの下に潜り、モーダルは前・背景は後ろという食い違いになる。
+  backdropEl = createBackdrop(close, { dim: true, zIndex: 100094, blocksGame: false });
   modalEl = document.createElement("div");
   modalEl.id = "bug-report-modal";
 
