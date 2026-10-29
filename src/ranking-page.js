@@ -266,7 +266,9 @@ function closeRankingChoiceMenu() {
 
 function openRankingChoiceMenu() {
   if (choiceMenuEl) return;
-  choiceBackdropEl = createBackdrop(closeRankingChoiceMenu, { dim: true, zIndex: 1610 });
+  // 【#443】覆いの z は CSS ではなくここで決まるので、メニュー(style.css で 2703)と
+  // 一緒に上げる。片方だけ上げると、覆いが全画面ページの後ろに取り残されて暗くならない。
+  choiceBackdropEl = createBackdrop(closeRankingChoiceMenu, { dim: true, zIndex: 2702 });
   choiceMenuEl = document.createElement("div");
   choiceMenuEl.id = "ranking-choice-menu";
 

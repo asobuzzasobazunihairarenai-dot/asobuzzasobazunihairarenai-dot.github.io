@@ -198,6 +198,14 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "どちらも直しました。練習モードのバナーの文字とボタンをスマホで大きくし（ボタンの高さは3割ほどから倍以上に）、バナーの位置を少し下げて不具合報告ボタンと重ならないようにしました。",
     en: "Both are fixed. The practice banner's text and button are now much larger on a phone, and the banner sits a little lower so it no longer overlaps the bug report button.",
   },
+  443: {
+    ja: "ご指摘のとおりでした。マイページを開いている時にランキングのアイコンを押すと、出てくる2つの選び札（ランキングを見る／戦績システムへ）がマイページの下に隠れてしまい、押せなくなっていました。前に出るようにしたので、どの画面からでも選べます。",
+    en: "You were right. While My Page was open, pressing the ranking icon opened its two choices behind the page, so they could not be pressed. They now come to the front, so you can pick from any screen.",
+  },
+  444: {
+    ja: "入れました。フレンド申請が届いていると、画面上部のマイページのアイコンに赤い数字が出ます。ホーム画面を開いた時とログインした時に見に行き、申請に返事をするとすぐ減ります。",
+    en: "Added. When friend requests are waiting, a red number now appears on the My Page icon at the top of the screen. It is checked when you open the home screen and when you log in, and it goes down as soon as you answer a request.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

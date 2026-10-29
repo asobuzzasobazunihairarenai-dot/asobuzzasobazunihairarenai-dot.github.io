@@ -3,7 +3,7 @@
 // 画面右上のオプションアイコンの隣の人マークアイコン、または左下の巨大アバターの
 // クリックで開く（main.js側で配線）。
 
-import { getCurrentUser, getSelfSeat, syncMyStatsProfile, getSelfRank, fetchMyTitleStats, fetchMyTitleKey, saveMyTitleKey } from "./online.js";
+import { getCurrentUser, getSelfSeat, syncMyStatsProfile, getSelfRank, fetchMyTitleStats, fetchMyTitleKey, saveMyTitleKey, onAuthChange } from "./online.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ10
 // ランク戦の現ランク（フェーズ4/6）。戦績システムの順位とは別物のランク戦専用のランク。
 import { rankName } from "./rank-badge.js";
@@ -14,7 +14,7 @@ import { getPlayerName, getPlayerAvatar, setPlayerName } from "./player-identity
 import { fetchStatsProfile } from "./stats-profile.js";
 import { TITLE_DEFS, computeUnlockedTitleKeys, getTitleGroups, formatTitle } from "./titles.js";
 import { openStatsPlayerLinkModal } from "./stats-player-link.js";
-import { buildFriendsButton } from "./friends-ui.js"; // フレンド機能（2026-09-04）
+import { buildFriendsButton, refreshFriendRequestBadge } from "./friends-ui.js"; // フレンド機能（2026-09-04）
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { buildIconButtonContent, wireIconButtonClick, openIconDetailModal, onIconLabelRefresh } from "./icon-action-button.js";
 import { openOnlinePanel } from "./online-ui.js";
@@ -749,4 +749,10 @@ export function initMyPage() {
     onAction: () => (profilePageOpenerFn ? profilePageOpenerFn() : open()),
   });
   getOptionArea().appendChild(launcherBtn);
+  // 【#444】届いているフレンド申請の数をこのアイコンに出す。作った時に1回と、
+  // ログイン状態が変わった時（起動直後はまだ誰でもない→少し後にログインが確定する）。
+  // 投げっぱなし（失敗してもアイコンは出る）。ホーム画面を開いた時にも数え直す
+  // （home-screen.js）ので、申請が届いてから気づくまでが長くなりすぎない。
+  void refreshFriendRequestBadge();
+  onAuthChange(() => void refreshFriendRequestBadge());
 }

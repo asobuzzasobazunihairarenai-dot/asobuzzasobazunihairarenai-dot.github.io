@@ -112,6 +112,29 @@ export function buildIconButtonContent(btn, { icon, tooltip }) {
   return { captionEl, tooltipEl };
 }
 
+// 【#444】アイコンの右上に小さな数字の印を出す（ユーザー要望「フレンドの申請が来ている
+// ことが画面上部のどこかでわかるといいかも！」）。text が空なら外す。
+// ⚠ 置く先は .icon-action-button-icon-wrap（position:relative の丸い縁取り）。btn 直下に
+//    置くと、下に付くキャプション文字のぶん位置がずれる。
+// ⚠ pointer-events:none（style.css）にしてあるので、印の上を押してもボタンに届く。
+export function setIconButtonBadge(btn, text) {
+  if (!btn) return;
+  const wrap = btn.querySelector(".icon-action-button-icon-wrap");
+  if (!wrap) return;
+  let badge = wrap.querySelector(".icon-action-button-badge");
+  const label = text == null ? "" : String(text);
+  if (!label) {
+    badge?.remove();
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "icon-action-button-badge";
+    wrap.appendChild(badge);
+  }
+  badge.textContent = label;
+}
+
 // btnのclickリスナーを1つだけ登録する。キャプション文字（.icon-action-button-caption）への
 // クリックは詳細モーダルを開くだけにし、それ以外（アイコン等）へのクリックは本来の操作
 // (onAction)を実行する。ショートカットキー経由のbtn.click()はtarget=btn自身になるため

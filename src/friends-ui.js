@@ -19,6 +19,7 @@ import {
   getCachedUser,
 } from "./online.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
+import { setIconButtonBadge } from "./icon-action-button.js";
 import { t } from "./ui-text.js";
 
 function canUseFriends() {
@@ -100,6 +101,15 @@ async function renderFriendsBody(container) {
 
   const [friends, recent] = await Promise.all([fetchFriends(), fetchRecentOpponents()]);
   status.remove();
+  // 【#444】一覧を描くたびに、画面上部のマイページアイコンの数字も合わせる。承諾/辞退した
+  // 直後（reload）もここを通るので、数字がすぐ減る。
+  // ⚠ 取ってきた friends から数える（refreshFriendRequestBadge を呼ぶと fetchFriends が
+  //    もう1回走る）。
+  {
+    const iconBtn = document.getElementById("my-page-button");
+    const n = friends.filter((f) => f.direction === "incoming").length;
+    if (iconBtn) setIconButtonBadge(iconBtn, n > 0 ? String(n) : "");
+  }
 
   const recordByUser = new Map();
   for (const o of recent) recordByUser.set(o.userId, t("fr.record", { n: o.matches, w: o.wins }));
@@ -211,6 +221,27 @@ export function openFriendsModal() {
   document.body.appendChild(backdrop);
   document.body.appendChild(modal);
   renderFriendsBody(body).catch((err) => console.error("renderFriendsBody failed", err));
+}
+
+// 【#444】ユーザー要望「フレンドの申請が来ていることが画面上部のどこかでわかるといいかも！」。
+// 画面上部のアイコン列のうち、フレンド一覧へ辿れるのはマイページ（#my-page-button）なので、
+// そこに届いている申請の数を出す。
+// 🔴 ここは #my-page-button を id で引く（my-page.js を import すると循環 import になる
+//    ——my-page.js がこのファイルを import しているため。続き573 で実際に TDZ で落ちている）。
+// ⚠ ログインしていない／ゲスト（匿名）の時は数えずに外す（申請は届かないので）。
+// ⚠ 取れなかった時も外す（古い数字を出したままにしない）。
+export async function refreshFriendRequestBadge() {
+  const btn = document.getElementById("my-page-button");
+  if (!btn) return;
+  let n = 0;
+  if (canUseFriends()) {
+    try {
+      n = (await fetchFriends()).filter((f) => f.direction === "incoming").length;
+    } catch {
+      n = 0;
+    }
+  }
+  setIconButtonBadge(btn, n > 0 ? String(n) : "");
 }
 
 // マイページに置く「👥 フレンド（n）」ボタン。押す前に「届いている申請がある」ことが

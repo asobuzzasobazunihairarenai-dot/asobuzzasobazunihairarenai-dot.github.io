@@ -3464,6 +3464,34 @@ body.is-phone-device #phase-guide-bar {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
+/* 【#444】アイコン右上の小さな数字の印（届いているフレンド申請の数）。
+   ⚠ 明暗2テーマがあるので、地と文字色を自分で持つ（継承しない＝教訓15）。赤地＋白文字は
+      どちらのテーマでも読める。
+   ⚠ 押すものの上に乗るので pointer-events:none（印を押してもボタンに届く）。
+   ⚠ スマホでは #option-area 全体が --option-area-scale-phone(1.65) 倍されるので、
+      この 0.95rem はスマホでも実画面で読める大きさになる（rem のまま持つ）。 */
+.icon-action-button-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.2rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  font-family: sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+}
 .icon-action-button:hover .icon-action-button-icon-wrap {
   background: rgba(56, 189, 248, 0.18);
   border-color: rgba(56, 189, 248, 0.6);
@@ -23609,12 +23637,23 @@ body.theme-light-ingame .ranked-waiting-requeue {
 /* 【ユーザー要望2026-09-07】オプションエリアのランキングアイコンをタップした時の2択
    （ランキングを見る／戦績システムへ）。ranking-page.js の openRankingChoiceMenu。
    他の簡易モーダル（#ranking-info-modal 等）と同じ位置・同じ地の色にそろえる。 */
+/* 【#443】ユーザー報告「この画面からランキングボタン押しても移動しません」。報告の画面の
+   記録に #profile-page(z2650) と #ranking-choice-menu(z1611) が同時に写っていた＝**ボタンは
+   効いていて、開いた2択が画面の下に埋まっていた**。
+   🔴 これは 2026-08-18 に一度直した不具合の再発: あの時は「マイページ画面でランキングを
+   押しても反応しない」を openRankingPage が closeProfilePage するようにして直したが、
+   2026-09-07 に**アイコンと全画面ページの間に2択メニューを挟んだ**ため、1枚手前で同じ形で
+   埋まるようになった。**機能を1枚挟む時は、その1枚の重なり順も確かめる。**
+   ⚠ 直し方は「後ろの画面を閉じる」ではなく**前面へ出す**。✕で閉じた時に元の画面へ戻れて
+   ほしいし、「戦績システムへ」は別タブで開くので元の画面に居るのが正しい。
+   2703/2702 ＝ オプションエリア(2700)・オプションのパネル(2701)・全画面ページ(最大2650)より
+   前で、管理者パネル(2800)より後ろ。 */
 #ranking-choice-menu {
   position: fixed;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1611;
+  z-index: 2703;
   min-width: 15rem;
   padding: 1.2rem 1.2rem 1rem;
   display: flex;
