@@ -12258,6 +12258,11 @@ body.reduce-glow .cell.card-effect-just-placed {
   --vic-residue: 2;        /* 白い画面の中の七色残光の量。既定=派手版 */
   --vic-rings: 1.2;        /* 【#385】脈動ごとの七色の衝撃波（0で切れる） */
   --vic-rays: 1;           /* 【#385】VICTORYの背後の七色の光芒（0で切れる） */
+  /* 【2026-10-29・ユーザー要望「演出のディテールの凝り度を上げたい」】足した4つ。0で切れる。 */
+  --vic-cube-ring: 1;      /* 吸った七色がキューブの周りに溜まる環 */
+  --vic-cracks: 1;         /* 最後の脈動で表面に走る光のひび */
+  --vic-silhouettes: 1;    /* 白い光の中に浮かぶ、揃えた7枚のシルエット */
+  --vic-pulse-zoom: 1.45;  /* 脈動の間だけキューブへ寄る倍率（1.01以下で寄らない） */
   /* 脈動している疑似キューブの「白い芯」の強さ。0にすると白い丸が完全に消えて、
      勝者の色のにじみだけになる（ユーザー要望2026-08-31「脈動中の白丸いらないかも」）。 */
   --vic-cube-white: 0;
@@ -23870,6 +23875,119 @@ body.theme-light-ingame .ranking-choice-item {
     transform: scale(calc(22 * var(--vic-ring-power, 1))) rotateX(var(--table-tilt, 42deg));
   }
 }
+
+/* 【2026-10-29・ユーザー要望「演出のディテールの凝り度を上げたい」】足した3つ。
+   どれも DOM＋CSS だけ（canvas を増やさない＝#441 で1枚23MBだと実測済み）。
+   つまみ: --vic-cube-ring / --vic-cracks / --vic-silhouettes（0 で切れる）。 */
+
+/* ⑤⑦ 吸った七色がキューブの周りに溜まる環。盤面と同じ傾きで寝かせる（.vic-pulse-ring と同じ
+   考え方）ので、机の上に在るように見える。7本の棒を中心から外へ向けて並べただけ。 */
+.vic-cube-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotateX(var(--table-tilt-local, 42deg));
+}
+.vic-cube-ring-arc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7%;
+  height: 17%;
+  border-radius: 999px;
+  background: rgba(var(--vic-arc-rgb, 255, 255, 255), 0.92);
+  box-shadow: 0 0 0.55rem rgba(var(--vic-arc-rgb, 255, 255, 255), 0.75);
+  /* 中心に置いてから、自分の向きの外側へ押し出す（回転の後に translate する順番が肝）。 */
+  transform: translate(-50%, -50%) rotate(var(--vic-arc-turn, 0deg)) translateY(-230%);
+  opacity: calc(0.14 * var(--vic-cube-ring-power, 1));
+  transition: opacity 240ms ease-out;
+}
+/* 1色ぶんが灯った（吸い込みに合わせて1つずつ付く）。 */
+.vic-cube-ring-arc.is-on {
+  opacity: calc(0.8 * var(--vic-cube-ring-power, 1));
+}
+/* 七色がそろった後（脈動の段）は、全部をさらに強く出す。 */
+.vic-cube-ring.is-full .vic-cube-ring-arc.is-on {
+  opacity: calc(0.95 * var(--vic-cube-ring-power, 1));
+  box-shadow: 0 0 0.9rem rgba(var(--vic-arc-rgb, 255, 255, 255), 0.9);
+}
+/* 脈動1回ぶん。回を追うごとに強くする（--vic-ring-beat-power）。 */
+.vic-cube-ring.is-beat {
+  animation: vic-cube-ring-beat var(--vic-ring-beat-ms, 380ms) cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes vic-cube-ring-beat {
+  0%, 100% { transform: translate(-50%, -50%) rotateX(var(--table-tilt-local, 42deg)) scale(1); }
+  40% {
+    transform: translate(-50%, -50%) rotateX(var(--table-tilt-local, 42deg))
+      scale(calc(1 + 0.14 * var(--vic-ring-beat-power, 1)));
+  }
+}
+
+/* ⑧ 最後の脈動で表面に走る光のひび＝次の破裂の予告。中心から外へ伸びる細い板を数枚。 */
+.vic-cube-cracks {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.vic-crack {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 3.2%;
+  height: 50%;
+  margin-left: -1.6%;
+  border-radius: 999px;
+  /* 根元が明るく、先へ向かって消える＝割れ目に見える（均一な棒だと「星」に見える）。 */
+  background: linear-gradient(to top,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.5) 55%,
+    rgba(255, 255, 255, 0) 100%);
+  box-shadow: 0 0 0.6rem rgba(255, 255, 255, 0.7);
+  opacity: calc(0.9 * var(--vic-cracks-power, 1));
+  /* 下端＝キューブの中心。そこを軸に回して、伸びながら走る。 */
+  transform-origin: 50% 100%;
+  transform: rotate(var(--vic-crack-deg, 0deg)) scaleY(0);
+  animation: vic-crack-grow var(--vic-cracks-ms, 380ms) var(--vic-crack-delay, 0ms)
+    cubic-bezier(0.15, 0.85, 0.3, 1) forwards;
+}
+@keyframes vic-crack-grow {
+  0% { transform: rotate(var(--vic-crack-deg, 0deg)) scaleY(0); }
+  100% { transform: rotate(var(--vic-crack-deg, 0deg)) scaleY(1); }
+}
+
+/* ⑪ 白い光の中に、揃えた7枚のシルエットが一瞬だけ浮く。
+   ⚠ 地は**常に白い光**なので、色＋白い縁を自分で持つこのやり方は明暗どちらのテーマでも読める
+      （文字色を継承に頼らない＝教訓15）。 */
+.vic-silhouettes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.vic-silhouette {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  border-radius: 8%;
+  background: rgba(var(--vic-sil-rgb, 255, 255, 255), 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0.5rem 1.4rem rgba(60, 48, 80, 0.2);
+  opacity: 0;
+  transform: translate(-50%, -50%) translate(var(--vic-sil-x, 0px), var(--vic-sil-y, 0px))
+    rotate(var(--vic-sil-rot, 0deg)) scale(0.88);
+  transition:
+    opacity 320ms ease-out var(--vic-sil-delay, 0ms),
+    transform 420ms cubic-bezier(0.2, 0.8, 0.3, 1) var(--vic-sil-delay, 0ms);
+}
+.vic-silhouettes.is-on .vic-silhouette {
+  opacity: calc(0.5 * var(--vic-sil-power, 1));
+  transform: translate(-50%, -50%) translate(var(--vic-sil-x, 0px), var(--vic-sil-y, 0px))
+    rotate(var(--vic-sil-rot, 0deg)) scale(1);
+}
+/* 見せ場が終わった後（リザルトの背景として数分間残る間）は何も残さない。 */
+#victory-celebration.is-settled .vic-silhouettes { display: none; }
 
 /* ② VICTORY の文字の背後でゆっくり回る七色の光芒。文字より奥に置く。 */
 .vic-rays {

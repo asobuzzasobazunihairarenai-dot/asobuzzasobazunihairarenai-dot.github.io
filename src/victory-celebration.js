@@ -33,6 +33,10 @@ let celebrationSafetyTimer = null;
 import { isFlightAnimationDisabled } from "./motion-prefs.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { getState } from "./state.js";
+// カメラは cinematic-camera.js（import を1つも持たない葉モジュール）から直に使う。
+// ただし「この要素を画面の中央へ」の計算は main.js 側にしか無いので、そこだけ登録で受け取る
+// （main.js を import すると循環 import になる＝続き573 で実際に TDZ で落ちている）。
+import { cinematicAllows, cameraHome } from "./cinematic-camera.js";
 import { buildCardBox } from "./card-face-display.js";
 import { getCardImagePath } from "./cards-data.js";
 import { getPlayerName, getPlayerAvatar } from "./player-identity.js";
@@ -94,6 +98,13 @@ function readSettings() {
     rays: num("--vic-rays", 1),
     avatarSize: num("--vic-avatar-size", 16), // vmin
     fan: num("--vic-fan", 1) >= 0.5, // ロックした7枚の扇を見せるか
+    // 【2026-10-29・ユーザー要望「演出のディテールの凝り度を上げたい」】足した4つ＋ズーム。
+    // どれも 0 で切れる（既存の --vic-rings / --vic-rays と同じ作法）。
+    cubeRing: num("--vic-cube-ring", 1), // 吸った七色がキューブの周りに溜まる環
+    cracks: num("--vic-cracks", 1), // 最後の脈動で表面に走る光のひび
+    silhouettes: num("--vic-silhouettes", 1), // 白い光の中に浮かぶ7枚のシルエット
+    // 脈動の間だけ寄る倍率。1.01 以下なら寄らない。アグレッシブモードが「切」の人にも寄らない。
+    pulseZoom: num("--vic-pulse-zoom", 1.45),
     hold: num("--vic-hold", 1), // 勝利表示を見せる長さの倍率
     mobile,
   };
@@ -107,6 +118,13 @@ const wait = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.r
 // では光やカードが実物から大きく離れた場所に出る（PCは倍率1・オフセット0なので露見しない）。
 // ここで root の矩形から倍率と原点を割り出し、**rectOf を通した時点でローカル座標に直す**。
 // これ1か所で、光・疑似キューブ・扇のカード・白飛びの中心・キャンバスがまとめて正しくなる。
+// 【2026-10-29】脈動の間だけキューブへ寄るための口。main.js が focusCameraOnElement を登録する。
+// 登録されていない環境（テスト・プレビュー）では寄らないだけで、演出は今までどおり動く。
+let focusCameraHelper = null;
+export function registerVictoryCameraFocus(fn) {
+  focusCameraHelper = typeof fn === "function" ? fn : null;
+}
+
 let stageRoot = null;
 let stageS = 1, stageX = 0, stageY = 0, stageW = 0, stageH = 0, stageAt = -1;
 function syncStage() {
@@ -211,6 +229,13 @@ export async function playVictoryCelebration(player, opts = {}) {
   let stopFlareTrack = null;
   let ghost = null;
   let stopCanvas = null;
+  // 【2026-10-29】足したディテールの持ち物。root の子なので root ごと消えるが、
+  // 白に隠れた時点で先に片付ける（下の FLASH 参照）。
+  let cubeRing = null;
+  let cubeCracks = null;
+  let stopCubeTrack = null;
+  let cameraZoomed = false;
+  const ringTimers = [];
   // 【#349「CPUの勝利演出がだいぶはしょられてるように見えた」の切り分け用】手元（iPhone相当の
   // 画面・PC、CPUの勝ち／自分の勝ち）では全段が同じ長さで出て再現しなかった。短く見える原因の候補は
   // 「演出中に画面を触って早送りになった」「端末の『視差効果を減らす』で一気に短くなった」
@@ -240,6 +265,10 @@ export async function playVictoryCelebration(player, opts = {}) {
 
     const cube = piece ? centerOf(piece) : { x: viewW() / 2, y: viewH() * 0.5 };
     const cubeSize = piece ? rectOf(piece).width : 0;
+    // 🔴 【2026-10-29】カメラが寄ると**盤面上の駒は画面の中で動く**。衝撃波と白の中心を
+    //    最初に測った cube のまま使うと、寄った後にずれる（続き608 で踏んだ「ゴーストが
+    //    カメラの外に居る」のと同じ形）。寄りが入り得る段では必ず今の位置を測る。
+    const cubeNow = () => (piece ? centerOf(piece) : cube);
 
     // --- WAIT: 操作を止め、BGMを短くフェードダウンして間を作る ---------------------
     stage("WAIT");
@@ -297,6 +326,17 @@ export async function playVictoryCelebration(player, opts = {}) {
     }
     ghost = spawnGhostCube(root.querySelector(".vic-cubes"), piece, cube, cubeSize, player);
     ghost?.classList.add("is-charging");
+    // 【2026-10-29】吸った色がキューブに溜まっていくのを見せる（ユーザー案⑤）。
+    // 盤面と同じ傾きで寝かせた環を置き、帯が着くのに合わせて1色ずつ灯す。
+    if (s.cubeRing > 0 && !light) {
+      cubeRing = spawnCubeRing(root.querySelector(".vic-cubes"), cubeNow(), cubeSize, s.cubeRing);
+      const perColor = Math.max(40, ms(BASE.gather / s.gatherSpeed) / COLORS.length);
+      for (let i = 0; i < COLORS.length; i++) {
+        ringTimers.push(setTimeout(() => {
+          cubeRing?.children[i]?.classList.add("is-on");
+        }, Math.round(perColor * i)));
+      }
+    }
     // 宙に浮いたカードは、その場で縮むのではなく**キューブへ飛び込んで**消える。
     absorbCardsIntoCube(cards, cube);
     await step(ms(BASE.gather / s.gatherSpeed));
@@ -305,11 +345,42 @@ export async function playVictoryCelebration(player, opts = {}) {
 
     // --- PULSE: キューブが脈動する（後ろほど強く） ---------------------------------
     stage("PULSE");
+    // 🔴 【2026-10-29・ユーザー案】脈動の間だけキューブへ寄る。
+    //   ・寄せるのは #game-table（カメラ）だが、この演出は**その外のレイヤー**に居る。
+     //    疑似キューブ・環・ひびは**毎フレーム本物の駒を測り直して追従させる**
+    //    （trackSlotFlares と同じやり方。やらないとキューブが2つに分かれて見える）。
+    //   ・アグレッシブモードを「切」にしている人には寄せない（cinematicAllows）。
+    //   ・動きを減らす設定（light）でも寄せない。
+    //   ・戻すのは FLASH の白が画面を覆ってから（下）。寄ったままにすると、この演出が
+    //     リザルトの背景として数分間残る間ずっと盤面が歪む。
+    if (s.pulseZoom > 1.01 && !light && piece && focusCameraHelper && cinematicAllows("highlight")) {
+      cameraZoomed = true;
+      stopCubeTrack = trackCubeLayers(() => ghost, () => cubeRing, () => cubeCracks, piece, player);
+      try {
+        await focusCameraHelper(piece, { zoom: s.pulseZoom, ms: Math.max(220, ms(BASE.pulse)) });
+      } catch (err) {
+        console.error("victory camera zoom failed", err);
+      }
+    }
     for (let i = 0; i < s.pulseCount; i++) {
       const power = ((i + 1) / s.pulseCount) * s.pulsePower;
       pulseOnce(root, ghost, power, s.shake, ms(BASE.pulse));
       // 【#385】脈動のたびに七色の衝撃波。--vic-rings が 0 なら出さない。
-      if (s.rings > 0) spawnPulseRing(root, cube, power * s.rings, i, ms(BASE.pulse));
+      if (s.rings > 0) spawnPulseRing(root, cubeNow(), power * s.rings, i, ms(BASE.pulse));
+      // 【2026-10-29・ユーザー案⑦】溜まった環が脈動のたびに満ちて光る（3回とも同じ動きの
+      // 繰り返しに見えないように、回を追うごとに強くする）。
+      if (cubeRing) {
+        cubeRing.classList.add("is-full");
+        cubeRing.style.setProperty("--vic-ring-beat-power", String(power));
+        cubeRing.style.setProperty("--vic-ring-beat-ms", `${ms(BASE.pulse)}ms`);
+        cubeRing.classList.remove("is-beat");
+        void cubeRing.offsetWidth; // アニメーションを再スタートさせる
+        cubeRing.classList.add("is-beat");
+      }
+      // 【2026-10-29・ユーザー案⑧】最後の脈動で表面に光のひびが走る＝次の破裂の予告。
+      if (s.cracks > 0 && !light && i === s.pulseCount - 1 && !cubeCracks) {
+        cubeCracks = spawnCubeCracks(root.querySelector(".vic-cubes"), cubeNow(), cubeSize, s.cracks, ms(BASE.pulse));
+      }
       playSound("piecePlace");
       playPulseThump(power); // 後ろの脈動ほど強く響かせる
       await step(ms(BASE.pulse));
@@ -319,13 +390,34 @@ export async function playVictoryCelebration(player, opts = {}) {
     stage("FLASH");
     playSound("turnSwitch");
     playVictoryImpact();
-    root.style.setProperty("--vic-flash-x", `${cube.x}px`);
-    root.style.setProperty("--vic-flash-y", `${cube.y}px`);
+    const burst = cubeNow(); // 寄っている間に動いているので測り直す
+    root.style.setProperty("--vic-flash-x", `${burst.x}px`);
+    root.style.setProperty("--vic-flash-y", `${burst.y}px`);
     root.style.setProperty("--vic-flash-ms", `${ms(BASE.flash / s.flashSpeed)}ms`);
     root.style.setProperty("--vic-white-alpha", String(s.white));
     root.classList.add("is-flash");
     if (stopCanvas) { stopCanvas(); stopCanvas = null; }
+    // 【2026-10-29・ユーザー案⑪】白い光の中に、揃えた7枚のシルエットが一瞬だけ浮く。
+    // 「どう勝ったか」が残るディテール。白地の上なので、暗い影として置くだけで見える。
+    if (s.silhouettes > 0 && !light) spawnFlashSilhouettes(root, player, s);
+    // 環とひびは白に隠れるので、ここで片付ける（この演出はリザルトの背景として数分間残るため、
+    // 見えないものを置いたままにしない）。
+    cubeRing?.remove(); cubeRing = null;
+    cubeCracks?.remove(); cubeCracks = null;
     await step(ms(BASE.flash / s.flashSpeed));
+    // 🔴 カメラを戻すのはここ。白が画面を覆い切っているので**戻る動きは見えない**。
+    //    ⚠ 追従は**戻り切ってから**止める。止めたまま戻すと盤面だけが動いて疑似キューブが
+    //      取り残される（白は 88% なので完全には隠れない）。finally にも保険の停止がある。
+    if (cameraZoomed) {
+      cameraZoomed = false;
+      cameraHome(600).then(() => {
+        stopCubeTrack?.();
+        stopCubeTrack = null;
+      });
+    } else {
+      stopCubeTrack?.();
+      stopCubeTrack = null;
+    }
 
     // --- VICTORY: 白を保ったまま勝利表示 ------------------------------------------
     stage("VICTORY");
@@ -344,6 +436,10 @@ export async function playVictoryCelebration(player, opts = {}) {
   } finally {
     for (const c of cards) c.remove();
     stopFlareTrack?.();
+    for (const id of ringTimers) clearTimeout(id);
+    // 🔴 寄ったまま終わらせない（例外で落ちた時も盤面を元に戻す）。
+    stopCubeTrack?.();
+    if (cameraZoomed) { cameraZoomed = false; cameraHome(300); }
     stageRoot = null;
     // flares / ghost は root の子なので root ごと消える。盤面側には何も付けていない。
     if (stopCanvas) stopCanvas();
@@ -409,9 +505,12 @@ function buildRoot() {
   cubeLayer.className = "vic-cubes";
   const flash = document.createElement("div");
   flash.className = "vic-flash";
+  // 【2026-10-29】白い光の中に浮かぶシルエットの層（白より手前・勝利の文字より奥）。
+  const silhouettes = document.createElement("div");
+  silhouettes.className = "vic-silhouettes";
   const text = document.createElement("div");
   text.className = "vic-text";
-  root.append(veil, slotLayer, canvas, cubeLayer, flash, text);
+  root.append(veil, slotLayer, canvas, cubeLayer, flash, silhouettes, text);
   return root;
 }
 
@@ -542,9 +641,28 @@ function spawnGhostCube(layer, piece, cube, sizePx, player) {
   const clone = piece.cloneNode(true);
   clone.classList.remove("is-my-turn-glow", "is-victory-charging", "is-victory-pulse", "hover-active");
   clone.removeAttribute("data-owner"); // 飾りペットを二重に出さない
+  clone.classList.add("vic-cube-clone"); // 置き直す時にこれを測る（placeGhostCube）
   inner.appendChild(clone);
   outer.appendChild(inner);
   layer.appendChild(outer);
+  placeGhostCube(outer, piece, cube, size);
+  return outer;
+}
+
+// 疑似キューブを、実物の駒にぴったり重なる位置・大きさへ置く。
+// 🔴 【2026-10-29】**何度でも呼べる**形にした（元は spawnGhostCube の中で1回だけ走っていた）。
+//    脈動の間にカメラが寄ると実物の駒は画面の中で動くので、毎フレームこれを呼び直して追従させる
+//    （trackCubeLayers）。呼ぶたびに同じ結果になるよう、**まず素の中心へ置いてから測って直す**。
+function placeGhostCube(outer, piece, center, sizePx) {
+  if (!outer) return;
+  const clone = outer.querySelector(".vic-cube-clone");
+  const size = Math.max(18, sizePx || (piece ? rectOf(piece).width : 0) || 18);
+  const inner = outer.querySelector(".vic-cube-inner");
+  outer.style.width = `${size}px`;
+  outer.style.height = `${size}px`;
+  outer.style.left = `${center.x}px`;
+  outer.style.top = `${center.y}px`;
+  if (!clone || !inner) return;
   // 盤面は fitTableToViewport の scale3d で拡大されているので、複製をそのまま置くと実物より
   // 小さく見える。CSS上の駒の幅（複製を置いてから測る＝確実に値が取れる）と画面上の実測幅の
   // 比で inner を拡大して、実物にぴったり重なる大きさにする。
@@ -552,16 +670,165 @@ function spawnGhostCube(layer, piece, cube, sizePx, player) {
   // fitTableToViewport で同じ罠を踏んだのと同じ理由）。
   const cssW = parseFloat(getComputedStyle(clone).width) || size;
   const k = cssW > 0 ? size / cssW : 1;
-  inner.style.transform = `rotateX(${tilt}) scale3d(${k}, ${k}, ${k})`;
+  inner.style.transform = `rotateX(${tableTilt()}) scale3d(${k}, ${k}, ${k})`;
   // 立方体は translateZ で持ち上がっている分だけ、箱の中心と「見えている立方体の中心」が
   // ずれる（実測すると実物の駒の少し上に浮いて見えた）。複製を置いた後に実際の見た目の
   // 中心を測り、その差だけ箱をずらして、実物にぴったり重なるようにする。
   const cr = rectOf(clone);
   if (cr.width > 0) {
-    outer.style.left = `${cube.x + (cube.x - (cr.left + cr.width / 2))}px`;
-    outer.style.top = `${cube.y + (cube.y - (cr.top + cr.height / 2))}px`;
+    outer.style.left = `${center.x + (center.x - (cr.left + cr.width / 2))}px`;
+    outer.style.top = `${center.y + (center.y - (cr.top + cr.height / 2))}px`;
   }
-  return outer;
+}
+
+// 【2026-10-29・ユーザー案⑤】吸った七色がキューブの周りに溜まっていく環。
+// 盤面と同じ傾きで寝かせる（衝撃波 .vic-pulse-ring と同じ考え方）ので、机の上に在るように見える。
+// DOM は7枚＋器の8個だけ＝キャンバスを増やさない（#441 で canvas は1枚23MBだと分かっている）。
+function spawnCubeRing(layer, center, sizePx, power) {
+  if (!layer) return null;
+  const size = Math.max(18, sizePx || 18);
+  const ring = document.createElement("div");
+  ring.className = "vic-cube-ring";
+  ring.style.left = `${center.x}px`;
+  ring.style.top = `${center.y}px`;
+  ring.style.width = `${size * 2.6}px`;
+  ring.style.height = `${size * 2.6}px`;
+  ring.style.setProperty("--vic-cube-ring-power", String(power));
+  ring.style.setProperty("--table-tilt-local", tableTilt());
+  COLORS.forEach((color, i) => {
+    const arc = document.createElement("div");
+    arc.className = "vic-cube-ring-arc";
+    arc.style.setProperty("--vic-arc-rgb", hexToRgb(VIVID[color] || "#ffffff"));
+    arc.style.setProperty("--vic-arc-turn", `${(360 / COLORS.length) * i}deg`);
+    ring.appendChild(arc);
+  });
+  layer.appendChild(ring);
+  return ring;
+}
+
+// 【2026-10-29・ユーザー案⑧】最後の脈動で表面に走る光のひび。次の破裂の予告になる。
+// 細い板を数枚、別々の角度で伸ばすだけ（CSSアニメーション。重い filter は使わない）。
+function spawnCubeCracks(layer, center, sizePx, power, durMs) {
+  if (!layer) return null;
+  const size = Math.max(18, sizePx || 18);
+  const box = document.createElement("div");
+  box.className = "vic-cube-cracks";
+  box.style.left = `${center.x}px`;
+  box.style.top = `${center.y}px`;
+  box.style.width = `${size * 1.7}px`;
+  box.style.height = `${size * 1.7}px`;
+  box.style.setProperty("--vic-cracks-power", String(power));
+  box.style.setProperty("--vic-cracks-ms", `${Math.max(220, durMs)}ms`);
+  // 角度は均等ではなく散らす（均等だと「星」に見えて、割れ目に見えない）。
+  for (const deg of [-64, -18, 12, 47, 96, 138]) {
+    const line = document.createElement("div");
+    line.className = "vic-crack";
+    line.style.setProperty("--vic-crack-deg", `${deg}deg`);
+    line.style.setProperty("--vic-crack-delay", `${Math.round(Math.random() * 90)}ms`);
+    box.appendChild(line);
+  }
+  layer.appendChild(box);
+  return box;
+}
+
+// 🔴 【2026-10-29】カメラが寄っている間、キューブ・環・ひびを**毎フレーム実物の駒へ追従**させる。
+//    カメラ変形は #game-table にしか掛からず、この演出はその外のレイヤーに居るので、
+//    これをやらないと**キューブが2つに分かれて見える**（続き608 と同じ罠）。
+//    trackSlotFlares と同じく、**実測した箱が変わった時だけ**置き直す（無駄な書き込みを避ける）。
+function trackCubeLayers(getGhost, getRing, getCracks, piece, player) {
+  if (!piece) return () => {};
+  void player;
+  let raf = 0;
+  let last = "";
+  const place = () => {
+    const r = rectOf(piece);
+    if (!(r.width > 0)) return;
+    const key = `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)}`;
+    if (key === last) return;
+    last = key;
+    const center = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    placeGhostCube(getGhost(), piece, center, r.width);
+    const ring = getRing();
+    if (ring) {
+      ring.style.left = `${center.x}px`;
+      ring.style.top = `${center.y}px`;
+      ring.style.width = `${r.width * 2.6}px`;
+      ring.style.height = `${r.width * 2.6}px`;
+    }
+    const cracks = getCracks();
+    if (cracks) {
+      cracks.style.left = `${center.x}px`;
+      cracks.style.top = `${center.y}px`;
+      cracks.style.width = `${r.width * 1.7}px`;
+      cracks.style.height = `${r.width * 1.7}px`;
+    }
+  };
+  const tick = () => {
+    raf = requestAnimationFrame(tick);
+    place();
+  };
+  // 🔴 カメラが変形を書いたその場でも呼んでもらう（下の syncVictoryCubeToCamera）。
+  //    rAF だけに任せると「書かれてから次のコマまで」疑似キューブが取り残される
+  //    （実測でヘッドレス最大151px。実機は1コマぶんだが、0 にできるならした方がよい）。
+  //    しかも rAF は画面が見えていない間は進まない（#360 で実害）。
+  cubeSyncFn = place;
+  raf = requestAnimationFrame(tick);
+  return () => {
+    cancelAnimationFrame(raf);
+    if (cubeSyncFn === place) cubeSyncFn = null;
+  };
+}
+
+// main.js が #game-table の変形を書いた直後に呼ぶ（カメラの1手ごとに疑似キューブも動く）。
+// 追従していない間は何もしない＝呼び出し側は条件を持たなくてよい。
+let cubeSyncFn = null;
+export function syncVictoryCubeToCamera() {
+  if (!cubeSyncFn) return;
+  try {
+    cubeSyncFn();
+  } catch (err) {
+    console.error("syncVictoryCubeToCamera failed", err);
+  }
+}
+
+// 【2026-10-29・ユーザー案⑪】白い光の中に、揃えた7枚のシルエットが一瞬だけ浮く。
+// 「どう勝ったか」が残るディテール。白地の上なので、暗い影として置くだけで読める。
+// ⚠ 扇の段（spawnLockedCards）と違い、**位置を測らない**（白で盤面は見えないので、
+//   画面の中央に扇状に並べるだけでよい）。1秒ほどで自分から消える。
+function spawnFlashSilhouettes(root, player, s) {
+  const layer = root.querySelector(".vic-silhouettes");
+  if (!layer) return;
+  const side = SEAT_TO_SIDE[player];
+  const state = getState();
+  const vmin = Math.min(viewW(), viewH()) / 100;
+  let shown = 0;
+  COLORS.forEach((color, index) => {
+    const token = state.tokens.find(
+      (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side && tk.location.index === index
+    );
+    if (!token) return;
+    const el = document.createElement("div");
+    el.className = "vic-silhouette";
+    const offset = index - (COLORS.length - 1) / 2;
+    el.style.setProperty("--vic-sil-x", `${offset * 8.4 * vmin}px`);
+    el.style.setProperty("--vic-sil-y", `${Math.abs(offset) * 1.3 * vmin}px`);
+    el.style.setProperty("--vic-sil-rot", `${offset * 11}deg`);
+    el.style.setProperty("--vic-sil-delay", `${index * 26}ms`);
+    el.style.setProperty("--vic-sil-rgb", hexToRgb(VIVID[color] || "#ffffff"));
+    el.style.width = `${12 * vmin}px`;
+    el.style.height = `${12 * vmin}px`;
+    el.style.zIndex = String(10 + (7 - Math.abs(offset)));
+    layer.appendChild(el);
+    shown++;
+  });
+  if (shown === 0) return;
+  layer.style.setProperty("--vic-sil-power", String(s.silhouettes));
+  requestAnimationFrame(() => layer.classList.add("is-on"));
+  // 見せ場は一瞬。白の中に残り続けると、リザルトの背景として数分間居座ることになる。
+  setTimeout(() => {
+    layer.classList.remove("is-on");
+    setTimeout(() => { layer.innerHTML = ""; }, 420);
+  }, 1100);
 }
 
 // 中央に扇状に並んだカードを、キューブの位置へ飛び込ませて消す（ユーザー要望2026-08-31
@@ -598,10 +865,14 @@ function spawnPulseRing(root, cube, power, colorIndex, durMs) {
   const ring = document.createElement("div");
   ring.className = "vic-pulse-ring";
   const hex = VIVID[COLORS[colorIndex % COLORS.length]] || "#ffffff";
-  const rgb = hexToRgb(hex);
   ring.style.left = `${cube.x}px`;
   ring.style.top = `${cube.y}px`;
-  ring.style.setProperty("--vic-ring-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+  // 🔴 【2026-10-29】hexToRgb は **"255, 64, 92" という文字列**を返す。ここは `.r/.g/.b` を
+  //    読んでいたため "undefined, undefined, undefined" が入り、rgba(var(--vic-ring-rgb), …) が
+  //    **計算時に無効**になって border-color も box-shadow も落ちていた（＝#385 で足した七色の
+  //    衝撃波が、色も光も出ていなかった）。スロットの光・キューブの発光は文字列のまま渡していて
+  //    正しかったので、ここだけの取り違え。**同じ関数の戻り値の形を、呼ぶ所ごとに確かめる。**
+  ring.style.setProperty("--vic-ring-rgb", hexToRgb(hex));
   ring.style.setProperty("--vic-ring-power", String(power));
   ring.style.setProperty("--vic-ring-ms", `${Math.max(240, durMs * 2.4)}ms`);
   layer.appendChild(ring);

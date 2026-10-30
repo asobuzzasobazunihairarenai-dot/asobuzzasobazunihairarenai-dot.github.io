@@ -154,6 +154,9 @@ import {
 } from "./gate-invasion-stage.js";
 import { enqueueGateInvasionSteps, isGateInvasionQueueActive, registerOnGateInvasionQueueDrained, reapplyGateInvasionModal, registerGateInvasionModalEternalAnim, registerGateInvasionModalStealAnim, registerGateInvasionModalEternalPreHide, forceCloseGateInvasionModal } from "./gate-invasion-modal.js";
 import { checkForVictory, wouldCompleteLockWithNewIndex, getLockedCount, resetVictoryTracking, hasAnyoneWon } from "./victory.js";
+// 【2026-10-29・ユーザー案】勝利演出の脈動の間だけキューブへ寄る。寄せる計算は下の
+// focusCameraOnElement（画角・手動ズーム・2D表示と合流する所）にしか無いので、登録で渡す。
+import { registerVictoryCameraFocus, syncVictoryCubeToCamera } from "./victory-celebration.js";
 import { formatTitle } from "./titles.js"; // 称号（続き313）
 import { recordContactMade, recordCardUsed, recordLockSnapshot, initMatchStatsTracker } from "./match-stats-tracker.js";
 import { initPseudoCpuPrompt } from "./pseudo-cpu-prompt.js";
@@ -12725,6 +12728,10 @@ function writeTableTransform(override) {
   // 少し後に駒がジャンプする」を実機で測るため）。DOM はここで動くので、ここから
   // 「WebGLがその変形で描き終える」までがズレの長さになる。記録に出すだけで、描き方は変えない。
   noteBoard3dTransform(table.style.transform);
+  // 【2026-10-29】勝利演出の疑似キューブは **#game-table の外**のレイヤーに居るので、
+  // カメラが動くと取り残される（続き608 と同じ罠）。**書いたその場で**一緒に動かす。
+  // 追従していない間は中で何もしないので、普段のカメラ操作に費用は掛からない。
+  syncVictoryCubeToCamera();
   // 【2026-10-06】カメラが原点へ**戻り切った瞬間**に、画面に合わせる計算をやり直す。
   // 寄っている間は手札の寄せとミニロックエリアを止めてあるので（#370・#373）、戻った時に
   // 1回だけ正しい画角で測り直す必要がある。**ここが全てのカメラ変更が通る1か所**なので、
@@ -19299,6 +19306,9 @@ registerReturnHomeRevealHelper(async (attacker, cards) => {
 registerGateInvasionModalEternalAnim(playEternalAcquisitionAnim);
 // 【2026-09-07】ゲート侵攻③「自ゲートへ帰還」の演出を両方の経路へ注入する。
 registerGateInvasionModalReturnHomeAnim(playGateInvasionReturnHome);
+// 【2026-10-29・ユーザー案】勝利演出の脈動の間、キューブへ寄る（戻すのは白い光の中＝
+// 見えない間。勝利演出側が面倒を見る）。アグレッシブモードが「切」の人には寄らない。
+registerVictoryCameraFocus((el, opts) => focusCameraOnElement(el, opts));
 registerReturnHomeAnimHelper(playGateReturnHomeEffect);
 // オンラインのゲート侵攻で「手札を奪う」儀式的な演出（ユーザー要望「奪う手札を選択する
 // 儀式的な演出は必要／戻してください」#126）。以前はターン終了時の事前ピックに分けていたが、

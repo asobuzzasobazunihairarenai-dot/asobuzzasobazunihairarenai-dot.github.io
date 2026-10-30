@@ -37,6 +37,11 @@ const SLIDERS = [
   // 【#385】足した2つ。0にすればその飾りだけ切れる。
   ["--vic-rings", "脈動ごとの七色の衝撃波", 0, 3, 0.05, 1.2],
   ["--vic-rays", "VICTORYの背後の光芒", 0, 2, 0.05, 1],
+  // 【2026-10-29】足したディテール。既定は style.css の :root と同じ値にそろえてある。
+  ["--vic-cube-ring", "キューブに溜まる七色の環", 0, 2, 0.05, 1],
+  ["--vic-cracks", "最後の脈動で走る光のひび", 0, 2, 0.05, 1],
+  ["--vic-silhouettes", "白の中に浮かぶ7枚のシルエット", 0, 2, 0.05, 1],
+  ["--vic-pulse-zoom", "脈動中にキューブへ寄る倍率（1で寄らない）", 1, 2.2, 0.05, 1.45],
   ["--vic-avatar-size", "勝者アバターの大きさ(vmin)", 8, 30, 0.5, 16],
   ["--vic-hold", "勝利表示を見せる長さ", 0.3, 3, 0.05, 1],
   ["--vic-fan", "ロックした7枚を扇状に見せる（0=出さない / 1=出す）", 0, 1, 1, 1],
@@ -50,7 +55,12 @@ const PRESETS = {
   標準版: {},
   短縮版: { "--vic-speed": 2.2, "--vic-hold": 0.5, "--vic-fan": 0 },
   控えめ版: { "--vic-stream": 1, "--vic-pulse-power": 1, "--vic-residue": 1, "--vic-shake": 1, "--vic-speed": 1 },
-  軽量版: { "--vic-stream": 0.35, "--vic-residue": 0.3, "--vic-shake": 0, "--vic-speed": 1.6, "--vic-fan": 0, "--vic-rings": 0, "--vic-rays": 0 },
+  軽量版: {
+    "--vic-stream": 0.35, "--vic-residue": 0.3, "--vic-shake": 0, "--vic-speed": 1.6,
+    "--vic-fan": 0, "--vic-rings": 0, "--vic-rays": 0,
+    // 【2026-10-29】足したディテールも軽量版では切る（寄りも止める＝カメラの書き込みが減る）。
+    "--vic-cube-ring": 0, "--vic-cracks": 0, "--vic-silhouettes": 0, "--vic-pulse-zoom": 1,
+  },
 };
 
 const STAGES = ["WAIT", "COLORS", "GATHER", "PULSE", "FLASH", "VICTORY", "RESULT"];
