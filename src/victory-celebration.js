@@ -304,7 +304,7 @@ export async function playVictoryCelebration(player, opts = {}) {
     if (s.fan && !light) {
       cards = spawnLockedCards(root, player, liveSlots(), { x: viewW() / 2, y: viewH() * 0.42 });
       if (cards.length) {
-        playSound("cardDraw");
+        playSound("victoryFan"); // 【2026-10-31】それまでは「カードを抜く音」の流用だった
         requestAnimationFrame(() => cards.forEach((c) => c.classList.add("is-flying")));
         // 色はカードへ移ったので、ロックエリアの光は残さず落とす（ユーザー報告2026-08-31）。
         flares.forEach((el) => el.firstChild?.classList.add("is-drained"));
@@ -316,7 +316,7 @@ export async function playVictoryCelebration(player, opts = {}) {
 
     // --- GATHER: 七色が帯・霧になってキューブへ吸い込まれる -------------------------
     stage("GATHER");
-    playSound("cardDraw");
+    playSound("victoryGather"); // 【2026-10-31】それまでは「カードを抜く音」の流用（扇と同じ音）だった
     if (!light) {
       // 帯の出どころ: カードが浮いているならカードの位置から、そうでなければスロットから。
       const origins = cards.length
@@ -381,15 +381,22 @@ export async function playVictoryCelebration(player, opts = {}) {
       if (s.cracks > 0 && !light && i === s.pulseCount - 1 && !cubeCracks) {
         cubeCracks = spawnCubeCracks(root.querySelector(".vic-cubes"), cubeNow(), cubeSize, s.cracks, ms(BASE.pulse));
       }
-      playSound("piecePlace");
-      playPulseThump(power); // 後ろの脈動ほど強く響かせる
+      // 【2026-10-31】それまでは「駒を置く音」＋合成の「ドクン」だった（ユーザー報告
+      // 「キューブの脈動の音が気に入っていない」）。録音した音1本にして、後ろの脈動ほど
+      // 強くする（power は 1/3 → 2/3 → 1）。
+      // ⚠ 合成の playPulseThump は残してある（管理者モードの調整つまみもそのまま）。
+      //    戻したい時はこの1行を playSound("piecePlace"); playPulseThump(power); に替える。
+      // ⚠ power には --vic-pulse-power（既定1.6）が掛かっていて1を超えるので、強弱には使えない
+      //    （実測で2回目から頭打ちになり、2回目と3回目が同じ音量になった）。回数の比で出す。
+      playSound("victoryPulse", { gain: 0.55 + (0.45 * (i + 1)) / s.pulseCount });
       await step(ms(BASE.pulse));
     }
 
     // --- FLASH: 白い光が全画面を覆う（何が起きたかは見せない） ----------------------
     stage("FLASH");
-    playSound("turnSwitch");
-    playVictoryImpact();
+    // 【2026-10-31】それまでは「ターン切替の音」＋合成の一撃だった。山場なので録音した音1本に。
+    // ⚠ 合成の playVictoryImpact は残してある（戻したい時はこの下に1行足す）。
+    playSound("victoryBurst");
     const burst = cubeNow(); // 寄っている間に動いているので測り直す
     root.style.setProperty("--vic-flash-x", `${burst.x}px`);
     root.style.setProperty("--vic-flash-y", `${burst.y}px`);
@@ -421,6 +428,7 @@ export async function playVictoryCelebration(player, opts = {}) {
 
     // --- VICTORY: 白を保ったまま勝利表示 ------------------------------------------
     stage("VICTORY");
+    playSound("victoryTitle"); // 【2026-10-31】ここは今まで無音だった
     buildVictoryText(root, player, s);
     requestAnimationFrame(() => root.classList.add("is-victory"));
     await step(ms(BASE.victoryIn));

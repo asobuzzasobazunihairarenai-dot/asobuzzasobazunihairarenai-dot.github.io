@@ -461,6 +461,14 @@ const GROUPS = [
       { key: "--sound-volume-turn-switch", label: "ターン切替", unit: "%", min: 0, max: 100, step: 5, default: 80 },
       { key: "--sound-volume-swap", label: "入れ替え（マスチェンジ）", unit: "%", min: 0, max: 100, step: 5, default: 80 },
       { key: "--sound-volume-jump", label: "ジャンプ（ジャンプ台）", unit: "%", min: 0, max: 100, step: 5, default: 80 },
+      // 【2026-10-31】勝利演出の7段（既定値の根拠は style.css の同名の変数のコメント）。
+      { key: "--sound-volume-victory-color", label: "勝利: 色が1つ灯る（×7）", unit: "%", min: 0, max: 100, step: 5, default: 95 },
+      { key: "--sound-volume-victory-color-all", label: "勝利: 7色が同時に灯る", unit: "%", min: 0, max: 100, step: 5, default: 75 },
+      { key: "--sound-volume-victory-fan", label: "勝利: カードが扇状に並ぶ", unit: "%", min: 0, max: 100, step: 5, default: 80 },
+      { key: "--sound-volume-victory-gather", label: "勝利: 七色が吸い込まれる", unit: "%", min: 0, max: 100, step: 5, default: 100 },
+      { key: "--sound-volume-victory-pulse", label: "勝利: キューブの脈動（×3）", unit: "%", min: 0, max: 100, step: 5, default: 60 },
+      { key: "--sound-volume-victory-burst", label: "勝利: 白く弾ける（山場）", unit: "%", min: 0, max: 100, step: 5, default: 100 },
+      { key: "--sound-volume-victory-title", label: "勝利: あなたの勝ち", unit: "%", min: 0, max: 100, step: 5, default: 45 },
       // ユーザー要望「『勝利時.mp3』をBGMフォルダへ移した。音量調整ではBGMとして
       // 扱ってほしい」への対応で、専用のCSS変数（-bgm接尾辞、オープニングBGMと
       // 同じ命名規則）に切り替えた（sound.jsのplayVictoryBgm参照）。
@@ -3055,7 +3063,8 @@ const TOGGLE_SECTIONS = [
       const select = document.createElement("select");
       select.style.cssText = "flex: 1; min-width: 0;";
       for (const [value, label] of [
-        ["whump", "低い「バフン」（既定）"],
+        ["sample", "録音した音（既定）"],
+        ["whump", "低い「バフン」"],
         ["bell", "澄んだ鐘"],
         ["crystal", "鐘＋きらめき（華やか）"],
         ["legacy", "以前のまま（到達効果音を重ねる）"],

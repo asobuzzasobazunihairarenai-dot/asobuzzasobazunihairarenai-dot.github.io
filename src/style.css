@@ -15074,6 +15074,21 @@ body.is-phone-device .opening-lang-toggle-seg.is-current {
   --sound-volume-turn-switch: 80%;
   --sound-volume-swap: 80%;
   --sound-volume-jump: 80%;
+  /* 【2026-10-31】勝利演出の7段。**値は実測から決めてある**——いま流用していた音
+     （カードを抜く音 -25.5 / 駒を置く音 -21.2 / ターン切替の音 -12.0 LUFS）を測り、
+     その実効音量（段ごと80%時）の平均 -21.2 LUFS を基準に、段ごとの強弱
+     （S1 -8 / S2 -5 / S3 -7 / S4 -6 / S5 -4 / S6 0 / S7 -3 dB）を足して逆算した。
+     ⚠ S4 と S6 は 100% でも基準に 4dB ほど届かない（音源がその分おとなしい）。
+     ただし S6 は真のピークが -3.2dBFS とこの7本で最も高いので、山場としては立つ。
+     ⚠ admin.js の同じつまみの default も同じ値にしてある（片方だけ直すと、管理者モードの
+     「戻す」で別の値に戻ってしまう＝続き608・627 で2回起きた事故）。 */
+  --sound-volume-victory-color: 95%;
+  --sound-volume-victory-color-all: 75%;
+  --sound-volume-victory-fan: 80%;
+  --sound-volume-victory-gather: 100%;
+  --sound-volume-victory-pulse: 60%;
+  --sound-volume-victory-burst: 100%;
+  --sound-volume-victory-title: 45%;
   /* 🔴【続き627】勝利時だけ 40% ではなく 20%。ユーザー報告「勝利時の音がでかすぎる」。
      音源そのものの大きさを測ったら、**勝利時だけ 5.6〜7.3 dB 大きかった**
      （統合ラウドネス: 勝利 -8.3 LUFS / 対局 -13.9 / オープニング -15.6 / 待機 -15.2。

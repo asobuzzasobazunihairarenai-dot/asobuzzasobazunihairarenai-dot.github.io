@@ -274,6 +274,16 @@ const SOUND_DEFS = {
   // 「ジャンプ台で移動するときに次の効果音を使ってください」への対応。
   swap: { path: "assets/sounds/swap.wav", cssVar: "--sound-volume-swap" },
   jump: { path: "assets/sounds/jump.mp3", cssVar: "--sound-volume-jump" },
+  // 【2026-10-31】勝利演出の7段ぶん（ElevenLabs で作ってユーザーが選んだもの）。
+  // それまでは「カードを抜く音」「駒を置く音」「ターン切替の音」を流用していた（続き637 で判明）。
+  // ⚠ 段ごとの音量は実測で決めてある（style.css の同名の変数のコメント参照）。
+  victoryColor: { path: "assets/sounds/victory-color.mp3", cssVar: "--sound-volume-victory-color" },
+  victoryColorAll: { path: "assets/sounds/victory-color-all.mp3", cssVar: "--sound-volume-victory-color-all" },
+  victoryFan: { path: "assets/sounds/victory-fan.mp3", cssVar: "--sound-volume-victory-fan" },
+  victoryGather: { path: "assets/sounds/victory-gather.mp3", cssVar: "--sound-volume-victory-gather" },
+  victoryPulse: { path: "assets/sounds/victory-pulse.mp3", cssVar: "--sound-volume-victory-pulse" },
+  victoryBurst: { path: "assets/sounds/victory-burst.mp3", cssVar: "--sound-volume-victory-burst" },
+  victoryTitle: { path: "assets/sounds/victory-title.mp3", cssVar: "--sound-volume-victory-title" },
 };
 
 // オープニングBGM（ユーザー提供、音声/BGM/オープニング.mp3）。効果音(playSound)と違い
@@ -704,7 +714,7 @@ function loadSoundBuffer(name) {
     });
 }
 
-function playSoundViaWebAudio(name, volume) {
+function playSoundViaWebAudio(name, volume, rate) {
   const ctx = getAudioContext(); // 呼ぶたびにresumeも試みる
   if (!ctx) return false;
   const buf = soundBufferCache.get(name);
@@ -716,6 +726,8 @@ function playSoundViaWebAudio(name, volume) {
   try {
     const src = ctx.createBufferSource();
     src.buffer = buf;
+    // 再生速度＝音程。勝利演出の「色が灯る音」を7回ぶん1段ずつ上げるのに使う。
+    if (rate && rate !== 1) src.playbackRate.value = rate;
     const gain = ctx.createGain();
     gain.gain.value = volume;
     src.connect(gain);
@@ -905,18 +917,24 @@ export function stopHeartbeat() {
   }
 }
 
-export function playSound(name) {
+// options（どちらも省略できる。既存の呼び出しは1つも変えなくてよい）:
+//   rate … 再生速度＝音程。同じ音を少しずつ高く鳴らしたい時に使う（勝利演出の「色が灯る音」）
+//   gain … その回だけの強弱。段ごとの音量にさらに掛ける（勝利演出の脈動3回を強くしていく）
+export function playSound(name, options) {
   // ページが別画面/バックグラウンドに隠れている間は効果音を鳴らさない（スマホで別アプリを
   // 開いている時に鳴り続けないように）。BGMはvisibilitychangeで一時停止済み。
   if (typeof document !== "undefined" && document.hidden) return;
   const def = SOUND_DEFS[name];
   if (!def) return;
-  const volume = Math.min(1, Math.max(0, masterVolume * getPerSoundVolume(def.cssVar)));
+  const rate = Number(options?.rate) > 0 ? Number(options.rate) : 1;
+  const gain = Number.isFinite(Number(options?.gain)) ? Math.max(0, Number(options.gain)) : 1;
+  const volume = Math.min(1, Math.max(0, masterVolume * getPerSoundVolume(def.cssVar) * gain));
   if (volume <= 0) return;
   // まずWeb Audioで鳴らす（iOSでも初回操作後は確実に鳴る）。未対応/未ロード時のみ従来方式へ。
-  if (playSoundViaWebAudio(name, volume)) return;
+  if (playSoundViaWebAudio(name, volume, rate)) return;
   const audio = new Audio(def.path);
   audio.volume = volume;
+  if (rate !== 1) audio.playbackRate = rate;
   // 自動再生制限等で失敗してもゲーム進行は止めない。原因調査用に理由だけ記録する
   // （console.errorはiOSで大量に出て邪魔なため出さず、アクションログにだけ残す）。
   audio.play().catch((err) => {
@@ -953,12 +971,17 @@ export function playPulseThump(strength = 1) {
 //   "bell"    … 澄んだ鐘。音程は動かさず、倍音ほど早く消え、余韻が長い。
 //   "crystal" … 鐘＋きらめき。少し遅らせた高い部分音を足して粒が散るように響かせる。
 //   "legacy"  … 以前のまま（到達効果音を重ねる形も含めて元に戻す）。
-let victoryChimeStyle = "whump";
+// 【2026-10-31】既定を合成音から**録音した音**へ変えた（ユーザー報告「色が灯る音が
+// 気に入っていない」への対応で、音を作り直したもの）。合成音の4種類は管理者モードの
+// 「鳴らし方」で今までどおり選べる＝聴き比べはできる。
+let victoryChimeStyle = "sample";
 export function getVictoryChimeStyle() {
   return victoryChimeStyle;
 }
 export function setVictoryChimeStyle(style) {
-  if (style === "whump" || style === "bell" || style === "crystal" || style === "legacy") victoryChimeStyle = style;
+  if (style === "sample" || style === "whump" || style === "bell" || style === "crystal" || style === "legacy") {
+    victoryChimeStyle = style;
+  }
 }
 // 音程を動かさない部分音。立ち上がりを速く、余韻を長く取る（鐘・鈴の鳴り方）。
 function scheduleBellPartial(ctx, when, freq, peak, decay) {
@@ -1038,6 +1061,13 @@ const VICTORY_WHUMP_SCALE = [96, 104, 113, 123, 134, 146, 159];
 // 全音階（ド レ ミ ソ ラ ド レ）で7段。和音にせず単音を重ねて澄んだ響きにする。
 const VICTORY_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66];
 export function playVictoryChime(index = 0) {
+  // 既定（sample）: 録音した音を、全音ずつ上げながら7回。再生速度で音程を変えるので
+  // 音源は1つで済む（2^(2i/12) ＝ 7音目でちょうど1オクターブ上）。
+  // ⚠ 速くすると音も短くなるが、7回の間隔も 0.26→0.12秒 と詰まっていくので噛み合う。
+  if (victoryChimeStyle === "sample") {
+    playSound("victoryColor", { rate: Math.pow(2, (2 * Math.max(0, Math.min(6, index))) / 12) });
+    return;
+  }
   if (!canPlaySynth()) return;
   const ctx = getAudioContext();
   if (!ctx || ctx.state !== "running") return;
@@ -1066,6 +1096,10 @@ export function playVictoryChime(index = 0) {
 // 7色が同時に灯る瞬間の和音（1音ずつのチャイムと同じ音階から4音）。
 // 以前はここも到達効果音を1回鳴らすだけだったので、鐘に替えると浮いてしまう。
 export function playVictoryChimeChord() {
+  if (victoryChimeStyle === "sample") {
+    playSound("victoryColorAll"); // 7色が同時に灯る瞬間の音（S1と同じ音色の和音）
+    return;
+  }
   if (!canPlaySynth()) return;
   const ctx = getAudioContext();
   if (!ctx || ctx.state !== "running") return;
