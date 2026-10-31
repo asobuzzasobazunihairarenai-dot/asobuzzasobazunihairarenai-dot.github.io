@@ -20240,7 +20240,17 @@ async function maybeShowSeasonReward() {
 function showDailyBonusToast(amount) {
   // ユーザー要望「ログインでお金がもらえる時はモーダルで」。1日1回のログインボーナスを
   // 中央モーダルで知らせる（背景/×クリックで閉じる）。
+  // 【#447・2026-10-31】開いている間に言語が変わったら貼り直す（下の説明参照）。
+  let offLang = null;
   const close = () => {
+    if (offLang) {
+      try {
+        offLang();
+      } catch (e) {
+        /* 解除の失敗で閉じられなくならないように */
+      }
+      offLang = null;
+    }
     backdrop.remove();
     modal.remove();
   };
@@ -20267,6 +20277,23 @@ function showDailyBonusToast(amount) {
   modal.appendChild(okBtn);
   document.body.appendChild(backdrop);
   document.body.appendChild(modal);
+
+  // 🔴 【#447】**このモーダルは「ログインした瞬間」に出るが、表示言語をアカウントから
+  // 復元する処理（online.js の fetchMyLang → setLang）は別の問い合わせの後ろで
+  // 非同期に走る。** ボーナスの受け取りは1往復なので**モーダルの方が先に出ることが多く**、
+  // その端末の localStorage の言語（別の端末で英語にしていれば、まだ日本語）で描かれる。
+  // 報告「英語モードなのにログインボーナスのモーダルが日本語です！」はこれ。
+  // ⇒ **順番をいじるのではなく、開いている間に言語が変わったら貼り直す**
+  //   （どちらが先に終わっても正しくなる。続き617・618 と同じ考え方）。
+  offLang = onLangChange(() => {
+    try {
+      title.textContent = t("game.loginBonus.title");
+      note.textContent = t("game.loginBonus.body");
+      okBtn.textContent = t("game.loginBonus.claim");
+    } catch (e) {
+      /* 貼り直しの失敗でモーダルを壊さない */
+    }
+  });
 }
 
 // 管理者モードの「ランクリングの位置・太さ」スライダー用プレビュー（admin.jsの

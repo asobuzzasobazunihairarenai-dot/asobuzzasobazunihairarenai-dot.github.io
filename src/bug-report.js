@@ -385,6 +385,39 @@ function gatherScreenSnapshot() {
       // 付けたが、残っていたら盤面を隠す）。
       bootLoading: !!document.getElementById("boot-loading"),
       scrollY: Math.round(window.scrollY || 0),
+      // 🔴 【#452・2026-10-31】**ここが無くて切り分けできなかった。**
+      // 報告 #452 の画像では、画面の下に黒い帯が出ているのに
+      // inner も visual も同じ 932x371 で**食い違いが無い**（＝続き559 で直した
+      // 「visualViewport だけが変わる」形ではない）。つまり**ブラウザが短い値を返したまま**で、
+      // アプリ側からは「本当は 430 ある」と知る手がかりが1つも無かった。
+      //
+      // 手がかりになるのは次の2つ:
+      //   ・standalone（ホーム画面から開いたアプリ）なら**ブラウザの枠が無い**ので、
+      //     見えている高さは端末の画面とほぼ同じはず。短ければ**値が古い**と言える。
+      //   ・Safari で開いているなら、下のバーのぶん短いのは**正常**。
+      // ⇒ この2つを区別するために standalone と端末の画面サイズを残す。
+      // ⚠ **判定して直す所まではまだ入れていない**（iPad の分割表示など、standalone でも
+      //   本当に小さい場合があるため。次の報告でこの3行を見てから決める）。
+      standalone: (() => {
+        try {
+          if (window.navigator && window.navigator.standalone === true) return "ios-home";
+          if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return "standalone";
+          if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return "fullscreen";
+          return "browser";
+        } catch (e) {
+          return "?";
+        }
+      })(),
+      screen: (() => {
+        try {
+          return screen.width + "x" + screen.height + " avail " + screen.availWidth + "x" + screen.availHeight;
+        } catch (e) {
+          return null;
+        }
+      })(),
+      outer: window.outerWidth + "x" + window.outerHeight,
+      clientH: document.documentElement ? document.documentElement.clientHeight : null,
+      dpr: window.devicePixelRatio || 1,
     };
   } catch (e) {
     out.view = { error: clip(e, 80) };

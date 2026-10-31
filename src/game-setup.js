@@ -22,6 +22,8 @@ import { resetMatchStats } from "./match-stats-tracker.js";
 import { resetHandEffectUsage } from "./card-effect-engine.js";
 import { PLAYMAT_OPTIONS, getSelectedPlaymatId, setSelectedPlaymatId } from "./playmat.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ10
+// 【#448】言語の切り替えで入口ボタンの文字を貼り直す。i18n.js は葉モジュール。
+import { onLangChange } from "./i18n.js";
 import { animateFirstCardsDealt, animateBoardFilled } from "./setup-animation.js";
 import { applyAvatarContent } from "./avatar-render.js";
 import { getSelfSeat } from "./online.js";
@@ -472,6 +474,16 @@ function buildToggleButton(open) {
   btn.id = "game-setup-toggle-button";
   btn.className = "header-tool-button";
   btn.textContent = t("setup.button");
+  // 【#448・2026-10-31】パネル本体は開く時に組み立て直される（続き624）ので
+  // その時の言語になるが、**この入口ボタンだけは起動時に1回作ったきり**だった。
+  // ＝言語を切り替えても「🎲 セットアップ」のまま残る（総点検で実測）。
+  onLangChange(() => {
+    try {
+      btn.textContent = t("setup.button");
+    } catch (e) {
+      /* 文言の貼り直しの失敗でボタンを壊さない */
+    }
+  });
   btn.style.cssText = `
     position: fixed; top: 4.2rem; right: 1rem; z-index: 1001;
     padding: 0.4rem 0.7rem; background: rgba(15, 23, 32, 0.85); color: #e2e8f0;

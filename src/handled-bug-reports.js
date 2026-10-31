@@ -141,6 +141,14 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  447: {
+    ja: "英語で遊んでいる時に、ログインボーナスのお知らせだけ日本語で出ることがあったのを直しました。言語の設定をアカウントから読み込むより先にお知らせが出てしまうのが原因だったので、出ている間に言語が決まったら書き直すようにしました。",
+    en: "Fixed the daily bonus notice sometimes appearing in Japanese while you are playing in English. It was being shown before your language setting had finished loading from your account, so it now updates itself if the language is decided while it is on screen.",
+  },
+  448: {
+    ja: "言語を切り替えた時に、画面右上の「セットアップ」と人数のボタンだけ前の言語のまま残っていたのを直しました。総点検した結果、残っていたのはこの3か所でした。",
+    en: "Fixed the Setup button and the player-count buttons keeping the previous language after switching. A full sweep found those three places and nothing else.",
+  },
   451: {
     ja: "接触の時の助走とタックルが見えないことがあったのを直しました。演出が始まる直前に駒が作り直されていて、もう画面に無い方の駒を動かしていたのが原因です。3回も報告してくださってありがとうございます——おかげで「演出は動いているのに見えない」という、記録だけでは分からない形だと分かりました。",
     en: "Fixed the run-up and tackle sometimes not being visible during a contact. The piece was rebuilt just before the animation began, so the animation was moving a piece that was no longer on screen. Thank you for reporting it three times - that is what showed us the animation itself was running and only the piece being moved was wrong.",
