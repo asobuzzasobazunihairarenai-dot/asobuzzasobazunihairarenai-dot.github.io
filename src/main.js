@@ -10526,7 +10526,41 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   const RUNUP_PX = Math.max(8, Math.min(gapLocal * 0.3, pieceLocal * 0.7));
 
   // ①承認されてから演出が始まるまでの「間」。
-  await wait(getContactAnimSeconds("--contact-anim-pre-delay", 2) * 1000);
+  const preMs = getContactAnimSeconds("--contact-anim-pre-delay", 2) * 1000;
+
+  // 🔴 【#451・2026-10-31】**実際に使った数字を残す。**
+  // #381（続き558）は「WebGLの描き直しが遅いから」、#387（続き560）は「動く距離が
+  // 2.8pxしか無いから」と見立てて直したが、**3回目の報告が来た**（#451）。
+  // 困るのは、報告のログに**この演出が実際にどれだけ動かしたのか**が1つも残っていないこと——
+  // 距離・長さ（管理者モードのつまみで変えられる）・ステージ倍率・駒の画面上の大きさが
+  // 全部分からないまま、毎回見立てを立て直している。だから**次の報告で一発で分かる**ようにする。
+  //
+  // ⚠ とくに **長さ（pre/runup/tackle）は CSS 変数＝管理者モードのつまみで変えられ、
+  //    アカウントに保存される**。既定は 1 / 0.5 / 0.5 秒だが、**小さくしてあれば一瞬で終わる**。
+  //    不具合報告の settings には noFlightAnim しか入っていないので、ここで残すしかない。
+  // ⚠ 画面上の実寸（screenPx）も一緒に出す。駒の大きさに対して何倍動くのかが読みどころ。
+  try {
+    const stageScale = currentStageScale || 1;
+    logAction("diag-contact-lunge", {
+      runupPx: Math.round(RUNUP_PX * 10) / 10,
+      lungePx: Math.round(LUNGE_PX * 10) / 10,
+      runupScreenPx: Math.round(RUNUP_PX * stageScale * 10) / 10,
+      lungeScreenPx: Math.round(LUNGE_PX * stageScale * 10) / 10,
+      pieceScreenPx: Math.round((attackerRect.width || 0) * 10) / 10,
+      gapScreenPx: Math.round(dist * 10) / 10,
+      gapLocal: Math.round(gapLocal * 10) / 10,
+      pieceLocal: Math.round(pieceLocal * 10) / 10,
+      stageScale: Math.round(stageScale * 1000) / 1000,
+      preMs: Math.round(preMs),
+      runupMs: Math.round(getContactAnimSeconds("--contact-anim-runup-duration", 3) * 1000),
+      tackleMs: Math.round(getContactAnimSeconds("--contact-anim-tackle-duration", 1) * 1000),
+      from: attackerFromLocation,
+      to: defenderFromLocation,
+    });
+  } catch (e) {
+    /* 診断の失敗で演出を止めない */
+  }
+  await wait(preMs);
 
   // ②気合を入れる。到達演出と同じ柱状オーラを、自分（attacker）の駒がいるマスで
   // 発光させる。この演出時間自体は到達演出そのものと揃えているため、個別の設定項目には
@@ -10536,20 +10570,77 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   if (attackerHostEl) spawnArrivalBurst(attackerHostEl, attackerColor);
   await wait(1400);
 
+  // 🔴 【#451・2026-10-31】**動かす直前に、画面にいる駒を引き直す。**
+  //
+  // ここへ来るまでに「①間（既定1.0秒）」＋「②気合のオーラ（1.4秒）」で**2.4秒**経っている。
+  // その間に render() が1回走ると駒のDOMは作り直され、上で掴んでいる attackerEl は
+  // **画面から外れた要素**になる。外れた要素に transform を書いても画面では何も動かないので、
+  // **ログ上は演出が走ったのに、見た目は何も起きない**——#381・#387・#451 と3回続いた
+  // 「助走からのタックルが描画されません」の正体がこれ。
+  //
+  // ⚠ 汎用の描き直しは suppressGenericRenderForContactTackle で止めてあるが、
+  //   **直接 render() を呼ぶ経路（フェイズの自動処理・CPUの手・各種演出）は止まらない。**
+  //   だから「止める」方向ではなく「**その時点の要素を引き直す**」で守る（続き638 の教訓
+  //   「駒の要素は render() のたびに作り直されるのに、参照を掴んだままにした」）。
+  //
+  // ⚠ 途中（助走中）に作り直された時は、新しい要素へ渡し直す。その場合は助走で引いた分が
+  //   リセットされるので突進は原点から始まるが、**何も動かないより良い**（見た目は繋がる）。
+  const attackerTokenId =
+    (attackerEl && attackerEl.dataset && attackerEl.dataset.tokenId) ||
+    (attackerEl && attackerEl.getAttribute && attackerEl.getAttribute("data-token-id")) ||
+    null;
+  const liveAttacker = () => {
+    if (attackerEl && attackerEl.isConnected) return attackerEl;
+    if (!attackerTokenId || !table) return attackerEl;
+    return table.querySelector(".piece[data-token-id=" + JSON.stringify(attackerTokenId) + "]") || attackerEl;
+  };
+  let movingEl = liveAttacker();
+  let retargeted = 0;
+
   // 【#381】ここから駒が動く。動く間だけ、この駒の絵をDOM描画に戻す（上の説明）。
-  const lunge = handLungeToDom(attackerEl);
+  let lunge = handLungeToDom(movingEl);
+  // 動かす各段の直前に呼ぶ。作り直されていたら新しい要素へ渡し直す。
+  const retarget = () => {
+    const el = liveAttacker();
+    if (el === movingEl || !el) return;
+    retargeted++;
+    try {
+      lunge.restore();
+    } catch (e) {
+      /* 古い方の後片付けの失敗で演出を止めない */
+    }
+    movingEl = el;
+    lunge = handLungeToDom(movingEl);
+  };
+  // 🔴 ここが false なら、絵は「毎秒3回の描き直し」に頼る＝**実機ではほぼ見えない**
+  //    （続き558 でそれを避けるために入れた仕組みが働いていない、ということ）。
+  //    attackerEl が render() で作り直されて外れていた場合もここで分かる。
+  try {
+    logAction("diag-contact-lunge", {
+      phase: "dom-handover",
+      handedOver: lunge.handedOver,
+      // 🔴 掴んだ要素が生きているか。false なら、引き直しが効いた＝直す前は何も動かなかった回。
+      staleAlive: !!attackerEl && attackerEl.isConnected,
+      movingIsLive: !!movingEl && movingEl.isConnected,
+      tokenId: attackerTokenId,
+    });
+  } catch (e) {
+    /* ignore */
+  }
   try {
   // ③助走（後ろに引く）。駒本体はこの後respondContact()→render()でDOMごと作り直される
   // ため、ここで付けたtransform/transitionの後片付けは不要。
   const runupMs = getContactAnimSeconds("--contact-anim-runup-duration", 3) * 1000;
-  attackerEl.style.transition = `transform ${runupMs}ms ease-in`;
-  attackerEl.style.transform = `translate(${-ux * RUNUP_PX}px, ${-uy * RUNUP_PX}px)`;
+  retarget();
+  movingEl.style.transition = `transform ${runupMs}ms ease-in`;
+  movingEl.style.transform = `translate(${-ux * RUNUP_PX}px, ${-uy * RUNUP_PX}px)`;
   await lunge.waitStep(runupMs);
 
   // ④タックル（前へ突進、衝突エフェクト）。
   const tackleMs = getContactAnimSeconds("--contact-anim-tackle-duration", 1) * 1000;
-  attackerEl.style.transition = `transform ${tackleMs}ms cubic-bezier(0.3, 0, 0.7, 1)`;
-  attackerEl.style.transform = `translate(${ux * LUNGE_PX}px, ${uy * LUNGE_PX}px)`;
+  retarget();
+  movingEl.style.transition = `transform ${tackleMs}ms cubic-bezier(0.3, 0, 0.7, 1)`;
+  movingEl.style.transform = `translate(${ux * LUNGE_PX}px, ${uy * LUNGE_PX}px)`;
   await lunge.waitStep(tackleMs);
   playSound("arrivalEffect");
   const hostEl = table ? findLocationElement(table, defenderFromLocation) : null;
@@ -10558,13 +10649,19 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
 
   // 突進した駒を元の位置へ戻す。呼び出し元がこの直後にrespondContact()→render()で
   // DOMを作り直す前に、戻りきるまで待つ（途中で作り直すと戻りアニメが切れて見える）。
-  attackerEl.style.transition = "transform 220ms ease-out";
-  attackerEl.style.transform = "translate(0px, 0px)";
+  retarget();
+  movingEl.style.transition = "transform 220ms ease-out";
+  movingEl.style.transform = "translate(0px, 0px)";
   await lunge.waitStep(220);
   } finally {
     // どの経路（例外・中断含む）でも必ず戻す。戻し忘れると、その駒だけWebGLに描かれない
     // ままになる（＝盤面の他の駒と見た目が違う状態が残る）。
     lunge.restore();
+    try {
+      if (retargeted > 0) logAction("diag-contact-lunge", { phase: "retargeted", count: retargeted });
+    } catch (e) {
+      /* ignore */
+    }
   }
 }
 

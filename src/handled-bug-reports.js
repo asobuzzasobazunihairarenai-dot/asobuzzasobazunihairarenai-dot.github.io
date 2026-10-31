@@ -141,6 +141,10 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  451: {
+    ja: "接触の時の助走とタックルが見えないことがあったのを直しました。演出が始まる直前に駒が作り直されていて、もう画面に無い方の駒を動かしていたのが原因です。3回も報告してくださってありがとうございます——おかげで「演出は動いているのに見えない」という、記録だけでは分からない形だと分かりました。",
+    en: "Fixed the run-up and tackle sometimes not being visible during a contact. The piece was rebuilt just before the animation began, so the animation was moving a piece that was no longer on screen. Thank you for reporting it three times - that is what showed us the animation itself was running and only the piece being moved was wrong.",
+  },
   418: {
     ja: "黒いカードの文章が二重に見えていたのを直しました。真ん中の紋様も、紫のものになっていたので黒のものに差し替えています。",
     en: "Fixed the text on the black card showing twice. The emblem in the middle was the purple card's, and is now the black one.",
