@@ -9754,9 +9754,19 @@ function spawnRainbowLockEffect(hostEl) {
   setTimeout(() => sweep.remove(), RAINBOW_LOCK_MS);
   beginBoardAnimation();
   setTimeout(endBoardAnimation, RAINBOW_LOCK_MS);
-  // 七色ぶん、音が上がっていく（勝利演出と同じ合成音を流用）。
+  // 七色ぶん、音が上がっていく。
+  // ⚠ 間隔95msは**変えていない**。白い閃光が 620ms に出る作りなので（style.css の
+  //   .rainbow-lock-flash は 0.62s 遅れで始まる）、間隔を広げると音と光がずれる。
+  // ⚠ 【2026-10-31】勝利演出の音を録音に差し替えた時点で、**ここの7音も一緒に録音の音へ
+  //   変わっている**（playVictoryChime を流用しているため）。合成音は一瞬で減衰するが、
+  //   録音は 0.49秒 鳴るので、重なり方はこれまでと違う。
   for (let i = 0; i < 7; i++) setTimeout(() => playVictoryChime(i), i * 95);
-  setTimeout(() => playSound("lock"), 720);
+  // 🔴 【2026-10-31・ユーザー要望「なないろの欠片が2枚ロックされる時の音も変更して」】
+  //   締めを、どのロックでも鳴る一般の「ロック」音から**「7色が同時に灯る」和音**へ変えた。
+  //   なないろの欠片は**すべての色**を兼ねる札（docs/cards.md「★ これはすべての色であり」）
+  //   なので、7色が1つに揃う音の方が意味が合う。鳴らす時刻は閃光と同じ 720ms のまま。
+  //   戻したい時はこの1行を playSound("lock") に替える。
+  setTimeout(() => playSound("victoryColorAll"), 720);
 }
 
 // 上の2つを「どの経路から置かれても」拾うための見張り。render() の末尾（実物のDOMが
