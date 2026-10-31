@@ -210,6 +210,14 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "ご報告のとおりでした。スマホでは「音を鳴らしてよい操作」の外から対局のBGMを鳴らそうとすると端末に止められることがあり、その時に鳴らし直す仕組みが入っていたのですが、それが一度も働いていませんでした。効果音は別の仕組みで鳴るので出続ける——まさにご報告の症状でした。画面を触った時に鳴り直すようにしました。",
     en: "You were right. On phones the device can block the match BGM when it is started outside a tap, and the safety net that should retry it had never actually been running. Sound effects use a different path, which is why they kept playing - exactly what you described. It now retries when you touch the screen.",
   },
+  435: {
+    ja: "入れました。盤面のカードを複数枚捨てる場面（白の意志の覚醒など）にも「おまかせ」ボタンを付けました。手札を捨てる時と同じ位置にあります。これまでは「何も押さずに『これで捨てる』を押せば、並んでいる順で捨てます」という案内を出していたのですが、手札側で見慣れたボタンを探してしまいますよね。失礼しました。",
+    en: "Added. The screen for discarding several cards from the board (White Will's Awakening and the like) now has an Auto button, in the same place as the one for discarding from your hand. Until now it only said in text that confirming without tapping anything discards them in the order shown - but of course you look for the button you know from the hand version. Sorry about that.",
+  },
+  438: {
+    ja: "設定の「カード拡大の大きさ」は、カードを長押し（パソコンならマウスを乗せた時）に出る拡大の大きさです。到達した時などに画面の右上に出るカードは別のもので、そちらは今のところ設定では変えられません。分かりにくかったので、設定の名前に「長押し」と書き足しました。右上のカードの大きさも変えられるようにした方がよければ、ぜひ言ってください。",
+    en: "The \"Card zoom size\" setting controls the enlargement that appears when you press and hold a card (or hover it on a PC). The card that appears at the top right when a piece arrives is a separate thing, and it cannot be resized from the settings yet. Since that was unclear, the setting is now labelled \"long press\". If you would like the top-right card to be adjustable too, just say so.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

@@ -7427,9 +7427,14 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
 // 並び順は呼び出し側が渡した順のまま＝ワイナウエアは**マスの上から順**（ユーザー要望「どの順番で
 // カードが重ねられてたかわかりやすく」）。**位置＝積まれていた順／押して付く番号＝捨てる順**と
 // 役割を分け、2種類の数字を混ぜない。
-// 「おまかせ」ボタンは置いていない: 選ばなかった分は「いま並んでいる順」で捨てるので、
-// **何も押さずに確定するのがそのままおまかせ**になる（手札用は残りをCPUの基準で並べ替えるため
-// 意味が違い、あちらにはボタンがある）。案内文でそのことを伝える。
+// 【#435・2026-10-30】「おまかせ」ボタンは**手札用と同じ位置に置く**。当初は置いていなかった
+// ——選ばなかった分は「いま並んでいる順」で捨てるので、**何も押さずに確定するのがそのまま
+// おまかせ**だったため。しかしユーザー報告「白の意志の覚醒で複数枚捨てる時におまかせが無い」で、
+// **案内文に書いてあっても、players は手札用で見慣れたボタンを探す**ことが分かった。
+// ⚠ 中身は確定ボタンと同じ（盤面の札には「手放してよいか」の基準が無いので、手札用のように
+// 残りを並べ替える意味のある順番が作れない）。**それでも置く**——押すものが同じ形で並んで
+// いることに値打ちがある。**押した分は手札用と同じく尊重する**（こちらだけ取り消すと、
+// 2つのモーダルでボタンの意味が食い違って、report の趣旨と逆になる）。
 // このモーダルは3D盤面の外にあるので、当たり判定は普通の click で足りる（elementsFromPoint 不要）。
 function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
   return new Promise((resolve) => {
@@ -7516,15 +7521,23 @@ function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
     };
     // 選ばなかった分は、渡された順（＝積まれていた順）のまま後ろへ付ける。
     const autoOrder = () => [...picked, ...list0.map((tk) => tk.id).filter((id) => !picked.includes(id))];
-    confirmBtn.addEventListener("click", () => {
+    const confirmOrder = () => {
       activeEffectPicker = null;
       finish(autoOrder());
-    });
+    };
+    confirmBtn.addEventListener("click", confirmOrder);
+    // 【#435】手札用と同じ「おまかせ」。中身は確定と同じ（上のコメント参照）。
+    const autoBtn = document.createElement("button");
+    autoBtn.type = "button";
+    autoBtn.className = "stack-modal-confirm is-auto";
+    autoBtn.textContent = t("game.pick.discardOrderAuto");
+    autoBtn.addEventListener("click", confirmOrder);
     paint();
     modal.appendChild(title);
     modal.appendChild(note);
     modal.appendChild(list);
     modal.appendChild(confirmBtn);
+    modal.appendChild(autoBtn);
     modal.appendChild(peek.button);
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
