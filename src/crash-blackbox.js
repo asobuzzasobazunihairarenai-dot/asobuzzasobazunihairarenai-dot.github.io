@@ -21,6 +21,20 @@ const RECENT_MS = 90000;
 let ctx = { inGame: false, mode: "title" }; // setBlackboxContextで更新（現在どの画面/対局か）
 let peakHeapMB = 0;
 let peakImgMB = 0; // 画像の重さのピーク（iOSでは heapMB が0なので、これが唯一の負荷の記録になる）
+// 【2026-10-31・続き643】canvas の量も数える。
+// 🔴 **これが無かったせいで #441/#432（まとめて捨てて落ちる）の「同時に生きた全画面 canvas
+//    197.8MB」が、報告の数字に一度も現れなかった**（続き634 で計器の穴として記録した）。
+//    さらに #454/#446（勝利演出中に落ちる）でも決め手が出せなかったので足す。
+//    canvas は 幅×高さ×4バイト で効く＝画像と同じ理屈で、全画面1枚で約23MBになる。
+let peakCanvasMB = 0;
+let peakTotalMB = 0; // 画像＋canvas の合計のピーク（端末が苦しくなるのは合計なので、これが本命）
+let peakTag = null; // そのピークを記録した場面（noteBlackboxWeight の呼び元。心拍なら null）
+// 🔴 **場面ごとの最大。これが本命。** 「合計のピーク」は画像が重い瞬間に奪われるので
+//    （実測: 対局中の心拍 69MB > 勝利演出の GATHER 59MB）、peakTag だけでは
+//    「canvas を張っていた時に何MB抱えていたか」が残らない。落ちた後に読めるのは
+//    起動時の控えだけなので、**場面ごとに最大を覚えておく**。場面は数個しか無い。
+const tagPeaks = {};
+const TAG_PEAKS_MAX = 8; // 万一増えても localStorage を太らせない
 let cleanExit = false; // 意図的なリロード/遷移の直前に markCleanExit() で true にする
 let bootReport = null; // 起動時、前回が不審終了に見えた場合だけ中身が入る
 
@@ -46,6 +60,10 @@ function heapMB() {
 // これまで「落ちた時どれだけ重かったか」を示す数字が1つも無かった。画像は 幅×高さ×4バイト で
 // メモリを食うので、DOM上の <img> の実寸を合計すれば、iOSでも使える負荷の目安になる
 // （背景画像は実寸が同期で取れないので含まない＝あくまで目安）。
+// 【2026-10-31・続き643】canvas も同じ理屈（幅×高さ×4バイト）で数える。bug-report.js の
+// gatherWeightSnapshot と**同じ式**にしてある（報告時の weight と突き合わせられるように）。
+// ⚠ WebGL の canvas は実際には深度バッファ・テクスチャぶんも食うので、この式は**過小評価**。
+//   それでも「23MBの全画面 canvas が何枚生きていたか」は分かる。
 function pageWeight() {
   try {
     let bytes = 0;
@@ -57,9 +75,23 @@ function pageWeight() {
       count++;
       bytes += w * list[i].naturalHeight * 4;
     }
-    return { imgMB: Math.round(bytes / 1048576), imgCount: count, domNodes: document.getElementsByTagName("*").length };
+    let cBytes = 0;
+    let cCount = 0;
+    const cList = document.getElementsByTagName("canvas");
+    for (let i = 0; i < cList.length; i++) {
+      cCount++;
+      cBytes += cList[i].width * cList[i].height * 4;
+    }
+    return {
+      imgMB: Math.round(bytes / 1048576),
+      imgCount: count,
+      canvasMB: Math.round(cBytes / 1048576),
+      canvasCount: cCount,
+      totalMB: Math.round((bytes + cBytes) / 1048576),
+      domNodes: document.getElementsByTagName("*").length,
+    };
   } catch {
-    return { imgMB: 0, imgCount: 0, domNodes: 0 };
+    return { imgMB: 0, imgCount: 0, canvasMB: 0, canvasCount: 0, totalMB: 0, domNodes: 0 };
   }
 }
 
@@ -69,6 +101,20 @@ function writeRecord(extra) {
     if (now > peakHeapMB) peakHeapMB = now;
     const weight = pageWeight();
     if (weight.imgMB > peakImgMB) peakImgMB = weight.imgMB;
+    if (weight.canvasMB > peakCanvasMB) peakCanvasMB = weight.canvasMB;
+    // 🔴 ピークの場面を覚えるのは**合計が伸びた時だけ**。画像だけ・canvasだけで更新すると、
+    //    「どの場面がいちばん重かったか」が混ざって読めなくなる。
+    // extraMB は「DOM に入っていない画像」等、pageWeight では見えない分を呼び元が足すもの。
+    const extraMB = (extra && Number(extra.extraMB)) || 0;
+    const totalNow = weight.totalMB + Math.round(extraMB);
+    if (totalNow > peakTotalMB) {
+      peakTotalMB = totalNow;
+      peakTag = (extra && extra.weightTag) || null;
+    }
+    const tag = (extra && extra.weightTag) || null;
+    if (tag && (tagPeaks[tag] === undefined || totalNow > tagPeaks[tag])) {
+      if (tagPeaks[tag] !== undefined || Object.keys(tagPeaks).length < TAG_PEAKS_MAX) tagPeaks[tag] = totalNow;
+    }
     const rec = {
       t: Date.now(),
       inGame: ctx.inGame,
@@ -78,6 +124,12 @@ function writeRecord(extra) {
       imgMB: weight.imgMB,
       peakImgMB,
       imgCount: weight.imgCount,
+      canvasMB: weight.canvasMB,
+      canvasCount: weight.canvasCount,
+      peakCanvasMB,
+      peakTotalMB,
+      peakTag,
+      tagPeaks,
       domNodes: weight.domNodes,
       cleanExit,
       ...(extra || {}),
@@ -111,6 +163,28 @@ export function markCleanExit() {
   writeRecord();
 }
 
+// 【2026-10-31・続き643】**重い物を作った瞬間に、その場で測って保存する入口。**
+//
+// 🔴 **なぜ心拍（5秒ごと）では足りないか。** 勝利演出の全画面 canvas（約23MB）は
+//    GATHER の約950msだけ生きて、終わると width=0 で手放される。手札の霧散も1枚あたり
+//    8秒のTTLで消える。**5秒に1回の心拍では、いちばん重い瞬間を跨いでしまう確率が高い。**
+//    #454/#446 の報告に canvas の山が1つも写っていなかったのは、計器が canvas を数えて
+//    いなかったのが主因だが、仮に数えていても**測る時刻が合わない**ところだった。
+//
+// ⚠ この関数は localStorage へ**同期で書く**（記録は数百バイトなので実測で1ms未満だが、
+//   演出のループの中から毎フレーム呼ぶ用途ではない）。**「作った直後に1回」だけ呼ぶ。**
+//   落ちる前に保存されていないと意味が無いので、ここは書くのが正しい。
+// ⚠ 第2引数 extraMB は「**DOM に入っていない画像**」のような、pageWeight（DOM を走査する）
+//   では数えられない分を呼び元が自分で足すためのもの。new Image() で読んだだけの画像は
+//   DOM に無いが端末のメモリは食う——勝利サマリの先読みがまさにそれで、**どの計器にも
+//   写らない数十MBの山**だった。
+export function noteBlackboxWeight(tag, extraMB) {
+  writeRecord({
+    weightTag: typeof tag === "string" ? tag.slice(0, 40) : null,
+    extraMB: Number.isFinite(Number(extraMB)) ? Number(extraMB) : 0,
+  });
+}
+
 // 起動時に判定した「前回は不審終了っぽい」レポート（無ければnull）。main.jsがアクションログへ流す。
 export function getBlackboxBootReport() {
   return bootReport;
@@ -125,13 +199,20 @@ export function getBlackboxSummary() {
   } catch {
     /* ignore */
   }
+  const w = pageWeight();
   return {
     navType: navType(),
     heapMB: heapMB(),
     peakHeapMB,
     heapLimitMB: limitMB,
-    imgMB: pageWeight().imgMB,
+    imgMB: w.imgMB,
     peakImgMB,
+    canvasMB: w.canvasMB,
+    canvasCount: w.canvasCount,
+    peakCanvasMB,
+    peakTotalMB,
+    peakTag,
+    tagPeaks,
     inGame: ctx.inGame,
     mode: ctx.mode,
     bootReport,
@@ -157,6 +238,15 @@ function init() {
       prevPeakHeapMB: prev.peakHeapMB ?? null, // メモリがどこまで膨らんでいたか＝負荷の指標
       prevImgMB: prev.imgMB ?? null, // 落ちる直前に画面が抱えていた画像の重さ（展開後の推定MB）
       prevPeakImgMB: prev.peakImgMB ?? null, // そのセッション中のピーク
+      // 【続き643】canvas の量。🔴 **ここが無くて #441/#454 の決め手が出せなかった。**
+      prevCanvasMB: prev.canvasMB ?? null,
+      prevCanvasCount: prev.canvasCount ?? null,
+      prevPeakCanvasMB: prev.peakCanvasMB ?? null,
+      prevPeakTotalMB: prev.peakTotalMB ?? null, // 画像＋canvas の合計のピーク＝端末が苦しむ量
+      prevPeakTag: prev.peakTag ?? null, // その合計のピークを出した場面（noteBlackboxWeight の引数）
+      // 🔴 **場面ごとの最大（画像＋canvas の合計MB）。落ちた時に何を抱えていたかはここで読む。**
+      //    例: {"victory-gather-canvas":59} なら、勝利演出の全画面canvasを張っていた時に59MB。
+      prevTagPeaks: prev.tagPeaks ?? null,
       prevImgCount: prev.imgCount ?? null,
       prevDomNodes: prev.domNodes ?? null,
       prevLastError: prev.lastError ?? null, // 直前の未捕捉エラー（あれば）

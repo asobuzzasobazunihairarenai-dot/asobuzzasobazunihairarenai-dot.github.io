@@ -43,6 +43,8 @@ import { getPlayerName, getPlayerAvatar } from "./player-identity.js";
 import { applyAvatarContent } from "./avatar-render.js";
 import { t } from "./ui-text.js";
 import { logAction } from "./action-log.js";
+// 【続き643】全画面 canvas（約23MB）を張った瞬間を墜落の控えに残す。葉モジュールなので循環しない。
+import { noteBlackboxWeight } from "./crash-blackbox.js";
 
 // 盤面パレット(--color-*)はくすみ気味なので、演出用に彩度を上げた色を使う
 // （card-dissolve.js の DISSOLVE_HEX と同じ考え方・同じ値）。
@@ -978,6 +980,10 @@ function runGatherCanvas(root, origins, cube, s, durMs) {
   canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // 🔴 ここが勝利演出でいちばん重い瞬間（1600x900 に dpr の2乗 ＝ 約23MB）。
+  //    GATHER の約950msだけ生きて width=0 で手放されるので、**5秒ごとの心拍では跨いでしまう。**
+  //    #454/#446（勝利演出中に落ちた）の決め手を残すため、張った直後に1回だけ控える。
+  noteBlackboxWeight("victory-gather-canvas");
 
   // 色ごとに、スロット→キューブへ向かう粒（帯を構成する）
   const perColor = Math.max(6, Math.round(22 * s.stream));

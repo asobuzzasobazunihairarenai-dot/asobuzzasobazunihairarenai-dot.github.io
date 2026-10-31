@@ -8,6 +8,8 @@ import { getCardDefinition, getCardImagePath } from "./cards-data.js";
 import { isArrivalEffectDisabled } from "./motion-prefs.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { playPulseThump } from "./sound.js";
+// 【続き643】#441 で落ちた全画面 canvas（1枚約23MB）を張った瞬間を控える。葉モジュール。
+import { noteBlackboxWeight } from "./crash-blackbox.js";
 
 const STAGE_W = 1600;
 const STAGE_H = 900;
@@ -169,6 +171,9 @@ export async function playCardDissolve(usedCardId, opts = {}) {
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // 🔴 #441/#432 で iPhone が落ちた張本人（まとめて捨てると9枚＝197.8MBまで積まれた）。
+  //    続き634 で軽い方へ回すようにしたが、1枚ぶんは今も張る。**張った瞬間を控える。**
+  noteBlackboxWeight("card-dissolve-canvas");
 
   // 追色カード侵食用のオフスクリーン
   const costCanvas = document.createElement("canvas");

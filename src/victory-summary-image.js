@@ -27,6 +27,8 @@ import { getPlayerName, getPlayerAvatar } from "./player-identity.js";
 import { getSelectedBackgroundPath } from "./background.js";
 import { COLORS, GATE_POSITIONS, SIDE_TO_SEAT, SEAT_TO_SIDE, SEAT_ORDER } from "./board-layout.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
+// 【続き643】先読みした画像は DOM に入らないので、どの計器にも写らなかった。自分で数えて渡す。
+import { noteBlackboxWeight } from "./crash-blackbox.js";
 
 const BOARD_N = 7;
 const CELL = 52;
@@ -152,6 +154,23 @@ async function preloadImages(state, seats) {
       backgroundImg = await loadImage(getSelectedBackgroundPath());
     })(),
   ]);
+  // 🔴 【続き643】ここは勝利演出の直後に走り、**カードの種類ぶん＋駒スキン＋アバター4枚＋背景**を
+  //    一度に展開する（カード1枚で 433x433x4 ＝ 約0.75MB、背景は約6MB）。
+  //    ⚠ **この画像は DOM に入らないので、pageWeight()（DOM の img を走査）にも
+  //    bug-report.js の weight にも1枚も写らない。** #446「勝利演出の後すぐオープニングへ」の
+  //    ような落ち方で、ここが疑われたことが一度も無かったのはそのため。自分で数えて控える。
+  try {
+    let bytes = 0;
+    let n = 0;
+    for (const im of [...cache.values(), ...avatarCache.values(), backgroundImg]) {
+      if (!im || !im.naturalWidth) continue;
+      n++;
+      bytes += im.naturalWidth * im.naturalHeight * 4;
+    }
+    noteBlackboxWeight("victory-summary-preload:" + n, bytes / 1048576);
+  } catch {
+    /* 計器が落ちても画像の生成は続ける */
+  }
   return { cache, avatarCache, backgroundImg };
 }
 
