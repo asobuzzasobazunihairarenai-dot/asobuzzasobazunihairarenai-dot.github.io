@@ -2455,11 +2455,8 @@ body.reduce-glow .rainbow-lock-sweep {
   align-self: flex-start;
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.85rem;
-  padding: 0.45rem 0.9rem;
   cursor: pointer;
   margin-bottom: 0.9rem;
 }
@@ -2763,6 +2760,29 @@ body.is-phone-device .update-banner-close {
   background-repeat: no-repeat;
   pointer-events: none;
   z-index: 10000;
+  display: none;
+}
+
+/* 【#438・続き640】options-menu.js の「右上に出るカードの大きさ」つまみ用デモ。本物の
+   .card-arrival-modal / .hand-effect-use-modal と**同じ変数・同じ場所・同じ見た目**にして、
+   操作している間だけ出す。本物は枠の内側に 0.6rem の余白を持つので、絵の大きさは
+   var() からその分（上下左右で 1.2rem）を引いた値になる＝実物とぴったり同じ箱。
+   ⚠ この要素は body.is-phone-device のまとめ拡大の一覧に**入れない**。本物の到達モーダルに
+   その拡大は掛からないので、入れるとスマホで実際より大きく見えてしまう。 */
+#options-menu-card-arrival-demo {
+  position: fixed;
+  top: calc(var(--card-arrival-modal-top) + 0.6rem);
+  right: calc(var(--card-arrival-modal-right) + 0.6rem);
+  width: calc(var(--card-arrival-modal-size) - 1.2rem);
+  height: calc(var(--card-arrival-modal-size) - 1.2rem);
+  border-radius: 0.6rem;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, 0.7);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 10600;
   display: none;
 }
 
@@ -7523,11 +7543,8 @@ body.theme-light .daily-bonus-modal-note {
 #shop-panel-back {
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
 #shop-panel-back:hover {
@@ -8129,11 +8146,8 @@ body.shop-adjust-mode .shop-item-color-swatch {
   display: inline-block;
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.85rem;
-  padding: 0.45rem 0.9rem;
   cursor: pointer;
   margin-bottom: 0.9rem;
 }
@@ -16290,11 +16304,8 @@ body.reduce-glow .cell.card-effect-placement-target {
   align-self: flex-start;
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
-  padding: 0.35rem 0.8rem;
   cursor: pointer;
-  font-size: 0.85rem;
 }
 #codex-page-back:hover {
   background: rgba(56, 189, 248, 0.15);
@@ -16588,11 +16599,8 @@ body.theme-light .home-match-choice-cancel:hover {
   align-self: flex-start;
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.8rem;
   cursor: pointer;
   margin-bottom: 1rem;
 }
@@ -17170,11 +17178,8 @@ body.theme-light-ingame #ranked-result-modal .ranked-result-promote-line {
   align-self: flex-start;
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.8rem;
   cursor: pointer;
   margin-bottom: 1rem;
 }
@@ -17659,11 +17664,8 @@ body.is-phone-device #options-menu-panel {
   flex: 0 0 auto;
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
 #my-deck-page-back:hover {
@@ -18228,11 +18230,8 @@ body.theme-light #mdb-name-input {
 #mdl-back {
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
 #mdl-back:hover {
@@ -20885,12 +20884,6 @@ body.is-tablet-device .changelog-fixes-toggle {
   font-size: 1.5rem;
   padding: 0.4rem 0.9rem;
   border-radius: 0.5rem;
-}
-body.is-phone-device #changelog-back,
-body.is-tablet-device #changelog-back {
-  font-size: 1.7rem;
-  padding: 0.8rem 1.5rem;
-  border-radius: 0.7rem;
 }
 
 /* ② サウンドの初回設定モーダル（first-run-bgm.js）。初めて遊ぶ人が最初に触る画面なのに
@@ -24242,4 +24235,61 @@ a.opening-trial-video::after {
     padding: 0.3rem 1rem;
     margin-top: 0.3rem;
   }
+}
+
+/* ── 各画面の左上「← 戻る」の大きさ（#430・続き640） ──────────────────────────
+   ユーザー報告「各画面の戻るボタンの大きさがまちまち」。**実測でその通りだった**
+   （iPhone 横持ち 932x430・実画面px）:
+
+     お知らせ 12.98px（箱 67x33） ／ 基本設定 6.52 ／ 図鑑 6.50 ／
+     ショップ 6.15 ／ マイデッキ一覧 6.15（箱 34x16）
+
+   🔴 **原因は「お知らせだけスマホ用の拡大を持っていた」こと。** 読みやすさの手直しで
+   `body.is-phone-device #changelog-back` を足した時、同じ役目のボタンが他に7つあることを
+   見ていなかった（その7つは 0.8〜0.85rem のまま＝実画面6px）。
+   PCでは 10.29〜10.91px でほぼ揃っていたので、**まちまちに見えるのはスマホ／タブレット**。
+
+   ⇒ 8つの**大きさだけ**をここに集めた。色（ページごとに金／青で違う）と margin は
+   今までどおり個別の規則に残してある＝見た目の個性は壊していない。
+   ⚠ 個別の規則からは font-size / padding / border-radius を**抜いてある**
+   （2か所に書くと、片方を直して効かない事故になる）。
+   ⚠ この8つは**自分の transform: scale() を持っていない**（実測で実効倍率はどれも
+   ステージ倍率と同じ 0.477〜0.48）。だから続き576 の「拡大が掛かっている部品にさらに
+   拡大を足すと2倍ずれる」罠には当たらない。新しく「戻る」を足す時は、**そのページに
+   scale が掛かっていないかを実測してから**この一覧へ加える。
+   ⚠ 画面の低い端末（932x320・ステージ倍率0.356）では 1.7rem が実画面9.7pxになる。
+   お知らせは元からその大きさで運用できているので、ここでは追加の上げ方はしていない。 */
+#changelog-back,
+#codex-page-back,
+#profile-page-back,
+#ranking-page-back,
+#shop-panel-back,
+#mdl-back,
+#my-deck-page-back,
+#options-menu-back {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.4rem;
+}
+/* スマホ・タブレット（ステージを縮めて描くので、上の 0.85rem は実画面6pxしかない）。
+   箱は 67x33 になり、押すものの目安（28px以上）を満たす。 */
+body.is-phone-device #changelog-back,
+body.is-tablet-device #changelog-back,
+body.is-phone-device #codex-page-back,
+body.is-tablet-device #codex-page-back,
+body.is-phone-device #profile-page-back,
+body.is-tablet-device #profile-page-back,
+body.is-phone-device #ranking-page-back,
+body.is-tablet-device #ranking-page-back,
+body.is-phone-device #shop-panel-back,
+body.is-tablet-device #shop-panel-back,
+body.is-phone-device #mdl-back,
+body.is-tablet-device #mdl-back,
+body.is-phone-device #my-deck-page-back,
+body.is-tablet-device #my-deck-page-back,
+body.is-phone-device #options-menu-back,
+body.is-tablet-device #options-menu-back {
+  font-size: 1.7rem;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.7rem;
 }

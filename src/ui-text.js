@@ -71,6 +71,9 @@ const UI = {
     "opt.bgmVolume": "BGMの音量",
     "opt.langNote": "現在はカードのテキストのみ翻訳されます（メニュー等は順次英語化中）。",
     "opt.cardPreviewSize": "カード拡大（長押し）の大きさ",
+    // 【#438・続き640】到達モーダルと手札使用モーダルが共有する大きさ。「到達」と限定すると
+    // 手札の効果を使った時の表示が漏れるので、場所（右上）で呼ぶ。
+    "opt.cardArrivalSize": "右上に出るカードの大きさ",
     "opt.cardPreviewSide": "カード拡大を出す向き",
     "opt.cpuSpeed": "CPUの速さ",
     "opt.cpuStrength": "CPUの強さ",
@@ -1207,6 +1210,7 @@ const UI = {
     "setup.title": "セットアップウィザード",
     "setup.button": "🎲 セットアップ",
     "opt.resetSectionTip": "このセクションの設定を初期値に戻します",
+    "opt.resetRowTip": "この項目だけを初期値に戻します",
     "opt.resetGroupTip": "このグループの設定を初期値に戻します",
     "opt.zoom.right": "右に拡大",
     "opt.zoom.left": "左に拡大",
@@ -2035,6 +2039,7 @@ const UI = {
     "opt.bgmVolume": "Music volume",
     "opt.langNote": "Currently only card text is translated (menus are being localized).",
     "opt.cardPreviewSize": "Card zoom size (long press)",
+    "opt.cardArrivalSize": "Top-right card size",
     "opt.cardPreviewSide": "Card zoom direction",
     "opt.cpuSpeed": "CPU speed",
     "opt.cpuStrength": "CPU strength",
@@ -3162,6 +3167,7 @@ const UI = {
     "setup.title": "Setup wizard",
     "setup.button": "🎲 Setup",
     "opt.resetSectionTip": "Restores this section's settings to their defaults",
+    "opt.resetRowTip": "Restores just this setting to its default",
     "opt.resetGroupTip": "Restores this group's settings to their defaults",
     "opt.zoom.right": "Enlarge to the right",
     "opt.zoom.left": "Enlarge to the left",

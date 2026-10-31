@@ -31,7 +31,14 @@ import { isCellConfirmEnabled, setCellConfirmEnabled } from "./cell-confirm.js";
 import { isBoardIllustOnly, setBoardIllustOnly } from "./board-card-display.js";
 import { isFixedHandEnabled, setFixedHandEnabled } from "./fixed-hand.js";
 import { getSoundVolume, setSoundVolume, getBgmVolume, setBgmVolume, supportsVibration, isVibrationEnabled, setVibrationEnabled, DEFAULT_SOUND_VOLUME, DEFAULT_BGM_VOLUME} from "./sound.js";
-import { setCardPreviewSize, getCardPreviewSide, setCardPreviewSide } from "./card-preview-size.js";
+import {
+  setCardPreviewSize,
+  getCardPreviewSide,
+  setCardPreviewSide,
+  setCardArrivalSize,
+  DEFAULT_CARD_PREVIEW_SIZE,
+  DEFAULT_CARD_ARRIVAL_SIZE,
+} from "./card-preview-size.js";
 import {
   getCpuSpeed,
   setCpuSpeed,
@@ -157,6 +164,21 @@ function buildPlainGroupHeader(title, onReset) {
     row.appendChild(resetBtn);
   }
   return row;
+}
+
+// 【続き640・ユーザー要望「デフォに戻せるようにもしてください」】つまみ1つだけを既定へ
+// 戻す小さなボタン。セクション見出しの「戻す」は**そのセクションの設定を全部**戻してしまう
+// ので（「画面の見え方」なら9項目）、大きさのように「いじって迷子になりやすい」項目には、
+// その行だけ戻せる口を付ける。見た目は見出しの「戻す」と同じクラスを使い回す
+// （スマホ用の拡大規則も同じクラスに付いているので、それもそのまま効く）。
+function buildRowResetButton(onReset) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "options-menu-section-reset-btn";
+  btn.textContent = t("opt.reset");
+  btn.title = t("opt.resetRowTip");
+  btn.addEventListener("click", onReset);
+  return btn;
 }
 
 // セクションの中でさらに数項目をまとめたい時の小見出し。折りたたみは使わない——
@@ -466,32 +488,94 @@ function showCardPreviewSizeDemo() {
   }, 1500);
 }
 
-function buildCardPreviewSizeRow() {
+// 【#438・続き640】「右上に出るカード」のデモ。上のデモ（画面中央）と**別の要素**にした
+// 理由が2つある:
+//  ・🔴 中央のデモは `body.is-phone-device` のまとめ上書きで**拡大が掛かっている**
+//    （style.css の #options-menu-card-preview-demo を含む一覧）。右上に出る本物の
+//    カードにはその拡大が掛からないので、同じ要素を使い回すとスマホで**実際より大きく
+//    見えて**しまう。
+//  ・右上という**場所そのもの**が答えの一部（#438 の質問は「どっちのカード？」だった）。
+//    本物と同じ top/right の変数を使って同じ場所に出せば、見ただけで分かる。
+let cardArrivalDemoEl = null;
+let cardArrivalDemoHideTimer = null;
+function showCardArrivalSizeDemo() {
+  if (!cardArrivalDemoEl) {
+    cardArrivalDemoEl = document.createElement("div");
+    cardArrivalDemoEl.id = "options-menu-card-arrival-demo";
+    cardArrivalDemoEl.style.backgroundImage = 'url("assets/cards/back-normal.webp")';
+    document.body.appendChild(cardArrivalDemoEl);
+  }
+  cardArrivalDemoEl.style.display = "block";
+  clearTimeout(cardArrivalDemoHideTimer);
+  cardArrivalDemoHideTimer = setTimeout(() => {
+    cardArrivalDemoEl.style.display = "none";
+  }, 1500);
+}
+
+// 【続き640】カードの大きさを決めるつまみは2つ（長押しの拡大／右上に出るカード）あり、
+// 作りは同じなので1つの組み立てにまとめた。**片方だけ直して食い違う**のを防ぐため
+// （この日の作業は、まさにその食い違いを3件直している）。
+// apply は card-preview-size.js の setter（CSS変数の反映＋端末への保存＋admin:change の
+// 発火をまとめて行う。初回設定モーダルと同じ経路なので、どちらで変えても好みが保たれる）。
+function buildCardSizeRow({ label, varName, min, max, def, apply, showDemo }) {
   const row = document.createElement("div");
   row.className = "options-menu-volume-row";
   const labelEl = document.createElement("span");
-  labelEl.textContent = t("opt.cardPreviewSize");
-  const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-preview-size"));
+  labelEl.textContent = label;
+  // 今の値はCSS変数から読む（管理者モードで動かした値もそのまま拾える）。
+  const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(varName));
   const slider = document.createElement("input");
   slider.type = "range";
-  slider.min = "8";
-  slider.max = "52"; // 【#358】上限を広げた（card-preview-size.js の MAX と合わせる）
+  slider.min = String(min);
+  slider.max = String(max);
   slider.step = "0.5";
-  slider.value = String(Number.isFinite(current) ? current : 20);
   const valueLabel = document.createElement("span");
   valueLabel.className = "options-menu-volume-value";
-  valueLabel.textContent = `${slider.value}rem`;
+  const show = (v) => {
+    slider.value = String(v);
+    valueLabel.textContent = `${v}rem`;
+  };
+  show(Number.isFinite(current) ? current : def);
   slider.addEventListener("input", () => {
-    // setCardPreviewSizeがCSS変数の反映＋端末への保存＋admin:changeの発火をまとめて行う
-    // （初回設定モーダルと同じ経路。どちらで変えても次回以降まで好みが保たれる）。
-    setCardPreviewSize(Number(slider.value));
-    valueLabel.textContent = `${slider.value}rem`;
-    showCardPreviewSizeDemo();
+    show(apply(Number(slider.value)));
+    showDemo();
   });
   row.appendChild(labelEl);
   row.appendChild(slider);
   row.appendChild(valueLabel);
+  row.appendChild(
+    buildRowResetButton(() => {
+      show(apply(def));
+      showDemo();
+    })
+  );
   return row;
+}
+
+function buildCardPreviewSizeRow() {
+  return buildCardSizeRow({
+    label: t("opt.cardPreviewSize"),
+    varName: "--card-preview-size",
+    min: 8,
+    max: 52, // 【#358】上限を広げた（card-preview-size.js の MAX と合わせる）
+    def: DEFAULT_CARD_PREVIEW_SIZE,
+    apply: setCardPreviewSize,
+    showDemo: showCardPreviewSizeDemo,
+  });
+}
+
+// 【#438・続き640・ユーザー要望】到達した時・手札の効果を使った時に画面の右上へ出る
+// カードの大きさ。元は管理者モードだけで動かせた（card-preview-size.js のコメント参照）。
+function buildCardArrivalSizeRow() {
+  return buildCardSizeRow({
+    label: t("opt.cardArrivalSize"),
+    varName: "--card-arrival-modal-size",
+    min: 8,
+    max: 40, // 管理者モードのつまみと同じ上限
+    def: DEFAULT_CARD_ARRIVAL_SIZE,
+    apply: setCardArrivalSize,
+    showDemo: showCardArrivalSizeDemo,
+  });
 }
 
 // カード拡大プレビューを、指の長タップ／マウスホバー位置の右・左どちらに出すかを選ぶ
@@ -1244,6 +1328,9 @@ export function initOptionsMenu() {
           // 【2026-09-06】基本設定を7項目に絞った際、ここへ移した（見た目の微調整であり、
           // 毎回触る設定ではないため）。設定そのものは今までどおり効く。
           content.appendChild(buildCardPreviewSizeRow());
+          // 【#438・続き640】長押しの拡大のすぐ下に置く（#438 の質問が「どっちのカード？」
+          // だったので、2つが並んでいれば見分けがつく）。
+          content.appendChild(buildCardArrivalSizeRow());
           // ユーザー要望「盤面（場・捨て場・ロックエリア）のカードは遠景で文字が読めないので、
           // イラストのみのカード画像で映えさせたい。ホバー拡大や手札は通常のテキストあり画像
           // のまま」。この端末のみのローカル設定（board-card-display.js、相手には非同期）。
@@ -1313,6 +1400,9 @@ export function initOptionsMenu() {
         {
           icon: "👀",
           onReset: () => {
+            // 【続き640】大きさの2つは、これまでこのセクションの「戻す」の対象外だった。
+            setCardPreviewSize(DEFAULT_CARD_PREVIEW_SIZE);
+            setCardArrivalSize(DEFAULT_CARD_ARRIVAL_SIZE);
             setBoardIllustOnly(false);
             setLockAreaBarVisible(true);
             setLockColorVisible(true);

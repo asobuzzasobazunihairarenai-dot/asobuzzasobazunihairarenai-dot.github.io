@@ -215,8 +215,12 @@ export const BUG_REPORT_FIX_NOTES = {
     en: "Added. The screen for discarding several cards from the board (White Will's Awakening and the like) now has an Auto button, in the same place as the one for discarding from your hand. Until now it only said in text that confirming without tapping anything discards them in the order shown - but of course you look for the button you know from the hand version. Sorry about that.",
   },
   438: {
-    ja: "設定の「カード拡大の大きさ」は、カードを長押し（パソコンならマウスを乗せた時）に出る拡大の大きさです。到達した時などに画面の右上に出るカードは別のもので、そちらは今のところ設定では変えられません。分かりにくかったので、設定の名前に「長押し」と書き足しました。右上のカードの大きさも変えられるようにした方がよければ、ぜひ言ってください。",
-    en: "The \"Card zoom size\" setting controls the enlargement that appears when you press and hold a card (or hover it on a PC). The card that appears at the top right when a piece arrives is a separate thing, and it cannot be resized from the settings yet. Since that was unclear, the setting is now labelled \"long press\". If you would like the top-right card to be adjustable too, just say so.",
+    ja: "設定の「カード拡大の大きさ」は、カードを長押し（パソコンならマウスを乗せた時）に出る拡大の大きさです。到達した時などに画面の右上に出るカードは別のものでした。分かりにくかったので設定の名前に「長押し」と書き足し、あわせて**右上に出るカードの大きさも設定から変えられるように**しました（オプション → 詳細設定 → 画面の見え方）。どちらのつまみにも「戻す」を付けたので、いじりすぎても元に戻せます。",
+    en: "The \"Card zoom size\" setting controls the enlargement that appears when you press and hold a card (or hover it on a PC). The card that appears at the top right when a piece arrives was indeed a separate thing. Since that was unclear, the setting is now labelled \"long press\", and the top-right card can now be resized from the settings too (Options - More settings - How things look). Both sliders have a Reset button, so you can always get back to the default.",
+  },
+  430: {
+    ja: "ご報告のとおりでした。画面ごとの左上の「戻る」を測ったら、お知らせの画面だけがスマホ用に大きくしてあり、残りの7画面（図鑑・マイページ・ランキング・ショップ・マイデッキ2画面・基本設定）はその半分の大きさでした。8画面すべて同じ大きさに揃え、スマホでは指で押しやすい大きさにしました。",
+    en: "You were right. Measuring the top-left Back button on every screen showed that only the news screen had been enlarged for phones - the other seven (codex, my page, ranking, shop, the two deck screens and settings) were half that size. All eight are now the same size, and large enough to tap comfortably on a phone.",
   },
 };
 

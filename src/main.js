@@ -299,7 +299,7 @@ import { initOpeningScreen, previewOpeningAuras } from "./opening-screen.js";
 import { maybeShowFirstRunBgmModal } from "./first-run-bgm.js";
 import { maybeShowOpeningSetupModal } from "./opening-setup-modal.js";
 import { isTrialEntry } from "./trial-entry.js";
-import { applyStoredCardPreviewSize, getCardPreviewSide } from "./card-preview-size.js";
+import { applyStoredCardPreviewSize, applyStoredCardArrivalSize, getCardPreviewSide } from "./card-preview-size.js";
 import { isFixedHandEnabled, applyStoredFixedHand } from "./fixed-hand.js";
 import {
   isCpuBattleActive,
@@ -18565,6 +18565,9 @@ initOpeningScreen();
 // カード拡大プレビューのサイズは端末に保存される好み設定。初回設定モーダルがその値を
 // 初期値として読むより先に、保存済みの値をCSS変数へ復元しておく（毎回の起動で反映）。
 applyStoredCardPreviewSize();
+// 【#438・続き640】右上に出るカード（到達／手札使用）の大きさも、プレイヤーの好みとして
+// 端末に保存されるようになった（オプションの「画面の見え方」）。保存が無ければ何もしない。
+applyStoredCardArrivalSize();
 // 「手札を画面下に固定する」設定を body クラスへ復元（render()がこれを見て手札の描画先を決める）。
 applyStoredFixedHand();
 // 盤面のWebGL描画（board-3d.js）。2026-09-05から既定ON——iPhone/iPadのチカチカ・強制終了が
