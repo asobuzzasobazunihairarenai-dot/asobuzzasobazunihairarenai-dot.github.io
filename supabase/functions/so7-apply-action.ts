@@ -80,6 +80,56 @@ const NORMAL_CARDS: { id: string; color: string; count: number }[] = [
   { id: "black-contract-brand", color: "black", count: 2 },
 ];
 
+// 0th拡張（0th EDITION 拡張）の33種。**管理者だけが選べるテストモード**で使う。
+// 🔴 **src/cards-data-ex0.js と同じ内容を持つ写し**（正はあちら＝tools/ex0-cards.mjs が作る）。
+//   枚数を直す時は両方。合計105枚＋なないろの欠片7枚＝112枚でリメイクと同じになる。
+// ⚠ マイデッキ戦の検証（NORMAL_CARD_ID_SET）には**入れない**——マイデッキはリメイク専用。
+const EX0_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
+  { id: "ex0-orange-bus", color: "orange", count: 5 },
+  { id: "ex0-yellow-reach-cancel", color: "yellow", count: 5 },
+  { id: "ex0-green-lost-forest", color: "green", count: 5 },
+  { id: "ex0-blue-appraiser", color: "blue", count: 5 },
+  { id: "ex0-pink-wish-for-peace", color: "pink", count: 5 },
+  { id: "ex0-purple-hidden-fortune", color: "purple", count: 5 },
+  { id: "ex0-red-beginning", color: "red", count: 5 },
+  { id: "ex0-orange-bus-stop", color: "orange", count: 4 },
+  { id: "ex0-yellow-gate-charge", color: "yellow", count: 4 },
+  { id: "ex0-green-creation", color: "green", count: 4 },
+  { id: "ex0-blue-strict-watch", color: "blue", count: 4 },
+  { id: "ex0-pink-mystic-fruit", color: "pink", count: 4 },
+  { id: "ex0-purple-redo-key", color: "purple", count: 4 },
+  { id: "ex0-flute-red", color: "red", count: 4 },
+  { id: "ex0-flute-orange", color: "orange", count: 4 },
+  { id: "ex0-flute-yellow", color: "yellow", count: 4 },
+  { id: "ex0-flute-green", color: "green", count: 4 },
+  { id: "ex0-flute-blue", color: "blue", count: 4 },
+  { id: "ex0-flute-pink", color: "pink", count: 4 },
+  { id: "ex0-flute-purple", color: "purple", count: 4 },
+  { id: "ex0-red-joyner", color: "red", count: 1 },
+  { id: "ex0-orange-mccool", color: "orange", count: 1 },
+  { id: "ex0-yellow-little-mouse", color: "yellow", count: 1 },
+  { id: "ex0-green-peterhood", color: "green", count: 1 },
+  { id: "ex0-blue-jake", color: "blue", count: 1 },
+  { id: "ex0-pink-yaeza", color: "pink", count: 1 },
+  { id: "ex0-purple-vivian", color: "purple", count: 1 },
+  { id: "ex0-white-pure-burger", color: "white", count: 2 },
+  { id: "ex0-white-someones-shadow", color: "white", count: 1 },
+  { id: "ex0-white-dragon", color: "white", count: 1 },
+  { id: "ex0-black-bad-burger", color: "black", count: 2 },
+  { id: "ex0-black-vood-contract", color: "black", count: 1 },
+  { id: "ex0-red-crimson-fist", color: "red", count: 4 },
+];
+
+// どのカードセットで山札を組むか。クライアント（src/card-set.js）と同じ文字列。
+function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; count: number }[] {
+  if (cardSet === "ex0") {
+    // 0th拡張のみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
+    return [...EX0_NORMAL_CARDS, ...NORMAL_CARDS.filter((c) => c.id === "rainbow-shard")];
+  }
+  if (cardSet === "mixed") return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS];
+  return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
+}
+
 const FIRST_CARDS: { id: string; color: string }[] = [
   { id: "first-red", color: "red" },
   { id: "first-orange", color: "orange" },
@@ -522,10 +572,14 @@ function reduce(current: GameState, action: any): GameState {
         }
       }
 
-      let pool = expandDeck(NORMAL_CARDS);
+      // 0th拡張のテストモード（管理者のみ・src/card-set.js）。開始を押した人の選択が
+      // action.cardSet で届く。🔴 **山札を組むのはここだけ**なので、ここが見ないと
+      // クライアントで何を選んでもオンラインではリメイクの山札になる。
+      const cardPool = deckPoolForCardSet(action.cardSet);
+      let pool = expandDeck(cardPool);
       if (!includeBlackWhite) {
         pool = pool.filter((cardId) => {
-          const def = NORMAL_CARDS.find((c) => c.id === cardId)!;
+          const def = cardPool.find((c) => c.id === cardId)!;
           return def.color !== "white" && def.color !== "black";
         });
       }

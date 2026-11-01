@@ -34,6 +34,10 @@ import { stageGateInvasionRender } from "./gate-invasion-stage.js";
 import { setMyDeckFromAccount } from "./my-deck.js";
 import { setLang } from "./i18n.js";
 import { setLastActionInfo } from "./last-action-info.js";
+// どのカードセット（リメイク / 0th拡張 / まぜる）で山札を組むか。オンラインでは
+// 「開始を押した人の選択を対局全体の固定値として1回だけ送る」方式（timerConfig と同じ）。
+// card-set.js は何も import しない葉なので、ここから読んでも循環 import にならない。
+import { getCardSet, lockCardSetForGame } from "./card-set.js";
 // stats-profile.js は他をimportしない葉モジュールなので、ここから直接importしても循環しない。
 import { setStatsProfileClient, fetchStatsProfile } from "./stats-profile.js";
 import { logAction } from "./action-log.js";
@@ -2112,6 +2116,7 @@ export async function leaveGame() {
   // ロスターのせいで既にいない部屋のダミーアバターが残り続けてしまう。
   roster = {};
   clearRankedPreMatchRank(); // 昇格演出用の対局開始時ランクは、次のランク対局で取り直す
+  lockCardSetForGame(null); // 0th拡張のテストモード: 対局ごとの固定を解いて端末の設定へ戻す
   setOnlineMode(false);
   // 退室したらローカルのゲーム状態も初期化する。これをしないと turnPlayer 等が「対局中」の
   // まま残り、ホーム/タイトルに戻った後の再描画で、ゲーム開始に紐づくオーバーレイ（チュートリアル
@@ -2333,7 +2338,7 @@ export async function registerSelfAsStatsPlayer() {
 }
 
 let startGameInFlight = false;
-export async function startGame(gameId, { includeBlackWhite = false, timerEnabled, pseudoCpuModeEnabled = false, boost = false, myDeckMode = false, skipDeckSelection = false } = {}) {
+export async function startGame(gameId, { includeBlackWhite = false, timerEnabled, pseudoCpuModeEnabled = false, boost = false, myDeckMode = false, skipDeckSelection = false, cardSet } = {}) {
   // 二重起動防止（不具合#70）: マイデッキ戦では開始直後に「デッキ選択フェイズ」(最大60秒)を
   // 回すため、このstartGameのPromiseがすぐには解決しない。その間にロビーが再描画されて開始
   // ボタンが作り直され再クリックされる等でstartGameが二重に走ると、デッキ選択オーバーレイが
@@ -2376,7 +2381,11 @@ export async function startGame(gameId, { includeBlackWhite = false, timerEnable
       // これらも対局全体の固定ルールなので、同じ「開始時に1回だけ送って全員が共有する」
       // timerConfig に相乗りさせる（so7_games.timer_config は jsonb にそのまま保存される
       // ため、サーバー側の変更は要らない）。読み出しは getSyncedTimerConfig()。
-      matchRules: { boost, includeBlackWhite, myDeckMode },
+      // 0th拡張のテストモード（管理者のみ）。🔴 **山札はサーバー（BOOTSTRAP_GAME）が組む**ので、
+      // ここで送らないと、画面で0th拡張を選んでいてもオンラインではリメイクの山札になる。
+      // matchRules に入れておくと「もう一度遊ぶ」でも引き継がれ、全クライアントが
+      // getSyncedTimerConfig() から同じ値を読める（＝片方だけ別セット、が起きない）。
+      matchRules: { boost, includeBlackWhite, myDeckMode, cardSet: cardSet || getCardSet() },
     };
     // ユーザー要望（続き102）「疑似CPUモードが適用されない原因をアクションログで
     // 確認できるようにしてほしい」。ゲーム開始時に送信するtimerConfig（疑似CPU
@@ -2392,7 +2401,7 @@ export async function startGame(gameId, { includeBlackWhite = false, timerEnable
     if (myDeckMode && !skipDeckSelection) await runDeckSelectionPhase(gameId, timerConfig.enabled);
     // myDeckMode: マイデッキ戦（対戦ロビーのトグル）。timerConfig等と同じく開始時に1回だけ
     // 送り、サーバーが各席の selected_deck を読んでシャッフル配布する（so7-apply-action）。
-    const result = await callAction({ type: "BOOTSTRAP_GAME", includeBlackWhite, timerConfig, boost, myDeckMode });
+    const result = await callAction({ type: "BOOTSTRAP_GAME", includeBlackWhite, timerConfig, boost, myDeckMode, cardSet: cardSet || getCardSet() });
     // 戦績プレイヤーの登録は各クライアントが自分の分だけ行う
     // （main.js のオンライン対局開始検知 → registerSelfAsStatsPlayer）。
     return result;
@@ -2533,6 +2542,9 @@ export async function maybeTriggerRematch(gameId) {
     boost: !!rules?.boost,
     includeBlackWhite: !!rules?.includeBlackWhite,
     myDeckMode: !!rules?.myDeckMode,
+    // 0th拡張のテストモードも引き継ぐ（前の対局と違うセットで始まると紛らわしい）。
+    // 古い対局（matchRules に cardSet が無い）では undefined → startGame 側で端末の設定。
+    cardSet: rules?.cardSet,
   });
   return true;
 }
@@ -3529,6 +3541,10 @@ export async function fetchAndHydrate(gameId) {
     // あった（ユーザー報告: 「オンにしたのにゲーム開始後、何かクリックするまでタイマーが
     // 作動しない」）。
     syncedTimerConfig = gameRow.timer_config ?? null;
+    // 0th拡張のテストモード: この対局がどのセットで組まれたかを全クライアントで揃える。
+    // 盤面・山札の中身自体はサーバーから届く cardId なので、これは「画面がどのセットの
+    // 対局だと思っているか」を合わせるためのもの（次の対局で端末の設定へ戻る）。
+    lockCardSetForGame(syncedTimerConfig?.matchRules?.cardSet ?? null);
     currentGameIsRanked = !!gameRow.is_ranked; // #127: ランク対局か（AFKでCPU代替せず敗北にするため）
     // 放置敗北等で結果反映済みのランク対局に復帰した時の勝敗表示用（2026-08-18）。
     currentRankedResult = { applied: !!gameRow.ranked_result_applied, winnerSeat: gameRow.ranked_winner_seat ?? null };

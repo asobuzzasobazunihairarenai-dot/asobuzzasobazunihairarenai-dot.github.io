@@ -126,6 +126,53 @@ if (ex0Src) {
     (効果あり === ex0.length && テストあり === ex0.length ? "（そろった）" : "（**これから**）");
 }
 
+// --- 5. 0th拡張の表が、サーバー側の写しとズレていないか -------------------------
+// 🔴 **オンラインの山札を組むのはサーバー（supabase/functions/so7-apply-action.ts）**なので、
+//   あちらは src/cards-data-ex0.js と同じ内容の**写し**を持っている。ズレると
+//   「CPU戦では0th拡張なのに、フレンドリーマッチだと枚数が違う」という分かりにくい形で出る。
+//   ⚠ サーバーの方は**手でコピペしてデプロイする運用**なので、機械で見張る価値が高い。
+// ⓘ 正規表現を使わずに読む（この環境では置換スクリプトの \ が食われて空振りしたことがある）。
+function 表を読む(本文, 始まりの目印) {
+  const i = 本文.indexOf(始まりの目印);
+  if (i < 0) return null;
+  const 塊 = 本文.slice(i, 本文.indexOf("];", i));
+  const 表 = new Map();
+  for (const 行 of 塊.split("\n")) {
+    const a = 行.indexOf('id: "ex0-');
+    if (a < 0) continue;
+    const id = 行.slice(a + 5).split('"')[0];
+    const c = 行.indexOf('color: "');
+    const n = 行.indexOf("count: ");
+    if (c < 0 || n < 0) continue;
+    const color = 行.slice(c + 8).split('"')[0];
+    const count = parseInt(行.slice(n + 7), 10);
+    if (!id || !color || !Number.isFinite(count)) continue;
+    表.set(id, color + ":" + count);
+  }
+  return 表;
+}
+if (ex0Src) {
+  let edge = null;
+  try {
+    edge = read("supabase/functions/so7-apply-action.ts");
+  } catch (e) {
+    edge = null; // Edge Function が無い環境（切り出し後など）では見ない
+  }
+  if (edge) {
+    const 写し = 表を読む(edge, "const EX0_NORMAL_CARDS");
+    const 正 = 表を読む(ex0Src, "export const EX0_NORMAL_CARDS");
+    if (!写し || !正 || 写し.size < 20 || 正.size < 20) {
+      console.error("❌ 検査そのものが怪しい: 0th拡張の表が 正" + (正 ? 正.size : "読めず") + " / 写し" + (写し ? 写し.size : "読めず") + " しか取れなかった");
+      process.exit(2);
+    }
+    for (const [id, v] of 正) {
+      if (!写し.has(id)) note("0th拡張: サーバー側の写しに無い: " + id + " → supabase/functions/so7-apply-action.ts の EX0_NORMAL_CARDS");
+      else if (写し.get(id) !== v) note("0th拡張: 色か枚数がサーバー側とズレている: " + id + "（正 " + v + " / 写し " + 写し.get(id) + "）");
+    }
+    for (const id of 写し.keys()) if (!正.has(id)) note("0th拡張: サーバー側にだけ在る: " + id + "（消し忘れ？）");
+  }
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
