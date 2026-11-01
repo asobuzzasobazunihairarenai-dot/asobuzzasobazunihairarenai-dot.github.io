@@ -69,6 +69,14 @@ export const VERBS = {
   DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS: "discard_random_from_qualifying_opponents", // 青のキューブ セレスティア専用: 手札が指定枚数以上ある相手全員から無作為に1枚ずつ捨てる
   DISCARD_ALL_AT_CHOSEN_CELL: "discard_all_at_chosen_cell",
   // 0th拡張で新設。
+  PICKUP_FACEUP_SAME_COLOR_TO_HAND: "pickup_faceup_same_color_to_hand",
+  // ここから 0th拡張の第2弾（続き651）。
+  PLACE_DECK_CARDS_IN_CHOSEN_CELLS: "place_deck_cards_in_chosen_cells", // 大地創造・迷いの森: 条件に合うNマスを選び、山札から1枚ずつ置く（revealでオープンも）
+  DISCARD_ALL_ADJACENT_CARDS: "discard_all_adjacent_cards", // 迷いの森: あなたの隣（4マス）のカードをすべて捨てる
+  DRAW_IF_HAND_ODD: "draw_if_hand_odd", // 不思議な果実: 手札が奇数枚ならドロー
+  PLACE_WHOLE_HAND_AT_CHOSEN_CELL: "place_whole_hand_at_chosen_cell", // バッドバーガー: 中央と四隅のうち駒のいない1マスへ手札を全部置く
+  DRAW_PER_FACEDOWN_AT_CHOSEN_CELL: "draw_per_facedown_at_chosen_cell", // ピュアバーガー(手札): 選んだマスの裏向きの枚数ぶんドロー
+  DISCARD_OWN_HAND_DOWN_TO: "discard_own_hand_down_to", // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
   PICKUP_DISCARD_TOP: "pickup_discard_top", // 赤のはじまり専用: 捨て場の１番上のカードを手札に加える // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
   // 続き44で新設。
   PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる
@@ -109,6 +117,47 @@ export const TARGET_SELECTIONS = {
 // cardIdはcards-data.jsの実際のidと一致させてある（将来ここを正規の効果データ置き場に
 // 昇格させる時、getCardDefinition()の結果とこのファイルをcardId経由で突き合わせられる
 // ようにするため）。
+// 0th拡張・色寄せの笛（7色）の2択。**到達効果と手札効果が同じ内容**（手札効果の印字は
+// 「上記の到達効果を得る。」）なので、片方だけ直してズレないよう**同じ配列を両方から参照する**。
+// ⚠ 中身は書き換えない（7枚が同じ配列を共有しているため）。
+// 善処の原則: 選べない選択肢は isArrivalOptionUsable / isHandEffectOptionUsable が落とす
+//   （同色の表向きが場に無い／裏向きのカードが場に無い）。両方だめなら不発。
+// 0th拡張・厳重警戒の2択（到達効果）。
+// 🔴 ②は「移動先のカードはオープンしない」＝**到達しない**。noArrival で ctx.arrivedAt を
+//   立てないようにしてある（立てると呼び出し元が移動先の到達処理＝自動オープンまでやる）。
+const EX0_STRICT_WATCH_OPTIONS = [
+  {
+    id: "ex0-strict-discard-to-1",
+    labelKey: "cef.opt.ex0StrictDiscardTo1",
+    // 手札が1枚以下なら捨てるものが無い＝選べない（善処の原則）。
+    // ⓘ 到達効果の時点では、このカード自身はまだ盤面にあるので手札に数えない。
+    requiresMinHandSize: 2,
+    actions: [{ verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, keep: 1 }],
+  },
+  {
+    id: "ex0-strict-gate",
+    labelKey: "cef.opt.ex0StrictGate",
+    requiresNotAtOwnGate: true,
+    actions: [{ verb: VERBS.FORCED_MOVE_TO_OWN_GATE, noArrival: true }],
+  },
+];
+
+const EX0_FLUTE_OPTIONS = [
+  {
+    id: "ex0-flute-pickup",
+    labelKey: "cef.opt.ex0FlutePickup",
+    requiresFaceUpSameColorOnBoard: true,
+    actions: [{ verb: VERBS.PICKUP_FACEUP_SAME_COLOR_TO_HAND }],
+  },
+  {
+    id: "ex0-flute-flip",
+    labelKey: "cef.opt.ex0FluteFlip",
+    requiresFaceDownCardOnBoard: true,
+    // withinCells を渡さない＝場（49マス）全体。optional: false＝「してもよい」ではなく必ず1枚。
+    actions: [{ verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, maxCount: 1, optional: false }],
+  },
+];
+
 export const CARD_EFFECTS = {
   // 1. ゴメンナサイッ！（紫、通常カード） 到達効果: 「１マス移動する。」
   // 手札効果は「【追色１】相手が最後のロックを宣言した時に使える。相手のロックしている
@@ -823,6 +872,137 @@ export const CARD_EFFECTS = {
       actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }, { verb: VERBS.END_CURRENT_PHASE }],
     },
   },
+
+  // 大地創造（緑・4枚） 到達効果: 「何もない４マスに山札から１枚ずつ裏向きで置く。それらをオープンする。」
+  // 手札効果: 「上記の到達効果を得る。」
+  // ⚠ 「何もないマス」＝カードも駒も置かれていないマス（用語集）。駒がいないので、
+  //   オープンしても到達は起きない（到達＝表向きのカードの上に駒が置かれたタイミング）。
+  "ex0-green-creation": {
+    arrival: {
+      actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoCard: true, requireNoPiece: true, reveal: true }],
+    },
+    handEffect: {
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoCard: true, requireNoPiece: true, reveal: true }],
+    },
+  },
+
+  // 迷いの森（緑・5枚） 到達効果: 「１枚ドロー。カードの置かれていない４マスに山札から１枚ずつ
+  // 裏向きで置く。あなたの隣のカードをすべて捨てる。」
+  // 手札効果: 「これをあなたの隣以外の、プレイヤーのいないマスに表向きで置く。」
+  // 🔴 置く先は**「カードの置かれていない」マス**＝大地創造の「何もないマス」と違って
+  //   **駒がいてもよい**（カードの文がそう書き分けられている）。裏向きで置くだけなので到達も起きない。
+  "ex0-green-lost-forest": {
+    arrival: {
+      actions: [
+        { verb: VERBS.DRAW, count: 1 },
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoCard: true, requireNoPiece: false, reveal: false },
+        { verb: VERBS.DISCARD_ALL_ADJACENT_CARDS },
+      ],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeAdjacent: true, excludePieceCells: true },
+        },
+      ],
+    },
+  },
+
+  // 不思議な果実（桃・4枚） 到達効果: 「あなたの手札が奇数枚なら１枚ドロー。」
+  // ⚠ **手札効果はまだ自動処理にしていない**（「あなたの右隣の相手が、あなたを１マス移動させる」
+  //   ＝委任と『このターンを終了する』が要る）。到達だけ自動で、手札効果は今までどおり
+  //   文を読んで自分で処理する形になる。docs/ex0-effects-plan.md 参照。
+  "ex0-pink-mystic-fruit": {
+    arrival: {
+      actions: [{ verb: VERBS.DRAW_IF_HAND_ODD, count: 1 }],
+    },
+  },
+
+  // バッドバーガー（黒・2枚） 到達効果: 「１枚ドロー。場の中央と四隅のマスのうち、プレイヤーの
+  // いないマスを１マス選ぶ。あなたの手札をすべて、そのマスの１番上に置く。」
+  // 手札効果: 「任意の１マスのカードをすべて捨てる。１枚ドロー。」
+  // ⓘ 到達の「手札をすべて」は**ドローした1枚も含む**（句点の順どおり、先にドローする）。
+  //   このカード自身はまだ盤面にあるので含まれない（既定動作で効果の後に手札へ入る）。
+  "ex0-black-bad-burger": {
+    arrival: {
+      actions: [{ verb: VERBS.DRAW, count: 1 }, { verb: VERBS.PLACE_WHOLE_HAND_AT_CHOSEN_CELL }],
+    },
+    handEffect: {
+      actions: [{ verb: VERBS.DISCARD_ALL_AT_CHOSEN_CELL }, { verb: VERBS.DRAW, count: 1 }],
+    },
+  },
+
+  // ピュアバーガー（白・2枚） 手札効果: 「任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。」
+  // ⚠ **到達効果はまだ自動処理にしていない**（「全員は１枚ドローし、自分の手札から１枚を
+  //   そのマスの１番上に置く」＝全員への委任が要る）。docs/ex0-effects-plan.md 参照。
+  "ex0-white-pure-burger": {
+    handEffect: {
+      actions: [{ verb: VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL }],
+    },
+  },
+
+  // 厳重警戒（青・4枚） 到達効果: 「以下の効果のうち１つ得る。／・あなたの手札が１枚になるように
+  // 捨てる。／・あなたのゲートに強制移動する。移動先のカードはオープンしない。」
+  // 手札効果: 「これをプレイヤーのいないマスに表向きで置く。」
+  "ex0-blue-strict-watch": {
+    arrivalOptions: EX0_STRICT_WATCH_OPTIONS,
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludePieceCells: true },
+        },
+      ],
+    },
+  },
+
+  // 色寄せの笛（7色・各4枚＝計28枚）。**0th拡張の山札の4分の1がこれ**なので、
+  // ここが自動で動くかどうかで遊び心地がだいぶ変わる。7枚は色だけが違い、効果は同じ。
+  // 色寄せの笛（赤）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-red": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
+  // 色寄せの笛（橙）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-orange": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
+  // 色寄せの笛（黄）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-yellow": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
+  // 色寄せの笛（緑）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-green": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
+  // 色寄せの笛（青）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-blue": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
+  // 色寄せの笛（桃）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-pink": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
+  // 色寄せの笛（紫）。到達効果・手札効果とも EX0_FLUTE_OPTIONS（上の2択）。
+  "ex0-flute-purple": {
+    arrivalOptions: EX0_FLUTE_OPTIONS,
+    handEffectOptions: EX0_FLUTE_OPTIONS,
+  },
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------
@@ -863,7 +1043,28 @@ function renderAction(action, context) {
     case VERBS.PICKUP_DISCARD_TOP:
       return "捨て場の１番上のカードをあなたの手札に加える。";
     case VERBS.FLIP_UP_TO_N_WITHIN_RANGE:
+      // 色寄せの笛: withinCells を渡さない（＝場の全体）・optional:false（＝必ず）の形。
+      if (action.withinCells == null) {
+        return `任意の${toFullWidthNumber(action.maxCount)}マスのカードをオープンする。`;
+      }
       return `${toFullWidthNumber(action.withinCells)}マス以内のカードを${toFullWidthNumber(action.maxCount)}枚までオープンしてもよい。`;
+    case VERBS.PICKUP_FACEUP_SAME_COLOR_TO_HAND:
+      return "これと同色の、場の表向きのカード１枚をあなたの手札に加える。";
+    case VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS: {
+      const どのマス = action.requireNoPiece ? "何もない" : "カードの置かれていない";
+      const 置く = `${どのマス}${toFullWidthNumber(action.count)}マスに山札から１枚ずつ裏向きで置く。`;
+      return action.reveal ? `${置く}それらをオープンする。` : 置く;
+    }
+    case VERBS.DISCARD_ALL_ADJACENT_CARDS:
+      return "あなたの隣のカードをすべて捨てる。";
+    case VERBS.DRAW_IF_HAND_ODD:
+      return `あなたの手札が奇数枚なら${count}枚ドロー。`;
+    case VERBS.PLACE_WHOLE_HAND_AT_CHOSEN_CELL:
+      return "場の中央と四隅のマスのうち、プレイヤーのいないマスを１マス選ぶ。あなたの手札をすべて、そのマスの１番上に置く。";
+    case VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL:
+      return "任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。";
+    case VERBS.DISCARD_OWN_HAND_DOWN_TO:
+      return `あなたの手札が${toFullWidthNumber(action.keep)}枚になるように捨てる。`;
     case VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS:
       return `手札が${toFullWidthNumber(action.minHandSize)}枚以上ある相手全員の手札から、無作為に１枚ずつ選び、それらを捨てる。`;
     case VERBS.DISCARD_ALL_AT_CHOSEN_CELL:
@@ -899,7 +1100,17 @@ function renderAction(action, context) {
         if (action.destination?.selection === TARGET_SELECTIONS.OWN_EMPTY_LOCK_SLOTS) {
           return `あなたの空いているロックエリアに、これを${faceLabel}置く。`;
         }
-        const destLabel = action.destination?.excludeGates ? "ゲート以外の任意のマスに" : "任意のマスに";
+        // 0th拡張（迷いの森・厳重警戒）: 置き先の条件をそのまま文にする。印字の語順に合わせて
+        // 「あなたの隣以外の、プレイヤーのいないマスに」となるよう、隣→駒の順でつなぐ。
+        const destLabel = action.destination?.excludeGates
+          ? "ゲート以外の任意のマスに"
+          : action.destination?.excludeAdjacent && action.destination?.excludePieceCells
+            ? "あなたの隣以外の、プレイヤーのいないマスに"
+            : action.destination?.excludeAdjacent
+              ? "あなたの隣以外のマスに"
+              : action.destination?.excludePieceCells
+                ? "プレイヤーのいないマスに"
+                : "任意のマスに";
         // selfLabelで上書きできる。以前は選べる罠の印字が「このカードを」だったため
         // 使っていたが、2026-09-24に印刷カードどおり「これを」へ揃えたので、いま渡して
         // いるカードは無い（既定の「これ」で全部足りる）。
@@ -953,7 +1164,8 @@ function renderAction(action, context) {
     case VERBS.DISCARD_HALF_HAND:
       return "あなたの手札を半分捨てる。";
     case VERBS.FORCED_MOVE_TO_OWN_GATE:
-      return "あなたのゲートに強制移動する。";
+      // 0th拡張（厳重警戒）: noArrival ＝「移動先のカードはオープンしない」。
+      return action.noArrival ? "あなたのゲートに強制移動する。移動先のカードはオープンしない。" : "あなたのゲートに強制移動する。";
     case VERBS.DISCARD_ONE_LOCKED_CARD:
       return "あなたのロックしている１枚を捨てる。";
     case VERBS.DECLARE_COLORS:

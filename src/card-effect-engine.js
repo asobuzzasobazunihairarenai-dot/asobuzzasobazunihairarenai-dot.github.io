@@ -261,6 +261,33 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
     const futureTarget = pile.length >= 1 ? pile[pile.length - 1] : null;
     if (futureTarget && isPhoenixCostCardThisTurn(futureTarget)) return false;
   }
+  // ピュアバーガー（0th拡張）専用。裏向きのカードが場に1枚も無ければ、ドロー0枚＝何も
+  // 起きないので発動宣言自体ができない（セレナーデ等と同じ扱い）。
+  if (option.actions?.some((a) => a.verb === VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL)) {
+    if (getCellsWithAnyFaceDownCard().length === 0) return false;
+  }
+  // 迷いの森・厳重警戒（0th拡張）専用。置ける先（「あなたの隣以外」「プレイヤーのいない
+  // マス」）が1つも無ければ置けないので発動宣言自体ができない（セレナーデ等と同じ扱い）。
+  // 🔴 数える条件は PLACE_CARD 側と**同じ関数**を使う（別々に書くとズレる）。
+  const 置く先 = option.actions?.find(
+    (a) =>
+      a.verb === VERBS.PLACE_CARD &&
+      a.source === "self" &&
+      (a.destination?.excludeAdjacent || a.destination?.excludePieceCells)
+  );
+  if (置く先) {
+    const piece = getState().tokens.find((t) => t.kind === "piece" && t.player === player);
+    if (getPlaceCardCellCandidates(置く先.destination, piece?.location ?? null).length === 0) return false;
+  }
+  // 色寄せの笛（0th拡張）専用。到達効果側（isArrivalOptionUsable）と同じ善処の原則。
+  // 🔴 **両方に書く必要がある**——到達と手札で別の関数が判定しているため、片方だけだと
+  //   「押せるのに何も起きない」選択肢が出る（続き626 の『仕組みは入れたが効いていない』と同じ形）。
+  if (option.requiresFaceUpSameColorOnBoard) {
+    if (getFaceUpCellCandidatesOfColor(getCardDefinition(cardId)?.color ?? null).length === 0) return false;
+  }
+  if (option.requiresFaceDownCardOnBoard) {
+    if (getAnyCellWithFaceDownCardCandidates().length === 0) return false;
+  }
   if (option.requiresPairInHand) {
     // 手札公開エリア(publicDraw)のカードもルール上「手札」（getHandTokensの定義、続き55）。
     // なないろの欠片の2枚判定でも公開中の欠片を数える（ユーザー指摘2026-08-10）。
@@ -349,6 +376,13 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
     const color = getCardDefinition(cardId)?.color;
     const candidates = findSameColorDiscardCandidates(cardTokenId, color, player);
     if (candidates.length < option.cost.count) return t("ce.L297");
+  }
+  // 色寄せの笛（0th拡張）専用の説明。ここに書かないと「押せないのに理由が出ない」になる。
+  if (option.requiresFaceUpSameColorOnBoard) {
+    if (getFaceUpCellCandidatesOfColor(getCardDefinition(cardId)?.color ?? null).length === 0) return t("ce.noFaceUpSameColor");
+  }
+  if (option.requiresFaceDownCardOnBoard) {
+    if (getAnyCellWithFaceDownCardCandidates().length === 0) return t("ce.noFaceDownOnBoard");
   }
   if (option.requiresPairInHand) {
     // publicDrawの同名カードも手札としてカウントする（isHandEffectOptionUsableと同じ）。
@@ -456,7 +490,7 @@ function getHandTokens(player) {
 // 選べる罠専用: arrivalOptionsの1つの選択肢が今選べるか（docs/cards.mdの善処の原則
 // 条件を満たすか）。requiresMinHandSize/requiresNotAtOwnGate/requiresHasLockedCardの
 // いずれかを満たさなければ選べない（指定の無い条件はチェックしない）。
-function isArrivalOptionUsable(player, pieceLocation, option) {
+function isArrivalOptionUsable(player, pieceLocation, option, cardId) {
   if (option.requiresMinHandSize != null) {
     const count = getHandTokens(player).length;
     if (count < option.requiresMinHandSize) return false;
@@ -464,6 +498,13 @@ function isArrivalOptionUsable(player, pieceLocation, option) {
   if (option.requiresNotAtOwnGate) {
     const gate = GATE_POSITIONS[SEAT_TO_SIDE[player]];
     if (pieceLocation && pieceLocation.row === gate.row && pieceLocation.col === gate.col) return false;
+  }
+  // 色寄せの笛（0th拡張）専用。善処の原則: その選択肢で何も起きないと分かっているなら選べない。
+  if (option.requiresFaceUpSameColorOnBoard) {
+    if (getFaceUpCellCandidatesOfColor(getCardDefinition(cardId)?.color ?? null).length === 0) return false;
+  }
+  if (option.requiresFaceDownCardOnBoard) {
+    if (getAnyCellWithFaceDownCardCandidates().length === 0) return false;
   }
   if (option.requiresHasLockedCard) {
     // ユーザー報告「ファーストカード1枚しかロックしていないのに『ロックしている
@@ -630,6 +671,112 @@ function getCellsWithFaceDownCardWithinRange(fromLocation, range) {
     if (!inBounds(row, col)) continue;
     const top = findTopCardAtCell(row, col);
     if (top && !top.faceUp) candidates.push({ zone: "cell", row, col });
+  }
+  return candidates;
+}
+
+// 「場（49マス）のうち、一番上が裏向きのカードがあるマス」の候補（色寄せの笛専用）。
+// getCellsWithFaceDownCardWithinRange の範囲なし版。「場」はルール上**7×7の49マスだけ**
+// （ロックエリアは含まない＝アプリ内ヘルプの用語集「場」の定義）。
+function getAnyCellWithFaceDownCardCandidates() {
+  const candidates = [];
+  for (let row = 0; row <= 6; row++) {
+    for (let col = 0; col <= 6; col++) {
+      const top = findTopCardAtCell(row, col);
+      if (top && !top.faceUp) candidates.push({ zone: "cell", row, col });
+    }
+  }
+  return candidates;
+}
+
+// 「置ける空きマス」の候補（大地創造・迷いの森）。
+// 🔴 **カードの文で2種類ある**ので取り違えない:
+//   ・「何もないマス」    … カードも駒も無い（用語集の定義）＝ requireNoPiece: true
+//   ・「カードの置かれていないマス」… カードが無いだけ。**駒はいてもよい**＝ requireNoPiece: false
+// PLACE_CARD（destination.selection: CHOOSE）の置き先の候補。
+// 🔴 **PLACE_CARD の本体と、手札効果が使えるかの判定（善処の原則）の両方から呼ぶ。**
+//   同じ条件を2か所に書くと必ずズレて「押せるのに置けない／押せないのに置ける」になる。
+//   ・excludeGates       … ゲート以外（ジャンプ台の手札効果）
+//   ・excludePieceCells  … 「プレイヤーのいないマス」（迷いの森・厳重警戒）
+//   ・excludeAdjacent    … 「あなたの隣以外」（迷いの森）。「隣」＝前後左右の4マス
+//                           （用語集。斜めも含む「周囲」とは別の概念）
+function getPlaceCardCellCandidates(destination, pieceLocation) {
+  let cells = getAllCellCandidates();
+  if (destination?.excludeGates) {
+    cells = cells.filter((c) => !Object.values(GATE_POSITIONS).some((g) => g.row === c.row && g.col === c.col));
+  }
+  if (destination?.excludePieceCells) {
+    cells = cells.filter((c) => !hasPieceAt(c.row, c.col));
+  }
+  if (destination?.excludeAdjacent) {
+    // 駒の位置が分からない時は絞れない。**安全側（候補なし）に倒す**——
+    // 絞らずに全マスを出すと「隣に置けてしまう」＝ルール違反になる。
+    if (!pieceLocation || typeof pieceLocation.row !== "number") return [];
+    const となり = new Set(DIRECTIONS.map(({ dr, dc }) => pieceLocation.row + dr + "," + (pieceLocation.col + dc)));
+    cells = cells.filter((c) => !となり.has(c.row + "," + c.col));
+  }
+  return cells;
+}
+
+function getEmptyCellCandidates(requireNoPiece) {
+  const candidates = [];
+  for (let row = 0; row <= 6; row++) {
+    for (let col = 0; col <= 6; col++) {
+      if (hasCardAt(row, col)) continue;
+      if (requireNoPiece && hasPieceAt(row, col)) continue;
+      candidates.push({ zone: "cell", row, col });
+    }
+  }
+  return candidates;
+}
+
+// 「場の中央と四隅」＝(3,3) と四隅の計5マス（バッドバーガー専用）。用語集「場の中央」は
+// 7×7の真ん中＝(3,3)。駒がいるマスは除く（カードの文の「プレイヤーのいないマス」）。
+function getCenterOrCornerCellsWithoutPiece() {
+  const cells = [
+    { row: 3, col: 3 },
+    { row: 0, col: 0 },
+    { row: 0, col: 6 },
+    { row: 6, col: 0 },
+    { row: 6, col: 6 },
+  ];
+  return cells.filter((c) => !hasPieceAt(c.row, c.col)).map((c) => ({ zone: "cell", row: c.row, col: c.col }));
+}
+
+// 「裏向きのカードが1枚以上あるマス」の候補（ピュアバーガーの手札効果専用）。
+// ⚠ 一番上が表向きでも、下に裏向きが埋まっていれば対象になる（枚数を数える効果なので
+//   １番上の原則は関係ない）。裏向きの枚数は誰でも見える公開情報。
+function getCellsWithAnyFaceDownCard() {
+  const candidates = [];
+  for (let row = 0; row <= 6; row++) {
+    for (let col = 0; col <= 6; col++) {
+      if (countFaceDownCardsAtCell(row, col) > 0) candidates.push({ zone: "cell", row, col });
+    }
+  }
+  return candidates;
+}
+
+function countFaceDownCardsAtCell(row, col) {
+  return getState().tokens.filter(
+    (t) => t.kind === "card" && t.location.zone === "cell" && t.location.row === row && t.location.col === col && !t.faceUp
+  ).length;
+}
+
+// 「場の表向きのカードのうち、指定の色のもの」があるマスの候補（色寄せの笛専用）。
+// 🔴 **一番上が表向きで、かつその色**のマスだけ。１番上の原則があるので、下に同色が
+//   埋まっていても取れない（取れるのは一番上の1枚だけ）。
+// ⚠ オンラインでは裏向きのカードの cardId がマスクされて null になるので、null は飛ばす
+//   （裏向きはそもそも対象外なので、取りこぼしにはならない）。
+function getFaceUpCellCandidatesOfColor(color) {
+  if (!color) return [];
+  const candidates = [];
+  for (let row = 0; row <= 6; row++) {
+    for (let col = 0; col <= 6; col++) {
+      const top = findTopCardAtCell(row, col);
+      if (!top || !top.faceUp || !top.cardId) continue;
+      if (getCardDefinition(top.cardId)?.color !== color) continue;
+      candidates.push({ zone: "cell", row, col });
+    }
   }
   return candidates;
 }
@@ -912,19 +1059,176 @@ async function runAction(action, ctx, helpers) {
       );
       return true;
     }
+    case VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS: {
+      // 大地創造「何もない４マスに山札から１枚ずつ裏向きで置く。それらをオープンする。」
+      // 迷いの森「カードの置かれていない４マスに山札から１枚ずつ裏向きで置く。」
+      // 善処の原則: 空きマスが count より少なければ**あるだけ置く**（置けないぶんは諦める）。
+      const 置いた = [];
+      for (let i = 0; i < action.count; i++) {
+        if (getState().piles.deck.length === 0) break; // 山札が尽きたらそこまで
+        const candidates = getEmptyCellCandidates(!!action.requireNoPiece);
+        if (candidates.length === 0) break;
+        const dest =
+          candidates.length === 1 && !ctx.forcePrompt
+            ? candidates[0]
+            : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: action.count }), { purpose: "place" });
+        if (!dest) break;
+        await helpers.placeFromDeck(dest); // マスへ置くと既定で裏向き（カードの文どおり）。本物の placeFromDeck は引数1つ
+        helpers.markPlacedLocation?.(dest);
+        置いた.push(dest);
+      }
+      if (置いた.length === 0) return false;
+      if (action.reveal) {
+        // 「それらをオープンする。」置いた順に表向きにする。
+        // ⓘ requireNoPiece のカード（大地創造）は**駒のいないマスにしか置かない**ので到達は
+        //   起きないが、将来 reveal を駒のいるマスで使うなら到達判定が要る（その時はここに足す）。
+        for (const dest of 置いた) {
+          const top = findTopCardAtCell(dest.row, dest.col);
+          if (top && !top.faceUp) await helpers.flipCard(top.id);
+        }
+      }
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.placedFromDeckN", { name: helpers.getPlayerName(ctx.player), n: 置いた.length })
+      );
+      return true;
+    }
+    case VERBS.DISCARD_ALL_ADJACENT_CARDS: {
+      // 迷いの森「あなたの隣のカードをすべて捨てる。」
+      // 「隣」＝前後左右の4マス（用語集。「周囲」＝斜めも含む8マスとは別）。
+      // そのマスに**積まれているカード全部**が対象（「カードをすべて」＝枚数の限定が無い）。
+      if (!ctx.pieceLocation) return false;
+      const 対象 = [];
+      for (const { dr, dc } of DIRECTIONS) {
+        const row = ctx.pieceLocation.row + dr;
+        const col = ctx.pieceLocation.col + dc;
+        if (!inBounds(row, col)) continue;
+        for (const tk of getState().tokens) {
+          if (tk.kind !== "card" || tk.location.zone !== "cell") continue;
+          if (tk.location.row !== row || tk.location.col !== col) continue;
+          // ファースト/エターナルは他のカードの効果の対象にならない（盤面に出ることは
+          // 普通は無いが、念のため既存の判定を通す）。
+          if (!isTargetableByOtherCardEffects(tk.cardId)) continue;
+          対象.push(tk.id);
+        }
+      }
+      if (対象.length === 0) return false;
+      for (const id of 対象) await helpers.discardAndSync(id);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.discardedAdjacentN", { name: helpers.getPlayerName(ctx.player), n: 対象.length })
+      );
+      return true;
+    }
+    case VERBS.DRAW_IF_HAND_ODD: {
+      // 不思議な果実「あなたの手札が奇数枚なら１枚ドロー。」
+      // 「手札」は公開ドロー置き場も含む（getHandTokens の定義＝続き55）。
+      // ⓘ 到達効果なので、このカード自身はまだ盤面にある（数に入らない）。
+      const 枚数 = getHandTokens(ctx.player).length;
+      if (枚数 % 2 === 0) {
+        await helpers.announceEffectReason?.(ctx.cardId, t("ce.handEvenNoDraw", { n: 枚数 }));
+        return false; // 偶数なら不発（善処の原則）
+      }
+      await helpers.drawCards(ctx.player, action.count ?? 1);
+      return true;
+    }
+    case VERBS.PLACE_WHOLE_HAND_AT_CHOSEN_CELL: {
+      // バッドバーガー「場の中央と四隅のマスのうち、プレイヤーのいないマスを１マス選ぶ。
+      //   あなたの手札をすべて、そのマスの１番上に置く。」
+      const candidates = getCenterOrCornerCellsWithoutPiece();
+      if (candidates.length === 0) return false; // 5マス全部に駒がいる（4人戦でも起きない）
+      const hand = getHandTokens(ctx.player);
+      if (hand.length === 0) return false; // 置くものが無い（善処の原則）
+      const dest =
+        candidates.length === 1 && !ctx.forcePrompt
+          ? candidates[0]
+          : await helpers.pickLocation(candidates, t("ce.pickCenterOrCorner"), { purpose: "place" });
+      if (!dest) return false;
+      // 「１番上に置く」＝順に積む。state 側は配列の末尾が一番上（１番上の原則）。
+      for (const tk of hand) {
+        await helpers.moveAndSync(tk.id, dest);
+      }
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.placedWholeHand", { name: helpers.getPlayerName(ctx.player), n: hand.length })
+      );
+      return true;
+    }
+    case VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL: {
+      // ピュアバーガー（手札）「任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。」
+      // 善処の原則: 裏向きが1枚も無いマスを選んでも0枚ドロー＝何も起きないので、
+      //   **裏向きが1枚以上あるマスだけ**を候補にする（光らないマスは選べない）。
+      const candidates = getCellsWithAnyFaceDownCard();
+      if (candidates.length === 0) return false;
+      const chosen =
+        candidates.length === 1 && !ctx.forcePrompt
+          ? candidates[0]
+          : await helpers.pickLocation(candidates, t("ce.pickCellForFaceDownCount"));
+      if (!chosen) return false;
+      const n = countFaceDownCardsAtCell(chosen.row, chosen.col);
+      if (n <= 0) return false;
+      await helpers.drawCards(ctx.player, n);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.drewPerFaceDown", { name: helpers.getPlayerName(ctx.player), n })
+      );
+      return true;
+    }
+    case VERBS.PICKUP_FACEUP_SAME_COLOR_TO_HAND: {
+      // 色寄せの笛（0th拡張）専用: 「これと同色の、場の表向きのカード１枚をあなたの手札に加える。」
+      // 🔴 **「場」は7×7の49マスだけ**（ロックエリア・捨て場は含まない＝用語集「場」）。
+      // 🔴 **取れるのは各マスの一番上の1枚だけ**（１番上の原則）。下に同色が埋まっていても取れない。
+      const myColor = getCardDefinition(ctx.cardId)?.color ?? null;
+      const sameColorCells = getFaceUpCellCandidatesOfColor(myColor);
+      if (sameColorCells.length === 0) return false;
+      // #336 と同じ事情: 到達効果でこのカード自身のマスを選ぶと二重に損をする（既定動作で
+      // どうせ手札に入る札に「1枚」を使ってしまう）。ルール上は選べるので候補からは外さず、
+      // CPUの自動選択でだけ避ける（avoidCells は「他に候補があるなら選ばない」という弱い指定）。
+      const fluteToken = getState().tokens.find((x) => x.id === ctx.cardTokenId);
+      const fluteCell =
+        fluteToken && fluteToken.location.zone === "cell"
+          ? [{ row: fluteToken.location.row, col: fluteToken.location.col }]
+          : null;
+      const pickedCell =
+        sameColorCells.length === 1 && !ctx.forcePrompt
+          ? sameColorCells[0]
+          : await helpers.pickLocation(sameColorCells, t("ce.pickFaceUpSameColor"), fluteCell ? { avoidCells: fluteCell } : undefined);
+      if (!pickedCell) return false;
+      const pickedToken = findTopCardAtCell(pickedCell.row, pickedCell.col);
+      if (!pickedToken) return false;
+      const pickedCardId = pickedToken.cardId;
+      // 拾ったことで下のカードが露出して到達（コンボ）が起きる場合は、それを完全に解決して
+      // から次へ進む（PICKUP_TO_HAND と同じ。第5引数 true）。
+      await helpers.moveAndSync(pickedToken.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+      helpers.onCardAcquiredToHand?.(pickedToken.id, pickedCardId, true, ctx.player);
+      if (pickedCardId) {
+        await helpers.announceEffectReason?.(
+          ctx.cardId,
+          t("ce.tookFaceUpSameColor", { name: helpers.getPlayerName(ctx.player), card: cardDisplayName(pickedCardId) })
+        );
+      }
+      return true;
+    }
     case VERBS.FLIP_UP_TO_N_WITHIN_RANGE: {
       // 黄のキューブ サフラン専用: あなたからwithinCellsマス以内の裏向きカードを、
       // maxCountまで（0枚でもよい＝「してもよい」）オープンする。候補が尽きるか、
       // maxCountに達するか、プレイヤーがこれ以上選ばない（pickLocationでnull）まで
       // 繰り返す。
+      // 色寄せの笛（0th拡張）: withinCells を渡さない＝**場（49マス）全体**。
+      //   optional: false＝「してもよい」ではなく必ず1枚オープンする（＝スキップを出さない）。
+      //   既定は「してもよい」のまま（サフランの挙動を変えないため、false を明示した時だけ必須）。
+      const 範囲なし = action.withinCells == null;
+      const してもよい = action.optional !== false;
       let flippedCount = 0;
       for (let i = 0; i < action.maxCount; i++) {
-        const candidates = getCellsWithFaceDownCardWithinRange(ctx.pieceLocation, action.withinCells);
+        const candidates = 範囲なし
+          ? getAnyCellWithFaceDownCardCandidates()
+          : getCellsWithFaceDownCardWithinRange(ctx.pieceLocation, action.withinCells);
         if (candidates.length === 0) break;
         const chosen = await helpers.pickLocation(
           candidates,
-          t("ce.pickOpenCells", { n: action.maxCount - i }),
-          { allowSkip: true, skipLabel: t("ce.L842") }
+          してもよい ? t("ce.pickOpenCells", { n: action.maxCount - i }) : t("ce.pickOpenCellRequired"),
+          してもよい ? { allowSkip: true, skipLabel: t("ce.L842") } : undefined
         );
         if (!chosen) break; // 「してもよい」なので、これ以上選ばない＝正常終了
         const token = findTopCardAtCell(chosen.row, chosen.col);
@@ -1363,9 +1667,7 @@ async function runAction(action, ctx, helpers) {
         const pickCount = action.count ?? 1;
         // ユーザー要望「ジャンプ台の手札効果」：「これをゲート以外の任意のマスに」
         // 置く場合、ゲートマスは候補から外す（destination.excludeGates）。
-        const cellCandidates = action.destination?.excludeGates
-          ? getAllCellCandidates().filter((c) => !Object.values(GATE_POSITIONS).some((g) => g.row === c.row && g.col === c.col))
-          : getAllCellCandidates();
+        const cellCandidates = getPlaceCardCellCandidates(action.destination, ctx.pieceLocation);
         // ユーザー報告「プリドゥエン/増殖する樹々は『任意の“2マス”』なのに、同じ1マスに
         // 2枚置けてしまう」。既に選んだマスは次以降の候補から除外し、別々のマスにしか
         // 置けないようにする（＝重複マスは光らない＝選べない）。あわせて、既に選んだマスを
@@ -1687,6 +1989,45 @@ async function runAction(action, ctx, helpers) {
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.discardAllAndDraw", { n: action.count }));
       return true;
     }
+    case VERBS.DISCARD_OWN_HAND_DOWN_TO: {
+      // 厳重警戒（0th拡張）「あなたの手札が１枚になるように捨てる。」
+      // 作りは DISCARD_HALF_HAND と同じ（2枚以上なら順番を付けてまとめて選ぶ＝#344）。
+      // 「手札」は公開ドロー置き場も含む（getHandTokens の定義＝続き55）。
+      const handTokens2 = getHandTokens(ctx.player);
+      const discardCount2 = Math.max(0, handTokens2.length - (action.keep ?? 0));
+      if (discardCount2 === 0) return false; // 既にその枚数以下＝何もしない（善処の原則）
+      const discardedNames2 = [];
+      let ordered2 = null;
+      if (discardCount2 >= 2 && helpers.pickHandCardsOrdered) {
+        const picked = await helpers.pickHandCardsOrdered(
+          ctx.player,
+          t("ce.pickDiscardOrderN", { n: discardCount2 }),
+          handTokens2.map((tk) => tk.id),
+          { limit: discardCount2 }
+        );
+        if (Array.isArray(picked) && picked.length > 0) ordered2 = picked.slice(0, discardCount2);
+      }
+      if (ordered2) {
+        for (const token of ordered2) {
+          discardedNames2.push(cardDisplayName(token.cardId));
+          await helpers.discardAndSync(token.id);
+        }
+      } else {
+        for (let i = 0; i < discardCount2; i++) {
+          const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount2 - i }));
+          if (!chosen) break;
+          discardedNames2.push(cardDisplayName(chosen.cardId));
+          await helpers.discardAndSync(chosen.id);
+        }
+      }
+      if (discardedNames2.length === 0) return false;
+      // 捨て札は公開情報なので、何を捨てたかを全員へ告知する（選べる罠と同じ形）。
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.trapDiscarded", { name: helpers.getPlayerName(ctx.player), cards: discardedNames2.join("」「") })
+      );
+      return true;
+    }
     case VERBS.DISCARD_HALF_HAND: {
       // 選べる罠専用: 手札の半分（端数切り捨て、docs/rulebook.md「手札の半分」の
       // 定義通り）を、自分で選んで捨てる（ゲート侵攻ボーナスの「無作為に奪う」とは
@@ -1739,9 +2080,16 @@ async function runAction(action, ctx, helpers) {
       const gate = GATE_POSITIONS[SEAT_TO_SIDE[ctx.player]];
       const dest = { zone: "cell", row: gate.row, col: gate.col };
       if (ctx.pieceLocation.row === dest.row && ctx.pieceLocation.col === dest.col) return false; // 善処の原則: 既に自分のゲートにいるなら何もしない
-      await helpers.moveAndSync(ctx.pieceTokenId, dest);
+      // 🔴 厳重警戒（0th拡張）の「移動先のカードはオープンしない」用。
+      //   ctx.arrivedAt を立てると、呼び出し元（main.js）が移動先の到達処理をする＝
+      //   裏向きのカードを自動でオープンしてしまう（続き70 の『自動処理では移動・強制移動の
+      //   移動先が裏なら原則自動でオープン』）。立てなければ、ただ駒が移るだけになる。
+      //   あわせて state 側にも印を残す（suppressArrival）——オンラインで他クライアントの
+      //   remote-move-animator が『表向きカードの上にいる＝到達した』と誤判定しないため
+      //   （state.js の MOVE_TOKEN のコメント参照）。
+      await helpers.moveAndSync(ctx.pieceTokenId, dest, undefined, !!action.noArrival);
       ctx.pieceLocation = dest;
-      ctx.arrivedAt = dest;
+      if (!action.noArrival) ctx.arrivedAt = dest;
       return true;
     }
     case VERBS.DISCARD_ONE_LOCKED_CARD: {
@@ -2315,7 +2663,7 @@ async function runArrivalOptionsEffect(ctx, options, helpers) {
     selections: {},
     arrivedAt: null,
   };
-  const usableOptions = options.filter((opt) => isArrivalOptionUsable(runCtx.player, runCtx.pieceLocation, opt));
+  const usableOptions = options.filter((opt) => isArrivalOptionUsable(runCtx.player, runCtx.pieceLocation, opt, ctx.cardId));
   let hadEffect = false;
   if (usableOptions.length > 0) {
     const optionsWithUsability = options.map((opt) => ({ ...opt, usable: usableOptions.includes(opt) }));

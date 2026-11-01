@@ -1532,6 +1532,471 @@ export const CASES = [
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
     ],
   },
+  // --- 色寄せの笛（7色・各4枚＝計28枚。0th拡張の山札の4分の1） ---------------------
+  // 到達効果・手札効果とも「①これと同色の、場の表向きのカード１枚を手札に加える
+  // ／②任意の１マスのカードをオープンする」の2択（EX0_FLUTE_OPTIONS）。
+  {
+    name: "色寄せの笛(到達): ①同色の表向きを手札に加える（色違いは取れない）",
+    kind: "arrival",
+    cardId: "ex0-flute-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "flute", kind: "card", cardId: "ex0-flute-red", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        // 同色（赤）の表向き＝取れる
+        { id: "redCard", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        // 色違い（青）の表向き＝取れない
+        { id: "blueCard", kind: "card", cardId: "blue-choosable-trap", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 同色（赤）だが裏向き＝取れない
+        { id: "redFaceDown", kind: "card", cardId: "red-counter-lock", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-red", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["ex0-flute-pickup"], location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "tokenZone", id: "redCard", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "blueCard", zone: "cell" },      // 色違いは動かない
+      { kind: "tokenZone", id: "redFaceDown", zone: "cell" },   // 裏向きは動かない
+      { kind: "tokenZone", id: "flute", zone: "hand", player: "A" }, // 既定動作でこのカード自身も手札へ
+      { kind: "handCount", player: "A", n: 2 },
+      // CPUの自動選択が「笛自身のマス」を避けるよう avoidCells を渡しているか（#336と同じ事情）
+      { kind: "called", name: "pickLocationAvoidCell", arg: "6,3" },
+    ],
+  },
+  {
+    name: "色寄せの笛(到達): ②任意の1マスをオープンする",
+    kind: "arrival",
+    cardId: "ex0-flute-blue",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "flute", kind: "card", cardId: "ex0-flute-blue", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        // 盤面の端（＝駒から遠い）でも選べる＝「任意の1マス」で場の全体が候補になる
+        { id: "hidden", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-blue", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["ex0-flute-flip"], location: [{ row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenFaceUp", id: "hidden" },
+      { kind: "tokenZone", id: "hidden", zone: "cell" }, // オープンするだけ＝手札には来ない
+      { kind: "tokenZone", id: "flute", zone: "hand", player: "A" },
+      { kind: "handCount", player: "A", n: 1 },
+    ],
+  },
+  {
+    name: "色寄せの笛(到達): どちらも対象が無ければ不発（手札に加わるだけ・善処の原則）",
+    kind: "arrival",
+    cardId: "ex0-flute-green",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        // 自分自身は緑だが、下の expect のとおり「自分を取る」以外に候補が無い状態を作るため
+        // あえて笛だけを緑にし、他は色違いの表向きだけを置く（裏向きは1枚も置かない）。
+        { id: "flute", kind: "card", cardId: "ex0-flute-green", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "blueCard", kind: "card", cardId: "blue-choosable-trap", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-green", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    // 裏向きが1枚も無いので②は選べない。①は「笛自身（緑）」だけが候補なので選べてしまうが、
+    // ここでは②を選んだ台本にして「対象が無い時に何も壊れない」ことを見る。
+    picks: { option: ["ex0-flute-flip"], location: [] },
+    expect: [
+      { kind: "tokenZone", id: "blueCard", zone: "cell" },
+      { kind: "tokenZone", id: "flute", zone: "hand", player: "A" }, // 不発でも手札に加わる
+      { kind: "handCount", player: "A", n: 1 },
+    ],
+  },
+  {
+    name: "色寄せの笛(手札): ①同色の表向きを手札に加える（笛自身は先に捨てられる）",
+    kind: "hand",
+    cardId: "ex0-flute-purple",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "flute", kind: "card", cardId: "ex0-flute-purple", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "purpleCard", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-purple", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["ex0-flute-pickup"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenZone", id: "purpleCard", zone: "hand", player: "A" },
+      { kind: "tokenNotInHand", id: "flute", player: "A" }, // 手札効果の既定動作で先に捨てられる
+      { kind: "pileContains", pile: "discard", cardId: "ex0-flute-purple" },
+      { kind: "handCount", player: "A", n: 1 },
+    ],
+  },
+  {
+    name: "色寄せの笛(手札): ②任意の1マスをオープンする",
+    kind: "hand",
+    cardId: "ex0-flute-yellow",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "flute", kind: "card", cardId: "ex0-flute-yellow", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "hidden", kind: "card", cardId: "yellow-gamble", faceUp: false, location: { zone: "cell", row: 5, col: 0 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-yellow", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["ex0-flute-flip"], location: [{ row: 5, col: 0 }] },
+    expect: [
+      { kind: "tokenFaceUp", id: "hidden" },
+      { kind: "tokenZone", id: "hidden", zone: "cell" },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  {
+    name: "色寄せの笛(到達): ①は同色の表向きが無いと何も起きない（色の絞り込みの検査）",
+    kind: "arrival",
+    cardId: "ex0-flute-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 3 } },
+        // 🔴 笛自身を「橙」にして、場に赤の表向きが1枚も無い状態を作る（笛自身も候補にならない）。
+        { id: "flute", kind: "card", cardId: "ex0-flute-orange", faceUp: true, location: { zone: "cell", row: 0, col: 3 } },
+        { id: "blueCard", kind: "card", cardId: "blue-choosable-trap", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "orangeFaceDown", kind: "card", cardId: "orange-mass-change", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-orange", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 3 } },
+    // ①を選ぶが、同色（橙）の表向きが場に無いので何も起きない＝不発。
+    // もし色や表裏の絞り込みが壊れていたら、ここで青か裏向きの橙が手札に入ってしまう。
+    picks: { option: ["ex0-flute-pickup"], location: [{ row: 3, col: 3 }] },
+    expect: [
+      { kind: "tokenZone", id: "blueCard", zone: "cell" },        // 色違いは取られない
+      { kind: "tokenZone", id: "orangeFaceDown", zone: "cell" },  // 同色でも裏向きは取られない
+      { kind: "tokenFaceDown", id: "orangeFaceDown" },            // オープンもされない
+      { kind: "tokenZone", id: "flute", zone: "hand", player: "A" },
+      { kind: "handCount", player: "A", n: 1 },                   // 笛自身だけ
+    ],
+  },
+  // --- 大地創造（緑・4枚） -------------------------------------------------------
+  {
+    name: "大地創造(到達): 何もない4マスに山札から置いてオープンする",
+    kind: "arrival",
+    cardId: "ex0-green-creation",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-creation", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change", "yellow-gamble", "pink-party"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-creation", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 5, col: 5 }] },
+    expect: [
+      { kind: "cardAtCell", row: 0, col: 0, faceUp: true },
+      { kind: "cardAtCell", row: 0, col: 1, faceUp: true },
+      { kind: "cardAtCell", row: 0, col: 2, faceUp: true },
+      { kind: "cardAtCell", row: 5, col: 5, faceUp: true },
+      { kind: "deckLen", n: 1 },                 // 5枚のうち4枚使った
+      { kind: "boardCardCount", n: 4 },          // 自分自身は最後に手札へ入るので盤面は置いた4枚
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  {
+    name: "大地創造(到達): 山札が1枚しか無ければ1枚だけ置く（善処の原則）",
+    kind: "arrival",
+    cardId: "ex0-green-creation",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-creation", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-creation", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }] },
+    expect: [
+      { kind: "cardAtCell", row: 0, col: 0, faceUp: true },
+      { kind: "deckLen", n: 0 },
+      { kind: "boardCardCount", n: 1 },
+    ],
+  },
+
+  // --- 迷いの森（緑・5枚） -------------------------------------------------------
+  {
+    name: "迷いの森(到達): 1枚ドロー→カードの無い4マスに裏向きで置く→隣のカードをすべて捨てる",
+    kind: "arrival",
+    cardId: "ex0-green-lost-forest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-lost-forest", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 隣（前後左右）に2枚。これらは最後に捨てられる。
+        { id: "nb1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "nb2", kind: "card", cardId: "pink-present", faceUp: false, location: { zone: "cell", row: 3, col: 4 } },
+        // 斜め（＝「隣」ではない）。捨てられない。
+        { id: "diag", kind: "card", cardId: "blue-slum-official", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change", "yellow-gamble", "pink-party"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-lost-forest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 5, col: 5 }] },
+    expect: [
+      { kind: "cardAtCell", row: 0, col: 0, faceUp: false }, // オープンしない
+      { kind: "cardAtCell", row: 5, col: 5, faceUp: false },
+      { kind: "pileContains", pile: "discard", cardId: "purple-sorry" }, // 隣は捨てられる
+      { kind: "pileContains", pile: "discard", cardId: "pink-present" },
+      { kind: "tokenZone", id: "diag", zone: "cell" },                   // 斜めは残る
+      { kind: "deckLen", n: 0 },                                         // ドロー1＋置く4
+      { kind: "handCount", player: "A", n: 2 },                          // 引いた1枚＋自分自身
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  {
+    name: "迷いの森(手札): これをあなたの隣以外・プレイヤーのいないマスに表向きで置く",
+    kind: "hand",
+    cardId: "ex0-green-lost-forest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-lost-forest", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-lost-forest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 0, col: 0 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "handCount", player: "A", n: 0 }, // 自分自身が盤面へ出るので手札は空
+    ],
+  },
+
+  // --- 不思議な果実（桃・4枚。到達効果だけ自動処理） --------------------------------
+  {
+    name: "不思議な果実(到達): 手札が奇数枚なら1枚ドロー",
+    kind: "arrival",
+    cardId: "ex0-pink-mystic-fruit",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-mystic-fruit", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "h1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },                // 1枚ドローした
+      { kind: "handCount", player: "A", n: 3 }, // 元の1枚＋引いた1枚＋自分自身
+    ],
+  },
+  {
+    name: "不思議な果実(到達): 手札が偶数枚ならドローしない",
+    kind: "arrival",
+    cardId: "ex0-pink-mystic-fruit",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-mystic-fruit", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "h1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 2 },                // ドローしていない
+      { kind: "handCount", player: "A", n: 3 }, // 元の2枚＋自分自身
+    ],
+  },
+
+  // --- バッドバーガー（黒・2枚） ---------------------------------------------------
+  {
+    name: "バッドバーガー(到達): 1枚ドロー→中央か四隅の駒のいない1マスへ手札を全部置く",
+    kind: "arrival",
+    cardId: "ex0-black-bad-burger",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-black-bad-burger", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "h1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-black-bad-burger", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 3, col: 3 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "h1", row: 3, col: 3 },
+      { kind: "tokenAtCell", id: "h2", row: 3, col: 3 },
+      { kind: "deckLen", n: 1 },                // 1枚ドローした
+      { kind: "boardCardCount", n: 3 },         // 置いた3枚（手札2＋引いた1）。自分自身は手札へ
+      { kind: "handCount", player: "A", n: 1 }, // 自分自身だけ
+    ],
+  },
+  {
+    name: "バッドバーガー(手札): 任意の1マスのカードをすべて捨てる→1枚ドロー",
+    kind: "hand",
+    cardId: "ex0-black-bad-burger",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-black-bad-burger", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "c1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "c2", kind: "card", cardId: "pink-present", faceUp: false, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "keep", kind: "card", cardId: "blue-slum-official", faceUp: true, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-black-bad-burger", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "pileContains", pile: "discard", cardId: "purple-sorry" },
+      { kind: "pileContains", pile: "discard", cardId: "pink-present" },
+      { kind: "tokenZone", id: "keep", zone: "cell" },  // 選んでいないマスは残る
+      { kind: "deckLen", n: 0 },                        // 1枚ドローした
+      { kind: "handCount", player: "A", n: 1 },         // 引いた1枚（自分自身は捨てられる）
+      { kind: "pileContains", pile: "discard", cardId: "ex0-black-bad-burger" },
+    ],
+  },
+
+  // --- ピュアバーガー（白・2枚。手札効果だけ自動処理） ------------------------------
+  {
+    name: "ピュアバーガー(手札): 選んだマスの裏向きのカードの枚数分ドロー",
+    kind: "hand",
+    cardId: "ex0-white-pure-burger",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-white-pure-burger", faceUp: true, location: { zone: "hand", player: "A" } },
+        // (1,1) に裏向き3枚＋表向き1枚 → 3枚ドロー（表向きは数えない）
+        { id: "d1", kind: "card", cardId: "purple-sorry", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "d2", kind: "card", cardId: "pink-present", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "d3", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "u1", kind: "card", cardId: "blue-slum-official", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-white-pure-burger", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "deckLen", n: 1 },                // 4枚のうち3枚引いた
+      { kind: "handCount", player: "A", n: 3 }, // 自分自身は捨てられる
+      { kind: "pileContains", pile: "discard", cardId: "ex0-white-pure-burger" },
+    ],
+  },
+  // --- 厳重警戒（青・4枚） -------------------------------------------------------
+  {
+    name: "厳重警戒(到達): ①手札が1枚になるように捨てる",
+    kind: "arrival",
+    cardId: "ex0-blue-strict-watch",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-strict-watch", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "h1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h3", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-strict-watch", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["ex0-strict-discard-to-1"], handCardsOrdered: [["h1", "h2"]] },
+    expect: [
+      { kind: "pileContains", pile: "discard", cardId: "purple-sorry" },
+      { kind: "pileContains", pile: "discard", cardId: "pink-present" },
+      { kind: "tokenZone", id: "h3", zone: "hand", player: "A" },     // 1枚だけ残る
+      { kind: "handCount", player: "A", n: 2 },                        // 残り1枚＋自分自身
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  {
+    name: "厳重警戒(到達): ②自分のゲートへ強制移動。移動先はオープンしない（印を検査）",
+    kind: "arrival",
+    cardId: "ex0-blue-strict-watch",
+    state: {
+      // A の座席は南（手前）。ゲートは board-layout.js の GATE_POSITIONS で (6,3)。
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-strict-watch", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        // 自分のゲートに裏向きのカード。オープンされてはいけない。
+        { id: "gateCard", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-strict-watch", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { option: ["ex0-strict-gate"] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 6, col: 3 },
+      { kind: "tokenFaceDown", id: "gateCard" },
+      // 🔴 ここが本題。この印が立っていないと、本物（main.js / remote-move-animator）が
+      //   「表向きカードの上にいる＝到達した」と判断して移動先を自動でオープンしてしまう。
+      { kind: "tokenFlag", id: "pieceA", flag: "arrivalSuppressed", value: true },
+    ],
+  },
+  {
+    name: "厳重警戒(手札): これをプレイヤーのいないマスに表向きで置く",
+    kind: "hand",
+    cardId: "ex0-blue-strict-watch",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-strict-watch", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-strict-watch", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // (0,0) には B の駒がいるので候補に入らない。resolveLocation は候補に無い指定も
+    // そのまま返してしまうため、ここでは**候補に在る (1,1)** を指定して正しく置けることを見る。
+    picks: { location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 1, col: 1 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  {
+    name: "色寄せの笛(到達・桃): 7色とも同じ2択を共有していることの確認",
+    kind: "arrival",
+    cardId: "ex0-flute-pink",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "flute", kind: "card", cardId: "ex0-flute-pink", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pinkCard", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "cell", row: 2, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-pink", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["ex0-flute-pickup"], location: [{ row: 2, col: 5 }] },
+    expect: [
+      { kind: "tokenZone", id: "pinkCard", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "flute", zone: "hand", player: "A" },
+      { kind: "handCount", player: "A", n: 2 },
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------
@@ -1547,6 +2012,16 @@ export function checkExpect(res, exp) {
     case "tokenNotInHand":
       if (t && t.location.zone === "hand" && t.location.player === exp.player) return `token ${exp.id} が手札(${exp.player})に入ってしまった`;
       return null;
+    // トークンに付く印（今は arrivalSuppressed だけ）を見る。
+    // 🔴 「移動先のカードはオープンしない」（厳重警戒）のように、**engine の外（main.js）が
+    //   見る印**を立てたかどうかを検査するために要る。印そのものを見ないと、テストの中では
+    //   誰もオープンしないので「オープンしていない」が合格になってしまう（＝検査にならない）。
+    case "tokenFlag": {
+      if (!t) return `token ${exp.id} が見つからない`;
+      const 実際 = !!t[exp.flag];
+      if (実際 !== !!exp.value) return `token ${exp.id} の ${exp.flag} が ${実際}（期待 ${!!exp.value}）`;
+      return null;
+    }
     case "tokenAtCell":
       if (!t) return `token ${exp.id} が見つからない`;
       if (!(t.location.zone === "cell" && t.location.row === exp.row && t.location.col === exp.col)) return `token ${exp.id} は ${JSON.stringify(t.location)}（期待 cell ${exp.row},${exp.col}）`;
