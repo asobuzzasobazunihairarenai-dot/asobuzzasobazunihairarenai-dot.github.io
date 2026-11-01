@@ -27,6 +27,7 @@ import { openRankingPage } from "./ranking-page.js";
 // ランク戦フェーズ4/6: 現ランクをホームに常時表示（称号バッジ静止版＋七色ゲージ）。
 import { getSelfRank, pollRanked, getCurrentUser, isAdminUser } from "./online.js";
 import { rankName } from "./rank-badge.js";
+import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
 import { buildRankShowcase } from "./rank-showcase.js";
 import { showRankExplanationModal } from "./rank-explain.js";
 // チュートリアルCPU戦（台本化された練習試合）。完全ローカル機能。
@@ -381,6 +382,51 @@ function openMatchChoiceModal() {
   rulesHint.textContent = t("home.matchChoice.rulesHint");
   rules.appendChild(rulesHint);
   panel.appendChild(rules);
+
+  // 🔴 管理者だけに出す「テストモード」。0th拡張（0th EDITION 拡張）の33種で遊ぶための入口。
+  //   遊んでいる人には**この区画自体が存在しない**（既定はリメイクの33種のまま）。
+  //   ⚠ ここで選んだものは**次に始める対局から**効く（いま走っている対局の山札は変えられない）。
+  //   ⚠ フレンドリーマッチはオンラインなので、**部屋を作った人の設定が全員に効く**形が要る。
+  //     それは online 側の作りなので、いまは CPU戦だけが確実に効く。下の注意書きにもそう出す。
+  if (isAdminUser()) {
+    const setBox = document.createElement("div");
+    setBox.className = "home-match-choice-difficulty home-match-choice-testmode";
+    const setLabel = document.createElement("div");
+    setLabel.className = "home-match-choice-difficulty-label";
+    setLabel.textContent = t("home.matchChoice.cardSetLabel");
+    setBox.appendChild(setLabel);
+    const setSeg = document.createElement("div");
+    setSeg.className = "home-match-choice-segment";
+    const setButtons = [];
+    const refreshSet = () => {
+      const cur = getCardSet();
+      for (const b of setButtons) b.classList.toggle("is-selected", b.dataset.v === cur);
+    };
+    for (const [v, key] of [
+      [CARD_SETS.REMAKE, "home.matchChoice.cardSetRemake"],
+      [CARD_SETS.EX0, "home.matchChoice.cardSetEx0"],
+      [CARD_SETS.MIXED, "home.matchChoice.cardSetMixed"],
+    ]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "home-match-choice-segment-btn";
+      b.dataset.v = v;
+      b.textContent = t(key);
+      b.addEventListener("click", () => {
+        setCardSet(v);
+        refreshSet();
+      });
+      setSeg.appendChild(b);
+      setButtons.push(b);
+    }
+    setBox.appendChild(setSeg);
+    const setHint = document.createElement("div");
+    setHint.className = "home-match-choice-difficulty-hint";
+    setHint.textContent = t("home.matchChoice.cardSetHint");
+    setBox.appendChild(setHint);
+    refreshSet();
+    panel.appendChild(setBox);
+  }
 
   const cancel = document.createElement("button");
   cancel.type = "button";

@@ -11,13 +11,21 @@
 import { getLang } from "./i18n.js";
 import { CARD_TEXT_JA } from "./card-text.ja.js";
 import { CARD_TEXT_EN } from "./card-text.en.js";
+import { CARD_TEXT_EX0_JA } from "./card-text-ex0.ja.js";
+import { CARD_TEXT_EX0_EN } from "./card-text-ex0.en.js";
+
+// 🔴 0th拡張の文は**別ファイル**で持ち、ここで混ぜる。
+//   card-text.ja.js は tools/gen-card-text.mjs が「カード効果　テキスト.txt」から
+//   **丸ごと上書きして作る**ので、あちらに書き足すと次の生成で黙って消えるため。
+const JA = { ...CARD_TEXT_JA, ...CARD_TEXT_EX0_JA };
+const EN = { ...CARD_TEXT_EN, ...CARD_TEXT_EX0_EN };
 const LANGS = {
-  ja: CARD_TEXT_JA,
-  en: CARD_TEXT_EN,
+  ja: JA,
+  en: EN,
 };
 
 export function getCardText(cardId) {
-  const ja = CARD_TEXT_JA[cardId] || null;
+  const ja = JA[cardId] || null;
   const lang = getLang();
   if (lang === "ja" || !LANGS[lang]) return ja;
   const loc = LANGS[lang][cardId];

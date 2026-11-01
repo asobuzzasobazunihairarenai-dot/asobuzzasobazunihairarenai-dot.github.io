@@ -70,16 +70,66 @@ for (const c of cards) {
 }
 
 // --- 3. 逆向き（カード一覧に無いのにデータだけ在る＝消し忘れ） ----------------------
-const known = new Set(cards.map((c) => c.id));
+// ⚠ 0th拡張のカードは cards-data-ex0.js の方に居るので、ここでも一覧に入れる。
+//   入れ忘れると「効果データだけ在る＝消し忘れ？」という**嘘の指摘**が出る（実際に出た）。
+const ex0Ids = (() => {
+  try {
+    return [...read("src/cards-data-ex0.js").matchAll(/\{\s*id:\s*"(ex0-[a-z0-9-]+)"/g)].map((m) => m[1]);
+  } catch (e) {
+    return [];
+  }
+})();
+const known = new Set([...cards.map((c) => c.id), ...ex0Ids]);
 for (const [label, ids] of [["効果データ", effectIds], ["日本語の文", jaIds], ["英語の文", enIds]]) {
   for (const id of ids) {
     if (!known.has(id)) note(`カード一覧に無いのに ${label} だけ在る: ${id}（消し忘れ？）`);
   }
 }
 
+// --- 4. 0th拡張（0th EDITION 拡張）--------------------------------------------------
+// 🔴 **リメイクとは要るものが違う**ので別に見る。
+//   ・絵は assets/cards-blank（文字なし）と assets/cards-illust の2種。
+//     **assets/cards（文字入り）は作らない**——0th拡張は文字をアプリが描くので、焼き込んだ絵を
+//     持つと効果文を直すたびに絵の作り直しになる。
+//   ・文は card-text-ex0.ja.js / .en.js（card-text.ja.js は生成物なのでそこには置けない）。
+//   ・効果データとテストは**これから**。無い数をそのまま出して、進み具合が毎回見えるようにする。
+const ex0Src = (() => {
+  try {
+    return read("src/cards-data-ex0.js");
+  } catch (e) {
+    return null;
+  }
+})();
+let ex0Line = "";
+if (ex0Src) {
+  const ex0 = [...ex0Src.matchAll(/\{\s*id:\s*"(ex0-[a-z0-9-]+)"\s*,\s*name:\s*"([^"]*)"/g)].map((m) => ({ id: m[1], name: m[2] }));
+  if (ex0.length < 20) {
+    console.error(`❌ 検査そのものが怪しい: cards-data-ex0.js から ${ex0.length} 種しか読めなかった`);
+    process.exit(2);
+  }
+  const jaEx0 = new Set([...read("src/card-text-ex0.ja.js").matchAll(/^ {2}"(ex0-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  const enEx0 = new Set([...read("src/card-text-ex0.en.js").matchAll(/^ {2}"(ex0-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  let 効果あり = 0;
+  let テストあり = 0;
+  for (const c of ex0) {
+    if (!jaEx0.has(c.id)) note(`0th拡張: 日本語の文が無い: ${c.id}（${c.name}）→ node tools/gen-ex0-text.mjs`);
+    if (!enEx0.has(c.id)) note(`0th拡張: 英語の文が無い: ${c.id}（${c.name}）→ node tools/gen-ex0-text.mjs`);
+    for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${c.id}.webp`))) note(`0th拡張: 絵が無い: ${dir}/${c.id}.webp → node tools/make-ex0-art.mjs`);
+    }
+    if (effectIds.has(c.id)) 効果あり++;
+    if (casesSrc.includes(`"${c.id}"`)) テストあり++;
+  }
+  ex0Line =
+    `ⓘ 0th拡張 ${ex0.length} 種: 文(日英)と絵2種は上で検査済み。` +
+    `効果データ ${効果あり}/${ex0.length}・テスト ${テストあり}/${ex0.length}` +
+    (効果あり === ex0.length && テストあり === ex0.length ? "（そろった）" : "（**これから**）");
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
+  if (ex0Line) console.log("   " + ex0Line);
   process.exit(0);
 }
 console.log(`❌ ${problems.length} 件`);

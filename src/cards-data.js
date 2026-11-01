@@ -1,5 +1,7 @@
 import { getCardBackSetIndex, backImagePath } from "./card-back-skins.js";
 import { getLang } from "./i18n.js"; // UI英語化フェーズ12: ブーストカードの仮デザイン内の文字だけに使う
+import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
+import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
 
 // 実際のカードデータ（docs/cards.md, docs/rulebook.mdより）。
 // 「カード効果・カードデータはコードに埋め込まず、外部データとして持つ」という方針(CLAUDE.md)
@@ -171,8 +173,27 @@ export const NOIR_FIRST_CARD = {
 
 // カードid → 定義の逆引き（山札・手札等に入っている実際のトークンのcardIdから
 // 名前・色を引くために使う）。
-const ALL_CARDS = [...NORMAL_CARDS, ...ETERNAL_CARDS, ...FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD];
+// 🔴 0th拡張の33種は**どのセットで遊んでいても逆引きできる**ようにここへ入れる。
+//   切り替わるのは「山札に何を入れるか」だけで、名前・色・絵の引きは常に通る必要がある
+//   （オンラインで相手が0th拡張のカードを出した時に、こちらが引けないと描けない）。
+const ALL_CARDS = [...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...ETERNAL_CARDS, ...FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD];
 const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
+
+// 山札に入れる「通常カード」を、いま選ばれているカードセットに従って返す。
+//
+// ⚠ 0th拡張には**虹が無い**（なないろの欠片はリメイクのものと一字一句同じなので作っていない）。
+//   そのため 0th拡張の山札には、リメイクの rainbow-shard をそのまま足して 112 枚にする。
+// ⚠ 0th拡張には**ファーストカード・エターナルカードが無い**。そちらはリメイクのものを使う
+//   （ユーザー確認済み）。ここが返すのは通常カードだけなので、その2種には影響しない。
+export function getDeckNormalCards() {
+  const set = getCardSet();
+  if (set === CARD_SETS.EX0) {
+    const rainbow = NORMAL_CARDS.find((c) => c.id === "rainbow-shard");
+    return rainbow ? [...EX0_NORMAL_CARDS, rainbow] : [...EX0_NORMAL_CARDS];
+  }
+  if (set === CARD_SETS.MIXED) return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS];
+  return NORMAL_CARDS;
+}
 
 export function getCardDefinition(cardId) {
   return CARD_BY_ID.get(cardId);

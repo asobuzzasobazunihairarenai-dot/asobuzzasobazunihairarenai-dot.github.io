@@ -6,7 +6,7 @@
 // のid配列）」だけ。将来docs/game-state-design.mdの本格的なGameState設計へ拡張し、オンライン
 // 非同期化する際は同じactionをサーバーに送って同期する流れにそのまま乗せる想定。
 
-import { NORMAL_CARDS, ETERNAL_CARDS, FIRST_CARDS } from "./cards-data.js";
+import { getDeckNormalCards, ETERNAL_CARDS, FIRST_CARDS } from "./cards-data.js";
 import { COLORS, GATE_POSITIONS, SEAT_ORDER, SEAT_TO_SIDE } from "./board-layout.js";
 import { logAction, registerTurnInfoProvider } from "./action-log.js";
 
@@ -50,7 +50,7 @@ function createInitialState() {
 
   // 山札(通常カード112枚)をシャッフルし、そこから各プレイヤーの初期手札を配る。
   // pilesは「配列の末尾＝一番上」という約束で、popが「引く」、pushが「積む」に対応する。
-  const deck = shuffled(expandDeck(NORMAL_CARDS));
+  const deck = shuffled(expandDeck(getDeckNormalCards()));
   for (const [player, count] of Object.entries(HAND_START)) {
     for (let i = 0; i < count; i++) {
       const cardId = deck.pop();
@@ -461,7 +461,7 @@ function reduce(current, action) {
       return {
         tokens: [],
         piles: {
-          deck: shuffled(expandDeck(NORMAL_CARDS)),
+          deck: shuffled(expandDeck(getDeckNormalCards())),
           eternal: shuffled(expandDeck(ETERNAL_CARDS)),
           first: shuffled(expandDeck(FIRST_CARDS)),
           discard: [],
@@ -753,10 +753,11 @@ function reduce(current, action) {
       const tokensWithoutBoardCards = current.tokens.filter(
         (t) => !(t.kind === "card" && t.location.zone === "cell")
       );
-      let pool = expandDeck(NORMAL_CARDS);
+      const deckCards = getDeckNormalCards();
+      let pool = expandDeck(deckCards);
       if (!action.includeBlackWhite) {
         pool = pool.filter((cardId) => {
-          const def = NORMAL_CARDS.find((c) => c.id === cardId);
+          const def = deckCards.find((c) => c.id === cardId);
           return def.color !== "white" && def.color !== "black";
         });
       }

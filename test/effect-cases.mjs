@@ -1489,6 +1489,49 @@ export const CASES = [
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // 既定でこのカードは手札へ
     ],
   },
+
+  // ================= ここから 0th拡張（0th EDITION 拡張） =================
+  {
+    name: "赤のはじまり(到達): 捨て場の１番上のカードを手札に加える",
+    kind: "arrival",
+    cardId: "ex0-red-beginning",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-beginning", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      // 捨て場は「配列の末尾＝１番上」。上は green-growing-trees の方。
+      piles: { deck: [], eternal: [], first: [], discard: ["red-jump-pad", "green-growing-trees"] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-beginning", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handHasCard", player: "A", cardId: "green-growing-trees", n: 1 }, // １番上の方が来る
+      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 0 },        // ２番目は来ない
+      { kind: "handCount", player: "A", n: 2 },                                   // 拾った1枚＋既定でこのカード自身
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  {
+    name: "赤のはじまり(到達): 捨て場が空なら何も起きない（善処の原則）",
+    kind: "arrival",
+    cardId: "ex0-red-beginning",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-beginning", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-beginning", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handCount", player: "A", n: 1 }, // 既定でこのカード自身が手札へ入るだけ
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------

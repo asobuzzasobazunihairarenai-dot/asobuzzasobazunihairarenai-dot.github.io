@@ -67,7 +67,9 @@ export const VERBS = {
   PICKUP_DISCARD_SECOND_FROM_TOP: "pickup_discard_second_from_top", // 赤のキューブ フェニックス専用: 捨て場の上から2番目のカードを手札に加える
   FLIP_UP_TO_N_WITHIN_RANGE: "flip_up_to_n_within_range", // 黄のキューブ サフラン専用: Nマス以内の裏向きカードを、M枚まで（してもよい）オープンする
   DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS: "discard_random_from_qualifying_opponents", // 青のキューブ セレスティア専用: 手札が指定枚数以上ある相手全員から無作為に1枚ずつ捨てる
-  DISCARD_ALL_AT_CHOSEN_CELL: "discard_all_at_chosen_cell", // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
+  DISCARD_ALL_AT_CHOSEN_CELL: "discard_all_at_chosen_cell",
+  // 0th拡張で新設。
+  PICKUP_DISCARD_TOP: "pickup_discard_top", // 赤のはじまり専用: 捨て場の１番上のカードを手札に加える // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
   // 続き44で新設。
   PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる
   MOVE_CHOSEN_OPPONENT_ADJACENT_TO_SELF: "move_chosen_opponent_adjacent_to_self", // 結ばれの一本桜 コノハナサクヤ専用: 相手を選び、その駒をあなたの「周囲」（縦横斜めの8マス。#224）へ移動させる（「移動」扱い）
@@ -804,6 +806,23 @@ export const CARD_EFFECTS = {
     },
   },
 
+  // ================= ここから 0th拡張（0th EDITION 拡張） =================
+  // ⚠ ここに載っているカードだけが自動処理される。**載っていないカードは
+  //   今までどおり「文を読んでプレイヤーが自分で処理する」**（ユドンリウムコネクト方式）。
+  //   半端なデータを置くと間違った処理が勝手に走るので、**1枚ずつ完成させてから載せる**。
+
+  // 赤のはじまり（赤、0th拡張） 到達効果: 「捨て場の１番上のカードをあなたの手札に加える。」
+  // 手札効果: 「上記の到達効果を得る。このフェイズを終了する。」
+  // 捨て場から取る動詞は、フェニックス（first-red）の「上から２番目」が既にあるので
+  // その1段手前の素直な形。helpers.drawFromDiscard がそのまま使える。
+  "ex0-red-beginning": {
+    arrival: {
+      actions: [{ verb: VERBS.PICKUP_DISCARD_TOP }],
+    },
+    handEffect: {
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }, { verb: VERBS.END_CURRENT_PHASE }],
+    },
+  },
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------
@@ -841,6 +860,8 @@ function renderAction(action, context) {
       return `${renderTargetLabel(action.target)}${count}枚ドロー。`;
     case VERBS.PICKUP_DISCARD_SECOND_FROM_TOP:
       return "捨て場の１番上から２番目のカードをあなたの手札に加える。";
+    case VERBS.PICKUP_DISCARD_TOP:
+      return "捨て場の１番上のカードをあなたの手札に加える。";
     case VERBS.FLIP_UP_TO_N_WITHIN_RANGE:
       return `${toFullWidthNumber(action.withinCells)}マス以内のカードを${toFullWidthNumber(action.maxCount)}枚までオープンしてもよい。`;
     case VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS:

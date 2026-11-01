@@ -876,6 +876,18 @@ async function runAction(action, ctx, helpers) {
       await helpers.moveAndSync(chosen.id, { zone: "lock", side, index });
       return true;
     }
+    case VERBS.PICKUP_DISCARD_TOP: {
+      // 赤のはじまり（0th拡張）専用: 捨て場の１番上のカードを手札に加える。
+      // 捨て場が空なら何も起きない（善処の原則）。
+      if (getState().piles.discard.length < 1) return false;
+      const topToken = await helpers.drawFromDiscard(ctx.player);
+      if (!topToken) return false;
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.tookFromDiscard", { name: helpers.getPlayerName(ctx.player), card: cardDisplayName(topToken.cardId) })
+      );
+      return true;
+    }
     case VERBS.PICKUP_DISCARD_SECOND_FROM_TOP: {
       // 赤のキューブ フェニックス専用: 捨て場の１番上から２番目のカードを手札に加える。
       // 捨て場は「一番上を引く」（DRAW_FROM_PILE）操作しか無く、途中のインデックスを

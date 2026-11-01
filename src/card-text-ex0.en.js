@@ -1,0 +1,40 @@
+// 0th拡張のカード面テキスト（英語）。card-text-ex0.ja.js と同じ cardId キー。
+//
+// ⚠ いまは**カード名だけ**。効果文は空にしてある。card-text.js は空のフィールドを
+//   日本語で出す作りなので、英語表示でも「名前は英語・効果文は日本語」で崩れない。
+//   訳せたら tools/gen-ex0-text.mjs に足して作り直す。**手で直さない。**
+export const CARD_TEXT_EX0_EN = {
+  "ex0-orange-bus": { name: "Orange Bus", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-yellow-reach-cancel": { name: "Reach Cancel", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-green-lost-forest": { name: "Forest of Wandering", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-blue-appraiser": { name: "Appraiser's Skill -True Eyes-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-pink-wish-for-peace": { name: "Wish for Peace", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-purple-hidden-fortune": { name: "Hidden Fortune Underfoot", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-red-beginning": { name: "The Beginning of Red", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-orange-bus-stop": { name: "Bus Stop", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-yellow-gate-charge": { name: "Gate Charge", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-green-creation": { name: "Creation of the Land", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-blue-strict-watch": { name: "High Alert", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-pink-mystic-fruit": { name: "Mysterious Fruit", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-purple-redo-key": { name: "Key of Redo", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-red": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-orange": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-yellow": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-green": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-blue": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-pink": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-flute-purple": { name: "Color-Calling Flute", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-red-joyner": { name: "Joyner the Runner -Dash Art-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-orange-mccool": { name: "McCool the Esper -Neo Force-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-yellow-little-mouse": { name: "Little Mouse the Thief -Sticky Fingers-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-green-peterhood": { name: "Peterhood of the Forest -Daily Life-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-blue-jake": { name: "Jake the Historian -Mnemonics-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-pink-yaeza": { name: "Enchanting Yaeza", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-purple-vivian": { name: "Vivian the Patron", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-white-pure-burger": { name: "Pure Burger", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-white-someones-shadow": { name: "Someone's White Shadow", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-white-dragon": { name: "The Self-Forgetting White Dragon", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-black-bad-burger": { name: "Bad Burger", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-black-vood-contract": { name: "Pact with the Vood", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "ex0-red-crimson-fist": { name: "Crimson Iron Fist", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+};
