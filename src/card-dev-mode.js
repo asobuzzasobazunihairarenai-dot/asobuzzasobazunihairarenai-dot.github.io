@@ -155,14 +155,14 @@ const PILOT_CARDS = [
   {
     cardId: "orange-mass-change",
     kind: "arrival",
-    actual: "３マス以内の相手のいる場所とあなたのいる場所を入れ替える。相手はこのカードの到達効果を得ない。",
+    actual: "３マス以内の相手のいる場所とあなたのいる場所を入れ替える。相手はこれの到達効果を得ない。",
   },
   // ユーザー要望「マスチェンジのように『上記の到達効果を得る』で生成文を
   // 整理できないか」への対応でinheritsArrival:trueを追加し、実際に生成文へ
-  // 「上記の到達効果を得る。」が出るようになった（続き29）。「1」（半角）と
-  // 「１」（全角）だけ、docs/cards.md側の表記揺れ（なないろの巨光と同種）で
-  // ⚠️のまま残るが、これはdocs側の入力ミスであり生成側の不具合ではない。
-  { cardId: "orange-mass-change", kind: "handEffect", actual: "【追色1】上記の到達効果を得る。" },
+  // 「上記の到達効果を得る。」が出るようになった（続き29）。以前は「1」（半角）と
+  // 「１」（全角）の違いだけ⚠️が残っていたが、2026-11-01（続き647）にdocs/cards.md側の
+  // 入力ミスを直して全角へ揃えたので、いまは一致する。
+  { cardId: "orange-mass-change", kind: "handEffect", actual: "【追色１】上記の到達効果を得る。" },
   // 続き90: orange-harvest-sowと同じくカード効果テキスト.txt/docs/cards.mdを
   // 生成文の語順に合わせて修正したため追従（以前の⚠️は解消）。
   { cardId: "first-orange", kind: "handEffect", actual: "【追色１】２マス以内の１枚をあなたの手札に加える。" },
@@ -206,9 +206,9 @@ const PILOT_CARDS = [
     actual: "上記の到達効果を得る。",
   },
   { cardId: "red-jump-pad", kind: "handEffect", actual: "これをゲート以外の任意のマスに表向きで置く。" },
-  { cardId: "red-counter-lock", kind: "arrival", actual: "１番少なくロックしているなら1枚ドロー。" },
+  { cardId: "red-counter-lock", kind: "arrival", actual: "１番少なくロックしているなら１枚ドロー。" },
   { cardId: "pink-present", kind: "arrival", actual: "１番少なくロックしている全員は、１枚ドロー。" },
-  { cardId: "pink-present", kind: "handEffect", actual: "これを相手の隣に裏向きで置く。1枚ドロー。" },
+  { cardId: "pink-present", kind: "handEffect", actual: "これを相手の隣に裏向きで置く。１枚ドロー。" },
   { cardId: "white-awakening", kind: "arrival", actual: "場の全ての表向きのカードを捨てる。" },
   { cardId: "white-awakening", kind: "handEffect", actual: "場の全ての表向きのカードの上に山札から１枚ずつ裏向きで置く。" },
   {
@@ -219,7 +219,7 @@ const PILOT_CARDS = [
   // 続き90: 収穫と種まき・橙のキューブ ハーベストと同じく、カード効果テキスト.txt/
   // docs/cards.mdを生成文の語順に合わせて修正したため追従（以前の⚠️は解消）。
   { cardId: "green-growing-trees", kind: "handEffect", actual: "任意の３マスに山札から１枚ずつ裏向きで置く。" },
-  { cardId: "white-radiance", kind: "arrival", actual: "全員、3枚ドロー。このカードを捨てる。" },
+  { cardId: "white-radiance", kind: "arrival", actual: "全員、３枚ドロー。これを捨てる。" },
   { cardId: "white-radiance", kind: "handEffect", actual: "全員、３枚ドロー。このフェイズを終了する。" },
   { cardId: "black-faded-cat", kind: "arrival", actual: "これを捨てる。全員、手札を全て捨て、１枚ドロー。" },
   { cardId: "black-faded-cat", kind: "handEffect", actual: "あなたのロックしているカードを任意の枚数捨てる。捨てたカード１枚に付き３枚ドロー。このフェイズを終了する。" },
@@ -228,7 +228,7 @@ const PILOT_CARDS = [
   {
     cardId: "blue-choosable-trap",
     kind: "arrivalOptions",
-    actual: "以下の効果のうち1つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしている1枚を捨てる。",
+    actual: "以下の効果のうち１つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしている１枚を捨てる。",
   },
   { cardId: "blue-choosable-trap", kind: "handEffect", actual: "これを任意のマスに裏向きで置く。" },
   {

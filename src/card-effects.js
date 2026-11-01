@@ -171,7 +171,7 @@ export const CARD_EFFECTS = {
   },
 
   // カウンターロック（赤、通常カード） 到達効果: 「１番少なくロックしているなら
-  // 1枚ドロー。」（補足: 「１番少なくロックしている」＝ロックしている枚数が
+  // １枚ドロー。」（補足: 「１番少なくロックしている」＝ロックしている枚数が
   // 参加者の中で１番少ないこと。同率首位も対象に含む一般的な解釈）。
   // 手札効果（「あなたへの接触の宣言時に使える。その接触を無効にする。あなたの
   // 手札を１枚ロックしてもよい。」）は、接触の承認/拒否フロー自体への割り込みが
@@ -191,13 +191,13 @@ export const CARD_EFFECTS = {
   // プレゼント（桃、通常カード） 到達効果: 「１番少なくロックしている全員は、
   // １枚ドロー。」カウンターロックと違い、効果の使用者だけでなく「該当する
   // 全員」がそれぞれドローする（DRAW_ALL_FEWEST_LOCKED）。
-  // 手札効果（「これを相手の隣に裏向きで置く。1枚ドロー。」）は「相手を選ぶ→隣接する
+  // 手札効果（「これを相手の隣に裏向きで置く。１枚ドロー。」）は「相手を選ぶ→隣接する
   // 空きマスを選ぶ」という新しい対象選択の組み合わせが必要なため今回は対象外。
   "pink-present": {
     arrival: {
       actions: [{ verb: VERBS.DRAW_ALL_FEWEST_LOCKED }],
     },
-    // 手札効果: 「これを相手の隣に裏向きで置く。1枚ドロー。」相手を選び、その隣接
+    // 手札効果: 「これを相手の隣に裏向きで置く。１枚ドロー。」相手を選び、その隣接
     // マスへこのカード自身を置く（このカード自身が「置かれる」対象になるため
     // keepsCardOnUse）。
     handEffect: {
@@ -254,7 +254,7 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // なないろの巨光（白、通常カード） 到達効果: 「全員、3枚ドロー。このカードを
+  // なないろの巨光（白、通常カード） 到達効果: 「全員、３枚ドロー。これを
   // 捨てる。」既定動作（処理後に手札へ加える）を上書きし、代わりに捨てる
   // （DISCARD_SELF）。
   "white-radiance": {
@@ -276,13 +276,14 @@ export const CARD_EFFECTS = {
   },
 
   // 色落ちキャット（黒、通常カード） 到達効果: 「これを捨てる。全員、手札を全て
-  // 捨て、１枚ドロー。」なないろの巨光と同じ「捨てる」だが実際の文言が
-  // 「これを」なのでselfLabelで上書きする。
+  // 捨て、１枚ドロー。」なないろの巨光と同じ「捨てる」。以前は巨光側が
+  // 「このカードを」だったのでselfLabelで上書きしていたが、2026-11-01（続き647）に
+  // 両方「これを」へ揃えたので既定のままでよい。
   "black-faded-cat": {
     arrival: {
       addsCardToHandAfter: false,
       actions: [
-        { verb: VERBS.DISCARD_SELF, selfLabel: "これ" },
+        { verb: VERBS.DISCARD_SELF },
         { verb: VERBS.ALL_PLAYERS_DISCARD_HAND_AND_DRAW, count: 1 },
       ],
     },
@@ -485,7 +486,7 @@ export const CARD_EFFECTS = {
   },
 
   // 9. マスチェンジ（橙、通常カード） 到達効果: 「３マス以内の相手のいる場所と
-  // あなたのいる場所を入れ替える。相手はこのカードの到達効果を得ない。」／
+  // あなたのいる場所を入れ替える。相手はこれの到達効果を得ない。」／
   // 手札効果: 「【追色１】上記の到達効果を得る。」——同じ入れ替え効果を
   // 到達・手札の両方から呼べるよう、アクション自体を共有する。
   // 「入れ替える」は「移動」ではないため、入れ替え先のカードはオープンせず
@@ -629,7 +630,7 @@ export const CARD_EFFECTS = {
 
   // 黒のキューブ ノワール（黒、エイドス物語戦専用のファーストカード）。ユーザー要望2026-08-15。
   // ノワール自身は開始時からエイドスのロックエリアに「置いている」プレースホルダーとしてずっと
-  // 残る（7色カウント外・他カードの効果の対象外）。手札効果「このカードの置かれた色のロック
+  // 残る（7色カウント外・他カードの効果の対象外）。手札効果「これの置かれた色のロック
   // エリアにカードを１枚ロックする。そうしたなら、１枚ドローし、１マス移動する。」＝ノワールの
   // 置かれた色スロットへ手札のカードを1枚ロック（LOCK_HAND_CARD_INTO_NOIR_SLOT）→1枚ドロー→
   // 1マス移動。ロック札は7色カウントに入り、他効果で除去され得る。除去されてスロットが空けば
@@ -645,7 +646,7 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 選べる罠（青、通常カード） 到達効果: 「以下の効果のうち1つ得る。・あなたの手札を
+  // 選べる罠（青、通常カード） 到達効果: 「以下の効果のうち１つ得る。・あなたの手札を
   // 半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしているカードを1枚
   // 捨てる。」なないろの欠片のhandEffectOptionsと同じ「複数選択肢から1つ」の考え方だが、
   // こちらは手札効果ではなく到達効果自身の選択のため、専用の`arrivalOptions`という
@@ -857,7 +858,7 @@ function renderAction(action, context) {
     case VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL:
       return "あなたの手札を１枚ロックする、ただし最後のロックはできない。";
     case VERBS.LOCK_HAND_CARD_INTO_NOIR_SLOT:
-      return "このカードの置かれた色のロックエリアにカードを１枚ロックする。そうしたなら、";
+      return "これの置かれた色のロックエリアにカードを１枚ロックする。そうしたなら、";
     case VERBS.PICKUP_TO_HAND: {
       const zoneLabel = action.withinCells
         ? `${toFullWidthNumber(action.withinCells)}マス以内の`
@@ -878,9 +879,9 @@ function renderAction(action, context) {
           return `あなたの空いているロックエリアに、これを${faceLabel}置く。`;
         }
         const destLabel = action.destination?.excludeGates ? "ゲート以外の任意のマスに" : "任意のマスに";
-        // 選べる罠専用: 実際の文言が「これを」ではなく「このカードを」なので、
-        // action.selfLabelで上書きできるようにした（既定は「これ」のまま、
-        // 黒の契約の烙印・パーティー等の既存カードには影響しない）。
+        // selfLabelで上書きできる。以前は選べる罠の印字が「このカードを」だったため
+        // 使っていたが、2026-09-24に印刷カードどおり「これを」へ揃えたので、いま渡して
+        // いるカードは無い（既定の「これ」で全部足りる）。
         return `${action.selfLabel ?? "これ"}を${destLabel}${faceLabel}置く。`;
       }
       const sourceLabel = action.source === "hand" ? "手札から" : "山札から";
@@ -909,11 +910,11 @@ function renderAction(action, context) {
       // 無限ループしてしまう。それを防ぐため到達判定を連鎖させない
       // （card-effect-engine.jsのVERBS.SWAP_POSITIONがctx.arrivedAtをセットしない）
       // という実装は元々あったが、その挙動を説明する一文がテキスト側に無かった。
-      return `${count}マス以内の相手のいる場所とあなたのいる場所を入れ替える。相手はこのカードの到達効果を得ない。`;
+      return `${count}マス以内の相手のいる場所とあなたのいる場所を入れ替える。相手はこれの到達効果を得ない。`;
     case VERBS.LOCK_PAIR:
       return "その２枚を任意の１箇所にロックする。";
     case VERBS.DRAW_IF_FEWEST_LOCKED:
-      return "１番少なくロックしているなら1枚ドロー。";
+      return "１番少なくロックしているなら１枚ドロー。";
     case VERBS.SWAP_RANDOM_HAND_CARD:
       return "相手１人の手札から無作為に１枚、あなたの手札に加える。あなたの手札から１枚、その相手の手札に加える。";
     case VERBS.DRAW_ALL_FEWEST_LOCKED:
@@ -921,10 +922,11 @@ function renderAction(action, context) {
     case VERBS.DISCARD_ALL_FACEUP_ON_BOARD:
       return "場の全ての表向きのカードを捨てる。";
     case VERBS.DISCARD_SELF:
-      // なないろの巨光は「このカードを捨てる。」、色落ちキャットは「これを捨てる。」と
-      // 実際の文言が違う（docs/cards.mdの表記ゆれ）ため、action.selfLabelで選べるように
-      // した（既定は「このカード」）。
-      return `${action.selfLabel ?? "このカード"}を捨てる。`;
+      // 以前はなないろの巨光が「このカードを捨てる。」、色落ちキャットが「これを捨てる。」と
+      // 実際の文言が違っていた（docs/cards.mdの表記ゆれ）ため action.selfLabel で選べるように
+      // していたが、2026-11-01（続き647）に両方「これを」へ揃えたので既定だけで足りる。
+      // 引数は残してあるが、いま渡しているカードは無い。
+      return `${action.selfLabel ?? "これ"}を捨てる。`;
     case VERBS.ALL_PLAYERS_DISCARD_HAND_AND_DRAW:
       return `全員、手札を全て捨て、${count}枚ドロー。`;
     case VERBS.DISCARD_HALF_HAND:
@@ -932,7 +934,7 @@ function renderAction(action, context) {
     case VERBS.FORCED_MOVE_TO_OWN_GATE:
       return "あなたのゲートに強制移動する。";
     case VERBS.DISCARD_ONE_LOCKED_CARD:
-      return "あなたのロックしている1枚を捨てる。";
+      return "あなたのロックしている１枚を捨てる。";
     case VERBS.DECLARE_COLORS:
       // ザ・ギャンブル（「以上」＝下限のみ指定、count自体はプレイヤーが選ぶ）と
       // 試練の儀式（固定数）とで実際の文言の語順が違う（docs/cards.md）ため、
@@ -1086,7 +1088,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
 
   console.log("[カウンターロック 到達効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["red-counter-lock"].arrival));
-  console.log("  実際: １番少なくロックしているなら1枚ドロー。\n");
+  console.log("  実際: １番少なくロックしているなら１枚ドロー。\n");
 
   console.log("[収穫と種まき 到達効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["orange-harvest-sow"].arrival));
@@ -1104,11 +1106,11 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
 
   console.log("[マスチェンジ 到達効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["orange-mass-change"].arrival));
-  console.log("  実際: ３マス以内の相手のいる場所とあなたのいる場所を入れ替える。相手はこのカードの到達効果を得ない。\n");
+  console.log("  実際: ３マス以内の相手のいる場所とあなたのいる場所を入れ替える。相手はこれの到達効果を得ない。\n");
 
   console.log("[マスチェンジ 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["orange-mass-change"].handEffect));
-  console.log("  実際: 【追色1】上記の到達効果を得る。\n");
+  console.log("  実際: 【追色１】上記の到達効果を得る。\n");
 
   console.log("[手品師の技 -スリカエ- 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["yellow-sleight-of-hand"].handEffect));
@@ -1116,7 +1118,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
 
   console.log("[なないろの巨光 到達効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["white-radiance"].arrival));
-  console.log("  実際: 全員、3枚ドロー。このカードを捨てる。\n");
+  console.log("  実際: 全員、３枚ドロー。これを捨てる。\n");
 
   console.log("[色落ちキャット 到達効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["black-faded-cat"].arrival));
@@ -1127,7 +1129,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
     "  生成: " + generateHandEffectOptionsText(CARD_EFFECTS["blue-choosable-trap"].arrivalOptions)
   );
   console.log(
-    "  実際: 以下の効果のうち1つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしている1枚を捨てる。\n"
+    "  実際: 以下の効果のうち１つ得る。・あなたの手札を半分捨てる。・あなたのゲートに強制移動する。・あなたのロックしている１枚を捨てる。\n"
   );
 
   console.log("[ザ・ギャンブル 到達効果]");
@@ -1178,11 +1180,11 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
 
   console.log("[増殖する樹々 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["green-growing-trees"].handEffect));
-  console.log("  実際: 任意の3マスに山札からカードを裏向きで1枚ずつ置く。\n");
+  console.log("  実際: 任意の３マスに山札からカードを裏向きで１枚ずつ置く。\n");
 
   console.log("[選べる罠 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["blue-choosable-trap"].handEffect));
-  console.log("  実際: このカードを任意のマスに裏向きで置く。\n");
+  console.log("  実際: これを任意のマスに裏向きで置く。\n");
 
   console.log("[色落ちキャット 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["black-faded-cat"].handEffect));
@@ -1194,7 +1196,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
 
   console.log("[プレゼント 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["pink-present"].handEffect));
-  console.log("  実際: これを相手の隣に裏向きで置く。1枚ドロー。\n");
+  console.log("  実際: これを相手の隣に裏向きで置く。１枚ドロー。\n");
 
   console.log("[なないろの巨光 手札効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["white-radiance"].handEffect));

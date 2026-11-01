@@ -52,6 +52,29 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-02",
+    fixes: [
+      "いくつかのカードで、効果の文の言い方が揃っていなかったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed a few cards whose effect text did not read the same way as the others.",
+    ],
+    devItems: [
+      "リメイク33種の表記ゆれを揃えた（ユーザー判断「直してください」）。0th拡張の書き直しと突き合わせる過程で見つかったもの。半角数字（1枚ドロー・【追色1】・1つ得る・3枚ドロー）と「このカード」→「これ」。docs/cards.md・src/card-text.ja.js・src/card-dev-mode.js・src/card-effects.js の4ファイル43か所。",
+      "⚠ 半角数字はプレイヤーの画面には出ていなかった。src/card-text.ja.js には元から半角数字が1つも無く、半角だったのは docs/cards.md（出典）と、それを写した開発用の比較データだけ。画面で実際に変わったのは「このカード」→「これ」の3か所（マスチェンジ・なないろの巨光・黒のキューブ ノワール）。",
+      "ついでに2つ片付いた。①カード開発モードでマスチェンジに出ていた⚠が消えた（生成文は全角・出典が半角というだけの見かけの食い違いで、コードに「docs側の入力ミスなので⚠のまま残る」と注記されたまま放置されていた）。②なないろの巨光と色落ちキャットで「このカード」「これ」が割れていたために用意されていた selfLabel の切り替えが要らなくなった（既定を「これ」にして上書きを外した）。",
+      "出典と src の写しを突き合わせる道具を作って回した（scratchpad/_sync-card-text.mjs）。93件の写しのうち不一致は 11件→10件。残り10件は語順違い・ファーストカード6枚で出典だけ括弧書きが落ちている件・色落ちキャットの古い効果文の消し忘れで、どれも開発用の比較データ側。今回の承認（6件）とは別の話なので手を付けていない。docs/cards.md は git 管理外なのでこの道具は npm run check には入れない。",
+      "画像素材（J:\\…\\0th EDITION 拡張）のフォルダ名8件を、カードの印字どおりに直した。追色の鉄拳→紅の鉄拳／ホワイトバーガー→ピュアバーガー／ブラックバーガー→バッドバーガー／優しきヴィヴィアン→後援するヴィヴィアン／我忘れの白龍→我忘れの白き龍／やり直しの鍵→やり直しのカギ／大盗賊 リトルマウス→大盗賊 リトルマウスの手癖／鑑定士の技→鑑定士の技 -ブルーアイズ-。全部カードの題字を切り出して目で確かめた（素材のファイル名は生成プロンプト由来で、カードの名前とは別物だった）。なないろの欠片（虹）だけフォルダが無い。",
+    ],
+    devItemsEn: [
+      "Aligned the wording of the 33 remake cards (user decision). Found while rewriting the 0th expansion. Half-width digits and \"this card\" to \"it\": 43 places across docs/cards.md, src/card-text.ja.js, src/card-dev-mode.js and src/card-effects.js.",
+      "Note: the half-width digits never reached players. src/card-text.ja.js had none; they were only in docs/cards.md and in the developer-side copies of it. Only three places changed on screen (Mass Change, Rainbow Radiance, Noir).",
+      "Two things fell out of it. The stale warning on Mass Change in card dev mode is gone, and the selfLabel switch that existed because two cards disagreed on \"this card\" vs \"it\" is no longer needed.",
+      "Built a tool that compares the in-repo copies against docs/cards.md. Mismatches went 11 to 10; the remaining 10 are word-order drift in developer-only data and were left alone. The tool is not in npm run check because docs/cards.md is not in git.",
+      "Renamed 8 art-source folders to match the names printed on the cards, each checked against the card art.",
+    ],
+  },
+  {
     date: "2026-10-31",
     summary: [
       "右上に出るカードの大きさを、設定で変えられるようにしました",
