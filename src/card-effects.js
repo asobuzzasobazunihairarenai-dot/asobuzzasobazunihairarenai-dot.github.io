@@ -77,7 +77,8 @@ export const VERBS = {
   PLACE_WHOLE_HAND_AT_CHOSEN_CELL: "place_whole_hand_at_chosen_cell", // バッドバーガー: 中央と四隅のうち駒のいない1マスへ手札を全部置く
   DRAW_PER_FACEDOWN_AT_CHOSEN_CELL: "draw_per_facedown_at_chosen_cell", // ピュアバーガー(手札): 選んだマスの裏向きの枚数ぶんドロー
   DISCARD_OWN_HAND_DOWN_TO: "discard_own_hand_down_to", // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる
-  DISCARD_ANY_HAND_THEN_DRAW_SAME: "discard_any_hand_then_draw_same", // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
+  DISCARD_ANY_HAND_THEN_DRAW_SAME: "discard_any_hand_then_draw_same", // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー
+  DRAW_IF_OPENED_THIS_TURN: "draw_if_opened_this_turn", // バスストップ: このターンにこれがオープンされたのならドロー // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
   PICKUP_DISCARD_TOP: "pickup_discard_top", // 赤のはじまり専用: 捨て場の１番上のカードを手札に加える // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
   // 続き44で新設。
   PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる
@@ -993,13 +994,21 @@ export const CARD_EFFECTS = {
   // 🔴 どちらの選択肢も**これ自身を盤面へ置く**ので keepsCardOnUse（＝先に捨てない）。
   //   ①で捨てるのは**別の手札1枚**なので exceptSelf を渡す（自分を捨てると置けなくなる）。
   "ex0-orange-bus-stop": {
+    // 到達効果: 「これはあなたの手札に加えない。このターンにこれがオープンされたのなら、１枚ドロー。」
+    // 🔴 addsCardToHandAfter: false ＝「手札に加えない」（盤面に残る）。
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.DRAW_IF_OPENED_THIS_TURN, count: 1 }],
+    },
     handEffectOptions: [
       {
         id: "ex0-busstop-discard-faceup",
         labelKey: "cef.opt.ex0BusStopFaceUp",
         keepsCardOnUse: true,
-        // これ自身＋捨てる1枚＝2枚ないと選べない（善処の原則）。
-        requiresMinHandSize: 2,
+        // 善処の原則（これ自身＋捨てる1枚＝2枚ないと選べない）は、
+        // isHandEffectOptionUsable の「DISCARD_ONE_HAND_CARD があるなら、自分以外の手札が
+        // 1枚以上あるか」の判定が既に担っている。
+        // ⚠ requiresMinHandSize は**到達効果の側だけが見る**フラグなので、ここに書いても効かない。
         actions: [
           { verb: VERBS.DISCARD_ONE_HAND_CARD, exceptSelf: true },
           {
@@ -1191,6 +1200,8 @@ function renderAction(action, context) {
       return `あなたの手札が${toFullWidthNumber(action.keep)}枚になるように捨てる。`;
     case VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME:
       return "あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。";
+    case VERBS.DRAW_IF_OPENED_THIS_TURN:
+      return `このターンにこれがオープンされたのなら、${count}枚ドロー。`;
     case VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS:
       return `手札が${toFullWidthNumber(action.minHandSize)}枚以上ある相手全員の手札から、無作為に１枚ずつ選び、それらを捨てる。`;
     case VERBS.DISCARD_ALL_AT_CHOSEN_CELL:

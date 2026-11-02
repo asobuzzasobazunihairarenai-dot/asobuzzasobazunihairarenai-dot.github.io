@@ -2157,6 +2157,53 @@ export const CASES = [
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
     ],
   },
+  // --- バスストップの到達効果（0th拡張・第5弾） -----------------------------------
+  // 「これはあなたの手札に加えない。このターンにこれがオープンされたのなら、１枚ドロー。」
+  // 🔴 openedThisTurn は**この筋書き専用の仕掛け**（effect-runner.mjs が
+  //   eng.noteCardOpenedThisTurn を呼ぶ）。これが無いとこの枝を一度も通せない。
+  {
+    name: "バスストップ(到達): このターンにオープンされたなら1枚ドロー（手札には加えない）",
+    kind: "arrival",
+    cardId: "ex0-orange-bus-stop",
+    openedThisTurn: ["self"],
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus-stop", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },                                  // 1枚ドローした
+      { kind: "handCount", player: "A", n: 1 },                   // 引いた1枚だけ
+      { kind: "tokenZone", id: "self", zone: "cell" },             // 🔴 手札に加えない＝盤面に残る
+      { kind: "tokenAtCell", id: "self", row: 2, col: 2 },
+    ],
+  },
+  {
+    name: "バスストップ(到達): 既に表向きだったならドローしない（手札にも加えない）",
+    kind: "arrival",
+    cardId: "ex0-orange-bus-stop",
+    // openedThisTurn を指定しない＝このターンにオープンされていない。
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus-stop", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 2 },                       // ドローしていない
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "tokenZone", id: "self", zone: "cell" },  // 盤面に残る
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------

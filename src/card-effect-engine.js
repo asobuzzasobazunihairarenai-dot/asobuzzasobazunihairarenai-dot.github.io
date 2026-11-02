@@ -130,6 +130,23 @@ function isHandEffectDisabledThisTurn(tokenId) {
   return handEffectDisabledUntilTurn.get(tokenId) === getState().turnNumber;
 }
 
+// 0th拡張（バスストップ）専用: 「このターンにこれがオープンされたのなら」。
+// handEffectDisabledUntilTurn と同じ「turnNumber が一致する間だけ有効」の自動失効パターン。
+// 🔴 **これは、その操作をしたクライアントのローカルな記録**（state には入れない）。
+//   到達効果は「その席を動かしているクライアント」だけが処理する（shouldAutoProcess）ので、
+//   オープンしたのも同じクライアント＝記録は揃う。他の人の画面には記録が無いが、
+//   そちらは効果を処理しないので食い違わない。state に入れるとサーバー（Edge Function）側の
+//   リデューサーにも同じ処理が要り、再デプロイ待ちの間だけ消える、という面倒が増える。
+// ⚠ 記録が無い時は「オープンされていない」と見なす＝**効果が出ないだけ**（安全側）。
+const cardOpenedUntilTurn = new Map(); // tokenId -> turnNumber
+export function noteCardOpenedThisTurn(tokenId) {
+  if (!tokenId) return;
+  cardOpenedUntilTurn.set(tokenId, getState().turnNumber);
+}
+function wasCardOpenedThisTurn(tokenId) {
+  return !!tokenId && cardOpenedUntilTurn.get(tokenId) === getState().turnNumber;
+}
+
 // 紫のキューブ ディメンション専用（ANNOUNCE_MOVEMENT_BOOST_THIS_TURN）: 「このターンの
 // 通常の移動は２マス先に一気に移動する。」ユーザー指摘「効果文中の『通常の移動』とは
 // ムーブフェイズで通常行う移動のこと」の通り、自動処理モードのムーブフェイズが計算する
@@ -182,6 +199,7 @@ export function isContactDisabledThisTurn(player) {
 // クリアする。
 export function resetHandEffectUsage() {
   handEffectUsage.clear();
+  cardOpenedUntilTurn.clear(); // 0th拡張（バスストップ）: ケース間に漏らさない
   handEffectDisabledUntilTurn.clear();
   movementDisabledUntilTurn.clear();
   contactDisabledUntilTurn.clear();
@@ -2128,6 +2146,17 @@ async function runAction(action, ctx, helpers) {
         ctx.cardId,
         t("ce.trapDiscardedLock", { name: helpers.getPlayerName(ctx.player), card: cardDisplayName(chosen.cardId) })
       );
+      return true;
+    }
+    case VERBS.DRAW_IF_OPENED_THIS_TURN: {
+      // バスストップ（0th拡張）「このターンにこれがオープンされたのなら、１枚ドロー。」
+      // ⓘ 裏向きのバスストップへ移動した時は、移動の処理の中でオープンされる＝記録が付く。
+      //   既に表向きだったバスストップに到達した時は記録が無い＝ドローしない。
+      if (!wasCardOpenedThisTurn(ctx.cardTokenId)) {
+        await helpers.announceEffectReason?.(ctx.cardId, t("ce.notOpenedThisTurn"));
+        return false;
+      }
+      await helpers.drawCards(ctx.player, action.count ?? 1);
       return true;
     }
     case VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME: {

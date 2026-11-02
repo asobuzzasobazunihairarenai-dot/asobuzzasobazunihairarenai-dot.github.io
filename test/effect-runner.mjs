@@ -18,6 +18,10 @@ export async function runOneCase(spec) {
   if (typeof hydrated.turnNumber !== "number") hydrated.turnNumber = 1;
   st.hydrateState(hydrated);
 
+  // 0th拡張（バスストップ）: 「このターンにこれがオープンされたのなら」を筋書きから作る。
+  // 🔴 これが無いと**その枝を一度も通せない**（記録はオープンした時にだけ付くもので、
+  //   テストは state を直に置くので誰もオープンしない）。
+  for (const id of spec.openedThisTurn || []) eng.noteCardOpenedThisTurn?.(id);
   const picks = spec.picks || {};
   const cursors = {};
   const nextPick = (type) => {

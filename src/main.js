@@ -48,6 +48,8 @@ import {
   isMovementBoostActiveThisTurn,
   isContactDisabledThisTurn,
   getLockableHandTokensExceptFinal,
+  // 0th拡張（バスストップ）: 「このターンにこれがオープンされたのなら」の記録。
+  noteCardOpenedThisTurn,
 } from "./card-effect-engine.js";
 import {
   reconcilePhaseAutomation,
@@ -1920,6 +1922,8 @@ async function flipToFaceUpForEffect(tokenId) {
   } else {
     flipToken(tokenId);
   }
+  // 0th拡張（バスストップ）: カード効果でオープンした分も覚える（色寄せの笛・サフラン等）。
+  noteCardOpenedThisTurn(tokenId);
 }
 
 // ジャンプ台の手札効果（PLACE_CARD source:"self" faceUp:true）専用。ユーザー報告
@@ -6299,6 +6303,8 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
       } else {
         flipToken(card.id);
       }
+      // 0th拡張（バスストップ）: このターンにオープンされた札を覚える（到達の判定より前に）。
+      noteCardOpenedThisTurn(card.id);
       playSound("cardFlip");
       render();
     }
@@ -10035,6 +10041,9 @@ async function openCardNow(card, onResolved, onFullyResolved) {
   } else {
     flipToken(card.id);
   }
+  // 0th拡張（バスストップ）: このターンにオープンされた札を覚える。**到達の判定より前**に
+  //   付ける——この直後に triggerCardArrival が走って到達効果が読むため。
+  noteCardOpenedThisTurn(card.id);
   playSound("cardFlip");
   closeOpenPrompt();
   render();
