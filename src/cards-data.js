@@ -211,6 +211,12 @@ export function getCardImagePath(cardId) {
   // ブーストモードの効果なしファーストカードは実画像がまだ無いため、仮の色ベタ塗りSVGを返す。
   const def = CARD_BY_ID.get(cardId);
   if (def?.isBlankBoost) return blankBoostCardDataUri(def.color);
+  // 🔴 0th拡張（0th EDITION 拡張）は**文字を焼き込んだ画像を作らない**（文字はアプリが描く＝
+  //   そうしないと英語に切り替えられない。tools/check-cards.mjs も『assets/cards には置かない』を
+  //   検査している）。ところが**生のURLを使う所**（飛翔ゴースト・霧散演出・山札一覧の img）が
+  //   あり、そこで必ず404になっていた（0th拡張でCPU戦を回して初めて分かった）。
+  //   文字なしの下地へ振り替える——文字は乗らないが、**絵が出ないより良い**。
+  if (cardId.startsWith("ex0-")) return getCardBlankPath(cardId);
   return `assets/cards/${cardId}.webp`;
 }
 

@@ -114,6 +114,10 @@ export async function runOneCase(spec) {
     pickLocation: async (candidates, hint, options) => {
       const r = resolveLocation(nextPick("location"), candidates);
       callLog.push(["pickLocation", r]);
+      // 🔴 候補の**数**を残す。候補の絞り込み（「あなたの隣以外」「プレイヤーのいない
+      //   マス」等）は、resolveLocation が候補外の指定もそのまま返すため、座標を指定する
+      //   形のテストでは通らない。数を見れば「何マス外したか」を検査できる。
+      callLog.push(["pickLocationCandidates", String((candidates || []).length)]);
       callLog.push(["pickLocationPurpose", options?.purpose ?? null]);
       if (options?.avoidCells) for (const a of options.avoidCells) callLog.push(["pickLocationAvoidCell", a.row + "," + a.col]);
       return r;

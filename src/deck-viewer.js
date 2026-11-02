@@ -5,6 +5,9 @@
 // ゲーム本編のUIではなく開発用ツール。
 
 import { NORMAL_CARDS, ETERNAL_CARDS, FIRST_CARDS, getCardImagePath, getCardDefinition } from "./cards-data.js";
+// 0th拡張（管理者だけのテストモード）。どちらも import を持たない葉なので循環しない。
+import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
+import { getCardSet, CARD_SETS } from "./card-set.js";
 import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName, getCardNote } from "./card-text.js"; // UI英語化フェーズ12: 表示用のカード名・補足
@@ -241,7 +244,16 @@ function buildPanel(close) {
 // 作られるので（続き624）、initDeckViewer より先に呼んでも構わない。
 export function buildDeckSections() {
   const wrap = document.createElement("div");
-  wrap.appendChild(buildSection(t("deckviewer.normal"), NORMAL_CARDS));
+  // 0th拡張を選んでいる時は、その33種を先に出す（いま山札に入っているものが上に来るように）。
+  // 🔴 「まぜる」の時は両方出す。既定（リメイク）では**1枚も出さない**——この関数は図鑑からも
+  //   使われるので、遊んでいる人に未公開のカードが並ばないようにする。
+  const セット = getCardSet();
+  if (セット !== CARD_SETS.REMAKE) {
+    wrap.appendChild(buildSection(t("deckviewer.ex0"), EX0_NORMAL_CARDS));
+  }
+  if (セット !== CARD_SETS.EX0) {
+    wrap.appendChild(buildSection(t("deckviewer.normal"), NORMAL_CARDS));
+  }
   wrap.appendChild(buildSection(t("deckviewer.eternal"), ETERNAL_CARDS));
   wrap.appendChild(buildSection(t("deckviewer.first"), FIRST_CARDS));
   return wrap;

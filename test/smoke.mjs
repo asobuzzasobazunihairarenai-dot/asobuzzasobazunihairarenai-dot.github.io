@@ -37,6 +37,14 @@ const PLAYER_COUNT = [2, 3, 4].includes(Number(ARGS.find((a) => /^[234]$/.test(a
 const RUN_TO_COMPLETION = ARGS.includes("--full") || ARGS.includes("--completion");
 // --nav: 画面遷移の背面バグチェック（続き231）だけを1回実行して終了（自己対戦はしない）。
 const RUN_NAV = ARGS.includes("--nav");
+// 0th拡張（0th EDITION 拡張）のカードセットで回す（続き652）。管理者だけのテストモードと
+// 同じ localStorage の鍵（src/card-set.js の KEY）を先に入れておくだけ。
+//   node test/smoke.mjs 2 --ex0     … 0th拡張の33種＋なないろの欠片で回す
+//   node test/smoke.mjs 2 --mixed   … リメイクと0th拡張を混ぜて回す
+// 🔴 **ユニットテストでは通らない所**（CPUの自動選択・DOM・演出・フェイズの自動処理）を
+//   実際に通すのが目的。0th拡張のカードは**半分以上がまだ手動**なので、自動処理されない
+//   カードに当たっても止まらないことも同時に見ている。
+const CARD_SET = ARGS.includes("--ex0") ? "ex0" : ARGS.includes("--mixed") ? "mixed" : null;
 // 連続実行の回数（in-app版「連続実行 N回」に相当。ユーザー要望2026-08-19）。
 //   node test/smoke.mjs 3 --repeat 5   … 3人を5回連続で回す
 const REPEAT = (() => {
@@ -344,6 +352,20 @@ async function run() {
   const allErrors = [];
   page.on("console", (m) => { if (m.type() === "error") allErrors.push("CONSOLE.error: " + m.text()); });
   page.on("pageerror", (e) => allErrors.push("PAGEERROR: " + (e && e.message ? e.message : String(e))));
+  // 🔴 404 等の「取れなかったURL」を残す。コンソールの文面には URL が入らないので、
+  //   これが無いと「404 が出た」だけ分かって**どのファイルか分からない**（実際に困った）。
+  //   同じURLは1回だけ（同じ画像を何度も要求して埋まるのを防ぐ）。
+  const 取れなかったURL = new Set();
+  page.on("response", (res) => {
+    try {
+      const st = res.status();
+      if (st < 400) return;
+      const u = res.url();
+      if (取れなかったURL.has(u)) return;
+      取れなかったURL.add(u);
+      allErrors.push("HTTP " + st + ": " + u);
+    } catch (e) {}
+  });
 
   // ゲーム開始時の説明モーダル等を抑制して自動進行を邪魔しない（テスト環境の都合）。
   await page.addInitScript(() => {
@@ -363,10 +385,32 @@ async function run() {
       localStorage.setItem("so7-board-3d-enabled", "0");
     } catch (e) {}
   });
+  // 0th拡張のカードセットで回す時だけ、山札の指定を先に入れる（上のブロックとは別に
+  // しているのは、addInitScript へ外の変数を渡すために引数を使う必要があるため）。
+  if (CARD_SET) {
+    await page.addInitScript((v) => {
+      try {
+        localStorage.setItem("so7-card-set", v);
+      } catch (e) {}
+    }, CARD_SET);
+    log("カードセット:", CARD_SET);
+  }
 
   await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: "load" });
   await page.waitForTimeout(3000);
 
+  // 🔴 指定した山札が本当に効いているかを確かめる。効いていないのに「通った」と言うのが
+  //   いちばん悪い（リメイク戦をもう1回やっただけになる）。
+  if (CARD_SET) {
+    const 実際 = await page.evaluate(() => {
+      try {
+        return localStorage.getItem("so7-card-set");
+      } catch (e) {
+        return null;
+      }
+    });
+    if (実際 !== CARD_SET) throw new Error(`カードセットが効いていない: ${実際} （期待 ${CARD_SET}）`);
+  }
   const bootChildren = await page.evaluate(() => document.body.children.length);
   if (bootChildren < 20) throw new Error(`boot looks broken: body has only ${bootChildren} children`);
   log("booted OK (body children:", bootChildren + ")");

@@ -76,7 +76,8 @@ export const VERBS = {
   DRAW_IF_HAND_ODD: "draw_if_hand_odd", // 不思議な果実: 手札が奇数枚ならドロー
   PLACE_WHOLE_HAND_AT_CHOSEN_CELL: "place_whole_hand_at_chosen_cell", // バッドバーガー: 中央と四隅のうち駒のいない1マスへ手札を全部置く
   DRAW_PER_FACEDOWN_AT_CHOSEN_CELL: "draw_per_facedown_at_chosen_cell", // ピュアバーガー(手札): 選んだマスの裏向きの枚数ぶんドロー
-  DISCARD_OWN_HAND_DOWN_TO: "discard_own_hand_down_to", // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
+  DISCARD_OWN_HAND_DOWN_TO: "discard_own_hand_down_to", // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる
+  DISCARD_ANY_HAND_THEN_DRAW_SAME: "discard_any_hand_then_draw_same", // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
   PICKUP_DISCARD_TOP: "pickup_discard_top", // 赤のはじまり専用: 捨て場の１番上のカードを手札に加える // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
   // 続き44で新設。
   PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる
@@ -111,6 +112,8 @@ export const TARGET_SELECTIONS = {
   // 黒の契約の烙印専用: 自分のロックエリアの空いているスロット（通常のロックと違い色を
   // 問わない）から選ぶ。
   OWN_EMPTY_LOCK_SLOTS: "own_empty_lock_slots",
+  // 0th拡張（ゲートチャージ）専用: 「あなたのゲート」。選ぶ余地が無いので候補を出さない。
+  OWN_GATE: "own_gate",
 };
 
 // --- パイロットカード5枚 --------------------------------------------------------------
@@ -947,6 +950,127 @@ export const CARD_EFFECTS = {
     },
   },
 
+  // オレンジバス（橙・5枚） 手札効果: 「これをあなたの隣以外のマスに表向きで置く。」
+  // ⚠ **到達効果はまだ自動処理にしていない**（「『バスストップ』のあるマスに移動する」＝
+  //   盤面から特定のカードを探す＋このターンにオープンされたかの記録が要る）。
+  "ex0-orange-bus": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeAdjacent: true },
+        },
+      ],
+    },
+  },
+
+  // 平和への願い（桃・5枚） 手札効果: 「１枚ドロー。これをあなたの隣以外のマスに裏向きで置く。」
+  // ⚠ **到達効果はまだ自動処理にしていない**（「次のあなたのターンの開始時」まで持ち越して
+  //   判定する＝ターン開始時のフックが要る）。docs/ex0-effects-plan.md 参照。
+  "ex0-pink-wish-for-peace": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        { verb: VERBS.DRAW, count: 1 },
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: false,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeAdjacent: true },
+        },
+      ],
+    },
+  },
+
+  // バスストップ（橙・4枚） 手札効果: 「以下の効果のうち１つ得る。／・あなたの手札を１枚捨てる。
+  // これを任意のマスに表向きで置く。／・これを任意のマスに裏向きで置く。」
+  // ⚠ **到達効果はまだ**（「このターンにこれがオープンされたのなら」の記録が要る）。
+  // 🔴 どちらの選択肢も**これ自身を盤面へ置く**ので keepsCardOnUse（＝先に捨てない）。
+  //   ①で捨てるのは**別の手札1枚**なので exceptSelf を渡す（自分を捨てると置けなくなる）。
+  "ex0-orange-bus-stop": {
+    handEffectOptions: [
+      {
+        id: "ex0-busstop-discard-faceup",
+        labelKey: "cef.opt.ex0BusStopFaceUp",
+        keepsCardOnUse: true,
+        // これ自身＋捨てる1枚＝2枚ないと選べない（善処の原則）。
+        requiresMinHandSize: 2,
+        actions: [
+          { verb: VERBS.DISCARD_ONE_HAND_CARD, exceptSelf: true },
+          {
+            verb: VERBS.PLACE_CARD,
+            source: "self",
+            faceUp: true,
+            count: 1,
+            destination: { selection: TARGET_SELECTIONS.CHOOSE },
+          },
+        ],
+      },
+      {
+        id: "ex0-busstop-facedown",
+        labelKey: "cef.opt.ex0BusStopFaceDown",
+        keepsCardOnUse: true,
+        actions: [
+          {
+            verb: VERBS.PLACE_CARD,
+            source: "self",
+            faceUp: false,
+            count: 1,
+            destination: { selection: TARGET_SELECTIONS.CHOOSE },
+          },
+        ],
+      },
+    ],
+  },
+
+  // ゲートチャージ（黄・4枚） 手札効果: 「これをあなたのゲートに表向きで置く。」
+  // ⚠ **到達効果はまだ**（「このターンにこれがオープンされたのなら」の記録が要る）。
+  "ex0-yellow-gate-charge": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.OWN_GATE },
+        },
+      ],
+    },
+  },
+
+  // 誰かの白きカゲ（白・1枚・ONLY） 手札効果: 「これをあなたの周囲以外のマスに裏向きで置く。」
+  // ⚠ **到達効果はまだ**（十字方向12マスへ置いて全部オープン＝駒がいるマスの到達が連鎖する）。
+  // ⓘ 「周囲」＝斜めも含む8マス（「隣」＝前後左右4マスとは別の概念＝用語集）。
+  "ex0-white-someones-shadow": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: false,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeSurrounding: true },
+        },
+      ],
+    },
+  },
+
+  // やり直しのカギ（紫・4枚） 到達効果: 「あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。」
+  // ⚠ **手札効果はまだ**（「相手がロックを宣言した時に使える」＝割り込み）。
+  "ex0-purple-redo-key": {
+    arrival: {
+      actions: [{ verb: VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME }],
+    },
+  },
+
   // 厳重警戒（青・4枚） 到達効果: 「以下の効果のうち１つ得る。／・あなたの手札が１枚になるように
   // 捨てる。／・あなたのゲートに強制移動する。移動先のカードはオープンしない。」
   // 手札効果: 「これをプレイヤーのいないマスに表向きで置く。」
@@ -1065,6 +1189,8 @@ function renderAction(action, context) {
       return "任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。";
     case VERBS.DISCARD_OWN_HAND_DOWN_TO:
       return `あなたの手札が${toFullWidthNumber(action.keep)}枚になるように捨てる。`;
+    case VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME:
+      return "あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。";
     case VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS:
       return `手札が${toFullWidthNumber(action.minHandSize)}枚以上ある相手全員の手札から、無作為に１枚ずつ選び、それらを捨てる。`;
     case VERBS.DISCARD_ALL_AT_CHOSEN_CELL:
@@ -1100,17 +1226,23 @@ function renderAction(action, context) {
         if (action.destination?.selection === TARGET_SELECTIONS.OWN_EMPTY_LOCK_SLOTS) {
           return `あなたの空いているロックエリアに、これを${faceLabel}置く。`;
         }
+        // 0th拡張（ゲートチャージ）: 「これをあなたのゲートに表向きで置く。」
+        if (action.destination?.selection === TARGET_SELECTIONS.OWN_GATE) {
+          return `これをあなたのゲートに${faceLabel}置く。`;
+        }
         // 0th拡張（迷いの森・厳重警戒）: 置き先の条件をそのまま文にする。印字の語順に合わせて
         // 「あなたの隣以外の、プレイヤーのいないマスに」となるよう、隣→駒の順でつなぐ。
         const destLabel = action.destination?.excludeGates
           ? "ゲート以外の任意のマスに"
-          : action.destination?.excludeAdjacent && action.destination?.excludePieceCells
-            ? "あなたの隣以外の、プレイヤーのいないマスに"
-            : action.destination?.excludeAdjacent
-              ? "あなたの隣以外のマスに"
-              : action.destination?.excludePieceCells
-                ? "プレイヤーのいないマスに"
-                : "任意のマスに";
+          : action.destination?.excludeSurrounding
+            ? "あなたの周囲以外のマスに"
+            : action.destination?.excludeAdjacent && action.destination?.excludePieceCells
+              ? "あなたの隣以外の、プレイヤーのいないマスに"
+              : action.destination?.excludeAdjacent
+                ? "あなたの隣以外のマスに"
+                : action.destination?.excludePieceCells
+                  ? "プレイヤーのいないマスに"
+                  : "任意のマスに";
         // selfLabelで上書きできる。以前は選べる罠の印字が「このカードを」だったため
         // 使っていたが、2026-09-24に印刷カードどおり「これを」へ揃えたので、いま渡して
         // いるカードは無い（既定の「これ」で全部足りる）。

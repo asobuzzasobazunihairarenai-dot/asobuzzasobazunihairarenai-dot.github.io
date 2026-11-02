@@ -1997,6 +1997,166 @@ export const CASES = [
       { kind: "handCount", player: "A", n: 2 },
     ],
   },
+  // --- 置くだけの手札効果（0th拡張・第4弾） ---------------------------------------
+  // 🔴 候補の数（pickLocationCandidates）も検査する。49マスから何マス外したかで、
+  //   「あなたの隣以外」「あなたの周囲以外」が効いているかが分かる。
+  {
+    name: "オレンジバス(手札): これをあなたの隣以外のマスに表向きで置く（候補45マス）",
+    kind: "hand",
+    cardId: "ex0-orange-bus",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 0, col: 0 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "called", name: "pickLocationCandidates", arg: "45" }, // 49 − 隣4
+    ],
+  },
+  {
+    name: "平和への願い(手札): 1枚ドロー→これをあなたの隣以外のマスに裏向きで置く",
+    kind: "hand",
+    cardId: "ex0-pink-wish-for-peace",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-wish-for-peace", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-wish-for-peace", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 6, col: 6 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 6, col: 6 },
+      { kind: "tokenFaceDown", id: "self" },   // 裏向きで置く
+      { kind: "deckLen", n: 0 },               // 1枚ドローした
+      { kind: "handCount", player: "A", n: 1 }, // 引いた1枚だけ（自分自身は盤面へ）
+      { kind: "called", name: "pickLocationCandidates", arg: "45" },
+    ],
+  },
+  {
+    name: "バスストップ(手札)①: 手札を1枚捨てて、これを任意のマスに表向きで置く（自分は捨てない）",
+    kind: "hand",
+    cardId: "ex0-orange-bus-stop",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus-stop", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["ex0-busstop-discard-faceup"], handCard: ["h1"], location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "pileContains", pile: "discard", cardId: "purple-sorry" },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-orange-bus-stop", n: 0 }, // 自分は捨てない
+      { kind: "tokenAtCell", id: "self", row: 2, col: 2 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "called", name: "pickLocationCandidates", arg: "49" }, // 「任意のマス」なので全部
+    ],
+  },
+  {
+    name: "バスストップ(手札)②: これを任意のマスに裏向きで置く",
+    kind: "hand",
+    cardId: "ex0-orange-bus-stop",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus-stop", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["ex0-busstop-facedown"], location: [{ row: 5, col: 1 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 5, col: 1 },
+      { kind: "tokenFaceDown", id: "self" },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  {
+    name: "ゲートチャージ(手札): これをあなたのゲートに表向きで置く（聞かずに決まる）",
+    kind: "hand",
+    cardId: "ex0-yellow-gate-charge",
+    state: {
+      // A の座席は南（手前）＝ゲートは (6,3)。board-layout.js の GATE_POSITIONS より。
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-gate-charge", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-gate-charge", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 6, col: 3 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "called", name: "pickLocation", n: 0 }, // 選ぶ余地が無いので聞かない
+    ],
+  },
+  {
+    name: "誰かの白きカゲ(手札): これをあなたの周囲以外のマスに裏向きで置く（候補41マス）",
+    kind: "hand",
+    cardId: "ex0-white-someones-shadow",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-white-someones-shadow", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-white-someones-shadow", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 0, col: 0 },
+      { kind: "tokenFaceDown", id: "self" },
+      // 🔴 49 − 周囲8（斜めも含む）＝41。「隣」なら45になるので、ここで取り違えが分かる。
+      { kind: "called", name: "pickLocationCandidates", arg: "41" },
+    ],
+  },
+  {
+    name: "やり直しのカギ(到達): 手札を任意の枚数捨てて、同じ枚数ドローする",
+    kind: "arrival",
+    cardId: "ex0-purple-redo-key",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-redo-key", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "h1", kind: "card", cardId: "purple-sorry", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h3", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-redo-key", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    // 3枚のうち2枚だけ捨てる（「任意の枚数」なので全部でなくてよい）。
+    picks: { handCardsOrdered: [["h1", "h2"]] },
+    expect: [
+      { kind: "pileContains", pile: "discard", cardId: "purple-sorry" },
+      { kind: "pileContains", pile: "discard", cardId: "pink-present" },
+      { kind: "tokenZone", id: "h3", zone: "hand", player: "A" }, // 捨てなかった分は残る
+      { kind: "deckLen", n: 1 },                                   // 2枚ドローした
+      { kind: "handCount", player: "A", n: 4 },                    // 残り1＋引いた2＋自分自身
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------

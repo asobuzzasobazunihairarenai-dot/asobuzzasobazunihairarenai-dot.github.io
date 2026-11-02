@@ -273,7 +273,7 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
     (a) =>
       a.verb === VERBS.PLACE_CARD &&
       a.source === "self" &&
-      (a.destination?.excludeAdjacent || a.destination?.excludePieceCells)
+      (a.destination?.excludeAdjacent || a.destination?.excludePieceCells || a.destination?.excludeSurrounding)
   );
   if (置く先) {
     const piece = getState().tokens.find((t) => t.kind === "piece" && t.player === player);
@@ -707,6 +707,15 @@ function getPlaceCardCellCandidates(destination, pieceLocation) {
   }
   if (destination?.excludePieceCells) {
     cells = cells.filter((c) => !hasPieceAt(c.row, c.col));
+  }
+  if (destination?.excludeSurrounding) {
+    // 「周囲」＝斜めも含む8マス（用語集。「隣」＝前後左右4マスとは別）。
+    // 駒の位置が分からない時は**安全側（候補なし）に倒す**（絞らずに出すとルール違反になる）。
+    if (!pieceLocation || typeof pieceLocation.row !== "number") return [];
+    const 周囲 = new Set(
+      enumerateSurroundingOffsets().map(({ dr, dc }) => pieceLocation.row + dr + "," + (pieceLocation.col + dc))
+    );
+    cells = cells.filter((c) => !周囲.has(c.row + "," + c.col));
   }
   if (destination?.excludeAdjacent) {
     // 駒の位置が分からない時は絞れない。**安全側（候補なし）に倒す**——
@@ -1715,6 +1724,11 @@ async function runAction(action, ctx, helpers) {
           if (hasCardAt(row, col) || hasPieceAt(row, col)) continue;
           destinations.push({ zone: "cell", row, col });
         }
+      } else if (action.destination?.selection === TARGET_SELECTIONS.OWN_GATE) {
+        // 0th拡張（ゲートチャージ）: 「あなたのゲートに置く」。選ぶ余地が無いので聞かない。
+        const myGate = GATE_POSITIONS[SEAT_TO_SIDE[ctx.player]];
+        if (!myGate) return false;
+        destinations = [{ zone: "cell", row: myGate.row, col: myGate.col }];
       } else if (action.destination?.selection === TARGET_SELECTIONS.OWN_EMPTY_LOCK_SLOTS) {
         // 黒の契約の烙印専用: 自分のロックエリアの空いているスロット（色不問）から選ぶ。
         const candidates = getOwnEmptyLockSlotCandidates(ctx.player);
@@ -2113,6 +2127,58 @@ async function runAction(action, ctx, helpers) {
       await helpers.announceEffectReason?.(
         ctx.cardId,
         t("ce.trapDiscardedLock", { name: helpers.getPlayerName(ctx.player), card: cardDisplayName(chosen.cardId) })
+      );
+      return true;
+    }
+    case VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME: {
+      // やり直しのカギ（0th拡張）「あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。」
+      // 作りは DISCARD_ANY_OWN_LOCKED_DRAW_PER（色落ちキャットの手札効果）と同じ考え方:
+      //   まとめて選べるモーダルがあればそれで、無ければ（CPU等）1枚ずつ聞く。
+      // ⓘ 0枚でもよい効果なので、0枚なら不発（＝このカードが手札に加わるだけ）。
+      const handNow = getHandTokens(ctx.player);
+      if (handNow.length === 0) return false;
+      let 捨てた = 0;
+      if (helpers.pickHandCardsOrdered) {
+        const chosen = await helpers.pickHandCardsOrdered(
+          ctx.player,
+          t("ce.pickDiscardAnyOptional"),
+          new Set(handNow.map((tk) => tk.id)),
+          {}
+        );
+        if (Array.isArray(chosen)) {
+          for (const tk of chosen) {
+            await helpers.discardAndSync(tk.id);
+            捨てた++;
+          }
+          if (捨てた > 0) {
+            await helpers.drawCards(ctx.player, 捨てた);
+            await helpers.announceEffectReason?.(
+              ctx.cardId,
+              t("ce.redoKeyDrew", { name: helpers.getPlayerName(ctx.player), n: 捨てた })
+            );
+          }
+          return 捨てた > 0;
+        }
+      }
+      // まとめて選べない呼び出し元（CPU等）: 1枚ずつ聞く。手札の枚数を上限にする。
+      for (let i = 0; i < handNow.length; i++) {
+        const のこり = getHandTokens(ctx.player);
+        if (のこり.length === 0) break;
+        const chosen = await helpers.pickHandCard(
+          ctx.player,
+          t("ce.pickDiscardAnyOptional"),
+          new Set(のこり.map((tk) => tk.id)),
+          { allowSkip: true, skipLabel: t("ce.L842") }
+        );
+        if (!chosen) break; // 「任意の枚数」＝これ以上捨てない＝正常終了
+        await helpers.discardAndSync(chosen.id);
+        捨てた++;
+      }
+      if (捨てた === 0) return false;
+      await helpers.drawCards(ctx.player, 捨てた);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.redoKeyDrew", { name: helpers.getPlayerName(ctx.player), n: 捨てた })
       );
       return true;
     }
@@ -2596,9 +2662,12 @@ async function runAction(action, ctx, helpers) {
     case VERBS.DISCARD_ONE_HAND_CARD: {
       // ザ・ギャンブルの手札効果専用コスト: 追色（同色限定）と違い、手札からどの色でも
       // 1枚選んで捨てる。
-      const handTokens = getHandTokens(ctx.player);
+      // 🔴 exceptSelf（0th拡張・バスストップ）: **これ自身を候補から外す**。あちらは
+      //   keepsCardOnUse でこのカードを盤面へ置くので、自分を捨ててしまうと置けなくなる
+      //   （ザ・ギャンブルは先に自分を捨てる作りなので、そもそも候補に入らなかった）。
+      const handTokens = getHandTokens(ctx.player).filter((tk) => !action.exceptSelf || tk.id !== ctx.cardTokenId);
       if (handTokens.length === 0) return false;
-      const chosen = await helpers.pickHandCard(ctx.player, t("ce.L1880"));
+      const chosen = await helpers.pickHandCard(ctx.player, t("ce.L1880"), new Set(handTokens.map((tk) => tk.id)));
       if (!chosen) return false;
       await helpers.discardAndSync(chosen.id);
       return true;
