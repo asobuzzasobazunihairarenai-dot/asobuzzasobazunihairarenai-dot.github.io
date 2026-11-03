@@ -78,7 +78,34 @@ export const VERBS = {
   DRAW_PER_FACEDOWN_AT_CHOSEN_CELL: "draw_per_facedown_at_chosen_cell", // ピュアバーガー(手札): 選んだマスの裏向きの枚数ぶんドロー
   DISCARD_OWN_HAND_DOWN_TO: "discard_own_hand_down_to", // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる
   DISCARD_ANY_HAND_THEN_DRAW_SAME: "discard_any_hand_then_draw_same", // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー
-  DRAW_IF_OPENED_THIS_TURN: "draw_if_opened_this_turn", // バスストップ: このターンにこれがオープンされたのならドロー // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
+  DRAW_IF_OPENED_THIS_TURN: "draw_if_opened_this_turn", // バスストップ: このターンにこれがオープンされたのならドロー
+  PUBLIC_DRAW_TO_BOTTOM_OF_CHOSEN_CELL: "public_draw_to_bottom_of_chosen_cell", // 足下の隠し財産: 1枚ドローして公開し、選んだマスの1番下に表向きで置く
+  PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL: "place_hand_card_at_bottom_of_chosen_cell", // 足下の隠し財産(手札): 手札1枚を選んだマスの1番下に表向きで置く
+  MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD: "move_to_cell_with_named_faceup_card", // オレンジバス: 「バスストップ」のあるマスに移動する
+  PICKUP_NAMED_CARD_AT_OWN_CELL: "pickup_named_card_at_own_cell", // オレンジバス: そのバスストップを手札に加える
+  FORCED_MOVE: "forced_move", // ジョイナー等: ふつうの「強制移動」（カードが無いマスにも行ける）
+  FORCED_MOVE_TO_PREVIOUS_CELL: "forced_move_to_previous_cell", // リーチキャンセル: 移動前のマスに強制移動する
+  GATE_CHARGE_PLACE_OR_RETURN: "gate_charge_place_or_return", // ゲートチャージ: オープンされたならゲートへ／そうでないなら戻って捨てる
+  END_TURN: "end_turn", // 「このターンを終了する。」（「このフェイズを終了する」とは別物）
+  PEEK_FACEDOWN_AT_CHOSEN_CELLS: "peek_facedown_at_chosen_cells", // 鑑定士の技・ジェイク: 裏向きのカードの表面を見る
+  DECLARE_AND_OPEN_TO_HAND_REPEAT: "declare_and_open_to_hand_repeat", // 鑑定士の技(手札): 色宣言→オープンして手札に加える→当たれば繰り返す
+  DECLARE_AND_OPEN_UP_TO_N_THEN_HAND: "declare_and_open_up_to_n_then_hand", // ジェイク(手札): 色宣言→オープン→当たれば繰り返す（計N枚まで）。N枚目も当たりなら全部手札へ
+  ALL_PLAYERS_DRAW_AND_PLACE_ONE_AT_CHOSEN_CELL: "all_players_draw_and_place_one_at_chosen_cell", // ピュアバーガー: 全員1枚ドローし、手札1枚をそのマスの1番上に置く
+  MOVE_SELF_BY_RIGHT_NEIGHBOR: "move_self_by_right_neighbor", // 不思議な果実: あなたの右隣の相手が、あなたを1マス移動させる
+  PLACE_DECK_CARDS_IN_CROSS_AND_OPEN_ALL: "place_deck_cards_in_cross_and_open_all", // 誰かの白きカゲ: 十字方向の計12マスに1枚ずつ置いて全部オープン
+  PICKUP_ADJACENT_CARDS_TO_HAND: "pickup_adjacent_cards_to_hand", // マックール: あなたの隣のマスのカードをN枚手札に加える
+  FORCED_MOVE_TO_SURROUNDING_OF_CHOSEN_OPPONENT: "forced_move_to_surrounding_of_chosen_opponent", // マックール(手札): 相手を1人選び、その相手の周囲に強制移動する
+  STEAL_RANDOM_FROM_MOST_LOCKED: "steal_random_from_most_locked", // リトルマウス: 1番多くロックしているプレイヤーから無作為にN枚
+  END_TURN_IF_OWN_TURN: "end_turn_if_own_turn", // リトルマウス(手札): あなたのターンに使ったならこのターンを終了する
+  PLACE_DECK_CARDS_ON_ADJACENT: "place_deck_cards_on_adjacent", // ピーターフッド: あなたの隣に山札からN枚ずつ裏向きで置く
+  ALL_PLAYERS_SET_HAND_SIZE: "all_players_set_hand_size", // ピーターフッド(手札): 1〜7の数を選び、全員の手札をその枚数にする
+  GIVE_SELF_TO_CHOSEN_OPPONENT_WITH_OPTIONS: "give_self_to_chosen_opponent_with_options", // ヤエザ: 相手1人がこれを手札に加え、2択のどちらかを得る
+  ALL_PLAYERS_DISCARD_DOWN_TO_THEN_MAY_LOCK: "all_players_discard_down_to_then_may_lock", // ヴド族との契約: 全員が手札N枚以下になるまで捨て、捨てたならロックしてもよい
+  REGISTER_PEACE_WISH: "register_peace_wish", // 平和への願い: 次の自分のターンの開始時まで持ち越して判定する
+  CONTACT_CHOSEN_OPPONENT_IN_SURROUNDING: "contact_chosen_opponent_in_surrounding", // 紅の鉄拳: あなたの周囲の相手1人に接触する
+  DISABLE_LOCK_THIS_TURN_FOR_DECLARER: "disable_lock_this_turn_for_declarer", // やり直しのカギ(手札): ロックを宣言した相手はこのターンロックできない
+  CANCEL_ARRIVAL_EFFECT: "cancel_arrival_effect", // リーチキャンセル(手札): そのカードの効果を無効にし、そのカードを捨てる
+  CHOSEN_OPPONENT_DOES_MOVE_PHASE_FOR_YOU: "chosen_opponent_does_move_phase_for_you", // ヴィヴィアン: 相手がムーブフェイズを行い、到達したカードは自分の手札へ // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる // 色寄せの笛専用: これと同色の、場の表向きのカード１枚を手札に加える
   PICKUP_DISCARD_TOP: "pickup_discard_top", // 赤のはじまり専用: 捨て場の１番上のカードを手札に加える // 紅蓮の火山 ワイナウエア専用: 任意の1マスのカードを全て捨てる
   // 続き44で新設。
   PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END: "public_draw_then_discard_at_turn_end", // 緑のキューブ ヴァーディアン(first-green)専用: N枚公開ドローし、ターン終了時にそれらを捨てる
@@ -923,6 +950,17 @@ export const CARD_EFFECTS = {
   //   ＝委任と『このターンを終了する』が要る）。到達だけ自動で、手札効果は今までどおり
   //   文を読んで自分で処理する形になる。docs/ex0-effects-plan.md 参照。
   "ex0-pink-mystic-fruit": {
+    // 手札効果: 「あなたの隣の２マス以上にカードが置かれている時に使える。１枚ドロー。
+    //   あなたの右隣の相手が、あなたを１マス移動させる。このターンを終了する。」
+    // ⓘ 「隣」＝前後左右の4マス（用語集）。「右隣の相手」＝時計回りで次の席。
+    handEffect: {
+      requiresAdjacentCardsAtLeast: 2,
+      actions: [
+        { verb: VERBS.DRAW, count: 1 },
+        { verb: VERBS.MOVE_SELF_BY_RIGHT_NEIGHBOR, count: 1 },
+        { verb: VERBS.END_TURN },
+      ],
+    },
     arrival: {
       actions: [{ verb: VERBS.DRAW_IF_HAND_ODD, count: 1 }],
     },
@@ -945,16 +983,49 @@ export const CARD_EFFECTS = {
   // ピュアバーガー（白・2枚） 手札効果: 「任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。」
   // ⚠ **到達効果はまだ自動処理にしていない**（「全員は１枚ドローし、自分の手札から１枚を
   //   そのマスの１番上に置く」＝全員への委任が要る）。docs/ex0-effects-plan.md 参照。
+  // ピュアバーガー（白・2枚）
+  //   到達: 「プレイヤーのいないマスを１マス選ぶ。全員は１枚ドローし、自分の手札から１枚を
+  //         そのマスの１番上に置く。」
+  //   手札: 「任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。」
+  // ⚠ 「１番上に置く」＝ふつうに置けばそうなる（重なり順は配列の末尾が上）。
   "ex0-white-pure-burger": {
+    arrival: {
+      actions: [{ verb: VERBS.ALL_PLAYERS_DRAW_AND_PLACE_ONE_AT_CHOSEN_CELL, count: 1 }],
+    },
     handEffect: {
       actions: [{ verb: VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL }],
     },
   },
 
-  // オレンジバス（橙・5枚） 手札効果: 「これをあなたの隣以外のマスに表向きで置く。」
-  // ⚠ **到達効果はまだ自動処理にしていない**（「『バスストップ』のあるマスに移動する」＝
-  //   盤面から特定のカードを探す＋このターンにオープンされたかの記録が要る）。
+  // オレンジバス（橙・5枚）
+  //   到達: 「『バスストップ』のあるマスに移動する。これをあなたの隣に表向きで置く。
+  //         その『バスストップ』をあなたの手札に加える。」
+  //   手札: 「これをあなたの隣以外のマスに表向きで置く。」
+  // 🔴 **裏向きのバスストップは対象ではない**（2026-11-02 ユーザー回答）。対象にすると
+  //   伏せ情報が漏れる。だから表向きのものだけを探す。
+  // 🔴 addsCardToHandAfter: false ＝これ自身は手札に入らず**盤面（あなたの隣）へ置く**。
   "ex0-orange-bus": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [
+        { verb: VERBS.MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD, targetCardId: "ex0-orange-bus-stop", targetName: "バスストップ" },
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, onlyAdjacent: true },
+          // 🔴 移動できなかったら、ここも行わない（元いたマスの隣に置いてしまう）。
+          stopIfPreviousFailed: true,
+        },
+        {
+          verb: VERBS.PICKUP_NAMED_CARD_AT_OWN_CELL,
+          targetCardId: "ex0-orange-bus-stop",
+          targetName: "バスストップ",
+          stopIfPreviousFailed: true,
+        },
+      ],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -969,10 +1040,19 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 平和への願い（桃・5枚） 手札効果: 「１枚ドロー。これをあなたの隣以外のマスに裏向きで置く。」
-  // ⚠ **到達効果はまだ自動処理にしていない**（「次のあなたのターンの開始時」まで持ち越して
-  //   判定する＝ターン開始時のフックが要る）。docs/ex0-effects-plan.md 参照。
+  // 平和への願い（桃・5枚）
+  //   到達: 「次のあなたのターンの開始時、あなたがこれの上にいて、その間に誰も手札効果を
+  //         使っていないなら、全員は２枚ドローし、これを裏向きにする。そうでないなら、
+  //         これをあなたの手札に加える。」
+  //   手札: 「１枚ドロー。これをあなたの隣以外のマスに裏向きで置く。」
+  // 🔴 到達の時点では**何も起きない**（印を付けて持ち越すだけ）。実際の判定は
+  //   main.js の resolvePeaceWishesAtTurnStart（ターンが切り替わった瞬間）が行う。
+  // 🔴 addsCardToHandAfter: false ＝到達では手札に加えない（盤面に残して持ち越す）。
   "ex0-pink-wish-for-peace": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.REGISTER_PEACE_WISH, count: 2 }],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -1037,9 +1117,17 @@ export const CARD_EFFECTS = {
     ],
   },
 
-  // ゲートチャージ（黄・4枚） 手札効果: 「これをあなたのゲートに表向きで置く。」
-  // ⚠ **到達効果はまだ**（「このターンにこれがオープンされたのなら」の記録が要る）。
+  // ゲートチャージ（黄・4枚）
+  //   到達: 「１枚ドロー。このターンにこれがオープンされたのなら、これをあなたのゲートに表向きで
+  //         置く。そうでないなら、移動前のマスに強制移動し、これを捨てる。ただし相手のゲートへは
+  //         移動できない。」
+  //   手札: 「これをあなたのゲートに表向きで置く。」
+  // 🔴 addsCardToHandAfter: false ＝どちらの枝でも**手札には入らない**（ゲートへ置くか捨てる）。
   "ex0-yellow-gate-charge": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.DRAW, count: 1 }, { verb: VERBS.GATE_CHARGE_PLACE_OR_RETURN }],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -1054,10 +1142,289 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 誰かの白きカゲ（白・1枚・ONLY） 手札効果: 「これをあなたの周囲以外のマスに裏向きで置く。」
-  // ⚠ **到達効果はまだ**（十字方向12マスへ置いて全部オープン＝駒がいるマスの到達が連鎖する）。
+  // 後援するヴィヴィアン（紫・1枚・ONLY）
+  //   到達: 「相手を１人選ぶ。その相手はムーブフェイズを行う。その相手が到達したカードを
+  //         自分の手札に加えるなら、代わりにそのカードをあなたの手札に加える。」
+  //   手札: 「上記の到達効果を得る。」
+  // ⚠ 「ムーブフェイズを行う」は、このアプリでは**1マスの移動＋移動先のオープン＋到達**に
+  //   まとめてある（接触を選ぶ道は作っていない＝申し送り）。
+  "ex0-purple-vivian": {
+    arrival: {
+      actions: [{ verb: VERBS.CHOSEN_OPPONENT_DOES_MOVE_PHASE_FOR_YOU }],
+    },
+    handEffect: {
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 我忘れの白き龍（ノクスアエル）（白・1枚・ONLY）
+  //   ★ 「これは他のカードの効果の対象にならない。」→ isTargetableByOtherCardEffects で除く。
+  //   【色者】 「これが場に表向きである限り、各プレイヤーのターン終了時に山札から１枚捨て、
+  //     そのカードの色（捨色）を確認して、①移動先表示に従いこれをそのマスに置く。
+  //     ②その色の効果を得る。」
+  //     → **この常駐の処理は main.js の resolveShikijaAtTurnEnd が行う**（ターンが切り替わった
+  //       瞬間に、その前のターンのプレイヤーの「ターン終了時」として走る）。
+  //   到達: 「１枚ドロー。１マス強制移動する。」（補足「これに到達しても、これをあなたの
+  //         手札に加えない。」＝ addsCardToHandAfter: false ＋ hideNoHandNote）
+  //   手札: 「これを任意のマスに表向きで置く。」
+  "ex0-white-dragon": {
+    arrival: {
+      addsCardToHandAfter: false,
+      hideNoHandNote: true,
+      actions: [{ verb: VERBS.DRAW, count: 1 }, { verb: VERBS.FORCED_MOVE, count: 1 }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
+  // 紅の鉄拳（赤・4枚）
+  //   到達: 「以下の効果のうち１つ得る。／・【追色１】２枚ドロー。／
+  //         ・あなたの周囲の相手を１人選ぶ。その相手に接触する。」
+  //   手札: 「【追色S】あなたの周囲の相手を１人選ぶ。その相手に接触する。」
+  // ⚠ **手札効果はまだ自動処理にしていない**。【追色S】は払う枚数をプレイヤーが決める
+  //   新しいコストの形で、しかも「接触で奪えるカードはSの２倍」＝奪う枚数を変える必要がある。
+  //   奪うのは**サーバー（Edge Function）が無作為に選ぶ**処理なので、そちらの改修も要る。
+  // 🔴 到達の②で奪う枚数は**通常の接触と同じ1枚**（2026-11-02 ユーザー回答）。
+  "ex0-red-crimson-fist": {
+    arrivalOptions: [
+      {
+        id: "ex0-fist-draw",
+        labelKey: "cef.opt.ex0FistDraw",
+        cost: { verb: VERBS.DISCARD_SAME_COLOR, count: 1 },
+        actions: [{ verb: VERBS.DRAW, count: 2 }],
+      },
+      {
+        id: "ex0-fist-contact",
+        labelKey: "cef.opt.ex0FistContact",
+        requiresOpponentInSurrounding: true,
+        actions: [{ verb: VERBS.CONTACT_CHOSEN_OPPONENT_IN_SURROUNDING }],
+      },
+    ],
+  },
+
+  // 異能者　マックールのネオ・フォース（橙・1枚・ONLY）
+  //   到達: 「あなたの隣のマスのカードを２枚、あなたの手札に加える。」
+  //   手札: 「【追色１】相手を１人選ぶ。その相手の周囲に強制移動する。移動先のカードは
+  //         オープンしない。このターンを終了する。」
+  "ex0-orange-mccool": {
+    arrival: {
+      actions: [{ verb: VERBS.PICKUP_ADJACENT_CARDS_TO_HAND, count: 2 }],
+    },
+    handEffect: {
+      cost: { verb: VERBS.DISCARD_SAME_COLOR, count: 1 },
+      actions: [
+        { verb: VERBS.FORCED_MOVE_TO_SURROUNDING_OF_CHOSEN_OPPONENT, noArrival: true },
+        { verb: VERBS.END_TURN },
+      ],
+    },
+  },
+
+  // 大盗賊　リトルマウスの手癖（黄・1枚・ONLY）
+  //   到達: 「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの手札から
+  //         無作為に２枚、あなたの手札に加える。」
+  //   手札: 「いつでも使える。上記の到達効果を得る。あなたのターンに使ったなら、
+  //         このターンを終了する。」
+  // ⚠ 「プレイヤー」＝**自分も含む**（「相手」と書かれていない）。自分が単独で1番多い時は
+  //   自分しか選べず、自分から奪う＝何も起きない。これは literal な読み。
+  "ex0-yellow-little-mouse": {
+    arrival: {
+      actions: [{ verb: VERBS.STEAL_RANDOM_FROM_MOST_LOCKED, count: 2 }],
+    },
+    handEffect: {
+      usableAnytime: true,
+      usableAnytimeLabel: "いつでも使える。", // 印字どおり（手品師の技とは文言が違う）
+      // ⚠ inheritsArrival は立てない。立てると生成文が「上記の到達効果を得る。」
+      //   だけになり、2文目（ターンを終了する）が消える。
+      actions: [
+        { verb: VERBS.INHERIT_ARRIVAL_ACTIONS },
+        { verb: VERBS.END_TURN_IF_OWN_TURN },
+      ],
+    },
+  },
+
+  // 森の民　ピーターフッドの日常（緑・1枚・ONLY）
+  //   到達: 「あなたの隣に山札から３枚ずつ裏向きで置く。」
+  //   手札: 「１〜７の数字を１つ選ぶ。全員は手札がその枚数になるようにドローする、
+  //         または捨てる。このフェイズを終了する。」
+  "ex0-green-peterhood": {
+    arrival: {
+      actions: [{ verb: VERBS.PLACE_DECK_CARDS_ON_ADJACENT, count: 3 }],
+    },
+    handEffect: {
+      actions: [
+        { verb: VERBS.ALL_PLAYERS_SET_HAND_SIZE, min: 1, max: 7 },
+        { verb: VERBS.END_CURRENT_PHASE },
+      ],
+    },
+  },
+
+  // 魅惑のヤエザ（桃・1枚・ONLY）
+  //   到達: 「相手を１人選ぶ。その相手はこれを自分の手札に加え、以下の効果のうち１つ得る。
+  //         ・自分の手札をすべて捨てる。１枚ドロー。／・自分のロックしている１枚を捨てる。」
+  //   手札: 「上記の到達効果を得る。」
+  // 🔴 addsCardToHandAfter: false ＝これは**相手の手札**に行く。
+  // 🔴 手札効果は keepsCardOnUse（先に捨てると渡すものが無くなる）。
+  "ex0-pink-yaeza": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT_WITH_OPTIONS }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // ヴド族との契約（黒・1枚・ONLY）
+  //   到達: 「全員は手札が２枚以下になるように捨てる。そうしたなら、自分の手札を１枚
+  //         ロックしてもよい、ただし最後のロックはできない。」
+  //   手札: 「上記の到達効果を得る。」
+  // ⚠ **「自分の」は『全員』それぞれを指す**と読んだ（ヤエザの「その相手は…自分の手札に
+  //   加え」と同じ用法＝直前の主語を指す）。つまり捨てた人は全員ロックしてよい。
+  //   ⚠ 読み替えが要るならここだけ直せばよい（ユーザー確認待ち）。
+  "ex0-black-vood-contract": {
+    arrival: {
+      actions: [{ verb: VERBS.ALL_PLAYERS_DISCARD_DOWN_TO_THEN_MAY_LOCK, keep: 2 }],
+    },
+    handEffect: {
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 鑑定士の技 -トゥルーアイズ-（青・5枚）
+  //   到達: 「任意の１マスの裏向きのカードの表面を見る。」
+  //   手札: 「色を２色宣言する。プレイヤーのいない１マスの裏向きのカードをオープンし、
+  //         あなたの手札に加える。そのカードが宣言色なら、ここまでを繰り返す。このフェイズを終了する。」
+  // ⓘ 補足「見るのは選んだマスの１番上のカードである。（１番上の原則）」
+  // ⓘ 補足「『ここまで』とは『色を２色宣言する』から『あなたの手札に加える』まで」＝
+  //   繰り返すたびに色を宣言し直す。「このフェイズを終了する」は繰り返さない。
+  // ⚠ 到達効果（見る）は**オンラインでは中身が読めない**（裏向きのカードは cardId が
+  //   マスクされる）。その時は「手元で確かめてください」と出す＝ルール違反にはならない
+  //   （見る効果なので、盤面は何も変わらない）。CPU戦では普通に見られる。
+  "ex0-blue-appraiser": {
+    arrival: {
+      actions: [{ verb: VERBS.PEEK_FACEDOWN_AT_CHOSEN_CELLS, count: 1 }],
+    },
+    handEffect: {
+      actions: [
+        { verb: VERBS.DECLARE_AND_OPEN_TO_HAND_REPEAT, colorCount: 2 },
+        { verb: VERBS.END_CURRENT_PHASE },
+      ],
+    },
+  },
+
+  // 歴史家　ジェイクの記憶術（青・1枚・ONLY）
+  //   到達: 「任意の７マスの裏向きのカードの表面を見る。」
+  //   手札: 「色を１色宣言する。プレイヤーのいない１マスの裏向きのカードをオープンする。
+  //         そのカードが宣言色なら、ここまでを繰り返す、ただし計７枚までしかオープンできない。
+  //         ７枚目が宣言色なら、それら７枚をあなたの手札に加える。このターンを終了する。」
+  // 🔴 鑑定士の技と似ているが**毎回手札に入れるのではない**（7枚目も当たった時だけ全部）。
+  "ex0-blue-jake": {
+    arrival: {
+      actions: [{ verb: VERBS.PEEK_FACEDOWN_AT_CHOSEN_CELLS, count: 7 }],
+    },
+    handEffect: {
+      actions: [
+        { verb: VERBS.DECLARE_AND_OPEN_UP_TO_N_THEN_HAND, colorCount: 1, maxCount: 7 },
+        { verb: VERBS.END_TURN },
+      ],
+    },
+  },
+
+  // 足下の隠し財産（紫・5枚）
+  //   到達: 「あなたの隣以外の、カードの置かれたマスを１マス選ぶ。１枚ドローして公開する。
+  //         そのカードを選んだマスの１番下に表向きで置く。」
+  //   手札: 「以下の効果のうち１つ得る。／・上記の到達効果を得る。／・あなたの手札から１枚を、
+  //         カードの置かれた任意のマスの１番下に表向きで置く。」
+  // ⓘ 補足「あなたのいるマスも選べる。あなたの隣のマスは選べない。」＝除くのは**隣の4マスだけ**。
+  // 🔴 ②には「隣以外」の縛りが**無い**（①だけ）。取り違えると選べるマスがズレる。
+  "ex0-purple-hidden-fortune": {
+    arrival: {
+      actions: [{ verb: VERBS.PUBLIC_DRAW_TO_BOTTOM_OF_CHOSEN_CELL, count: 1 }],
+    },
+    handEffectOptions: [
+      {
+        id: "ex0-fortune-inherit",
+        labelKey: "cef.opt.ex0FortuneInherit",
+        // 善処の原則: 「隣以外の、カードの置かれたマス」が1つも無ければ選べない。
+        requiresNonAdjacentCellWithCard: true,
+        actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+      },
+      {
+        id: "ex0-fortune-hand",
+        labelKey: "cef.opt.ex0FortuneHand",
+        // 善処の原則: 「カードの置かれたマス」と「これ以外の手札」の両方が要る。
+        requiresCellWithCard: true,
+        requiresOtherHandCard: true,
+        actions: [{ verb: VERBS.PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL, count: 1 }],
+      },
+    ],
+  },
+
+  // リーチキャンセル（黄・5枚）
+  //   到達: 「移動前のマスに強制移動する。」
+  //   手札: 「無色以外のカードの到達効果の処理の直前に使える。そのカードの効果を無効にし、
+  //         そのカードを捨てる。」
+  // 🔴 **この手札効果の実行は main.js の offerArrivalCancelInterrupt が行う**（下の
+  //   CANCEL_ARRIVAL_EFFECT のコメント参照）。ここのデータは効果文の生成と
+  //   「ハンドフェイズでは使えない」（handEffectReactiveOnly）のために置いてある。
+  // ⚠ usableAnytime は立てない——ふだんの割り込みモーダル（ロック宣言・移動宣言の後）に
+  //   並べても「到達効果の処理の直前」にはならないので、別の窓で聞く。
+  "ex0-yellow-reach-cancel": {
+    handEffectReactiveOnly: true,
+    arrival: {
+      actions: [{ verb: VERBS.FORCED_MOVE_TO_PREVIOUS_CELL }],
+    },
+    handEffect: {
+      requiresArrivalEffectWindow: true,
+      actions: [{ verb: VERBS.CANCEL_ARRIVAL_EFFECT }],
+    },
+  },
+
+  // 走り人　ジョイナーの走術（赤・1枚・ONLY）
+  //   到達: 「１マス強制移動する。」
+  //   手札: 「何もないあなたの隣のマスに強制移動することを、任意の回数繰り返す。このターンを終了する。」
+  // ⓘ 「何もないマス」＝カードも駒も無いマス（用語集）。カードが無いので到達は起きない。
+  "ex0-red-joyner": {
+    arrival: {
+      actions: [{ verb: VERBS.FORCED_MOVE, count: 1 }],
+    },
+    handEffect: {
+      actions: [
+        { verb: VERBS.FORCED_MOVE, count: 1, requireEmpty: true, repeat: "any" },
+        { verb: VERBS.END_TURN },
+      ],
+    },
+  },
+
+  // 誰かの白きカゲ（白・1枚・ONLY）
+  //   到達: 「これを捨てる。このマスから十字方向の計１２マスに山札から１枚ずつ裏向きで置く。
+  //         それらをすべてオープンする。」
+  //   手札: 「これをあなたの周囲以外のマスに裏向きで置く。」
   // ⓘ 「周囲」＝斜めも含む8マス（「隣」＝前後左右4マスとは別の概念＝用語集）。
+  // 🔴 addsCardToHandAfter: false ＝これは捨てる（DISCARD_SELF が先に書いてあるので
+  //   「これはあなたの手札に加えない。」の一文は生成されない＝印字どおり）。
   "ex0-white-someones-shadow": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [
+        { verb: VERBS.DISCARD_SELF },
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CROSS_AND_OPEN_ALL, count: 1, cellCount: 12 },
+      ],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -1072,11 +1439,23 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // やり直しのカギ（紫・4枚） 到達効果: 「あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。」
-  // ⚠ **手札効果はまだ**（「相手がロックを宣言した時に使える」＝割り込み）。
+  // やり直しのカギ（紫・4枚）
+  //   到達: 「あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。」
+  //   手札: 「相手がロックを宣言した時に使える。その相手はこのターンにロックできない。」
+  // 🔴 handEffectReactiveOnly ＝**ハンドフェイズの自己申告では使えない**（割り込み専用）。
+  //   usableAnytime を立てると、既にある割り込みモーダル（triggerAnytimeInterruptCheckpoint）
+  //   に並ぶ。ロック宣言の窓かどうかは requiresOpponentLockDeclaration が見る。
+  // ⚠ usableAnytimeLabel で文言を印字に合わせている（既定は「この効果はいつでも使える。」）。
   "ex0-purple-redo-key": {
+    handEffectReactiveOnly: true,
     arrival: {
       actions: [{ verb: VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME }],
+    },
+    handEffect: {
+      usableAnytime: true,
+      usableAnytimeLabel: "相手がロックを宣言した時に使える。",
+      requiresOpponentLockDeclaration: true,
+      actions: [{ verb: VERBS.DISABLE_LOCK_THIS_TURN_FOR_DECLARER }],
     },
   },
 
@@ -1202,6 +1581,67 @@ function renderAction(action, context) {
       return "あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。";
     case VERBS.DRAW_IF_OPENED_THIS_TURN:
       return `このターンにこれがオープンされたのなら、${count}枚ドロー。`;
+    case VERBS.PUBLIC_DRAW_TO_BOTTOM_OF_CHOSEN_CELL:
+      return `あなたの隣以外の、カードの置かれたマスを${toFullWidthNumber(1)}マス選ぶ。${count}枚ドローして公開する。そのカードを選んだマスの${toFullWidthNumber(1)}番下に表向きで置く。`;
+    case VERBS.PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL:
+      return `あなたの手札から${count}枚を、カードの置かれた任意のマスの${toFullWidthNumber(1)}番下に表向きで置く。`;
+    case VERBS.MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD:
+      // ⚠ カード名は action.targetName から取る（このファイルは cards-data.js を import
+      //   していない＝getCardDefinition が無い。import すると循環する）。
+      return `「${action.targetName}」のあるマスに移動する。`;
+    case VERBS.PICKUP_NAMED_CARD_AT_OWN_CELL:
+      return `その「${action.targetName}」をあなたの手札に加える。`;
+    case VERBS.FORCED_MOVE: {
+      if (action.repeat === "any")
+        return `${action.requireEmpty ? "何もないあなたの隣のマス" : count + "マス"}に強制移動することを、任意の回数繰り返す。`;
+      return `${count}マス強制移動する。${action.noArrival ? "移動先のカードはオープンしない。" : ""}`;
+    }
+    case VERBS.FORCED_MOVE_TO_PREVIOUS_CELL:
+      return "移動前のマスに強制移動する。";
+    case VERBS.GATE_CHARGE_PLACE_OR_RETURN:
+      return "このターンにこれがオープンされたのなら、これをあなたのゲートに表向きで置く。そうでないなら、移動前のマスに強制移動し、これを捨てる。ただし相手のゲートへは移動できない。";
+    case VERBS.END_TURN:
+      return "このターンを終了する。";
+    case VERBS.PEEK_FACEDOWN_AT_CHOSEN_CELLS:
+      return `任意の${count}マスの裏向きのカードの表面を見る。`;
+    case VERBS.DECLARE_AND_OPEN_TO_HAND_REPEAT:
+      return `色を${toFullWidthNumber(action.colorCount)}色宣言する。プレイヤーのいない１マスの裏向きのカードをオープンし、あなたの手札に加える。そのカードが宣言色なら、ここまでを繰り返す。`;
+    case VERBS.DECLARE_AND_OPEN_UP_TO_N_THEN_HAND:
+      return `色を${toFullWidthNumber(action.colorCount)}色宣言する。プレイヤーのいない１マスの裏向きのカードをオープンする。そのカードが宣言色なら、ここまでを繰り返す、ただし計${toFullWidthNumber(action.maxCount)}枚までしかオープンできない。${toFullWidthNumber(action.maxCount)}枚目が宣言色なら、それら${toFullWidthNumber(action.maxCount)}枚をあなたの手札に加える。`;
+    case VERBS.ALL_PLAYERS_DRAW_AND_PLACE_ONE_AT_CHOSEN_CELL:
+      return `プレイヤーのいないマスを${toFullWidthNumber(1)}マス選ぶ。全員は${count}枚ドローし、自分の手札から${toFullWidthNumber(1)}枚をそのマスの${toFullWidthNumber(1)}番上に置く。`;
+    case VERBS.MOVE_SELF_BY_RIGHT_NEIGHBOR:
+      return `あなたの右隣の相手が、あなたを${count}マス移動させる。`;
+    case VERBS.CHOSEN_OPPONENT_DOES_MOVE_PHASE_FOR_YOU:
+      return `相手を${toFullWidthNumber(1)}人選ぶ。その相手はムーブフェイズを行う。その相手が到達したカードを自分の手札に加えるなら、代わりにそのカードをあなたの手札に加える。`;
+    case VERBS.DISABLE_LOCK_THIS_TURN_FOR_DECLARER:
+      return "その相手はこのターンにロックできない。";
+    case VERBS.CANCEL_ARRIVAL_EFFECT:
+      return "そのカードの効果を無効にし、そのカードを捨てる。";
+    case VERBS.REGISTER_PEACE_WISH:
+      return `次のあなたのターンの開始時、あなたがこれの上にいて、その間に誰も手札効果を使っていないなら、全員は${count}枚ドローし、これを裏向きにする。そうでないなら、これをあなたの手札に加える。`;
+    case VERBS.CONTACT_CHOSEN_OPPONENT_IN_SURROUNDING:
+      return `あなたの周囲の相手を${toFullWidthNumber(1)}人選ぶ。その相手に接触する。`;
+    case VERBS.PICKUP_ADJACENT_CARDS_TO_HAND:
+      return `あなたの隣のマスのカードを${count}枚、あなたの手札に加える。`;
+    case VERBS.FORCED_MOVE_TO_SURROUNDING_OF_CHOSEN_OPPONENT:
+      return `相手を${toFullWidthNumber(1)}人選ぶ。その相手の周囲に強制移動する。${action.noArrival ? "移動先のカードはオープンしない。" : ""}`;
+    case VERBS.STEAL_RANDOM_FROM_MOST_LOCKED:
+      return `${toFullWidthNumber(1)}番多くロックしているプレイヤーを${toFullWidthNumber(1)}人選ぶ。そのプレイヤーの手札から無作為に${count}枚、あなたの手札に加える。`;
+    case VERBS.END_TURN_IF_OWN_TURN:
+      return "あなたのターンに使ったなら、このターンを終了する。";
+    case VERBS.PLACE_DECK_CARDS_ON_ADJACENT:
+      return `あなたの隣に山札から${count}枚ずつ裏向きで置く。`;
+    case VERBS.ALL_PLAYERS_SET_HAND_SIZE:
+      return `${toFullWidthNumber(action.min)}〜${toFullWidthNumber(action.max)}の数字を${toFullWidthNumber(1)}つ選ぶ。全員は手札がその枚数になるようにドローする、または捨てる。`;
+    case VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT_WITH_OPTIONS:
+      // ⚠ 2つの選択肢は**相手が**選ぶので arrivalOptions（使用者が選ぶ形）では表せない。
+      //   文はここに直接書く（印字どおり）。
+      return `相手を${toFullWidthNumber(1)}人選ぶ。その相手はこれを自分の手札に加え、以下の効果のうち${toFullWidthNumber(1)}つ得る。\n・自分の手札をすべて捨てる。${toFullWidthNumber(1)}枚ドロー。\n・自分のロックしている${toFullWidthNumber(1)}枚を捨てる。`;
+    case VERBS.ALL_PLAYERS_DISCARD_DOWN_TO_THEN_MAY_LOCK:
+      return `全員は手札が${toFullWidthNumber(action.keep)}枚以下になるように捨てる。そうしたなら、自分の手札を${toFullWidthNumber(1)}枚ロックしてもよい、ただし最後のロックはできない。`;
+    case VERBS.PLACE_DECK_CARDS_IN_CROSS_AND_OPEN_ALL:
+      return `このマスから十字方向の計${toFullWidthNumber(action.cellCount)}マスに山札から${count}枚ずつ裏向きで置く。それらをすべてオープンする。`;
     case VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS:
       return `手札が${toFullWidthNumber(action.minHandSize)}枚以上ある相手全員の手札から、無作為に１枚ずつ選び、それらを捨てる。`;
     case VERBS.DISCARD_ALL_AT_CHOSEN_CELL:
@@ -1243,7 +1683,9 @@ function renderAction(action, context) {
         }
         // 0th拡張（迷いの森・厳重警戒）: 置き先の条件をそのまま文にする。印字の語順に合わせて
         // 「あなたの隣以外の、プレイヤーのいないマスに」となるよう、隣→駒の順でつなぐ。
-        const destLabel = action.destination?.excludeGates
+        const destLabel = action.destination?.onlyAdjacent
+          ? "あなたの隣に"
+          : action.destination?.excludeGates
           ? "ゲート以外の任意のマスに"
           : action.destination?.excludeSurrounding
             ? "あなたの周囲以外のマスに"
@@ -1375,14 +1817,38 @@ export function generateEffectText(effectDef) {
   // 存在しない（なないろの巨光・色落ちキャット・黒の契約の烙印で確認済み）ため、
   // 冗長な一文を足さない。
   const actionsHandleSelf = effectDef.actions?.some(
-    (a) => a.verb === VERBS.DISCARD_SELF || (a.verb === VERBS.PLACE_CARD && a.source === "self")
+    (a) =>
+      a.verb === VERBS.DISCARD_SELF ||
+      (a.verb === VERBS.PLACE_CARD && a.source === "self") ||
+      // 0th拡張（ゲートチャージ）: この動詞も「ゲートへ置く／捨てる」とこのカードの行方を
+      // 自分で書いているので、「これはあなたの手札に加えない。」の一文は足さない
+      // （印字にもその一文は無い）。
+      a.verb === VERBS.GATE_CHARGE_PLACE_OR_RETURN ||
+      // 0th拡張（ヤエザ）: これは相手の手札へ行く＝行方を自分で書いている。
+      a.verb === VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT_WITH_OPTIONS ||
+      // 0th拡張（平和への願い）: 条件を満たせば裏向きで残り、満たさなければ手札に加える＝
+      //   どちらになるかを効果文が自分で書いている。
+      a.verb === VERBS.REGISTER_PEACE_WISH
   );
-  if (effectDef.addsCardToHandAfter === false && !actionsHandleSelf) parts.push("これはあなたの手札に加えない。");
+  // ⚠ 0th拡張の我忘れの白き龍は「これに到達しても、これをあなたの手札に加えない。」が
+  //   **補足（カード下部の説明）**に書かれていて、効果文の本文には出てこない。
+  //   hideNoHandNote でその1文を出さないようにする（印字と合わせるため）。
+  if (effectDef.addsCardToHandAfter === false && !actionsHandleSelf && !effectDef.hideNoHandNote)
+    parts.push("これはあなたの手札に加えない。");
   // ユーザー要望「マスチェンジのように『上記の到達効果を得る』で生成文を整理
   // できないか。到達効果の文面を手札効果が踏襲している場合この文言を使用する
   // ように」。手品師の技の「この効果はいつでも使える。」も同じく、今まで
   // generateEffectTextが素通りしていたフラグだったため、あわせて文章化する。
-  if (effectDef.usableAnytime) parts.push("この効果はいつでも使える。");
+  // ⚠ 文言はカードごとに違う（手品師の技は「この効果はいつでも使える。」、0th拡張の
+  //   リトルマウスは「いつでも使える。」）。既定はそのままで、違うカードだけ上書きする。
+  if (effectDef.usableAnytime) parts.push(effectDef.usableAnytimeLabel ?? "この効果はいつでも使える。");
+  // 0th拡張（不思議な果実）: 「〜の時に使える。」という使用条件そのものを文にする。
+  // 🔴 判定は isHandEffectOptionUsable 側の requiresAdjacentCardsAtLeast が持っている。
+  //   文だけ書いて判定を足し忘れる（またはその逆）と食い違うので、**同じフラグから両方**出す。
+  // 0th拡張（リーチキャンセル）: 割り込みの窓そのものが使用条件。
+  if (effectDef.requiresArrivalEffectWindow) parts.push("無色以外のカードの到達効果の処理の直前に使える。");
+  if (Number.isFinite(effectDef.requiresAdjacentCardsAtLeast))
+    parts.push(`あなたの隣の${toFullWidthNumber(effectDef.requiresAdjacentCardsAtLeast)}マス以上にカードが置かれている時に使える。`);
   const costText = renderCost(effectDef.cost);
   if (costText) parts.push(costText);
   // inheritsArrival: true（マスチェンジ・手品師の技の手札効果等）は、実際の

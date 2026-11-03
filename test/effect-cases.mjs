@@ -2204,6 +2204,852 @@ export const CASES = [
       { kind: "tokenZone", id: "self", zone: "cell" },  // 盤面に残る
     ],
   },
+  // ===== 0th拡張 第5・6弾 =====
+  // やり直しのカギ（手札）。「相手がロックを宣言した時に使える。その相手はこのターンに
+  // ロックできない。」
+  {
+    name: "やり直しのカギ(手札): 相手がロックを宣言した窓で使うと、その相手はこのターンロックできない",
+    kind: "hand",
+    interruptWindow: { kind: "lock-declare", player: "B" },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "B", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-redo-key", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-redo-key", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "lockDisabled", player: "B", value: true },
+      { kind: "lockDisabled", player: "A", value: false }, // 自分は止まらない
+      { kind: "pileContains", pile: "discard", cardId: "ex0-purple-redo-key" },
+    ],
+  },
+  // 🔴 窓が開いていない時は使えない（これが無いと、どの割り込みの場面でも使えてしまう）。
+  {
+    name: "やり直しのカギ(手札): ロック宣言の窓が開いていなければ使えない",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "B", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-redo-key", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-redo-key", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "lockDisabled", player: "B", value: false },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // 捨てられてもいない
+    ],
+  },
+  // 🔴 自分がロックを宣言した窓では使えない（「**相手が**ロックを宣言した時」）。
+  {
+    name: "やり直しのカギ(手札): 自分がロックを宣言した窓では使えない",
+    kind: "hand",
+    interruptWindow: { kind: "lock-declare", player: "A" },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-redo-key", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-redo-key", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "lockDisabled", player: "A", value: false },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  // リーチキャンセル（手札）。実行は main.js の専用の窓（到達効果の処理の直前）が行うので、
+  // ふだんの経路では使えないままにしてある。
+  {
+    name: "リーチキャンセル(手札): ふだんの経路では使えない（専用の窓だけで使える）",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-reach-cancel", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-reach-cancel", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+      { kind: "deckLen", n: 1 },
+    ],
+  },
+  // ヴィヴィアン（到達）。「相手を１人選ぶ。その相手はムーブフェイズを行う。その相手が
+  // 到達したカードを自分の手札に加えるなら、代わりにそのカードをあなたの手札に加える。」
+  // 🔴 realArrivalChain を立てて、**到達を実際に起こして**手札の行き先を検査する。
+  {
+    name: "ヴィヴィアン(到達): 相手が1マス移動して到達し、そのカードは自分（使用者）の手札に入る",
+    kind: "arrival",
+    realArrivalChain: true,
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-vivian", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "tgt", kind: "card", cardId: "ex0-pink-mystic-fruit", faceUp: false, location: { zone: "cell", row: 0, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-vivian", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["B"], delegate: [{ row: 0, col: 1 }] },
+    expect: [
+      { kind: "called", name: "delegateToPlayer", arg: "choose-cell" },
+      { kind: "pieceAt", player: "B", row: 0, col: 1 },
+      { kind: "tokenFaceUp", id: "tgt" },                            // 移動でオープンされる
+      { kind: "tokenZone", id: "tgt", zone: "hand", player: "A" },   // 🔴 Bではなく A の手札へ
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },  // ヴィヴィアン自身は既定どおり
+    ],
+  },
+  // 我忘れの白き龍（到達）。「１枚ドロー。１マス強制移動する。」
+  // ⓘ 補足「これに到達しても、これをあなたの手札に加えない。」
+  {
+    name: "我忘れの白き龍(到達): 1枚ドローして1マス強制移動。これは手札に加えない",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-white-dragon", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-white-dragon", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 2, col: 3 }] },
+    expect: [
+      { kind: "deckLen", n: 1 },
+      { kind: "pieceAt", player: "A", row: 2, col: 3 },
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 }, // 盤面に残る（手札に入らない）
+      { kind: "handCount", player: "A", n: 1 },            // ドローした1枚だけ
+    ],
+  },
+  // 我忘れの白き龍（手札）。「これを任意のマスに表向きで置く。」
+  {
+    name: "我忘れの白き龍(手札): これを任意のマスに表向きで置く（候補49マス）",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-white-dragon", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-white-dragon", cardTokenId: "self" },
+    picks: { location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "49" },
+      { kind: "tokenAtCell", id: "self", row: 1, col: 1 },
+      { kind: "tokenFaceUp", id: "self" },
+    ],
+  },
+  // ===== 0th拡張 第3・4弾 =====
+  // マックール（到達）。「あなたの隣のマスのカードを２枚、あなたの手札に加える。」
+  {
+    name: "マックール(到達): 隣のマスのカードを2枚、手札に加える",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-mccool", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "n1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "n2", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 3, col: 4 } },
+        { id: "far", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-mccool", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 2, col: 3 }, { row: 3, col: 4 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 隣でカードがあるのは2マス（遠くは候補外）
+      { kind: "tokenZone", id: "n1", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "n2", zone: "hand", player: "A" },
+      { kind: "tokenAtCell", id: "far", row: 0, col: 0 },
+    ],
+  },
+  // マックール（手札）。「【追色１】相手を１人選ぶ。その相手の周囲に強制移動する。
+  // 移動先のカードはオープンしない。このターンを終了する。」
+  {
+    name: "マックール(手札): 追色1→相手の周囲へ強制移動（オープンしない）→ターン終了",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-mccool", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "cost", kind: "card", cardId: "ex0-orange-bus", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-mccool", cardTokenId: "self" },
+    picks: { discardCost: ["cost"], location: [{ row: 3, col: 3 }, { row: 2, col: 2 }] },
+    expect: [
+      { kind: "called", name: "pickDiscardCost", arg: "cost" },
+      { kind: "pieceAt", player: "A", row: 2, col: 2 },      // Bの周囲（斜め）へ
+      { kind: "tokenFlag", id: "pieceA", flag: "arrivalSuppressed", value: true }, // オープンしない印
+      { kind: "called", name: "endTurn", arg: "A" },
+    ],
+  },
+  // リトルマウス（到達）。「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの
+  // 手札から無作為に２枚、あなたの手札に加える。」
+  {
+    name: "リトルマウス(到達): 1番多くロックしている相手から無作為に2枚奪う",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-little-mouse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "lockB", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "left", index: 0 } },
+        { id: "bh1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "B" } },
+        { id: "bh2", kind: "card", cardId: "white-radiance", faceUp: true, location: { zone: "hand", player: "B" } },
+        { id: "bh3", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-little-mouse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["B"] },
+    expect: [
+      { kind: "handCount", player: "B", n: 1 },
+      { kind: "handCount", player: "A", n: 3 }, // 奪った2枚＋到達した自分自身
+    ],
+  },
+  // ピーターフッド（到達）。「あなたの隣に山札から３枚ずつ裏向きで置く。」
+  {
+    name: "ピーターフッド(到達): 隣の4マスに山札から3枚ずつ裏向きで置く（計12枚）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-peterhood", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: {
+        deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "ex0-green-peterhood", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },
+      { kind: "cellStackOrder", row: 2, col: 3, cards: ["red-jump-pad", "red-jump-pad", "red-jump-pad"] },
+      { kind: "cardAtCell", row: 3, col: 2, faceUp: false },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  // ピーターフッド（手札）。「１〜７の数字を１つ選ぶ。全員は手札がその枚数になるように
+  // ドローする、または捨てる。このフェイズを終了する。」
+  // 🔴 A は多いので捨てる（委任）・B は少ないのでドロー、の両方が走ることを見る。
+  {
+    name: "ピーターフッド(手札): 選んだ枚数になるよう、多い人は捨て、少ない人はドローする",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-peterhood", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "ah1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "ah2", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "ah3", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-peterhood", cardTokenId: "self" },
+    picks: { number: [1], delegate: [true] },
+    expect: [
+      { kind: "called", name: "pickNumber", arg: "1" },
+      { kind: "called", name: "delegateToPlayer", arg: "discard-down-to" }, // Aは3枚→1枚（本人に聞く）
+      { kind: "called", name: "delegateToPlayerArg", arg: JSON.stringify({ n: 1 }) },
+      { kind: "handCount", player: "B", n: 1 },                              // Bは0枚→1枚ドロー
+      { kind: "called", name: "endCurrentPhase" },
+    ],
+  },
+  // ヤエザ（到達）。「相手を１人選ぶ。その相手はこれを自分の手札に加え、…」
+  {
+    name: "ヤエザ(到達): 選んだ相手の手札にこれが入り、2択はその相手に委任する",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-yaeza", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-yaeza", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [true] },
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "hand", player: "B" }, // 自分の手札には入らない
+      { kind: "called", name: "delegateToPlayer", arg: "yaeza-option" },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  // ヴド族との契約（到達）。「全員は手札が２枚以下になるように捨てる。そうしたなら、
+  // 自分の手札を１枚ロックしてもよい、ただし最後のロックはできない。」
+  // ⚠ 「自分の」を**『全員』それぞれ**と読んだ実装（ユーザー確認待ち）。
+  {
+    name: "ヴド族との契約(到達): 手札が3枚以上の人だけが捨て、捨てた人はロックしてもよい",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-black-vood-contract", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "ah1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "ah2", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "ah3", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "bh1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-black-vood-contract", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [true, true] },
+    expect: [
+      { kind: "called", name: "delegateToPlayer", arg: "discard-down-to", n: 1 },      // Aだけ（Bは1枚なので対象外）
+      { kind: "called", name: "delegateToPlayer", arg: "may-lock-one-except-final", n: 1 },
+    ],
+  },
+  // 平和への願い（到達）。この時点では**何も起きない**（印を付けて次の自分のターンへ持ち越す）。
+  {
+    name: "平和への願い(到達): その場では何も起きず、盤面に残って持ち越される",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-wish-for-peace", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-wish-for-peace", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 2 },                            // まだドローしない
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 },   // 手札に入らず盤面に残る
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  // 紅の鉄拳（到達）①。「【追色１】２枚ドロー。」
+  {
+    name: "紅の鉄拳(到達)①: 追色1を払って2枚ドロー",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-crimson-fist", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "cost", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-crimson-fist", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["ex0-fist-draw"], discardCost: ["cost"] },
+    expect: [
+      { kind: "called", name: "pickDiscardCost", arg: "cost" },
+      { kind: "pileContains", pile: "discard", cardId: "red-jump-pad" },
+      { kind: "deckLen", n: 1 },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  // 紅の鉄拳（到達）②。「あなたの周囲の相手を１人選ぶ。その相手に接触する。」
+  // 🔴 「周囲」＝斜めも含む8マス。ふだんの接触は隣だけなので、**ここだけ斜めに届く**。
+  {
+    name: "紅の鉄拳(到達)②: 周囲（斜めも）の相手に接触を宣言する",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-red-crimson-fist", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-crimson-fist", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["ex0-fist-contact"] },
+    expect: [
+      { kind: "called", name: "initiateContact", arg: "B" },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  // ===== 0th拡張 第2弾 =====
+  // 鑑定士の技（到達）。「任意の１マスの裏向きのカードの表面を見る。」
+  // 🔴 **見るだけ＝盤面は変わらない**（めくらない）ことも検査する。
+  {
+    name: "鑑定士の技(到達): 裏向きのカードの表面を見る（めくらない）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-appraiser", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "fd1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+        { id: "fd2", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-appraiser", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 4, col: 4 }] },
+    expect: [
+      { kind: "called", name: "peekCards", arg: "red-jump-pad" },
+      { kind: "tokenFaceDown", id: "fd1" }, // 見ただけなので裏向きのまま
+      { kind: "tokenFaceDown", id: "fd2" },
+      { kind: "deckLen", n: 1 },
+    ],
+  },
+  // 鑑定士の技（手札）。「色を２色宣言する。プレイヤーのいない１マスの裏向きのカードを
+  // オープンし、あなたの手札に加える。そのカードが宣言色なら、ここまでを繰り返す。」
+  // 🔴 1枚目は当たり（赤）→ 繰り返し、2枚目は外れ（白）→ 止まる。**外れた札も手札に入る**
+  //   （「加える」が「宣言色なら」より前の句だから）。
+  {
+    name: "鑑定士の技(手札): 当たれば繰り返し、外れたら止まる（外れた札も手札に入る）",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-appraiser", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "fd1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+        { id: "fd2", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-appraiser", cardTokenId: "self" },
+    picks: { colors: [["red", "blue"], ["red", "blue"]], location: [{ row: 4, col: 4 }, { row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenZone", id: "fd1", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "fd2", zone: "hand", player: "A" },
+      { kind: "called", name: "declareColors", n: 2 }, // 繰り返すたびに宣言し直す
+      { kind: "called", name: "endCurrentPhase" },
+    ],
+  },
+  // ジェイク（手札）。「…ただし計７枚までしかオープンできない。７枚目が宣言色なら、
+  // それら７枚をあなたの手札に加える。」
+  // 🔴 **途中で外れたら1枚も手札に入らない**（鑑定士の技との一番大きな違い）。
+  {
+    name: "ジェイク(手札): 途中で外れたら、オープンした札は手札に入らない",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-jake", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "fd1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+        { id: "fd2", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-jake", cardTokenId: "self" },
+    picks: { colors: [["red"], ["red"]], location: [{ row: 4, col: 4 }, { row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "fd1", row: 4, col: 4 }, // 盤面に残る
+      { kind: "tokenFaceUp", id: "fd1" },                 // オープンはされた
+      { kind: "tokenFaceUp", id: "fd2" },
+      { kind: "handCount", player: "A", n: 0 },           // 1枚も手札に入らない
+      { kind: "called", name: "endTurn", arg: "A" },
+    ],
+  },
+  // ジェイク（手札）。7枚とも当たり＝全部もらえる枝。
+  {
+    name: "ジェイク(手札): 7枚とも宣言色なら、その7枚すべてを手札に加える",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-blue-jake", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "r0", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+        { id: "r1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 1 } },
+        { id: "r2", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 2 } },
+        { id: "r3", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 3 } },
+        { id: "r4", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 4 } },
+        { id: "r5", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 5 } },
+        { id: "r6", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 6 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-blue-jake", cardTokenId: "self" },
+    picks: {
+      colors: [["red"], ["red"], ["red"], ["red"], ["red"], ["red"], ["red"]],
+      location: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 }, { row: 0, col: 4 }, { row: 0, col: 5 }, { row: 0, col: 6 }],
+    },
+    expect: [
+      { kind: "handCount", player: "A", n: 7 },
+      { kind: "boardCardCount", n: 0 },
+      { kind: "called", name: "declareColors", n: 7 },
+      { kind: "called", name: "endTurn", arg: "A" },
+    ],
+  },
+  // ピュアバーガー（到達）。「プレイヤーのいないマスを１マス選ぶ。全員は１枚ドローし、
+  // 自分の手札から１枚をそのマスの１番上に置く。」
+  // 🔴 「どの手札を置くか」は本人に聞く＝委任。置く先のマスを**引数で渡している**ことも検査する。
+  {
+    name: "ピュアバーガー(到達): 全員1枚ドローし、置く先のマスを委任の引数で各自へ渡す",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 6, col: 6 } },
+        { id: "self", kind: "card", cardId: "ex0-white-pure-burger", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-white-pure-burger", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 1, col: 1 }], delegate: [true, true] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "47" }, // 49 − 駒2つ
+      { kind: "called", name: "delegateToPlayer", arg: "place-hand-card-at-cell", n: 2 },
+      { kind: "called", name: "delegateToPlayerArg", arg: JSON.stringify({ row: 1, col: 1 }) },
+      { kind: "deckLen", n: 1 }, // 2人が1枚ずつ引いた
+    ],
+  },
+  // 不思議な果実（手札）。使用条件「あなたの隣の２マス以上にカードが置かれている時に使える。」
+  {
+    name: "不思議な果実(手札): 隣のカードが1マスだけなら使えない",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-mystic-fruit", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 2 },                       // 何も起きない
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // 捨てられてもいない
+    ],
+  },
+  {
+    name: "不思議な果実(手札): 隣が2マスなら使える。右隣の相手が動かす先を決め、ターンを終了する",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 6, col: 6 } },
+        { id: "self", kind: "card", cardId: "ex0-pink-mystic-fruit", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "c2", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self" },
+    picks: { delegate: [{ row: 2, col: 3 }] },
+    expect: [
+      { kind: "deckLen", n: 1 },                                   // 1枚ドロー
+      { kind: "called", name: "delegateToPlayer", arg: "choose-cell" },
+      { kind: "called", name: "delegateToPlayer", arg: "B" },      // Aの右隣（2人なら相手）
+      { kind: "pieceAt", player: "A", row: 2, col: 3 },
+      { kind: "called", name: "endTurn", arg: "A" },
+    ],
+  },
+  // 誰かの白きカゲ（到達）。「これを捨てる。このマスから十字方向の計１２マスに山札から
+  // １枚ずつ裏向きで置く。それらをすべてオープンする。」
+  {
+    name: "誰かの白きカゲ(到達): これを捨て、十字方向の12マスに1枚ずつ置いて全部オープンする",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-white-someones-shadow", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: {
+        deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "ex0-white-someones-shadow", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenGone", id: "self" },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-white-someones-shadow" },
+      { kind: "boardCardCount", n: 12 },
+      { kind: "deckLen", n: 1 },
+      { kind: "cardAtCell", row: 0, col: 3, faceUp: true },  // 十字の一番遠い所まで届く
+      { kind: "cardAtCell", row: 6, col: 3, faceUp: true },
+      { kind: "cardAtCell", row: 3, col: 0, faceUp: true },
+      { kind: "cardAtCell", row: 3, col: 6, faceUp: true },
+    ],
+  },
+  // ===== 0th拡張 第1弾 =====
+  // 足下の隠し財産（到達）。「あなたの隣以外の、カードの置かれたマスを１マス選ぶ。
+  // １枚ドローして公開する。そのカードを選んだマスの１番下に表向きで置く。」
+  // 🔴 候補の数（2）で「隣のマスを外したか」を検査する。(2,3) は隣なので外れ、
+  //   **自分がいる (2,2) は選べる**（補足に明記）＝ (2,2) と (4,4) の2つ。
+  {
+    name: "足下の隠し財産(到達): 隣以外のマスの1番下に、公開したカードを表向きで置く",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-hidden-fortune", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "adj", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "far", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 4, col: 4 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 隣(2,3)を外し、自分のマス(2,2)は残る
+      { kind: "deckLen", n: 1 },
+      { kind: "cellStackOrder", row: 4, col: 4, cards: ["red-jump-pad", "white-radiance"] }, // 引いた札が1番下
+      { kind: "cardAtCell", row: 4, col: 4, faceUp: true }, // 引いた札は表向き（farは裏向きのまま）
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // 既定どおり手札へ
+    ],
+  },
+  // 足下の隠し財産（手札②）。「あなたの手札から１枚を、カードの置かれた任意のマスの
+  // １番下に表向きで置く。」🔴 ②には「隣以外」の縛りが**無い**＝候補は3つ（(2,3)・(4,4)・(2,2)は空）。
+  {
+    name: "足下の隠し財産(手札②): 手札1枚を任意のマスの1番下に表向きで置く（隣も選べる）",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-hidden-fortune", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "adj", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "far", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self" },
+    picks: { option: ["ex0-fortune-hand"], handCard: ["h2"], location: [{ row: 2, col: 3 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 隣も選べる＝(2,3)と(4,4)
+      { kind: "deckLen", n: 2 },                                    // ドローはしない
+      { kind: "cellStackOrder", row: 2, col: 3, cards: ["red-jump-pad", "red-counter-lock"] },
+      { kind: "tokenFaceUp", id: "h2" },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-purple-hidden-fortune" }, // 使用時に捨てる既定
+    ],
+  },
+  // 足下の隠し財産（手札①＝上記の到達効果を得る）。こちらは「隣以外」が効くので候補は1つ。
+  {
+    name: "足下の隠し財産(手札①): 到達効果を継承すると「隣以外」の縛りも一緒に来る",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-purple-hidden-fortune", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "adj", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "far", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self" },
+    picks: { option: ["ex0-fortune-inherit"], location: [{ row: 4, col: 4 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "1" }, // (2,3)は隣で外れ、(2,2)はカードが無い
+      { kind: "deckLen", n: 1 },
+      { kind: "cellStackOrder", row: 4, col: 4, cards: ["red-jump-pad", "white-radiance"] },
+    ],
+  },
+  // オレンジバス（到達）。「『バスストップ』のあるマスに移動する。これをあなたの隣に
+  // 表向きで置く。その『バスストップ』をあなたの手札に加える。」
+  // 🔴 **裏向きのバスストップは対象外**（(0,0)の bsDown が候補に入らないことを候補数1で見る）。
+  {
+    name: "オレンジバス(到達): 表向きのバスストップへ移動し、これを隣へ置いて、その札を手札に加える",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "bs", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: true, location: { zone: "cell", row: 5, col: 5 } },
+        { id: "bs2", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: true, location: { zone: "cell", row: 1, col: 5 } },
+        { id: "bsDown", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 5, col: 5 }, { row: 5, col: 4 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 表向きのバスストップ2マスだけ（裏向きは候補外）
+      { kind: "pieceAt", player: "A", row: 5, col: 5 },
+      { kind: "called", name: "pickLocationCandidates", arg: "4" }, // 「あなたの隣」＝移動後の4マス
+      { kind: "tokenAtCell", id: "self", row: 5, col: 4 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "tokenZone", id: "bs", zone: "hand", player: "A" },
+      { kind: "tokenAtCell", id: "bsDown", row: 0, col: 0 }, // 裏向きは手付かず
+    ],
+  },
+  {
+    name: "オレンジバス(到達): 表向きのバスストップが無ければ移動しない（裏向きは対象外）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-orange-bus", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "bsDown", kind: "card", cardId: "ex0-orange-bus-stop", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-orange-bus", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "pieceAt", player: "A", row: 2, col: 2 },
+      { kind: "tokenAtCell", id: "self", row: 2, col: 2 },
+      { kind: "tokenAtCell", id: "bsDown", row: 0, col: 0 },
+    ],
+  },
+  // ゲートチャージ（到達）。オープンされた枝。A のゲートは (6,3)。
+  {
+    name: "ゲートチャージ(到達): このターンにオープンされたなら、1枚ドローしてこれを自分のゲートへ表向きで置く",
+    kind: "arrival",
+    openedThisTurn: ["self"],
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-gate-charge", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-gate-charge", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },
+      { kind: "handCount", player: "A", n: 1 },      // 引いた1枚だけ（これ自身は手札に入らない）
+      { kind: "tokenAtCell", id: "self", row: 6, col: 3 },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "pieceAt", player: "A", row: 2, col: 2 }, // 駒は動かない
+    ],
+  },
+  // ゲートチャージ（到達）。そうでない枝＝移動前のマスへ戻って、これを捨てる。
+  // 🔴 movedFrom は**記録の関数を本物どおり通して**作る（ランナー参照）。
+  {
+    name: "ゲートチャージ(到達): オープンされていないなら、移動前のマスへ戻ってこれを捨てる",
+    kind: "arrival",
+    movedFrom: { A: { row: 1, col: 2 } },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-gate-charge", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-gate-charge", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },
+      { kind: "pieceAt", player: "A", row: 1, col: 2 },
+      { kind: "tokenGone", id: "self" },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-yellow-gate-charge" },
+    ],
+  },
+  // リーチキャンセル（到達）。「移動前のマスに強制移動する。」
+  {
+    name: "リーチキャンセル(到達): 移動前のマスに強制移動する",
+    kind: "arrival",
+    movedFrom: { A: { row: 1, col: 2 } },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-reach-cancel", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-reach-cancel", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "pieceAt", player: "A", row: 1, col: 2 },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // 既定どおり手札へ
+    ],
+  },
+  // 🔴 記録が無い時は**不発**（＝効果が出ないだけ・安全側）。記録が無いのに勝手な
+  //   マスへ動かすのが一番まずいので、動かないことを検査する。
+  {
+    name: "リーチキャンセル(到達): 移動前のマスが分からなければ動かない（不発でも手札には入る）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-reach-cancel", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-reach-cancel", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [
+      { kind: "pieceAt", player: "A", row: 2, col: 2 },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  // 走り人ジョイナー（到達）。「１マス強制移動する。」
+  // 🔴 「強制移動」は**カードが無いマスにも行ける**（用語集）。候補4で検査する
+  //   ——ふつうの「移動」なら周りにカードが無いので候補0になるはず。
+  {
+    name: "ジョイナー(到達): 1マス強制移動（カードが無いマスも候補に入る）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-joyner", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-joyner", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 2, col: 3 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "4" },
+      { kind: "pieceAt", player: "A", row: 2, col: 3 },
+    ],
+  },
+  // 走り人ジョイナー（手札）。「何もないあなたの隣のマスに強制移動することを、任意の回数
+  // 繰り返す。このターンを終了する。」
+  // 🔴 「何もないマス」＝カードも駒も無い。カードのある(3,4)と駒のいる(2,3)が外れて候補2。
+  {
+    name: "ジョイナー(手札): 何もない隣へ任意の回数動いてから、このターンを終了する",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 2, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-joyner", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "blk", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-joyner", cardTokenId: "self" },
+    picks: { location: [{ row: 4, col: 3 }, { row: 4, col: 2 }, "skip"] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // (4,3)と(3,2)だけ
+      { kind: "pieceAt", player: "A", row: 4, col: 2 },             // 2回動いて3回目は選ばず終了
+      { kind: "called", name: "endTurn", arg: "A" },
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------
@@ -2279,6 +3125,23 @@ export function checkExpect(res, exp) {
       const cards = res.tokens.filter((x) => x.kind === "card" && x.location.zone === "cell" && x.location.row === exp.row && x.location.col === exp.col);
       if (cards.length === 0) return `cell ${exp.row},${exp.col} にカードが無い`;
       if (exp.faceUp != null && !cards.some((c) => !!c.faceUp === !!exp.faceUp)) return `cell ${exp.row},${exp.col} のカードが期待の向き(${exp.faceUp ? "表" : "裏"})でない`;
+      return null;
+    }
+    // マスの重なり順（下→上の cardId の並び）。足下の隠し財産の「１番下に置く」用。
+    // 🔴 **重なり順は tokens 配列の順だけで決まる**（後ろほど上＝１番上の原則）ので、
+    //   並びそのものを見る。「置けたか」だけ見ると、一番上に置いても合格してしまう。
+    case "cellStackOrder": {
+      const cards = res.tokens.filter((x) => x.kind === "card" && x.location.zone === "cell" && x.location.row === exp.row && x.location.col === exp.col);
+      const ids = cards.map((c) => c.cardId);
+      if (JSON.stringify(ids) !== JSON.stringify(exp.cards)) return `cell ${exp.row},${exp.col} の重なり（下→上）が ${JSON.stringify(ids)}（期待 ${JSON.stringify(exp.cards)}）`;
+      return null;
+    }
+    // 0th拡張（やり直しのカギ）。「その相手はこのターンにロックできない。」
+    // 🔴 これは state に入らない印（クライアントのローカルな記録）なので、トークンでは
+    //   検査できない。ランナーが結果に添えてくれた値を見る。
+    case "lockDisabled": {
+      const 実際 = !!(res.lockDisabled || {})[exp.player];
+      if (実際 !== !!exp.value) return `${exp.player} の「このターンロックできない」が ${実際}（期待 ${!!exp.value}）`;
       return null;
     }
     case "boardCardCount": {

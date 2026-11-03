@@ -16,12 +16,31 @@ export async function runOneCase(spec) {
   // 「handEffectDisabledUntilTurn.get(id)(=undefined) === turnNumber(=undefined)」が誤って
   // true になり手札効果が使用不可になるため、数値の既定を入れておく（テスト用の補正）。
   if (typeof hydrated.turnNumber !== "number") hydrated.turnNumber = 1;
+
+  // 0th拡張（リーチキャンセル・ゲートチャージ）: 「移動前のマス」を筋書きから作る。
+  // 🔴 **本物と同じ記録の関数（notePieceLocationsForMovedFrom）を通す**。専用の差し込み口を
+  //   作ると、記録の仕組みそのものがテストされない（アプリは render() のたびにこれを呼ぶ）。
+  //   やり方は「一度その前のマスに居る state を置いて記録 → 本当の state を置いて記録」。
+  if (spec.movedFrom) {
+    const 前 = JSON.parse(JSON.stringify(hydrated));
+    for (const tk of 前.tokens) {
+      const 元 = tk.kind === "piece" ? spec.movedFrom[tk.player] : null;
+      if (元) tk.location = { zone: "cell", row: 元.row, col: 元.col };
+    }
+    st.hydrateState(前);
+    eng.notePieceLocationsForMovedFrom?.();
+  }
   st.hydrateState(hydrated);
+  if (spec.movedFrom) eng.notePieceLocationsForMovedFrom?.();
 
   // 0th拡張（バスストップ）: 「このターンにこれがオープンされたのなら」を筋書きから作る。
   // 🔴 これが無いと**その枝を一度も通せない**（記録はオープンした時にだけ付くもので、
   //   テストは state を直に置くので誰もオープンしない）。
   for (const id of spec.openedThisTurn || []) eng.noteCardOpenedThisTurn?.(id);
+  // 0th拡張（やり直しのカギ）: 「相手がロックを宣言した時」の割り込みの窓を筋書きから開ける。
+  // 🔴 本物と同じ記録の関数（noteInterruptWindow）を通す。これが無いと**その枝を一度も
+  //   通せない**（窓は main.js の fireAnytimeCheckpoint が開けるもので、テストには無い）。
+  if (spec.interruptWindow) eng.noteInterruptWindow?.(spec.interruptWindow.kind, spec.interruptWindow.player);
   const picks = spec.picks || {};
   const cursors = {};
   const nextPick = (type) => {
@@ -31,6 +50,7 @@ export async function runOneCase(spec) {
     return arr[i];
   };
   const callLog = [];
+  let arrivalChainDepth = 0;
   const S = () => st.getState();
   const findToken = (id) => S().tokens.find((t) => t.id === id);
 
@@ -216,7 +236,12 @@ export async function runOneCase(spec) {
     pickHandEffectOption: async (cardId, options) => { const want = nextPick("option"); const o = (options || []).find((x) => x.id === want) || null; callLog.push(["pickHandEffectOption", want]); return o; },
     declareColors: async () => { const r = nextPick("colors"); callLog.push(["declareColors", r]); return r; },
     gambleReveal: async () => { const r = nextPick("gamble"); callLog.push(["gambleReveal", r]); return r; },
-    delegateToPlayer: async (p, taskType) => { callLog.push(["delegateToPlayer", p, taskType]); return false; },
+    delegateToPlayer: async (p, taskType, taskArg) => {
+      callLog.push(["delegateToPlayer", p, taskType]);
+      if (taskArg !== undefined) callLog.push(["delegateToPlayerArg", JSON.stringify(taskArg)]);
+      const want = nextPick("delegate");
+      return want === undefined ? false : want;
+    },
     isLoopMoveDest: () => false,
     isCpuDriving: () => false,
     getPlayerName: (p) => p,
@@ -227,13 +252,59 @@ export async function runOneCase(spec) {
     announceFizzle: async () => {}, announceSteppedCard: () => {}, announceUse: () => {},
     beginPublicDrawDefer: () => {}, endPublicDrawDefer: () => {}, celebrate: () => {}, delay: async () => {},
     endCurrentPhase: () => { callLog.push(["endCurrentPhase"]); }, flyCardToHand: async () => {},
+    // 0th拡張の「このターンを終了する。」（本物は main.js の endTurnForEffect）。
+    endTurn: async (player) => { callLog.push(["endTurn", player]); },
+    // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。見た cardId を残す。
+    peekCards: async (ids) => { callLog.push(["peekCards", (ids || []).join(",")]); },
+    // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。筋書きは picks.number。
+    pickNumber: async (cardId, min, max) => {
+      const want = nextPick("number");
+      const n = want === undefined ? min : want;
+      if (!(n >= min && n <= max)) throw new Error("pickNumber: " + n + " は " + min + "〜" + max + " の外");
+      callLog.push(["pickNumber", String(n)]);
+      return n;
+    },
+    // 0th拡張（紅の鉄拳）の「その相手に接触する」。本物は接触の宣言を始める（承認待ちに入る）。
+    initiateContact: async (attacker, defender) => { callLog.push(["initiateContact", attacker, defender]); },
     markDiscardAtTurnEnd: (player, ids) => { callLog.push(["markDiscardAtTurnEnd", player, ids]); }, markPlacedLocation: (location, options) => { callLog.push(["markPlacedLocation", location, options?.holdMs ?? null]); }, markPlacementTarget: () => {},
     maybeTriggerArrivalForPlacedCard: async () => {}, onCardAcquiredToHand: () => {},
     playAdditionalColorUse: () => {}, recordMoveVisited: () => {}, startSuspenseSound: () => {},
     stopSuspenseSound: () => {},
     // 【#333】「そのマスの到達効果を、この人に起こす」の呼び出しを記録する。空スタブのままだと
     // 到達を起こし忘れてもテストが通ってしまう（コノハナサクヤで実際に起きた）。
-    triggerArrivalAtIfFaceUp: async (location, player) => { callLog.push(["arrivalAt", location, player]); },
+    // 🔴 既定はログだけ（今までどおり）。spec.realArrivalChain を立てた時だけ、本物と同じく
+    //   **そのマスの到達効果を実際に起こす**。ヴィヴィアンの「その相手が到達したカードを
+    //   …代わりにあなたの手札に加える」は、到達が起きないと検査できない（続き479＝
+    //   スタブが甘いと検査にならない）。既存のケース（コノハナサクヤ #333）の意味を
+    //   変えないよう、既定は据え置きにする。
+    triggerArrivalAtIfFaceUp: async (location, player) => {
+      callLog.push(["arrivalAt", location, player]);
+      if (!spec.realArrivalChain) return;
+      if (arrivalChainDepth >= 3) return; // 安全弁
+      const stack = S().tokens.filter(
+        (t) => t.kind === "card" && t.location.zone === "cell" && t.location.row === location.row && t.location.col === location.col
+      );
+      const top = stack[stack.length - 1];
+      if (!top || !top.faceUp) return;
+      const piece = S().tokens.find(
+        (t) => t.kind === "piece" && t.location.zone === "cell" && t.location.row === location.row && t.location.col === location.col
+      );
+      arrivalChainDepth++;
+      try {
+        await eng.runArrivalEffect(
+          {
+            player: player ?? piece?.player ?? null,
+            cardId: top.cardId,
+            cardTokenId: top.id,
+            pieceTokenId: piece?.id ?? null,
+            pieceLocation: { zone: "cell", row: location.row, col: location.col },
+          },
+          helpers
+        );
+      } finally {
+        arrivalChainDepth--;
+      }
+    },
   };
 
   // 手札効果ケースの失敗調査用の軽い診断（DEBUG_CALLS 時のみ出力）。
@@ -253,5 +324,8 @@ export async function runOneCase(spec) {
   } catch (e) {
     return { error: String(e && e.stack || e), calls: callLog, tokens: S().tokens, piles: S().piles, diag };
   }
-  return { calls: callLog, tokens: S().tokens, piles: S().piles, diag };
+  // 0th拡張（やり直しのカギ）の検査用。state には入らない印なので、結果に添えて返す。
+  const lockDisabled = {};
+  for (const p of S().activePlayers || []) lockDisabled[p] = !!eng.isLockDisabledThisTurn?.(p);
+  return { calls: callLog, tokens: S().tokens, piles: S().piles, diag, lockDisabled };
 }

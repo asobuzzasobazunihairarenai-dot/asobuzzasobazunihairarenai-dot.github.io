@@ -50,6 +50,16 @@ import {
   getLockableHandTokensExceptFinal,
   // 0th拡張（バスストップ）: 「このターンにこれがオープンされたのなら」の記録。
   noteCardOpenedThisTurn,
+  // 0th拡張（リーチキャンセル・ゲートチャージ）: 「移動前のマス」の記録。
+  notePieceLocationsForMovedFrom,
+  // 0th拡張（平和への願い）: 次の自分のターンの開始時に判定する持ち越し。
+  takePeaceWishesToResolve,
+  isPeaceWishConditionMet,
+  // 0th拡張（やり直しのカギ）: 「相手がロックを宣言した時」の割り込みの窓。
+  noteInterruptWindow,
+  clearInterruptWindow,
+  // 0th拡張（我忘れの白き龍の【色者】）: カードの向き（誰が表向きにしたか）。
+  getCardOrientationSeat,
 } from "./card-effect-engine.js";
 import {
   reconcilePhaseAutomation,
@@ -3500,6 +3510,22 @@ function revealCenterCardForAll(cardId, labelText, onFlip) {
   if (isOnlineMode()) broadcastSteppedCardReveal({ fromPlayer: getSelfSeat(), cardId, labelText });
   return playCenterCardFlipReveal(cardId, { labelText, onFlip });
 }
+// 0th拡張（鑑定士の技・ジェイクの到達効果）の「裏向きのカードの表面を見る」用。
+// 🔴 **broadcast しない**＝この効果を処理しているクライアントの画面にしか出ない。
+//   到達効果は「その席を動かしているクライアント」だけが処理する（shouldAutoProcess）ので、
+//   それだけで「本人だけが見る」になる（続き653 の記録と同じ考え方）。
+// ⚠ オンラインでは裏向きのカードの cardId がマスクされて null で来る（意図的な仕様）。
+//   その時は中身を出せないので、そう伝える（盤面は何も変わらないのでルール違反にはならない）。
+async function peekCardsForEffect(cardIds) {
+  const list = (cardIds ?? []).filter((x) => x !== undefined);
+  if (list.length === 0) return;
+  if (list.some((x) => !x)) await announceEffectNoticeForEffect(null, t("ce.ex0PeekCannotSeeOnline"));
+  for (const cardId of list) {
+    if (!cardId) continue;
+    await playCenterCardFlipReveal(cardId, { labelText: t("game.label.peeked") });
+  }
+}
+
 // showCardReceivedModal（awaitable）を「踏んだ」ラベルで流用する。
 function announceSteppedCardForEffect(cardId, onFlip) {
   return revealCenterCardForAll(cardId, t("game.label.stepped"), onFlip);
@@ -4311,12 +4337,148 @@ async function runPartyOptionTask(player) {
 // 合同建設・スラム上がりの役人・パーティー共通: このタスクを「今この画面を見ている
 // プレイヤー」が実際に解決する。delegateToPlayerForEffectから、自分の番ならその場で、
 // 他プレイヤーの番ならbroadcast経由で対象プレイヤー本人の画面から呼ばれる。
-async function runDelegatedArrivalTask(player, taskType) {
+// 🔴 第3引数 taskArg は、頼む側から**相手の画面へ渡す値**（置く先のマス・選べる候補など）。
+//   オンラインでは broadcastArrivalDelegateRequest の payload にそのまま乗る（JSONで運べる
+//   ものだけにする）。昔からある4つのタスクは引数を使わないので、渡さなければ今までどおり。
+async function runDelegatedArrivalTask(player, taskType, taskArg) {
   if (taskType === "joint-construction") return runJointConstructionTask(player);
   if (taskType === "slum-official-discard") return runSlumOfficialDiscardTask(player);
   if (taskType === "party-option") return runPartyOptionTask(player);
   if (taskType === "discard-hand-ordered") return runDiscardWholeHandOrderedTask(player);
+  if (taskType === "place-hand-card-at-cell") return runPlaceHandCardAtCellTask(player, taskArg);
+  if (taskType === "choose-cell") return runChooseCellTask(player, taskArg);
+  if (taskType === "discard-down-to") return runDiscardDownToTask(player, taskArg);
+  if (taskType === "may-lock-one-except-final") return runMayLockOneTask(player);
+  if (taskType === "yaeza-option") return runYaezaOptionTask(player);
   return false;
+}
+
+// 0th拡張（ピーターフッド・ヴド族との契約）専用: 「手札がN枚以下になるように捨てる」を本人に聞く。
+// ⚠ 中身は runSlumOfficialDiscardTask（3枚固定）と同じ作りで、枚数だけ引数にした版。
+//   あちらは文言キーが3枚前提なので別に用意してある。
+async function runDiscardDownToTask(player, taskArg) {
+  const keep = taskArg?.n;
+  if (!Number.isFinite(keep)) return false;
+  const handIdsNow = () =>
+    getState()
+      .tokens.filter(
+        (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+      )
+      .map((t) => t.id);
+  const ids = handIdsNow();
+  const over = ids.length - keep;
+  if (over <= 0) return false;
+  if (over >= 2) {
+    const ordered = await requestHandCardsOrderedForEffect(player, t("ce.ex0DiscardDownTo", { n: keep, over }), ids, { limit: over });
+    let 捨てた = false;
+    for (const token of (ordered || []).slice(0, over)) {
+      if (isDelegationExpired()) break;
+      await discardFromHandReveal(token.id);
+      捨てた = true;
+    }
+    return 捨てた;
+  }
+  const chosen = await requestHandCardChoiceForEffect(player, t("ce.ex0DiscardDownTo", { n: keep, over }));
+  if (!chosen || isDelegationExpired()) return false;
+  await discardFromHandReveal(chosen.id);
+  return true;
+}
+
+// 0th拡張（ヴド族との契約）専用: 「自分の手札を１枚ロックしてもよい、ただし最後のロックは
+// できない。」を本人に聞く。候補の出し方はセレナーデ（LOCK_ONE_HAND_CARD_EXCEPT_FINAL）と
+// 同じ関数を使う（「最後のロック」＝7色目になるスロットは除外済み）。
+// ⚠ 「してもよい」なので、選ばなければ何もしない。
+async function runMayLockOneTask(player) {
+  const { candidateSlotsFor, tokens } = getLockableHandTokensExceptFinal(player);
+  if (tokens.length === 0) return false;
+  const chosen = await requestHandCardChoiceForEffect(player, t("ce.ex0MayLock"), new Set(tokens.map((tk) => tk.id)), { purpose: "lock" });
+  if (!chosen || isDelegationExpired()) return false;
+  const slots = candidateSlotsFor(chosen);
+  if (slots.length === 0) return false;
+  const dest = slots.length === 1 ? slots[0] : await requestCellChoiceForEffect(slots, t("ce.L1094"));
+  if (!dest || isDelegationExpired()) return false;
+  await moveAndSyncForEffect(chosen.id, dest);
+  return true;
+}
+
+// 0th拡張（ヤエザ）専用: 渡されたプレイヤーが2択のどちらかを選んで自分で処理する。
+// 🔴 相手の画面で聞く理由は合同建設・色落ちキャットと同じ（オンラインでは相手の手札の
+//   中身が見えない）。ロック済みのカードは公開情報なので、そちらは見える。
+async function runYaezaOptionTask(player) {
+  const 手札 = () =>
+    getState().tokens.filter(
+      (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+    );
+  const ロック = () =>
+    getState().tokens.filter(
+      (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === SEAT_TO_SIDE[player] && !t.placed
+    );
+  const options = [
+    { id: "ex0-yaeza-discard-all", label: t("cef.opt.ex0YaezaDiscardAll"), usable: 手札().length > 0 },
+    { id: "ex0-yaeza-discard-locked", label: t("cef.opt.ex0YaezaDiscardLocked"), usable: ロック().length > 0 },
+  ];
+  if (!options.some((o) => o.usable)) return false; // 善処の原則
+  const picked = await pickOptionForEffect("ex0-pink-yaeza", options);
+  const id = typeof picked === "string" ? picked : picked?.id ?? null;
+  if (!id || isDelegationExpired()) return false;
+  if (id === "ex0-yaeza-discard-all") {
+    for (const tk of 手札()) await discardFromHandReveal(tk.id);
+    await drawCardsForEffect(player, 1);
+    return true;
+  }
+  const 候補 = ロック();
+  if (候補.length === 0) return false;
+  const dest =
+    候補.length === 1 ? 候補[0].location : await requestCellChoiceForEffect(候補.map((tk) => tk.location), t("ce.ex0PickLockedToDiscard"));
+  if (!dest || isDelegationExpired()) return false;
+  const tok = 候補.find((tk) => tk.location.side === dest.side && tk.location.index === dest.index);
+  if (!tok) return false;
+  await discardFromHandReveal(tok.id);
+  return true;
+}
+
+// 0th拡張（ピーターフッド）専用: 1〜7の数字を1つ選ぶ。
+// ⚠ 新しいモーダルは作らず、既にある選択肢ピッカーを流用する（CPUの自動選択・時間切れの
+//   自動解決がそのまま効く＝作り直すと、そこだけ抜ける）。
+async function pickNumberForEffect(cardId, min, max, title) {
+  const options = [];
+  for (let n = min; n <= max; n++) options.push({ id: String(n), label: t("ce.ex0NumberCards", { n }), usable: true });
+  const picked = await pickOptionForEffect(cardId, options, title);
+  const id = typeof picked === "string" ? picked : picked?.id ?? null;
+  const n = id == null ? NaN : parseInt(id, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+// ピュアバーガー（0th拡張）専用: 「自分の手札から１枚をそのマスの１番上に置く」を本人に聞く。
+// 🔴 本人の画面で聞く理由は合同建設・色落ちキャットと同じ——**オンラインでは相手の手札の
+//   cardId がマスクされていて中身が見えない**（意図的な仕様）ので、使用者側では選べない。
+// ⚠ 置く向きは指定が無いので既定（マスは裏向き＝state.js の faceUpForLocation）。
+async function runPlaceHandCardAtCellTask(player, taskArg) {
+  const row = taskArg?.row;
+  const col = taskArg?.col;
+  if (typeof row !== "number" || typeof col !== "number") return false;
+  const handTokens = getState().tokens.filter(
+    (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+  );
+  if (handTokens.length === 0) return false; // 善処の原則: 置く札が無ければ何もしない
+  const token = await requestHandCardChoiceForEffect(player, t("ce.ex0PlaceAtCell"), new Set(handTokens.map((tk) => tk.id)));
+  if (!token || isDelegationExpired()) return false;
+  await moveAndSyncForEffect(token.id, { zone: "cell", row, col });
+  return true;
+}
+
+// 不思議な果実（0th拡張）専用: 「あなたの右隣の相手が、あなたを１マス移動させる」。
+// 候補は頼む側（エンジン）が計算して渡すので、ここは**どこにするかを聞いて返すだけ**。
+// 🔴 返すのはマス（{row,col}）。委任の戻り値はそのまま broadcast で運ばれる。
+async function runChooseCellTask(player, taskArg) {
+  const cands = Array.isArray(taskArg?.candidates) ? taskArg.candidates : [];
+  if (cands.length === 0) return false;
+  const hint = taskArg?.hintKey
+    ? t(taskArg.hintKey, { name: taskArg.forPlayer ? getPlayerName(taskArg.forPlayer) : "" })
+    : t("ce.L738");
+  const dest = await requestCellChoiceForEffect(cands, hint);
+  if (!dest || isDelegationExpired()) return false;
+  return { row: dest.row, col: dest.col };
 }
 
 // 【#357・2026-09-28】色落ちキャット（ALL_PLAYERS_DISCARD_HAND_AND_DRAW）専用:
@@ -4365,15 +4527,166 @@ async function runDiscardWholeHandOrderedTask(player) {
 // （理由は src/effect-delegation.js の冒頭に書いた）。
 // 🔴 **ここ1か所で全員効果を網羅できる**——合同建設・スラム上がりの役人・パーティー・
 // 色落ちキャットの4つとも、この関数を通って委任される。
-async function delegateToPlayerForEffect(player, taskType) {
+// 0th拡張の「このターンを終了する。」用（VERBS.END_TURN）。
+// 🔴 **「このフェイズを終了する」(forceEndCurrentPhase) とは別物。** あちらは次のフェイズへ
+//   進むだけで、ムーブフェイズが残っていればそのまま続く。こちらは残りのフェイズを飛ばして
+//   手番を次の人へ渡す。
+// ⚠ 中身は phase-automation の endTurnAlreadyActed（「もう動いたのにターンだけ終わって
+//   いない」時に使う既存の経路）をそのまま使う。優先権の引き渡し・ゲート侵攻の判定・
+//   nextTurn・フェイズの片付けが**全部そこに入っている**ので、ここで組み直さない。
+// ⚠ 「ターン終了時に捨てる」予約（ヴァーディアン）は先に流す＝ターン終了ボタンと同じ順番。
+// 0th拡張（我忘れの白き龍）の【色者】の移動先表示（絵の右下の円盤）。
+// 🔴 緑=上／黄=右上／橙=右／赤=右下／白=下／紫=左下／桃=左／青=左上（カードの補足）。
+//   ここは「カードの上を上として」の値で、席ごとに回して使う（rotateOffsetForSeat）。
+// ⚠ 黒と虹は円盤に無い＝動かない（「効果に記載の無い色が出た場合は何もしない」と同じ扱い）。
+const SHIKIJA_DIRS = {
+  green: { dr: -1, dc: 0, key: "up" },
+  yellow: { dr: -1, dc: 1, key: "upRight" },
+  orange: { dr: 0, dc: 1, key: "right" },
+  red: { dr: 1, dc: 1, key: "downRight" },
+  white: { dr: 1, dc: 0, key: "down" },
+  purple: { dr: 1, dc: -1, key: "downLeft" },
+  pink: { dr: 0, dc: -1, key: "left" },
+  blue: { dr: -1, dc: -1, key: "upLeft" },
+};
+// 席の向きに合わせて90°ずつ回す。A（手前）は回さず、SEAT_ORDER の順に1回ずつ
+// 時計回り（(dr,dc) → (dc,-dr)）。検算: A の「上」(-1,0) を1回回すと (0,+1)＝東＝
+// B（西に座って東を向いている）の「上」。2回で (+1,0)＝南＝C の「上」。3回で (0,-1)＝西＝D の「上」。
+function rotateOffsetForSeat(dr, dc, seat) {
+  let n = SEAT_ORDER.indexOf(seat);
+  if (n < 0) n = 0;
+  let r = dr;
+  let c = dc;
+  for (let i = 0; i < n; i++) {
+    const nr = c;
+    const nc = -r;
+    r = nr;
+    c = nc;
+  }
+  return { dr: r, dc: c };
+}
+
+// 0th拡張（我忘れの白き龍）の【色者】。
+// 「これが場に表向きである限り、各プレイヤーのターン終了時に山札から１枚捨て、そのカードの
+//   色（捨色）を確認して、①移動先表示に従いこれをそのマスに置く。②その色の効果を得る。」
+// 🔴 ターンが切り替わった瞬間を「その前のターンのプレイヤーのターン終了時」として扱う
+//   （下の subscribe が唯一の合図。平和への願いと同じ所に乗せてある）。
+// ⚠ この札が場に表向きで無い対局（＝リメイクだけの対局の全部）では**最初の1行で戻る**。
+// ⚠ 「他の色者カードが新たに場に出たときは、これを裏向きにする。」は、0th拡張に色者が
+//   **この1枚しか無い**ので起きない（将来増えたらここに足す）。
+async function resolveShikijaAtTurnEnd(endedPlayer) {
+  const token = getState().tokens.find(
+    (tk) => tk.kind === "card" && tk.cardId === "ex0-white-dragon" && tk.faceUp && tk.location.zone === "cell"
+  );
+  if (!token) return;
+  // 山札から1枚捨てる。
+  // ⚠ 公開エリア（publicDraw）へ出す形は**採らなかった**——あのエリアは NEXT_TURN の中で
+  //   手札へ合流する（state.js の mergePublicDrawIntoHand）ので、ターンの切り替わりで動く
+  //   この処理とは相性が悪い（合流に先回りされると「捨てた」はずの札が手札に残る）。
+  //   いったん手番の人の手札へ引いてから、その1枚をそのまま捨てる。
+  const seatForDraw = endedPlayer ?? getState().turnPlayer;
+  const 引く前 = new Set(
+    getState()
+      .tokens.filter((tk) => tk.kind === "card" && tk.location.zone === "hand" && tk.location.player === seatForDraw)
+      .map((tk) => tk.id)
+  );
+  await drawCardsForEffect(seatForDraw, 1);
+  const drawn = getState().tokens.filter(
+    (tk) => tk.kind === "card" && tk.location.zone === "hand" && tk.location.player === seatForDraw && !引く前.has(tk.id)
+  );
+  if (drawn.length === 0) return; // 山札が尽きた（善処の原則）
+  const 捨色カード = drawn[0].cardId;
+  for (const tk of drawn) await discardFromHandReveal(tk.id);
+  const color = getCardDefinition(捨色カード)?.color ?? null;
+  // ① 移動先表示に従い、これを1マス動かす。
+  const base = color ? SHIKIJA_DIRS[color] : null;
+  if (base) {
+    const seat = getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
+    const { dr, dc } = rotateOffsetForSeat(base.dr, base.dc, seat);
+    const row = token.location.row + dr;
+    const col = token.location.col + dc;
+    if (row >= 0 && row <= 6 && col >= 0 && col <= 6) {
+      await moveAndSyncForEffect(token.id, { zone: "cell", row, col }, undefined, undefined, false, true);
+      await announceEffectNoticeForEffect(
+        "ex0-white-dragon",
+        t("ce.ex0ShikijaMoved", { color: cardDisplayName(捨色カード), dir: t("ce.ex0Dir." + base.key) })
+      );
+    }
+  }
+  // ② その色の効果を得る。記載があるのは白と黒だけ（「効果に記載の無い色が出た場合は何もしない」）。
+  const 今 = getState().tokens.find((tk) => tk.id === token.id);
+  const here = 今?.location?.zone === "cell" ? 今.location : token.location;
+  // 「３マス以内のプレイヤー」＝駒がこの札から3マス以内（移動の距離＝マンハッタン距離）。
+  const 近い人 = getState().activePlayers.filter((p) => {
+    const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
+    if (!piece || piece.location.zone !== "cell") return false;
+    return Math.abs(piece.location.row - here.row) + Math.abs(piece.location.col - here.col) <= 3;
+  });
+  if (color === "white" && 近い人.length > 0) {
+    for (const p of 近い人) await drawCardsForEffect(p, 2);
+    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaWhite"));
+  } else if (color === "black" && 近い人.length > 0) {
+    for (const p of 近い人) {
+      const hand = getState().tokens.filter(
+        (tk) => tk.kind === "card" && tk.location.player === p && (tk.location.zone === "hand" || tk.location.zone === "publicDraw")
+      );
+      for (const tk of hand) await discardFromHandReveal(tk.id);
+    }
+    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaBlack"));
+  }
+  render();
+}
+
+// 0th拡張（平和への願い）: 「次のあなたのターンの開始時」の判定。
+// 🔴 ターンが切り替わった瞬間を見ている下の subscribe が、唯一の「ターン開始」の合図。
+// ⚠ オンラインでは**その席の本人のクライアントだけ**が解決する（二重に効かせない）。
+//   ローカル（CPU戦）は1つのクライアントが全席を動かすので、そのまま全部ここで解決する。
+// ⚠ 記録はクライアントのローカルなので、読み込み直すと消える＝その札は盤面に残るだけ
+//   （安全側）。state に入れるとサーバー側のリデューサーにも同じものが要る（続き653）。
+async function resolvePeaceWishesAtTurnStart(player) {
+  if (!player) return;
+  const list = takePeaceWishesToResolve(player, getState().turnNumber);
+  if (list.length === 0) return;
+  for (const info of list) {
+    const token = getState().tokens.find((tk) => tk.id === info.cardTokenId);
+    if (!token) continue; // 盤面から消えていた（誰かが拾った等）＝何もしない
+    if (isPeaceWishConditionMet(info)) {
+      for (const p of getState().activePlayers) await drawCardsForEffect(p, 2);
+      // 「これを裏向きにする」。flipToFaceUpForEffect は表裏を**反転**する（名前に反して
+      // トグル。PLACE_CARD のコメント参照）ので、表向きの時だけ呼ぶ。
+      const now = getState().tokens.find((tk) => tk.id === info.cardTokenId);
+      if (now && now.faceUp) await flipToFaceUpForEffect(info.cardTokenId);
+      await announceEffectNoticeForEffect("ex0-pink-wish-for-peace", t("ce.ex0PeaceWishGranted"));
+    } else {
+      if (token.location.zone === "cell") {
+        await moveAndSyncForEffect(info.cardTokenId, { zone: "hand", player });
+        onEffectCardAcquiredToHand(info.cardTokenId, token.cardId, token.faceUp, player);
+      }
+      await announceEffectNoticeForEffect("ex0-pink-wish-for-peace", t("ce.ex0PeaceWishFailed"));
+    }
+  }
+  render();
+}
+
+async function endTurnForEffect(player) {
+  try {
+    await flushPendingTurnEndDiscards(player);
+  } catch (err) {
+    console.error("endTurnForEffect (flushPendingTurnEndDiscards) failed", err);
+  }
+  await endTurnAlreadyActed(player);
+  render();
+}
+
+async function delegateToPlayerForEffect(player, taskType, taskArg) {
   const releaseDelegation = beginEffectDelegation(player, taskType);
   try {
-    return await delegateToPlayerForEffect__inner(player, taskType);
+    return await delegateToPlayerForEffect__inner(player, taskType, taskArg);
   } finally {
     releaseDelegation();
   }
 }
-async function delegateToPlayerForEffect__inner(player, taskType) {
+async function delegateToPlayerForEffect__inner(player, taskType, taskArg) {
   if (!isOnlineMode() || player === getSelfSeat()) {
     // ローカルのCPU戦（#23）: 委任先が自分以外（＝CPU、疑似CPU対象）なら、人間が相手の選択を
     // 代行しなくて済むよう、その席へ一時的に優先権を移して疑似CPUに自動解決させる。優先権を
@@ -4384,7 +4697,7 @@ async function delegateToPlayerForEffect__inner(player, taskType) {
       const turnPlayer = getState().turnPlayer;
       transferPriorityTo(player);
       try {
-        return await runDelegatedArrivalTask(player, taskType);
+        return await runDelegatedArrivalTask(player, taskType, taskArg);
       } finally {
         transferPriorityTo(turnPlayer);
       }
@@ -4398,12 +4711,12 @@ async function delegateToPlayerForEffect__inner(player, taskType) {
       const turnPlayer = getState().turnPlayer;
       transferPriorityTo(player);
       try {
-        return await runDelegatedArrivalTask(player, taskType);
+        return await runDelegatedArrivalTask(player, taskType, taskArg);
       } finally {
         transferPriorityTo(turnPlayer);
       }
     }
-    return runDelegatedArrivalTask(player, taskType);
+    return runDelegatedArrivalTask(player, taskType, taskArg);
   }
   // 続き75診断ログ: オンライン中の「全員がそれぞれ選ぶ」効果（パーティー等）の
   // 委任がどこで止まっているかを追えるようにする。
@@ -4426,7 +4739,7 @@ async function delegateToPlayerForEffect__inner(player, taskType) {
   // バナー（showEffectPickerHint）を使い、「待っている」ことだけでも伝える。
   showEffectPickerHint(t("game.waitingChoice", { name: getPlayerName(player) }));
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  broadcastArrivalDelegateRequest({ player, taskType, requestId });
+  broadcastArrivalDelegateRequest({ player, taskType, requestId, taskArg });
   const result = await new Promise((resolve) => {
     let settled = false;
     const finish = (val) => {
@@ -4443,7 +4756,7 @@ async function delegateToPlayerForEffect__inner(player, taskType) {
     });
     // 取りこぼし対策（#4）: 応答が来るまで数秒おきにリクエストを再送する。受け手側は
     // 同じrequestIdなら再実行せず結果を送り返すので二重実行にはならない。
-    const retryTimer = setInterval(() => broadcastArrivalDelegateRequest({ player, taskType, requestId }), 5000);
+    const retryTimer = setInterval(() => broadcastArrivalDelegateRequest({ player, taskType, requestId, taskArg }), 5000);
     // それでも一定時間応答が無ければ諦めて先へ進む（永久固着を防ぐ善処の原則。実際には
     // ここまで待つ前に再送で復帰するはず）。
     // 【#366】タイマーを切っている対局では、この期限そのものを付けない。ユーザー判断
@@ -4583,7 +4896,7 @@ function closeExpiredDelegationUi(expectedFireAt) {
 // 続けて何度も出さないための間隔（performPriorityTimeoutAutoAction から参照）。
 let lastChoiceTimeoutAnnouncedAt = 0;
 const CHOICE_TIMEOUT_ANNOUNCE_GAP_MS = 8000;
-onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
+onArrivalDelegateRequestEvents(({ player, taskType, requestId, taskArg }) => {
   // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
   // これが無いとその席の本人として応答UIが出てしまう）。
   if (isSpectatingGame()) return;
@@ -4613,7 +4926,7 @@ onArrivalDelegateRequestEvents(({ player, taskType, requestId }) => {
   const deadlineTimer = hasDeadline
     ? setTimeout(() => closeExpiredDelegationUi(expectedFireAt), deadlineMs)
     : null;
-  runDelegatedArrivalTask(player, taskType)
+  runDelegatedArrivalTask(player, taskType, taskArg)
     .finally(() => {
       clearTimeout(deadlineTimer);
       delegationDeadlineAt = 0;
@@ -4957,8 +5270,13 @@ document.addEventListener(
             // コスト不足は盤面を見ても分からない（色枠は「空いている」ように見える）ので、
             // 黙って何も起きないと不具合に見える。
             const tapped = getState().tokens.find((t) => t.id === cardEl.dataset.tokenId);
-            if (tapped && tapped.location.player === getSelfSeat() && getLockBlockReason(tapped, getSelfSeat()) === "contract-brand-cost") {
+            const lockBlock = tapped && tapped.location.player === getSelfSeat() ? getLockBlockReason(tapped, getSelfSeat()) : null;
+            if (lockBlock === "contract-brand-cost") {
               showQuickNote(t("game.lock.brandNeedsTwoSpare", { brand: cardDisplayName("black-contract-brand") || t("game.brand.name") }));
+            } else if (lockBlock === "lock-disabled") {
+              // 0th拡張（やり直しのカギ）。押しても何も起きない理由を伝える（黙って
+              // 光らないだけだと「不具合かな」と思われる＝#434 で同じことをした）。
+              showQuickNote(t("game.lock.disabledThisTurn"));
             }
           }
           return;
@@ -6415,7 +6733,7 @@ async function performLockPhaseClick__inner(tokenId, { skipConfirm = false, acti
     const queue = getFinalLockApprovalOrder(player, getState().activePlayers);
     if (queue.length > 0) {
       // ロック宣言の瞬間としてチェックポイントを発火（ドラッグ経路と同じ）。
-      fireAnytimeCheckpoint(player);
+      fireAnytimeCheckpoint(player, "lock-declare");
       if (isOnlineMode()) {
         try {
           await requestFinalLock(tokenId, dropTarget, player, queue);
@@ -6435,7 +6753,7 @@ async function performLockPhaseClick__inner(tokenId, { skipConfirm = false, acti
   // ユーザー要望（続き77）「移動もロックも宣言と処理を分けてください」。実際に状態を
   // 動かす直前を「ロック宣言」の瞬間とみなして発火する（処理側はmaybeAnnounceLock内、
   // 既存の通り）。
-  fireAnytimeCheckpoint(player);
+  fireAnytimeCheckpoint(player, "lock-declare");
   // #2（ユーザー要望2026-08-19「ロックするときも、手札→マスに行くときの演出を付け足したい」）:
   // 手札→ロックスロットの飛翔（着地）演出の飛び元＝移動前の手札カードのrectを捕捉しておく。
   const lockSourceRect = cardElRectForToken(tokenId);
@@ -8559,7 +8877,12 @@ function buildAnytimeInterruptResumeButton() {
 }
 
 function advanceAnytimeInterruptQueue() {
-  if (anytimeInterruptQueue.length === 0) return;
+  if (anytimeInterruptQueue.length === 0) {
+    // 0th拡張（やり直しのカギ）: 行列が尽きた＝この窓は閉じた。種類を残しておくと、
+    // 関係ない場面でも「ロック宣言の窓」のつもりで使えてしまう。
+    clearInterruptWindow();
+    return;
+  }
   const player = anytimeInterruptQueue.shift();
   const tokens = getAnytimeUsableHandTokensFor(player);
   if (tokens.length === 0) {
@@ -8671,9 +8994,13 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
 // hand_effect_use経路（announceHandEffectUseForEffect/onHandEffectUseEvents）で
 // 既に自分以外へ届いているため、ここには乗せない。呼び出し側は今後
 // triggerAnytimeInterruptCheckpointを直接呼ばず、原則こちらを使う。
-function fireAnytimeCheckpoint(afterPlayer) {
+// 🔴 第2引数 kind は「何の宣言で開いた窓か」。0th拡張の やり直しのカギ は
+//   「相手がロックを宣言した時に使える」なので、**ロック宣言の窓だけ**で使えるように
+//   区別が要る（渡さなければ今までどおり＝種類なしの窓）。
+function fireAnytimeCheckpoint(afterPlayer, kind = null) {
+  noteInterruptWindow(kind, afterPlayer);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
-  if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer });
+  if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer, kind });
 }
 // 他クライアントからの合図の受信側。自分自身が送った合図のこだま（broadcastChannelは
 // self:trueのため自分にも返ってくる）は、afterPlayerが自分の座席と一致するかでは
@@ -8682,7 +9009,8 @@ function fireAnytimeCheckpoint(afterPlayer) {
 // （同期的に）先に呼ばれてモーダルを出し始めているのが通常のため、こちらは単に
 // 同じ関数をもう一度呼ぶだけでよい——2回目の呼び出しは「既にモーダル表示中」
 // ガードで自然にサイレントno-opになる（hand_effect_use受信側と同じ考え方）。
-onAnytimeCheckpointEvents(({ afterPlayer }) => {
+onAnytimeCheckpointEvents(({ afterPlayer, kind }) => {
+  noteInterruptWindow(kind ?? null, afterPlayer);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
 });
 
@@ -9115,6 +9443,12 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         // なないろの巨光・スラム上がりの役人・ザ・ギャンブルの「このフェイズを
         // 終了する。」用。
         endCurrentPhase: forceEndCurrentPhase,
+        // 0th拡張（ジョイナー等）の「このターンを終了する。」。endCurrentPhase とは別物。
+        endTurn: endTurnForEffect,
+        // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。
+        peekCards: peekCardsForEffect,
+        // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。
+        pickNumber: pickNumberForEffect,
         // ユーザー報告「ザ・ギャンブルで宣言色が出てしまったときに、手札がすべて
         // 捨てられず止まってしまっている」の調査で発見: ザ・ギャンブルの手札効果
         // （INHERIT_ARRIVAL_ACTIONS経由で到達効果のPUBLIC_DRAW_MATCHING_DECLARED_
@@ -9261,6 +9595,19 @@ async function runAutoArrivalEffect(cardId, location, player) {
       placeFromDeckFaceUp: placeFromDeckFaceUpForEffect,
       // 合同建設・スラム上がりの役人・パーティー用。
       delegateToPlayer: delegateToPlayerForEffect,
+      // 0th拡張の「このフェイズを終了する。」「このターンを終了する。」。
+      // ⚠ 到達効果側には endCurrentPhase が**無かった**（手札効果側にだけ在った）。
+      //   0th拡張には到達効果でフェイズ/ターンを終えるカードがあるので両方渡す。
+      endCurrentPhase: forceEndCurrentPhase,
+      endTurn: endTurnForEffect,
+      // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。
+      peekCards: peekCardsForEffect,
+      // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。
+      pickNumber: pickNumberForEffect,
+      // 0th拡張（紅の鉄拳）の「その相手に接触する」。ふだんのドラッグでの接触と同じ入口
+      // （宣言→相手の承認→奪う→ゲートへ強制移動）をそのまま使う。
+      initiateContact: submitContactProposal,
+      pickDiscardCost: (candidates, hint) => requestHandCardChoiceForEffect(player, hint, new Set(candidates.map((tk) => tk.id))),
     }
   );
   clearEffectUiHighlights();
@@ -9516,6 +9863,49 @@ function autoArrivalKey(cardId, location) {
 // 時点ですぐに呼ぶ（クリックそのものは待たない——onResolvedと同じ精度）。
 // opts.fromDiff: この呼び出しが remote-move-animator.js の位置差分検知（他席の移動の再現・
 // 自席の移動の取りこぼし再発火）由来かどうか。#11の冪等ガードで、fromDiffの重複だけを無視する。
+// 0th拡張（リーチキャンセル）専用の割り込みの窓。
+// 「無色以外のカードの到達効果の処理の直前に使える。そのカードの効果を無効にし、
+//   そのカードを捨てる。」
+// 🔴 ふだんの割り込み（triggerAnytimeInterruptCheckpoint）は**待たない**作りなので流用
+//   できない——こちらは「使われたか」が分かってから先へ進む必要がある。
+// ⚠ オンラインでは**自分の席の分だけ**聞く（相手の画面で聞くには往復の仕組みが要る）。
+//   ローカル・CPU戦は1つのクライアントが全席を見るので、全員ぶん順番に聞ける。
+//   ⚠ つまりオンラインでは「相手が持っているリーチキャンセル」は出せない＝申し送り。
+// ⚠ 「無色以外のカード」＝白・黒は対象外（用語集の「無色」）。
+async function offerArrivalCancelInterrupt(cardId, location, arrivedPlayer) {
+  const color = getCardDefinition(cardId)?.color;
+  if (!color || color === "white" || color === "black") return false;
+  const 持っている人 = (p) =>
+    getState().tokens.filter(
+      (tk) =>
+        tk.kind === "card" &&
+        tk.location.zone === "hand" &&
+        tk.location.player === p &&
+        tk.cardId === "ex0-yellow-reach-cancel"
+    );
+  const order = isOnlineMode() ? [getSelfSeat()] : rotatedActivePlayersFrom(arrivedPlayer ?? getState().turnPlayer);
+  for (const p of order) {
+    if (!p) continue;
+    const tokens = 持っている人(p);
+    if (tokens.length === 0) continue;
+    const 使う = await confirmGenericYesNo(
+      t("ce.ex0AskArrivalCancel", { card: cardDisplayName(cardId) }),
+      { owner: p, cardId: "ex0-yellow-reach-cancel", cpuAutoResolveId: null }
+    );
+    if (!使う) continue;
+    // 手札効果の既定どおり、使ったリーチキャンセル自身を先に捨てる。
+    await discardFromHandReveal(tokens[0].id);
+    // 「そのカードを捨てる。」＝**到達されたカード**を捨てる（これで手札にも入らない）。
+    const arrived = findTopCardAt(location);
+    if (arrived && arrived.cardId === cardId) await discardFromHandReveal(arrived.id);
+    await announceEffectNoticeForEffect("ex0-yellow-reach-cancel", t("ce.ex0ArrivalCancelled", { card: cardDisplayName(cardId) }));
+    hideCardArrivalModalImmediately({ fade: true });
+    render();
+    return true;
+  }
+  return false;
+}
+
 function triggerCardArrival(cardId, location, onFullyResolved, opts = {}) {
   // 新しい到達連鎖の起点でループ記録をリセットする（#49。連鎖中に通ったマスへの出戻りを検知するため）。
   if (arrivalEffectProcessingDepth === 0) moveChainVisitedCells.clear();
@@ -9627,6 +10017,12 @@ function triggerCardArrival(cardId, location, onFullyResolved, opts = {}) {
         await wait(ARRIVAL_BURST_DURATION_MS + ARRIVAL_EFFECT_START_PAUSE_MS);
       }
       try {
+        // 0th拡張（リーチキャンセル）: 「無色以外のカードの到達効果の処理の直前に使える。」
+        // 🔴 **ここが「処理の直前」**。これより後ろだと効果が走ってしまい、前（到達の演出より
+        //   先）だと何に割り込むのか分からない。
+        if (await offerArrivalCancelInterrupt(cardId, location, player)) {
+          return; // 効果は走らせない（finally で後片付けは行われる）
+        }
         setCurrentEffectCardForReason(cardId); // #4: この効果によるドロー/捨てに理由を添える
         await runAutoArrivalEffect(cardId, location, player);
       } catch (err) {
@@ -12586,6 +12982,13 @@ function render() {
   // render()がそのたびに無条件でreconcilePhaseAutomation()を呼んでいたため、
   // turnPlayerが既に非nullになっている配布演出の最中でも反応してしまっていた。
   // 演出中はこの判定自体をスキップする。
+  // 0th拡張（リーチキャンセル・ゲートチャージ）の「移動前のマス」。
+  // 🔴 **駒を動かす所を1つずつ呼ぶのではなく、ここで位置を見比べる**（経路が5つ以上あり、
+  //   1つ忘れると「ある時だけ効かない」になる＝続き653 の教訓）。移動と到達効果の間には
+  //   必ず render() が1回入るので、到達効果が読む時には必ず最新になっている。
+  //   ⚠ 配布演出の最中（suppressGenericRenderForOnlineStart）でも動かす——駒の初期配置も
+  //     ここで覚えておきたいので、フェイズ自動処理の抑止とは関係が無い。
+  notePieceLocationsForMovedFrom();
   if (!suppressGenericRenderForOnlineStart) reconcilePhaseAutomation();
 }
 
@@ -16268,7 +16671,7 @@ async function onDragEnd(e) {
           // ロックは承認を待つ特別なフローのため、実際に承認済みでロックが確定する
           // タイミング（respondToFinalLock→maybeAnnounceLock、既存の処理側）とは別に、
           // ここ（承認依頼を出す＝宣言した瞬間）でも発火させる。
-          fireAnytimeCheckpoint(getSelfSeat());
+          fireAnytimeCheckpoint(getSelfSeat(), "lock-declare");
           if (isOnlineMode()) {
             try {
               await requestFinalLock(tokenId, dropTarget, ownerSeat, queue);
@@ -20040,6 +20443,15 @@ subscribe(() => {
     // 引っ込める（仕組みはモーダル自身が元から持っているものをそのまま使う）。
     hideCardArrivalModalImmediately({ fade: true });
     hideHandEffectUseModalImmediately({ fade: true });
+    // 0th拡張: ターンが切り替わった瞬間を使う2つの処理。
+    // 🔴 オンラインでは**1つのクライアントだけ**が走らせる（二重に効かせない）。新しい手番の
+    //   本人を選ぶ（確実に在席している側）。ローカル・CPU戦は1クライアントで全席を見る。
+    if (!isOnlineMode() || turnPlayer === getSelfSeat()) {
+      // ① 平和への願い: 「次のあなたのターンの開始時」。
+      resolvePeaceWishesAtTurnStart(turnPlayer).catch((err) => console.error("resolvePeaceWishesAtTurnStart failed", err));
+      // ② 我忘れの白き龍の【色者】: 「各プレイヤーのターン終了時」＝今終わったターンのぶん。
+      resolveShikijaAtTurnEnd(prevTurnPlayerForAnnouncement).catch((err) => console.error("resolveShikijaAtTurnEnd failed", err));
+    }
     if (isGateInvasionPending() || isGateInvasionQueueActive()) {
       pendingTurnAnnouncePlayer = turnPlayer;
     } else {

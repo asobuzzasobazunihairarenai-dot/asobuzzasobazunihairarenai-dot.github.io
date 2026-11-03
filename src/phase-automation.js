@@ -20,6 +20,8 @@ import {
   getMoveCandidates,
   isMovementBoostActiveThisTurn,
   isMovementDisabledThisTurn,
+  // 0th拡張（やり直しのカギ）: 「その相手はこのターンにロックできない。」
+  isLockDisabledThisTurn,
   isHandEffectReactiveOnly,
   hasHandEffectData,
   canUseHandEffect,
@@ -558,6 +560,11 @@ function isLockSlotOccupied(player, color) {
 // クリックで自動でロックされるようにもしてください」への対応で、main.jsのクリック
 // ハンドラからも判定できるようexportした。
 export function isCardLockable(token, player) {
+  // 0th拡張（やり直しのカギ）: 「その相手はこのターンにロックできない。」
+  // 🔴 ここで止めるのは、ロックの入口が複数ある（ドラッグ・ハイライトのタップ・
+  //   最後のロックの宣言）のに、どれも最後はこの判定を通るから。入口ごとに足すと
+  //   必ずどれかを忘れる（続き653 の「オープンの経路が3つあった」と同じ形）。
+  if (isLockDisabledThisTurn(player)) return false;
   if (token.cardId === "rainbow-shard") return false; // ロックフェイズでは常にロック不可
   const color = getCardDefinition(token.cardId)?.color;
   if (!color || color === "white" || color === "black") return false; // 無色は「ロックした」扱いにならない
@@ -605,6 +612,8 @@ function canPayContractBrandLockCost(player, excludeTokenId) {
 // 「その色は既に埋まっている」等は盤面を見れば分かるので伝えない（黙って光らせないだけ）。
 export function getLockBlockReason(token, player) {
   if (!token || isCardLockable(token, player)) return null;
+  // 0th拡張（やり直しのカギ）。理由を返さないと「押せないのに何も出ない」になる。
+  if (isLockDisabledThisTurn(player)) return "lock-disabled";
   const color = getCardDefinition(token.cardId)?.color;
   if (!color) return null;
   if (hasContractBrandInSlot(player, color) && !canPayContractBrandLockCost(player, token.id)) return "contract-brand-cost";
