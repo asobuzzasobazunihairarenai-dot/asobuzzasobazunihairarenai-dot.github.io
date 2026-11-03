@@ -12,7 +12,7 @@ export const EX0_NORMAL_CARDS = [
   { id: "ex0-green-lost-forest", name: "迷いの森", color: "green", count: 5, note: "特になし。" },
   { id: "ex0-blue-appraiser", name: "鑑定士の技 -トゥルーアイズ-", color: "blue", count: 5, note: "見るのは選んだマスの１番上のカードである。（１番上の原則） 「ここまで」とは「色を２色宣言する」から「あなたの手札に加える」までである。繰り返すたびに色を宣言し直す。（カードの下線部と同じ範囲） 「このフェイズを終了する」は繰り返さない。" },
   { id: "ex0-pink-wish-for-peace", name: "平和への願い", color: "pink", count: 5, note: "どちらになるかは、次のあなたのターンの開始時に決まる。 条件を満たしたときは、これをあなたの手札に加えない。裏向きにしてそのマスに残す。 「そうでないなら」とは、あなたがこれの上にいない／誰かが手札効果を使った、のどちらかである。" },
-  { id: "ex0-purple-hidden-fortune", name: "足下の隠し財産", color: "purple", count: 5, note: "あなたのいるマスも選べる。あなたの隣のマスは選べない。" },
+  { id: "ex0-purple-hidden-fortune", name: "足下の隠し財産", color: "purple", count: 5, note: "特になし。" },
   { id: "ex0-red-beginning", name: "赤のはじまり", color: "red", count: 5, note: "特になし。" },
   { id: "ex0-orange-bus-stop", name: "バスストップ", color: "orange", count: 4, note: "特になし。" },
   { id: "ex0-yellow-gate-charge", name: "ゲートチャージ", color: "yellow", count: 4, note: "特になし。" },

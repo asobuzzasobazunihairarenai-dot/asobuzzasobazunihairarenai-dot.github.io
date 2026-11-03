@@ -1532,6 +1532,54 @@ export const CASES = [
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
     ],
   },
+  // 【#467】赤のはじまり（手札）。2026-11-03 にユーザー判断で「上から**２番目**」に変えた
+  // （到達は１番上のまま）。使う動詞は赤のキューブ フェニックスと同じもの。
+  // ⓘ 捨て場は配列の末尾が１番上。["red-jump-pad", "green-growing-trees"] なら
+  //   １番上＝green-growing-trees・２番目＝red-jump-pad。
+  //   退避した１番上は捨て場へ戻るので、手札に来るのは**２番目の方だけ**。
+  {
+    name: "赤のはじまり(手札): 捨て場の上から２番目を手札に加えて、このフェイズを終了する",
+    kind: "hand",
+    cardId: "ex0-red-beginning",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-beginning", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: ["red-jump-pad", "green-growing-trees"] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-beginning", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 1 },        // ２番目の方が来る
+      { kind: "handHasCard", player: "A", cardId: "green-growing-trees", n: 0 }, // １番上は来ない（戻す）
+      { kind: "pileContains", pile: "discard", cardId: "green-growing-trees" },  // 退避した分は捨て場へ戻る
+      { kind: "called", name: "endCurrentPhase" },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-red-beginning" },    // 使用時に捨てる既定
+    ],
+  },
+  {
+    name: "赤のはじまり(手札): 捨て場が１枚しか無ければ何も起きない（善処の原則）",
+    kind: "hand",
+    cardId: "ex0-red-beginning",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-red-beginning", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: ["red-jump-pad"] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-beginning", cardTokenId: "self" },
+    picks: {},
+    expect: [
+      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 0 }, // １枚だけなら取らない
+      // 🔴 「このフェイズを終了する。」は**句点の原則**で、前の句が不発でも行う（既定）。
+      //    ここを変えたくなったら card-effects.js 側に stopIfPreviousFailed を足すこと。
+      { kind: "called", name: "endCurrentPhase" },
+    ],
+  },
   // --- 色寄せの笛（7色・各4枚＝計28枚。0th拡張の山札の4分の1） ---------------------
   // 到達効果・手札効果とも「①これと同色の、場の表向きのカード１枚を手札に加える
   // ／②任意の１マスのカードをオープンする」の2択（EX0_FLUTE_OPTIONS）。
@@ -2429,6 +2477,32 @@ export const CASES = [
       { kind: "handCount", player: "A", n: 3 }, // 奪った2枚＋到達した自分自身
     ],
   },
+  // 【#478】リトルマウス（到達）。相手の手札が**1枚しか無い**時。
+  // ユーザーの問い「不発ではなく、善処の原則で1枚を奪います。でいいよね？」→ そのとおり。
+  // ⚠ これは**テストでは元から通っていた**（スタブが本物より豊かだったため）。本番で
+  //   一度も奪えていなかった原因は「到達側の helpers に口が無い」ことで、そちらは
+  //   tools/check-effect-helpers.mjs が見張る。ここはルールの側を固定するテスト。
+  {
+    name: "リトルマウス(到達): 相手の手札が1枚なら、不発ではなく1枚だけ奪う（善処の原則）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-little-mouse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "lockB", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "left", index: 0 } },
+        { id: "bh1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-little-mouse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["B"] },
+    expect: [
+      { kind: "handCount", player: "B", n: 0 },
+      { kind: "handCount", player: "A", n: 2 }, // 奪った1枚＋到達した自分自身
+      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 1 },
+    ],
+  },
   // ピーターフッド（到達）。「あなたの隣に山札から３枚ずつ裏向きで置く。」
   {
     name: "ピーターフッド(到達): 隣の4マスに山札から3枚ずつ裏向きで置く（計12枚）",
@@ -2586,7 +2660,61 @@ export const CASES = [
     picks: { option: ["ex0-fist-contact"] },
     expect: [
       { kind: "called", name: "initiateContact", arg: "B" },
+      // 🔴 到達の②は**通常の接触と同じ1枚**（ユーザー回答）＝枚数を渡さない。
+      { kind: "called", name: "initiateContactSteal", arg: "既定" },
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+    ],
+  },
+  // 紅の鉄拳（手札）。「【追色S】あなたの周囲の相手を１人選ぶ。その相手に接触する。」
+  // 　補足「接触で奪えるカードはSの２倍の枚数である。」
+  // 🔴 Sは**使う人が決める**（手札にある同色のカードの枚数まで）。ここでは赤を2枚持っていて
+  //   S=2 を選ぶので、**赤2枚を捨てて、奪う枚数は4**になる。
+  {
+    name: "紅の鉄拳(手札): 追色Sを2枚払うと、奪う枚数が4（Sの2倍）になる",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-red-crimson-fist", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "r1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "r2", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-crimson-fist", cardTokenId: "self" },
+    picks: { discardCost: ["r1", "r2"], number: [2] },
+    expect: [
+      { kind: "called", name: "pickNumber", arg: "2" }, // Sを聞く
+      { kind: "called", name: "pickDiscardCost", n: 2 }, // 赤を2枚払う
+      { kind: "pileContains", pile: "discard", cardId: "red-jump-pad" },
+      { kind: "pileContains", pile: "discard", cardId: "red-counter-lock" },
+      { kind: "called", name: "initiateContact", arg: "B" },
+      { kind: "called", name: "initiateContactSteal", arg: "4" }, // 🔴 Sの2倍
+      { kind: "pileContains", pile: "discard", cardId: "ex0-red-crimson-fist" }, // 使用時に捨てる既定
+    ],
+  },
+  // 紅の鉄拳（手札）。赤が1枚しか無ければ S は 1 しか選べないので**聞かない**＝奪うのは2枚。
+  {
+    name: "紅の鉄拳(手札): 払える赤が1枚だけなら聞かずにS=1（奪う枚数は2）",
+    kind: "hand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-red-crimson-fist", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "r1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-red-crimson-fist", cardTokenId: "self" },
+    picks: { discardCost: ["r1"] },
+    expect: [
+      { kind: "called", name: "pickNumber", n: 0 }, // 選ぶ余地が無いので聞かない
+      { kind: "called", name: "pickDiscardCost", n: 1 },
+      { kind: "called", name: "initiateContactSteal", arg: "2" },
     ],
   },
   // ===== 0th拡張 第2弾 =====
@@ -2795,12 +2923,16 @@ export const CASES = [
     ],
   },
   // ===== 0th拡張 第1弾 =====
-  // 足下の隠し財産（到達）。「あなたの隣以外の、カードの置かれたマスを１マス選ぶ。
-  // １枚ドローして公開する。そのカードを選んだマスの１番下に表向きで置く。」
-  // 🔴 候補の数（2）で「隣のマスを外したか」を検査する。(2,3) は隣なので外れ、
-  //   **自分がいる (2,2) は選べる**（補足に明記）＝ (2,2) と (4,4) の2つ。
+  // 足下の隠し財産（到達・山札から）。2026-11-03（#473/#474）にユーザー判断で作り直した形。
+  // 「あなたのいるマス以外の、カードの置かれたマスを１マス選ぶ。山札または手札から１枚を、
+  //   そのマスの１番下に表向きで置く。」
+  // 🔴 候補の数（2）で「**自分のいるマス**を外したか」を検査する。(2,2) は自分のマスなので
+  //   外れ、**隣の (2,3) は選べる**——前の形の「隣以外」とは別の縛りなので、取り違えると
+  //   ここが落ちる。
+  // ⓘ この筋書きでは A の手札が空なので、「山札から／手札から」は**聞かない**（選ぶ余地が
+  //   無い時は聞かないのが他の動詞と同じ作法）。それも n:0 で検査する。
   {
-    name: "足下の隠し財産(到達): 隣以外のマスの1番下に、公開したカードを表向きで置く",
+    name: "足下の隠し財産(到達): 自分のマス以外の1番下に山札から置く（隣は選べる・手札が無いので聞かない）",
     kind: "arrival",
     state: {
       activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
@@ -2815,59 +2947,66 @@ export const CASES = [
     ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
     picks: { location: [{ row: 4, col: 4 }] },
     expect: [
-      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 隣(2,3)を外し、自分のマス(2,2)は残る
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 自分のマス(2,2)を外し、隣(2,3)は残る
+      { kind: "called", name: "pickChoice", n: 0 }, // 手札が空＝選ぶ余地が無いので聞かない
       { kind: "deckLen", n: 1 },
       { kind: "cellStackOrder", row: 4, col: 4, cards: ["red-jump-pad", "white-radiance"] }, // 引いた札が1番下
       { kind: "cardAtCell", row: 4, col: 4, faceUp: true }, // 引いた札は表向き（farは裏向きのまま）
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" }, // 既定どおり手札へ
     ],
   },
-  // 足下の隠し財産（手札②）。「あなたの手札から１枚を、カードの置かれた任意のマスの
-  // １番下に表向きで置く。」🔴 ②には「隣以外」の縛りが**無い**＝候補は3つ（(2,3)・(4,4)・(2,2)は空）。
+  // 足下の隠し財産（到達・手札から）。「山札または手札から」の**手札の方**を選んだ場合。
+  // 🔴 山札にも手札にも札がある時だけ「どちらから出しますか？」を聞く（候補の id も検査する）。
   {
-    name: "足下の隠し財産(手札②): 手札1枚を任意のマスの1番下に表向きで置く（隣も選べる）",
-    kind: "hand",
+    name: "足下の隠し財産(到達): 手札から選ぶと、その札がマスの1番下に表向きで入る",
+    kind: "arrival",
     state: {
       activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
       tokens: [
         { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
-        { id: "self", kind: "card", cardId: "ex0-purple-hidden-fortune", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "self", kind: "card", cardId: "ex0-purple-hidden-fortune", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
         { id: "h2", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "h3", kind: "card", cardId: "white-radiance", faceUp: true, location: { zone: "hand", player: "A" } },
         { id: "adj", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
-        { id: "far", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
+        { id: "far", kind: "card", cardId: "blue-serenade", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
       ],
       piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
     },
-    ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self" },
-    picks: { option: ["ex0-fortune-hand"], handCard: ["h2"], location: [{ row: 2, col: 3 }] },
+    ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 2, col: 3 }], choice: ["hand"], handCard: ["h2"] },
     expect: [
-      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 隣も選べる＝(2,3)と(4,4)
-      { kind: "deckLen", n: 2 },                                    // ドローはしない
-      { kind: "cellStackOrder", row: 2, col: 3, cards: ["red-jump-pad", "red-counter-lock"] },
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 自分のマス(2,2)を外す／隣(2,3)は残る
+      { kind: "called", name: "pickChoiceOptions", arg: "deck,hand" }, // 両方あるので聞く
+      { kind: "called", name: "pickHandCard", arg: "h2" },
+      { kind: "deckLen", n: 2 }, // 手札から出したので山札は減らない
+      { kind: "cellStackOrder", row: 2, col: 3, cards: ["red-jump-pad", "red-counter-lock"] }, // 置いた札が1番下
       { kind: "tokenFaceUp", id: "h2" },
-      { kind: "pileContains", pile: "discard", cardId: "ex0-purple-hidden-fortune" }, // 使用時に捨てる既定
     ],
   },
-  // 足下の隠し財産（手札①＝上記の到達効果を得る）。こちらは「隣以外」が効くので候補は1つ。
+  // 足下の隠し財産（手札効果＝上記の到達効果を得る）。縛りも一緒に来ることを見る。
+  // 🔴 ここでは**自分のマス (2,2) にもカードがある**ので、外れたかどうかが候補の数に出る。
   {
-    name: "足下の隠し財産(手札①): 到達効果を継承すると「隣以外」の縛りも一緒に来る",
+    name: "足下の隠し財産(手札): 到達効果を継承すると「自分のマス以外」も一緒に来る",
     kind: "hand",
     state: {
       activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
       tokens: [
         { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
         { id: "self", kind: "card", cardId: "ex0-purple-hidden-fortune", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "mine", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
         { id: "adj", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
         { id: "far", kind: "card", cardId: "white-radiance", faceUp: false, location: { zone: "cell", row: 4, col: 4 } },
       ],
       piles: { deck: ["red-counter-lock", "red-jump-pad"], eternal: [], first: [], discard: [] },
     },
     ctx: { player: "A", cardId: "ex0-purple-hidden-fortune", cardTokenId: "self" },
-    picks: { option: ["ex0-fortune-inherit"], location: [{ row: 4, col: 4 }] },
+    picks: { location: [{ row: 4, col: 4 }] },
     expect: [
-      { kind: "called", name: "pickLocationCandidates", arg: "1" }, // (2,3)は隣で外れ、(2,2)はカードが無い
+      { kind: "called", name: "pickLocationCandidates", arg: "2" }, // (2,2)が外れ、(2,3)と(4,4)が残る
+      { kind: "called", name: "pickChoice", n: 0 }, // これ以外の手札が無い＝聞かない
       { kind: "deckLen", n: 1 },
       { kind: "cellStackOrder", row: 4, col: 4, cards: ["red-jump-pad", "white-radiance"] },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-purple-hidden-fortune" }, // 使用時に捨てる既定
     ],
   },
   // オレンジバス（到達）。「『バスストップ』のあるマスに移動する。これをあなたの隣に

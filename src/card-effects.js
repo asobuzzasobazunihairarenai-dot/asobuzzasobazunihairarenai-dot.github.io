@@ -79,8 +79,13 @@ export const VERBS = {
   DISCARD_OWN_HAND_DOWN_TO: "discard_own_hand_down_to", // 厳重警戒: あなたの手札が指定枚数になるように、自分で選んで捨てる
   DISCARD_ANY_HAND_THEN_DRAW_SAME: "discard_any_hand_then_draw_same", // やり直しのカギ: 手札を任意の枚数捨ててもよい。捨てた枚数分ドロー
   DRAW_IF_OPENED_THIS_TURN: "draw_if_opened_this_turn", // バスストップ: このターンにこれがオープンされたのならドロー
-  PUBLIC_DRAW_TO_BOTTOM_OF_CHOSEN_CELL: "public_draw_to_bottom_of_chosen_cell", // 足下の隠し財産: 1枚ドローして公開し、選んだマスの1番下に表向きで置く
-  PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL: "place_hand_card_at_bottom_of_chosen_cell", // 足下の隠し財産(手札): 手札1枚を選んだマスの1番下に表向きで置く
+  // ⚠ 下の2つは足下の隠し財産の**作り直す前**の形（2026-11-03・#473/#474 で
+  //   PLACE_DECK_OR_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL に置き換えた）。どのカードからも
+  //   使われていないが、実装は残してある（戻したくなった時に使える／消すと動詞の数が
+  //   文の生成側とズレる）。
+  PUBLIC_DRAW_TO_BOTTOM_OF_CHOSEN_CELL: "public_draw_to_bottom_of_chosen_cell", // 足下の隠し財産(旧): 1枚ドローして公開し、選んだマスの1番下に表向きで置く
+  PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL: "place_hand_card_at_bottom_of_chosen_cell", // 足下の隠し財産(旧・手札): 手札1枚を選んだマスの1番下に表向きで置く
+  PLACE_DECK_OR_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL: "place_deck_or_hand_card_at_bottom_of_chosen_cell", // 足下の隠し財産: 山札または手札から1枚を、選んだマスの1番下に表向きで置く
   MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD: "move_to_cell_with_named_faceup_card", // オレンジバス: 「バスストップ」のあるマスに移動する
   PICKUP_NAMED_CARD_AT_OWN_CELL: "pickup_named_card_at_own_cell", // オレンジバス: そのバスストップを手札に加える
   FORCED_MOVE: "forced_move", // ジョイナー等: ふつうの「強制移動」（カードが無いマスにも行ける）
@@ -892,15 +897,23 @@ export const CARD_EFFECTS = {
   //   半端なデータを置くと間違った処理が勝手に走るので、**1枚ずつ完成させてから載せる**。
 
   // 赤のはじまり（赤、0th拡張） 到達効果: 「捨て場の１番上のカードをあなたの手札に加える。」
-  // 手札効果: 「上記の到達効果を得る。このフェイズを終了する。」
+  // 手札効果: 「捨て場の上から２番目のカードをあなたの手札に加える。このフェイズを終了する。」
   // 捨て場から取る動詞は、フェニックス（first-red）の「上から２番目」が既にあるので
   // その1段手前の素直な形。helpers.drawFromDiscard がそのまま使える。
+  // 🔴 ただし到達側の helpers にその関数が無く、到達効果は2日間ずっと落ちていた（#477）。
   "ex0-red-beginning": {
     arrival: {
       actions: [{ verb: VERBS.PICKUP_DISCARD_TOP }],
     },
+    // 🔴 【2026-11-03・#467】ユーザー判断で、手札効果だけ「上から２番目」に変えた
+    //   （到達は１番上のまま）。報告「なぜ、赤の始まりの到達効果が不発になった？」の
+    //   調査で、到達と手札がまったく同じ効果なのは面白みが無いという話になった経緯。
+    //   使う動詞は赤のキューブ フェニックス（first-red）と同じものがそのまま使える。
     handEffect: {
-      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }, { verb: VERBS.END_CURRENT_PHASE }],
+      //   🔴 skipSelf ＝「たった今そこへ置いた自分自身は数えない」。これが無いと、
+      //     上から２番目＝使う直前の１番上＝**到達効果と同じ札**になって意味が消える
+      //     （実測で確認した。詳しくはエンジン側のコメント）。
+      actions: [{ verb: VERBS.PICKUP_DISCARD_SECOND_FROM_TOP, skipSelf: true }, { verb: VERBS.END_CURRENT_PHASE }],
     },
   },
 
@@ -1192,10 +1205,15 @@ export const CARD_EFFECTS = {
   //   到達: 「以下の効果のうち１つ得る。／・【追色１】２枚ドロー。／
   //         ・あなたの周囲の相手を１人選ぶ。その相手に接触する。」
   //   手札: 「【追色S】あなたの周囲の相手を１人選ぶ。その相手に接触する。」
-  // ⚠ **手札効果はまだ自動処理にしていない**。【追色S】は払う枚数をプレイヤーが決める
-  //   新しいコストの形で、しかも「接触で奪えるカードはSの２倍」＝奪う枚数を変える必要がある。
-  //   奪うのは**サーバー（Edge Function）が無作為に選ぶ**処理なので、そちらの改修も要る。
   // 🔴 到達の②で奪う枚数は**通常の接触と同じ1枚**（2026-11-02 ユーザー回答）。
+  // 🔴 【2026-11-03・ユーザー承認「改修しましょう」】手札効果の【追色S】を入れた。
+  //   ・`variable: true` ＝払う枚数を使う人が決める（1枚目を払った後に「何枚にするか」を聞く）。
+  //     上限は手札にある同色のカードの枚数（印字の「あなたの手札にある赤のカードの枚数まで」）。
+  //     Sは1以上なので、赤が1枚も無ければそもそも使えない（既存の `count: 1` の判定がそれ）。
+  //   ・`stealMultiplier: 2` ＝「接触で奪えるカードはSの２倍の枚数である」。
+  //     奪う処理はローカルが state.js、オンラインが Edge Function なので**両方に同じ形で**
+  //     stealCount を通してある（既定1＝ふだんの接触は何も変わらない）。
+  //   ⚠ **Edge Function の手動再デプロイが要る**（オンライン戦でだけ2倍が効かない状態になる）。
   "ex0-red-crimson-fist": {
     arrivalOptions: [
       {
@@ -1211,6 +1229,12 @@ export const CARD_EFFECTS = {
         actions: [{ verb: VERBS.CONTACT_CHOSEN_OPPONENT_IN_SURROUNDING }],
       },
     ],
+    handEffect: {
+      // 【追色S】＝払う枚数を使う人が決める追色コスト（count: 1 は「最低1枚は要る」の意味）。
+      cost: { verb: VERBS.DISCARD_SAME_COLOR, count: 1, variable: true },
+      requiresOpponentInSurrounding: true,
+      actions: [{ verb: VERBS.CONTACT_CHOSEN_OPPONENT_IN_SURROUNDING, stealMultiplier: 2 }],
+    },
   },
 
   // 異能者　マックールのネオ・フォース（橙・1枚・ONLY）
@@ -1345,33 +1369,28 @@ export const CARD_EFFECTS = {
   },
 
   // 足下の隠し財産（紫・5枚）
-  //   到達: 「あなたの隣以外の、カードの置かれたマスを１マス選ぶ。１枚ドローして公開する。
-  //         そのカードを選んだマスの１番下に表向きで置く。」
-  //   手札: 「以下の効果のうち１つ得る。／・上記の到達効果を得る。／・あなたの手札から１枚を、
-  //         カードの置かれた任意のマスの１番下に表向きで置く。」
-  // ⓘ 補足「あなたのいるマスも選べる。あなたの隣のマスは選べない。」＝除くのは**隣の4マスだけ**。
-  // 🔴 ②には「隣以外」の縛りが**無い**（①だけ）。取り違えると選べるマスがズレる。
+  //   到達: 「あなたのいるマス以外の、カードの置かれたマスを１マス選ぶ。山札または手札から
+  //         １枚を、そのマスの１番下に表向きで置く。」
+  //   手札: 「上記の到達効果を得る。」
+  // 🔴 【2026-11-03・#473/#474】ユーザー判断で**効果を丸ごと作り直した**。前の形は
+  //   「隣以外のマス」「１枚ドローして公開」「手札から置く方は選択肢②」だったが、
+  //   以下のとおり確認を取って単純にした（ユーザー回答そのまま）:
+  //     (a) 「山札または手札から」は**使う人がその場で選ぶ**
+  //     (b) 選んだマスに**駒がいてもよい**（「カードの置かれたマス」としか書いていない）
+  //     (c) １番下に置くので**到達は起きない**
+  //     (d) 手札効果の②（手札から置く）は**消してよい**（新しい到達効果に吸収される）
+  //   🔴 さらに追加の指示「隠し財産だけど**自分のいるマス以外**が良いな！」。
+  //     ⇒ 縛りは「隣以外（4マス）」から「**自分のいるマス以外（1マス）**」へ入れ替わった。
+  //       **隣のマスは選べる。** 補足の2文（「あなたのいるマスも選べる。」「あなたの隣のマスは
+  //       選べない。」）はどちらも逆の意味になったので外した（本文が明示している）。
   "ex0-purple-hidden-fortune": {
     arrival: {
-      actions: [{ verb: VERBS.PUBLIC_DRAW_TO_BOTTOM_OF_CHOSEN_CELL, count: 1 }],
+      actions: [{ verb: VERBS.PLACE_DECK_OR_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL, count: 1 }],
     },
-    handEffectOptions: [
-      {
-        id: "ex0-fortune-inherit",
-        labelKey: "cef.opt.ex0FortuneInherit",
-        // 善処の原則: 「隣以外の、カードの置かれたマス」が1つも無ければ選べない。
-        requiresNonAdjacentCellWithCard: true,
-        actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
-      },
-      {
-        id: "ex0-fortune-hand",
-        labelKey: "cef.opt.ex0FortuneHand",
-        // 善処の原則: 「カードの置かれたマス」と「これ以外の手札」の両方が要る。
-        requiresCellWithCard: true,
-        requiresOtherHandCard: true,
-        actions: [{ verb: VERBS.PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL, count: 1 }],
-      },
-    ],
+    handEffect: {
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
   },
 
   // リーチキャンセル（黄・5枚）
@@ -1585,6 +1604,9 @@ function renderAction(action, context) {
       return `あなたの隣以外の、カードの置かれたマスを${toFullWidthNumber(1)}マス選ぶ。${count}枚ドローして公開する。そのカードを選んだマスの${toFullWidthNumber(1)}番下に表向きで置く。`;
     case VERBS.PLACE_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL:
       return `あなたの手札から${count}枚を、カードの置かれた任意のマスの${toFullWidthNumber(1)}番下に表向きで置く。`;
+    case VERBS.PLACE_DECK_OR_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL:
+      // 【#473/#474】足下の隠し財産。印字どおりの2文。数字は全角（他のカードと同じ）。
+      return `あなたのいるマス以外の、カードの置かれたマスを${toFullWidthNumber(1)}マス選ぶ。山札または手札から${count}枚を、そのマスの${toFullWidthNumber(1)}番下に表向きで置く。`;
     case VERBS.MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD:
       // ⚠ カード名は action.targetName から取る（このファイルは cards-data.js を import
       //   していない＝getCardDefinition が無い。import すると循環する）。
@@ -1795,7 +1817,9 @@ function renderAction(action, context) {
 
 function renderCost(cost) {
   if (!cost) return "";
-  if (cost.verb === VERBS.DISCARD_SAME_COLOR) return `【追色${toFullWidthNumber(cost.count)}】`;
+  // 【追色S】＝払う枚数が決まっていないコスト（紅の鉄拳・0th拡張）。印字どおり S は半角のまま
+  //   （数字ではなく記号なので全角にしない。カードの右上の印も「⬡×S」）。
+  if (cost.verb === VERBS.DISCARD_SAME_COLOR) return cost.variable ? "【追色S】" : `【追色${toFullWidthNumber(cost.count)}】`;
   return "";
 }
 

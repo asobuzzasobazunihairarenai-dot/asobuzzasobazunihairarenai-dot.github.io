@@ -250,7 +250,9 @@ type PendingFinalLock = {
   queue: string[];
 } | null;
 
-type PendingContact = { attacker: string; defender: string } | null;
+// 🔴 stealCount ＝この接触で奪う枚数（省略時1）。0th拡張の紅の鉄拳の手札効果【追色S】
+//   だけが「Sの２倍」を入れる。古い行（この欄が無い pending_contact）も読めるよう省略可にする。
+type PendingContact = { attacker: string; defender: string; stealCount?: number } | null;
 
 // タイマーオン/オフの承認待ち（続き64、src/state.jsのpendingTimerToggleと同じ形）。
 type PendingTimerToggle = { requester: string; nextEnabled: boolean; queue: string[] } | null;
@@ -393,7 +395,11 @@ function reduce(current: GameState, action: any): GameState {
     // なのでqueueは無い）。
     case "REQUEST_CONTACT": {
       if (current.pendingContact) return current;
-      return { ...current, pendingContact: { attacker: action.attacker, defender: action.defender } };
+      // 🔴 stealCount ＝この接触で奪う枚数（既定1）。0th拡張の紅の鉄拳の手札効果【追色S】
+      //   だけが「Sの２倍」を渡す。src/state.js の同じケースと同じロジック。
+      //   古いクライアントは送ってこない＝1枚＝今までどおり。おかしな値は1枚に丸める。
+      const stealN = Number.isFinite(action.stealCount) && action.stealCount >= 1 ? Math.floor(action.stealCount) : 1;
+      return { ...current, pendingContact: { attacker: action.attacker, defender: action.defender, stealCount: stealN } };
     }
     // 「無作為に1枚」は隠し情報の抽選のため、クライアント側では行えずここ（サーバー）で
     // 行う必要がある——ゲート侵攻ボーナスの「手札を半分奪う」と全く同じ理由。相手の
@@ -421,10 +427,20 @@ function reduce(current: GameState, action: any): GameState {
         // 隠し情報の抽選という点での公平性は損なわない（サーバー側で改めて乱数を
         // 引き直す必要がない）。渡されなかった場合は従来通りサーバー側でランダムに選ぶ
         // （フォールバック、クライアントが未対応の場合の保険）。
+        // 🔴 奪う枚数（既定1）。紅の鉄拳の手札効果【追色S】だけが「Sの２倍」を渡す。
+        //   儀式で選ばれた1枚を必ず先に数え、足りない分だけ無作為に足す。相手の手札が
+        //   それより少なければある分だけ（善処の原則）。src/state.js と同じロジック。
+        const takeN = Number.isFinite(pending.stealCount) && (pending.stealCount ?? 0) >= 1 ? Math.floor(pending.stealCount!) : 1;
         const chosen = action.stolenCardId ? defenderHand.find((t) => t.id === action.stolenCardId) : null;
-        const stolen = chosen ?? shuffled(defenderHand)[0];
+        const takeList: typeof defenderHand = [];
+        if (chosen) takeList.push(chosen);
+        for (const t of shuffled(defenderHand.filter((x) => !takeList.some((y) => y.id === x.id)))) {
+          if (takeList.length >= takeN) break;
+          takeList.push(t);
+        }
+        const takeIds = new Set(takeList.map((t) => t.id));
         tokens = tokens.map((t) =>
-          t.id === stolen.id
+          takeIds.has(t.id)
             ? {
                 ...t,
                 location: { zone: "hand", player: pending.attacker },

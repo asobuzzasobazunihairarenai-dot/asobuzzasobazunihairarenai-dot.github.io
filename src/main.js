@@ -3768,6 +3768,12 @@ function declareColorsForEffect(requirement, cardId, player) {
       backdrop.style.background = value ? "transparent" : "rgba(0, 0, 0, 0.6)";
       modal.classList.toggle("is-peeking", value);
       peekHint.classList.toggle("show", value);
+      // 🔴 【#487】覗いている間は、同じボタンが「戻す」になる。
+      //   このモーダルは**消えるのではなく画面の左へ寄る**（.declare-colors-modal.is-peeking）
+      //   ので、寄ったままだと手札に被る。報告「そのボタンは『戻す』ボタンに変わるといいかも！
+      //   手札を見たい時に、モーダルが左にあるままだとモーダルが手札に被って手札が見えない。」
+      //   ⓘ 覆いのどこかを押しても戻る（今までどおり）。押す所を探さなくてよくなるだけ。
+      peekBtn.textContent = value ? t("game.declare.restoreModal") : t("game.declare.viewBoard");
     }
     const peekHint = document.createElement("div");
     peekHint.className = "hand-effect-option-picker-peek-hint";
@@ -3790,7 +3796,7 @@ function declareColorsForEffect(requirement, cardId, player) {
     peekBtn.textContent = t("game.declare.viewBoard");
     peekBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      setPeeking(true);
+      setPeeking(!isPeeking); // 【#487】同じボタンで戻せる
     });
     modal.appendChild(peekBtn);
 
@@ -4445,7 +4451,31 @@ async function runYaezaOptionTask(player) {
   const id = typeof picked === "string" ? picked : picked?.id ?? null;
   if (!id || isDelegationExpired()) return false;
   if (id === "ex0-yaeza-discard-all") {
-    for (const tk of 手札()) await discardFromHandReveal(tk.id);
+    // 🔴 【#488】捨てる順を選べるようにする。**捨て場は積み重なる**ので、順番は後から効く
+    //   （赤のはじまり＝１番上／赤のキューブ フェニックス＝上から２番目／やり直しのカギ 等）。
+    //   まとめて捨てるのに順番を聞いていなかったのはここだけだった
+    //   （ヴド族との契約・ピーターフッドの runDiscardDownToTask は元から聞いている）。
+    // ⓘ 2枚以上ある時だけ聞く（1枚なら順番が無い）。「おまかせ」を押せば、
+    //   いま並んでいる順で捨てる（requestHandCardsOrderedForEffect の既定）。
+    const 札 = 手札();
+    let 並び = 札;
+    if (札.length >= 2) {
+      const ordered = await requestHandCardsOrderedForEffect(
+        player,
+        t("ce.ex0YaezaDiscardAllOrder"),
+        札.map((tk) => tk.id),
+        { limit: 札.length }
+      );
+      if (ordered && ordered.length) 並び = ordered;
+    }
+    const 捨てた = [];
+    for (const tk of 並び) {
+      if (isDelegationExpired()) break;
+      // 【#463】1枚ごとのお知らせは出さず、まとめて1つにする（まとめて捨てる所は全部この形）。
+      await discardFromHandReveal(tk.id, { batchNotice: true });
+      捨てた.push(tk.id);
+    }
+    if (捨てた.length > 0) await announceCardsDiscarded(player, 捨てた, currentEffectReasonLabel());
     await drawCardsForEffect(player, 1);
     return true;
   }
@@ -4458,6 +4488,15 @@ async function runYaezaOptionTask(player) {
   if (!tok) return false;
   await discardFromHandReveal(tok.id);
   return true;
+}
+
+// 0th拡張（足下の隠し財産）専用: 「山札から／手札から」のような2択を、エンジンから聞くための口。
+// ⚠ 新しいモーダルは作らず、既にある選択肢ピッカーを流用する（pickNumberForEffect と同じ理由
+//   ——CPUの自動選択・持ち時間切れの自動代行がそのまま効く。作り直すとそこだけ抜ける）。
+// 返すのは選ばれた id の文字列（選ばなければ null）。
+async function pickChoiceForEffect(cardId, options, title) {
+  const picked = await pickOptionForEffect(cardId, options, title);
+  return typeof picked === "string" ? picked : picked?.id ?? null;
 }
 
 // 0th拡張（ピーターフッド）専用: 1〜7の数字を1つ選ぶ。
@@ -9405,6 +9444,16 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
     return false;
   }
   setHandEffectBusy(true);
+  // 🔴 【#483】「CPUのリトルマウスの割り込みモーダルが私にも表示されています」。
+  //   原因は #471（ヴィвィアン）と同じ**ピッカーの持ち主が空**。手札効果のピッカーも
+  //   owner を渡していなかったので、`isCpuSelectingNow(undefined)` が
+  //   **その時の優先権プレイヤー**で判断していた。ふだんのハンドフェイズなら
+  //   「使う人＝優先権」なので偶然正しかったが、**リトルマウスのように「いつでも使える」
+  //   手札効果を CPU が他人のターンに割り込みで使う**と、優先権は人間のままなので
+  //   「CPU が選ぶはずの画面」が人間に出ていた。
+  //   ⇒ 到達効果と同じ形で、**使う本人**を立ててから走らせる（finally で必ず戻す）。
+  const 前の選ぶ席 = effectChoiceSeatOverride;
+  effectChoiceSeatOverride = player ?? 前の選ぶ席;
   try {
     setCurrentEffectCardForReason(cardId); // #4: この効果によるドロー/捨てに理由を添える
     const usedSuccessfully = await runHandEffect(
@@ -9472,6 +9521,12 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         peekCards: peekCardsForEffect,
         // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。
         pickNumber: pickNumberForEffect,
+        // 【#473/#474】足下の隠し財産の「山札から／手札から」の2択用。
+        pickChoice: pickChoiceForEffect,
+        // 🔴 0th拡張（紅の鉄拳）の手札効果【追色S】の「その相手に接触する」。
+        //   到達効果側にしか無く、**手札効果側に足し忘れていたのを**
+        //   tools/check-effect-helpers.mjs（#477 で作った検査）がその場で捕まえた。
+        initiateContact: submitContactProposal,
         // ユーザー報告「ザ・ギャンブルで宣言色が出てしまったときに、手札がすべて
         // 捨てられず止まってしまっている」の調査で発見: ザ・ギャンブルの手札効果
         // （INHERIT_ARRIVAL_ACTIONS経由で到達効果のPUBLIC_DRAW_MATCHING_DECLARED_
@@ -9520,6 +9575,7 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
     // 役人・パーティーのように、全員への委任(delegateToPlayer)で処理が長引く
     // 効果ほどこの隙間に引っかかりやすかった。
     setHandEffectBusy(false);
+    effectChoiceSeatOverride = 前の選ぶ席; // 【#483】選ぶ権利を必ず戻す
     // ユーザー要望（続き76/77）「カード効果処理の直後にも割り込みモーダルを出す」。
     // 続き77でanytime_checkpoint broadcastに乗せ、オンライン中も他クライアントへ届く
     // ようにした。
@@ -9602,6 +9658,24 @@ async function runAutoArrivalEffect(cardId, location, player) {
       // ユーザー要望「効果が不発だった場合は『不発のためこのカードを手札に加えます』
       // 的なモーダルを出す」用。
       announceFizzle: announceEffectFizzleForEffect,
+      // 🔴 【#478】相手の手札から無作為に1枚引く口（リトルマウスの到達効果）。
+      //   **手札効果側にしか無く、到達効果側に無かった**ため、リトルマウスの到達効果は
+      //   一度も奪えていなかった。エンジン側は「helpers.pickRandomFromOpponentHand?.(target)」と
+      //   **省略可の形**で呼んでいるので例外にはならず、undefined が返って break →
+      //   「０枚奪った」＝不発。報告「相手手札が1枚の時、不発ではなく善処の原則で1枚を
+      //   奪います。でいいよね？」の答えは**そのとおり**で、コードも元からそう書いてある
+      //   （「if (!tok) break;」で、ある分だけ奪う）。足りなかったのはこの1行だけ。
+      //   ⇒ tools/check-effect-helpers.mjs が「省略可でも戻り値を使っているもの」を
+      //     見張るようにしたので、同じ穴はもう黙って通らない。
+      pickRandomFromOpponentHand: pickRandomFromOpponentHandForEffect,
+      // 🔴 【#477】捨て場から取る動詞（PICKUP_DISCARD_TOP ＝赤のはじまり／
+      //   PICKUP_DISCARD_SECOND_FROM_TOP ＝赤のキューブ フェニックス）用。
+      //   **手札効果側にしか無く、到達効果側に無かった**ため、赤のはじまりの到達効果は
+      //   公開してから2日間ずっと `TypeError: helpers.drawFromDiscard is not a function`
+      //   で落ちていた（エンジンが例外を飲むので、プレイヤーには「不発」に見える）。
+      //   先に実装したフェニックスが手札効果だったので、到達側に足す必要に気づけなかった。
+      //   ⇒ 同じ穴は `node tools/check-effect-helpers.mjs` が毎回見張る。
+      drawFromDiscard: drawFromDiscardForEffect,
       // 選べる罠（arrivalOptions）・ザ・ギャンブル・試練の儀式用。
       pickArrivalOption: pickArrivalOptionForEffect,
       declareColors: declareColorsForEffect,
@@ -9627,6 +9701,8 @@ async function runAutoArrivalEffect(cardId, location, player) {
       peekCards: peekCardsForEffect,
       // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。
       pickNumber: pickNumberForEffect,
+      // 【#473/#474】足下の隠し財産の「山札から／手札から」の2択用。
+      pickChoice: pickChoiceForEffect,
       // 0th拡張（紅の鉄拳）の「その相手に接触する」。ふだんのドラッグでの接触と同じ入口
       // （宣言→相手の承認→奪う→ゲートへ強制移動）をそのまま使う。
       initiateContact: submitContactProposal,
@@ -9911,6 +9987,14 @@ async function offerArrivalCancelInterrupt(cardId, location, arrivedPlayer) {
     if (!p) continue;
     const tokens = 持っている人(p);
     if (tokens.length === 0) continue;
+    // 🔴 【#486】「今後このモーダルを出さない」を選んだ人には出さない。
+    //   報告「リーチキャンセルの割り込みモーダルの非表示は実装されてないね！」。
+    //   ふだんの割り込み（triggerAnytimeInterruptCheckpoint）は同じ設定を先頭で見ているが、
+    //   こちらは**到達効果を走らせる前に答えを待つ**専用の窓なので別の関数になっており、
+    //   設定を見る行だけが抜けていた。
+    //   ⓘ 右下の「割り込みを再開」ボタンを押せば、また出るようになる（同じ設定を共有）。
+    //   ⚠ CPU（自動で動く席）はモーダルを出さずに即答するので、この設定の対象外。
+    if (anytimeInterruptOptedOut && !isSeatAutoDriven(p)) continue;
     // 🔴 #476: CPU がここをコイン投げで答えていた（cpuAutoResolveId が無く、cardId も
     //    評価表に無いと yes/no が 50% になる＝main.js の #120 のコメントのとおり）。
     //    カード名のとおり「**リーチを止める時だけ使う**」という基準を与える:
@@ -10672,16 +10756,19 @@ function checkContactAttackerResolution() {
 // 2回目のタップで接触をもう一度申し込めてしまう。ロックと同じく「今まさに申し込み中」と
 // いう事実そのもので弾く（クリック・ドラッグ・疑似CPUの自動接触は全部ここを通る）。
 let contactProposalInFlight = false;
-async function submitContactProposal(attacker, defender) {
+// 🔴 stealCount（省略可・既定1）＝この接触で奪う枚数。0th拡張の紅の鉄拳の手札効果
+//   【追色S】だけが「Sの２倍」を渡す。**省略すれば今までどおり1枚**なので、ドラッグ・
+//   CPU・到達効果からの接触は何も変わらない。
+async function submitContactProposal(attacker, defender, stealCount) {
   if (contactProposalInFlight) return;
   contactProposalInFlight = true;
   try {
-    return await submitContactProposal__inner(attacker, defender);
+    return await submitContactProposal__inner(attacker, defender, stealCount);
   } finally {
     contactProposalInFlight = false;
   }
 }
-async function submitContactProposal__inner(attacker, defender) {
+async function submitContactProposal__inner(attacker, defender, stealCount) {
   // #228 の安全網。通常は上の showContactPrompt で弾かれるが、別経路が増えても漏れないよう
   // 実際に申し込む直前でも確認する（接触の成立はこの関数に集約されている）。
   if (isContactDisabledThisTurn(attacker)) return false;
@@ -10698,10 +10785,10 @@ async function submitContactProposal__inner(attacker, defender) {
             .map((t) => t.id)
         ),
       };
-      await requestContact(attacker, defender);
+      await requestContact(attacker, defender, stealCount);
       await fetchAndHydrate(getCurrentGameId());
     } else {
-      requestContact(attacker, defender);
+      requestContact(attacker, defender, stealCount);
     }
     // 接触が実際に成立した（pendingContactが立った）ので、ここで初めてムーブフェイズの
     // 「1手」を消費済みにする。クリック/ドラッグ/疑似CPUのどの経路も最終的にここを通る

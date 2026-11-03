@@ -234,6 +234,16 @@ export async function runOneCase(spec) {
     // 台本には id 文字列を書く → 渡された options 配列から id 一致のオブジェクトを返す。
     pickArrivalOption: async (cardId, options) => { const want = nextPick("option"); const o = (options || []).find((x) => x.id === want) || null; callLog.push(["pickArrivalOption", want]); return o; },
     pickHandEffectOption: async (cardId, options) => { const want = nextPick("option"); const o = (options || []).find((x) => x.id === want) || null; callLog.push(["pickHandEffectOption", want]); return o; },
+    // 【#473/#474】汎用の「選択肢を1つ選ぶ」（足下の隠し財産の「山札から／手札から」）。
+    // 台本には choice: ["deck"] のように id 文字列を書く。返すのは id（本物も id を返す）。
+    // 🔴 候補の id も記録する——**聞かれなかったこと**（片方しか無い時は聞かない）も
+    //   検査できるようにするため。
+    pickChoice: async (cardId, options, title) => {
+      const want = nextPick("choice");
+      callLog.push(["pickChoice", want]);
+      callLog.push(["pickChoiceOptions", (options || []).map((o) => o.id).join(",")]);
+      return want ?? null;
+    },
     declareColors: async () => { const r = nextPick("colors"); callLog.push(["declareColors", r]); return r; },
     gambleReveal: async () => { const r = nextPick("gamble"); callLog.push(["gambleReveal", r]); return r; },
     delegateToPlayer: async (p, taskType, taskArg) => {
@@ -265,7 +275,12 @@ export async function runOneCase(spec) {
       return n;
     },
     // 0th拡張（紅の鉄拳）の「その相手に接触する」。本物は接触の宣言を始める（承認待ちに入る）。
-    initiateContact: async (attacker, defender) => { callLog.push(["initiateContact", attacker, defender]); },
+    // 【追色S】奪う枚数も記録する（紅の鉄拳の「Sの２倍」の検査に使う）。
+    // 🔴 省略された時は「1枚（今までどおり）」なので、そうと分かる文字列で残す。
+    initiateContact: async (attacker, defender, stealCount) => {
+      callLog.push(["initiateContact", attacker, defender]);
+      callLog.push(["initiateContactSteal", stealCount === undefined ? "既定" : String(stealCount)]);
+    },
     markDiscardAtTurnEnd: (player, ids) => { callLog.push(["markDiscardAtTurnEnd", player, ids]); }, markPlacedLocation: (location, options) => { callLog.push(["markPlacedLocation", location, options?.holdMs ?? null]); }, markPlacementTarget: () => {},
     maybeTriggerArrivalForPlacedCard: async () => {}, onCardAcquiredToHand: () => {},
     playAdditionalColorUse: () => {}, recordMoveVisited: () => {}, startSuspenseSound: () => {},

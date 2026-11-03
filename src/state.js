@@ -384,7 +384,10 @@ function reduce(current, action) {
     // queueは持たない）。
     case "REQUEST_CONTACT": {
       if (current.pendingContact) return current;
-      return { ...current, pendingContact: { attacker: action.attacker, defender: action.defender } };
+      // 🔴 stealCount ＝この接触で奪う枚数（既定1）。0th拡張の紅の鉄拳の手札効果【追色S】
+      //   だけが「Sの２倍」を渡す。おかしな値は1枚に丸める（安全側）。
+      const n = Number.isFinite(action.stealCount) && action.stealCount >= 1 ? Math.floor(action.stealCount) : 1;
+      return { ...current, pendingContact: { attacker: action.attacker, defender: action.defender, stealCount: n } };
     }
     // 承認された場合の実際の効果は、旧CONTACTケースと同じロジック。相手のゲートに表向きの
     // カードがあれば、通常の移動と全く同じ経路で到達効果が発動する——ここでは駒の位置を
@@ -419,11 +422,24 @@ function reduce(current, action) {
         current.tokens.some(
           (t) => t.id === action.stolenCardId && t.location.zone === "hand" && t.location.player === pending.attacker
         );
-      if (!alreadyStolen && defenderHand.length > 0) {
+      // 🔴 奪う枚数（既定1）。紅の鉄拳の手札効果【追色S】だけが「Sの２倍」を渡す。
+      //   儀式で選ばれた1枚（stolenCardId）を必ず先に数え、足りない分だけ無作為に足す。
+      //   相手の手札がそれより少なければ**ある分だけ**（善処の原則）。
+      const 奪う枚数 = Number.isFinite(pending.stealCount) && pending.stealCount >= 1 ? Math.floor(pending.stealCount) : 1;
+      const 既に奪った = alreadyStolen ? 1 : 0;
+      const 残り = Math.max(0, 奪う枚数 - 既に奪った);
+      if (残り > 0 && defenderHand.length > 0) {
         const chosen = action.stolenCardId ? defenderHand.find((t) => t.id === action.stolenCardId) : null;
-        const stolen = chosen ?? shuffled(defenderHand)[0];
+        const 奪うもの = [];
+        if (chosen) 奪うもの.push(chosen);
+        // 残りは無作為（隠し情報の抽選なので、オンラインではサーバー側が行う＝上の分岐参照）。
+        for (const tk of shuffled(defenderHand.filter((c) => !奪うもの.some((x) => x.id === c.id)))) {
+          if (奪うもの.length >= 残り) break;
+          奪うもの.push(tk);
+        }
+        const 奪うid = new Set(奪うもの.map((t) => t.id));
         tokens = tokens.map((t) =>
-          t.id === stolen.id
+          奪うid.has(t.id)
             ? {
                 ...t,
                 location: { zone: "hand", player: pending.attacker },
@@ -994,9 +1010,12 @@ export function shuffleHand(player) {
 
 // ユーザー要望「接触処理の自動化」への対応。main.js側の確認モーダルで「OK」が
 // 押された時に呼ばれる（この時点ではまだ効果は適用されず、承認待ちになるだけ）。
-export function requestContact(attacker, defender) {
-  if (onlineMode && onlineTransport) return onlineTransport({ type: "REQUEST_CONTACT", attacker, defender });
-  dispatch({ type: "REQUEST_CONTACT", attacker, defender });
+// 🔴 stealCount（省略可・既定1）＝この接触で奪う枚数。0th拡張の紅の鉄拳の手札効果
+//   【追色S】だけが 1 以外（Sの2倍）を渡す。**省略すれば今までどおり1枚**なので、
+//   ふだんの接触（ドラッグ・CPU・到達効果）の動きは何も変わらない。
+export function requestContact(attacker, defender, stealCount) {
+  if (onlineMode && onlineTransport) return onlineTransport({ type: "REQUEST_CONTACT", attacker, defender, stealCount });
+  dispatch({ type: "REQUEST_CONTACT", attacker, defender, stealCount });
 }
 
 // 接触された側（defender）が承認/拒否モーダルで応答した時に呼ばれる。stolenCardId

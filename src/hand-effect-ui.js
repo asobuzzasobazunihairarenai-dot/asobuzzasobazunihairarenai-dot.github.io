@@ -485,6 +485,12 @@ export function showHandEffectOptionPicker(cardId, optionsWithUsability, onReady
       backdrop.classList.toggle("is-peeking", value);
       modal.classList.toggle("is-peeking", value);
       peekHint.classList.toggle("show", value);
+      // 🔴 【#487】覗いている間は、同じボタンが「戻す」になる。
+      //   このモーダルは**消えるのではなく画面の左へ寄る**（.hand-effect-option-picker.is-peeking）
+      //   ので、寄ったままだと手札に被って手札が見えない（報告そのもの）。
+      //   ⓘ 覆いのどこかを押しても戻る（今までどおり）。押す所を探さなくてよくなるだけ。
+      //   ⚠ 文言は色宣言モーダルと同じ鍵を使い回す（同じ意味のものを2つ持つとズレる）。
+      if (peekBtn) peekBtn.textContent = value ? t("game.declare.restoreModal") : t("heu.peek");
     }
 
     const titleEl = document.createElement("div");
@@ -507,7 +513,7 @@ export function showHandEffectOptionPicker(cardId, optionsWithUsability, onReady
     peekBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (isGuarded()) return;
-      setPeeking(true);
+      setPeeking(!isPeeking); // 【#487】同じボタンで戻せる
     });
     modal.appendChild(peekBtn);
 

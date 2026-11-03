@@ -984,6 +984,13 @@ function getCellsWithCardCandidates(opts = {}, pieceLocation = null) {
     const となり = new Set(DIRECTIONS.map(({ dr, dc }) => pieceLocation.row + dr + "," + (pieceLocation.col + dc)));
     cells = cells.filter((c) => !となり.has(c.row + "," + c.col));
   }
+  if (opts.excludeOwnCell) {
+    // 【#473/#474】「あなたのいるマス以外の」（足下の隠し財産）。
+    // 🔴 「隣以外」と同じ理由で、駒の位置が分からない時は**候補なしに倒す**
+    //   （絞らずに出すとルール違反になる）。
+    if (!pieceLocation || typeof pieceLocation.row !== "number") return [];
+    cells = cells.filter((c) => !(c.row === pieceLocation.row && c.col === pieceLocation.col));
+  }
   return cells;
 }
 
@@ -1388,17 +1395,44 @@ async function runAction(action, ctx, helpers) {
       // 直接指定する手段が無い（サーバー側so7-apply-action.tsも同様）。新しいアクション
       // 型を追加せず、既存の「一番上を引く」を2回使う（1回目＝退避、2回目＝本来の対象）
       // →退避した分を捨て場へ戻す、という3ステップで実現する。
-      if (getState().piles.discard.length < 2) return false; // 善処の原則
+      // 🔴 【#467】赤のはじまりの手札効果は、**発動の最初に自分自身を捨てる**（手札効果の
+      //   既定動作）ので、捨て場の一番上は「たった今そこへ置いた自分」になる。そのまま
+      //   数えると「上から２番目」＝「使う直前の１番上」＝**到達効果とまったく同じ札**に
+      //   なり、文を２番目に変えた意味が消える（実測でそうなった）。
+      //   ⇒ skipSelf を立てたカードでは、一番上が自分と同じ名前なら**数えない**。
+      //   ⚠ 赤のキューブ フェニックス（first-red）は**ロックエリアに残る＝捨て場に入らない**
+      //     ので、あちらは skipSelf を立てていない＝今までどおり。
+      //   ⚠ 「自分も数える」に戻したくなったら card-effects.js の skipSelf を外す1行で戻る。
+      const 退避 = [];
+      const 戻す = async () => {
+        // 取った順（上から）と逆に戻す＝元の重なり順に復元する。
+        for (const tk of [...退避].reverse()) await helpers.discardAndSync(tk.id, { silent: true }); // 【#268】戻すだけなので「捨てた」とは知らせない
+      };
+      if (action.skipSelf) {
+        const 捨て場 = getState().piles.discard;
+        if (捨て場.length > 0 && 捨て場[捨て場.length - 1] === ctx.cardId) {
+          const 自分 = await helpers.drawFromDiscard(ctx.player);
+          if (自分) 退避.push(自分);
+        }
+      }
+      if (getState().piles.discard.length < 2) {
+        await 戻す();
+        return false; // 善処の原則
+      }
       const setAsideToken = await helpers.drawFromDiscard(ctx.player);
-      if (!setAsideToken) return false;
+      if (!setAsideToken) {
+        await 戻す();
+        return false;
+      }
+      退避.push(setAsideToken);
       const targetToken = await helpers.drawFromDiscard(ctx.player);
       if (!targetToken) {
         // 2枚目が引けなかった場合（同時操作等でスタック枚数がズレた等）、退避した分を
         // 捨て場へ戻して原状回復する。
-        await helpers.discardAndSync(setAsideToken.id, { silent: true }); // 【#268】戻すだけなので「捨てた」とは知らせない
+        await 戻す();
         return false;
       }
-      await helpers.discardAndSync(setAsideToken.id, { silent: true }); // 【#268】戻すだけなので「捨てた」とは知らせない
+      await 戻す();
       // お知らせ（ユーザー要望）: 誰が捨て場から何を手札に加えたか。
       await helpers.announceEffectReason?.(
         ctx.cardId,
@@ -2551,7 +2585,11 @@ async function runAction(action, ctx, helpers) {
     case VERBS.CONTACT_CHOSEN_OPPONENT_IN_SURROUNDING: {
       // 紅の鉄拳（0th拡張）。「あなたの周囲の相手を１人選ぶ。その相手に接触する。」
       // ⚠ 接触そのものは今までの流れ（宣言→相手の承認→奪う→ゲートへ強制移動）に乗せる。
-      //   奪う枚数は**通常どおり1枚**（2026-11-02 ユーザー回答）。
+      // 🔴 到達効果②で奪う枚数は**通常どおり1枚**（2026-11-02 ユーザー回答）。
+      //   手札効果【追色S】だけ「接触で奪えるカードはSの２倍の枚数である」なので、
+      //   stealMultiplier を立てたデータでだけ、払った追色の枚数（S）×2 を渡す。
+      //   ⓘ 奪う処理はローカルが state.js の RESPOND_CONTACT、オンラインは Edge Function が
+      //     行う（隠し情報の抽選のため）。どちらも pendingContact.stealCount を見る。
       if (isContactDisabledThisTurn(ctx.player)) return false;
       const cells = getOpponentPieceCellsInSurrounding(ctx.pieceLocation, ctx.player);
       if (cells.length === 0) return false; // 善処の原則
@@ -2561,7 +2599,8 @@ async function runAction(action, ctx, helpers) {
       const piece = findPieceAtCell(cell.row, cell.col);
       if (!piece?.player) return false;
       if (!helpers.initiateContact) return false;
-      await helpers.initiateContact(ctx.player, piece.player);
+      const 奪う枚数 = action.stealMultiplier ? Math.max(1, (ctx.addColorPaid ?? 1) * action.stealMultiplier) : undefined;
+      await helpers.initiateContact(ctx.player, piece.player, 奪う枚数);
       return true;
     }
     case VERBS.PICKUP_ADJACENT_CARDS_TO_HAND: {
@@ -2949,6 +2988,65 @@ async function runAction(action, ctx, helpers) {
       const moved = getState().tokens.find((tk) => tk.id === chosen.id);
       if (moved && !moved.faceUp) await helpers.flipCard?.(chosen.id);
       await sinkCardToBottomOfCell(chosen.id, cell, helpers);
+      return true;
+    }
+    case VERBS.PLACE_DECK_OR_HAND_CARD_AT_BOTTOM_OF_CHOSEN_CELL: {
+      // 足下の隠し財産（0th拡張）到達効果。2026-11-03（#473/#474）にユーザー判断で作り直した形。
+      // 「あなたのいるマス以外の、カードの置かれたマスを１マス選ぶ。山札または手札から１枚を、
+      //   そのマスの１番下に表向きで置く。」
+      // ⓘ ユーザー回答: 山札か手札かは**使う人がその場で選ぶ**／選んだマスに**（他の人の）駒が
+      //   いてもよい**／１番下に置くので**到達は起きない**（だから ctx.arrivedAt は立てない）。
+      // 🔴 除くのは**自分のいるマスだけ**（2026-11-03 の追加指示「隠し財産だけど自分のいる
+      //   マス以外が良いな！」）。前の形の「隣以外」とは別の縛りなので取り違えないこと——
+      //   隣4マスは**選べる**。
+      const cells = getCellsWithCardCandidates({ excludeOwnCell: true }, ctx.pieceLocation);
+      if (cells.length === 0) return false; // 善処の原則
+      const handTokens = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+      const 山がある = getState().piles.deck.length > 0;
+      if (!山がある && handTokens.length === 0) return false; // 善処の原則（出せる札が無い）
+      const cell =
+        cells.length === 1 && !ctx.forcePrompt
+          ? cells[0]
+          : await helpers.pickLocation(cells, t("ce.ex0PickCellForBottom"), { purpose: "place" });
+      if (!cell) return false;
+      // どちらから出すか。**片方しか無い時は聞かない**（選ぶ余地が無い＝他の動詞と同じ作法）。
+      let から = 山がある ? "deck" : "hand";
+      if (山がある && handTokens.length > 0) {
+        から =
+          (await helpers.pickChoice(
+            ctx.cardId,
+            [
+              // 「山札から」を先に置く（CPUは評価表に無いと先頭寄りを選ぶ。山札から出す方が
+              // CPU自身の手札を減らさないので、どちらに転んでも不自然にならない）。
+              { id: "deck", label: t("ce.ex0FromDeck"), usable: true },
+              { id: "hand", label: t("ce.ex0FromHand"), usable: true },
+            ],
+            t("ce.ex0PickDeckOrHand")
+          )) ?? "deck";
+      }
+      for (let i = 0; i < (action.count ?? 1); i++) {
+        let 置いた = null;
+        if (から === "hand") {
+          const 残り = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+          if (残り.length === 0) return i > 0;
+          const chosen =
+            残り.length === 1 && !ctx.forcePrompt
+              ? 残り[0]
+              : await helpers.pickHandCard(ctx.player, t("ce.ex0PickHandForBottom"), new Set(残り.map((tk) => tk.id)));
+          if (!chosen) return i > 0;
+          // 第6引数 true ＝到達を起こさない（１番下へ沈めるので、そもそも乗らない）。
+          await helpers.moveAndSync(chosen.id, cell, undefined, undefined, false, true);
+          置いた = getState().tokens.find((tk) => tk.id === chosen.id) ?? null;
+        } else {
+          if (getState().piles.deck.length === 0) return i > 0;
+          await helpers.placeFromDeck(cell);
+          置いた = findTopCardAtCell(cell.row, cell.col);
+        }
+        if (!置いた) return i > 0;
+        if (!置いた.faceUp) await helpers.flipCard?.(置いた.id);
+        await helpers.announceEffectNotice?.(ctx.cardId, t("ce.ex0RevealedToBottom", { name: cardDisplayName(置いた.cardId) }));
+        await sinkCardToBottomOfCell(置いた.id, cell, helpers);
+      }
       return true;
     }
     case VERBS.MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD: {
@@ -3924,6 +4022,9 @@ async function runHandEffectOption(ctx, option, helpers) {
     // 既に見せているので、続けて焼失まで出すと同じカードが2回消えるように見える。
     await helpers.discardAndSync(ctx.cardTokenId, { noBurn: true });
   }
+  // 🔴 【追色S】用。実際に払った追色コストの枚数（既定の1枚払いなら1、追色なしなら0）。
+  //   紅の鉄拳の「接触で奪えるカードはSの２倍」がこれを読む（runCtx.addColorPaid）。
+  let 払った追色 = 0;
   if (option.cost?.verb === VERBS.DISCARD_SAME_COLOR) {
     // フェニックス(first-red)ループ防止(#72): これから追色コストを払うと、その後の
     // PICKUP_DISCARD_SECOND_FROM_TOP が拾うのは「今の捨て場の一番上」(discard[len-1])に
@@ -3956,6 +4057,30 @@ async function runHandEffectOption(ctx, option, helpers) {
     await helpers.discardAndSync(chosen.id);
     // このコストで捨てた cardId を、first-red のときだけ記録（上のループ防止判定で使う）。
     if (ctx.cardId === "first-red") notePhoenixCostCard(chosen.cardId);
+    払った追色 = 1;
+    // 🔴 【追色S】（紅の鉄拳・0th拡張）: 払う枚数を**使う人が決める**。
+    //   「追色コストをS枚支払う（これと同色のS枚のカードをあなたの手札から捨てる）」
+    //   「Sは自然数」「あなたの手札にある同色のカードの枚数まで」「Sは１以上」。
+    //   ⇒ 1枚目は上の既定の流れで払い済みなので、ここでは**2枚目以降**を聞く。
+    //   ⚠ 既定（variable なし）のカードはここを素通りする＝今までどおり1枚。
+    if (option.cost.variable) {
+      const 残り候補 = findSameColorDiscardCandidates(ctx.cardTokenId, color, ctx.player);
+      const 上限 = 1 + 残り候補.length;
+      // 1枚しか払えないなら聞かない（選ぶ余地が無い＝他の動詞と同じ作法）。
+      const S = 上限 <= 1 ? 1 : (await helpers.pickNumber?.(ctx.cardId, 1, 上限, t("ce.ex0PickAddColorS"))) ?? 1;
+      for (let i = 1; i < S; i++) {
+        const なお候補 = findSameColorDiscardCandidates(ctx.cardTokenId, color, ctx.player);
+        if (なお候補.length === 0) break;
+        const つぎ = await helpers.pickDiscardCost(
+          なお候補,
+          t("ce.pickCostColor", { color: color === "white" || color === "black" ? "" : t("ce.sameColor") })
+        );
+        if (!つぎ) break; // 途中でやめたら、そこまでの枚数で確定する
+        await helpers.playAdditionalColorUse?.(ctx.cardId, optionLabel(option), つぎ.id);
+        await helpers.discardAndSync(つぎ.id);
+        払った追色++;
+      }
+    }
   }
   const piece = getState().tokens.find((t) => t.kind === "piece" && t.player === ctx.player);
   // ハマりどころ: このruncCtxにcardTokenIdが抜けていたため、runAction内で
@@ -3971,6 +4096,8 @@ async function runHandEffectOption(ctx, option, helpers) {
     pieceLocation: piece?.location ?? null,
     selections: {},
     arrivedAt: null,
+    // 【追色S】払った追色コストの枚数（＝S）。紅の鉄拳だけが読む。
+    addColorPaid: 払った追色,
     // ユーザー要望「対象が１人でもハイライトして選ばせるステップを踏んでください」。
     // 到達効果（runArrivalEffect）は従来通り候補1つなら自動採用のまま
     // （テンポを優先、今回の要望の対象外）——手札効果だけこのフラグで切り替える。
