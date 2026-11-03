@@ -757,6 +757,10 @@ function reduce(current, action) {
       return {
         ...current,
         tokens,
+        // 【#167・続き659】新しいターンは「ロックフェイズから」が既定なので、前のターンの
+        //   フェイズの記録は持ち越さない（restorableTurnPhase は turnNumber も見るので
+        //   残っていても誤作動はしないが、DBに古い記録を残さない方が読み違えにくい）。
+        turnPhase: null,
         turnPlayer: next,
         turnNumber: (current.turnNumber ?? 1) + 1,
         roundNumber: next === current.startPlayer ? (current.roundNumber ?? 1) + 1 : (current.roundNumber ?? 1),

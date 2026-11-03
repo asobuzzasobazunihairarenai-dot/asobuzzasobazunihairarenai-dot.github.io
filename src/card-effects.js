@@ -910,10 +910,11 @@ export const CARD_EFFECTS = {
     //   調査で、到達と手札がまったく同じ効果なのは面白みが無いという話になった経緯。
     //   使う動詞は赤のキューブ フェニックス（first-red）と同じものがそのまま使える。
     handEffect: {
-      //   🔴 skipSelf ＝「たった今そこへ置いた自分自身は数えない」。これが無いと、
-      //     上から２番目＝使う直前の１番上＝**到達効果と同じ札**になって意味が消える
-      //     （実測で確認した。詳しくはエンジン側のコメント）。
-      actions: [{ verb: VERBS.PICKUP_DISCARD_SECOND_FROM_TOP, skipSelf: true }, { verb: VERBS.END_CURRENT_PHASE }],
+      //   🔴 **「２番目」は自分自身を数えた上での２番目**（2026-11-03 ユーザー説明）。
+      //     このカードは到達も手札も「捨て場の１番上を取りたい」が、**手札効果は『捨ててから
+      //     発動』が原則**なので「１番上」と書くと**発動して捨てた自分を永遠に拾う**ことになる。
+      //     それを避けるための「２番目」なので、**取れるのが使う直前の１番上になるのが正しい**。
+      actions: [{ verb: VERBS.PICKUP_DISCARD_SECOND_FROM_TOP }, { verb: VERBS.END_CURRENT_PHASE }],
     },
   },
 

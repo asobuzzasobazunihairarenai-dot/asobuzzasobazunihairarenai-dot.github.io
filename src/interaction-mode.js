@@ -120,8 +120,9 @@ export function initInteractionModeToggle() {
   pieceTooltipEl = pTooltip;
   pieceCaption.textContent = t("im.pieceCaption");
   wireIconButtonClick(pieceBtnEl, {
-    detailTitle: t("im.pieceTitle"),
-    detailParagraphs: [
+    // 【#470 と同じ形】開く瞬間に訳す（値で渡すと作った時の言語で固まる）。
+    detailTitle: () => t("im.pieceTitle"),
+    detailParagraphs: () => [
       t("im.pieceDetail1"),
       t("im.pieceDetail2"),
     ],
@@ -138,8 +139,8 @@ export function initInteractionModeToggle() {
   cardTooltipEl = cTooltip;
   cardCaption.textContent = t("im.cardCaption");
   wireIconButtonClick(cardBtnEl, {
-    detailTitle: t("im.cardTitle"),
-    detailParagraphs: [
+    detailTitle: () => t("im.cardTitle"),
+    detailParagraphs: () => [
       t("im.cardDetail1"),
       t("im.cardDetail2"),
     ],

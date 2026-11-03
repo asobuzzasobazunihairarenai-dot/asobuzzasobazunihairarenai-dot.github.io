@@ -1911,7 +1911,9 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
     : maybeTriggerCardArrivalForExposedCard(fromLocation, false, prevTopBeforeMove);
   if (awaitExposedArrival) await exposedArrival;
   // 続き212: 飛翔演出が完全に終わってから呼び出し側（engine）の次アクションへ進めるようawaitする。
-  if (landingSourceRect) await playCardCellLanding(landingSourceRect, location, tokenId);
+  // 【#468】置いた先で表向きになると分かっている時は、**飛んでいる間から表の面**を見せる
+  //   （ユーザー要望「手札から飛翔するときから表向きがいいかも！」）。
+  if (landingSourceRect) await playCardCellLanding(landingSourceRect, location, tokenId, !!animOpts?.landFaceUp);
   if (liftSourceRect) await playCardLiftToHand(liftSourceRect, location.player, tokenId, liftSourceImg);
 }
 
@@ -1919,7 +1921,36 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
 // 既定で裏向きになる（state.jsのfaceUpForLocation）ため、表向き指定のカードだけ
 // 移動直後にこれでめくる。移動直後は必ず裏向きになっているとstate.js側の実装から
 // 保証できるため、トグル式のflipToken()を1回呼ぶだけで確実に表向きにできる。
+// 🔴 【#485】「場のカードを効果でオープンする時、アグレッシブモードの時はカメラがその
+//   カードに寄るといいかも！」。効果でのオープンはこの関数1つに集まっているのでここで寄せる。
+//   考え方は続き547 の「効果による駒の移動は決め所に入れる」と同じ——**自分が動かしたわけ
+//   ではない変化**は、カメラが寄ると演出だけでなく「何が起きたか」の説明にもなる。
+// 🔴 **続けざまに何枚も開ける効果がある**（誰かの白きカゲは十字12マスを全部オープンする）。
+//   最初は「一定時間に1回だけ寄る」形にしたが、ユーザー指摘
+//   「複数枚ある場合は、元の視点には戻らずにそのまま次のオープンするマスに移動しよう。
+//    一定時間に１回とかは不安定すぎませんか？」のとおり**時間まかせは狙えない**ので変えた。
+//   ⇒ **毎回寄る。ただし間では元の視点へ戻さない。**
+//     `focusCameraOnElement` の冒頭が「戻る予約」を取り消すので、次のオープンが 1.2秒以内に
+//     来れば**戻らずにそのまま次のマスへ滑る**。最後の1枚の後だけ予約が生き残って元へ戻る。
+//   ⚠ 寄せたくない時は、アグレッシブモードを「切」か「動きを減らす」にすれば寄らない。
+async function focusCameraOnFlippedCard(tokenId) {
+  if (!cinematicAllows("highlight")) return;
+  const token = getState().tokens.find((t) => t.id === tokenId);
+  // 裏→表に変わる時だけ（この関数は表向きのカードにも呼ばれ得るので、空振りさせない）。
+  if (!token || token.faceUp || token.location?.zone !== "cell") return;
+  const table = document.getElementById("game-table");
+  if (!table) return;
+  const el = findLocationElement(table, token.location);
+  if (!el) return;
+  await focusCameraOnElement(el, { zoom: 1.28, ms: 320 });
+  // 戻りの予約は効果の処理を待たずにここで入れる（#370 の理由＝選択を聞く間ずっと
+  // 寄りっぱなしにしないため）。**次のオープンが来れば、その寄りがこの予約を取り消す**ので、
+  // 何枚も続けて開ける時はマスからマスへ滑って、最後の1枚の後だけ元へ戻る。
+  scheduleCameraHome(1200);
+}
+
 async function flipToFaceUpForEffect(tokenId) {
+  await focusCameraOnFlippedCard(tokenId); // 【#485】めくる前に寄る（めくるところが見える）
   if (isOnlineMode()) {
     try {
       // 【#285】印は送信より前に付ける（理由は self-handled-tokens.js の冒頭）。
@@ -8165,6 +8196,17 @@ async function requestCellChoiceForEffect__inner(candidates, hint, options = {})
     const loc = await requestCellChoiceForEffectOnce(candidates, hint, options);
     if (!loc) return null; // スキップ／中止はそのまま返す
     if (cellPickAutoResolved) return loc; // 自動代行が選んだ＝本人の操作ではないので確認しない
+    // 🔴 【#481】「ジェイクの到達効果で7マス選ぶ時、1マスずつ確認は煩わしい」。
+    //   **何マスも続けて選ばせる効果**では、効果側が skipConfirm を立てて確認を省ける。
+    //   いま立てているのは**裏向きの表面を見る効果だけ**（鑑定士の技・ジェイク）で、
+    //   理由は2つ:
+    //     ① **見るだけ＝盤面が何も変わらない**ので、押し間違えても「違う札を覗いた」で済む
+    //     ② #472 で**選んだ直後にその札を見せる**ようにしたので、確認の代わりになっている
+    //   ⚠ カードを置く効果（大地創造・迷いの森）には立てていない——あちらは押し間違えると
+    //     **札が違うマスへ入ってしまう**ので、1枚ずつの確認に意味がある。
+    //   ⚠ 全部いらない人は、基本設定の「マスを選んだ後に『このマスでいいですか？』と
+    //     確認する」を切れば今までどおり全部出なくなる（この設定が優先）。
+    if (options.skipConfirm) return loc;
     if (!isCellConfirmEnabled() || isCpuSelectingNow(pickerOwner(options.owner))) return loc;
     const table = document.getElementById("game-table");
     const el = table ? findLocationElement(table, loc) : null;
@@ -8417,6 +8459,30 @@ function clearEffectUiHighlights() {
   pendingPlacementLocations.clear();
 }
 
+// 【#481】積み上げた「選んだマス」の光だけを、効果の途中で消す。
+// 使い所は2つ: ①まとめての確認で「いいえ」＝選び直しになった時 ②1枚ずつ見せる時に
+// 「いま見ているマスだけ」を光らせ直す時。手札で光っている札（glowingEffectHandTokenId）は
+// 触らない——効果はまだ続いているため。
+function clearEffectPlacementTargets() {
+  pendingPlacementLocations.clear();
+  render();
+}
+
+// 【#481】「これらのマスでいいですか？」のように、**選び終えてから1回だけ**聞く確認。
+// ユーザー指定「７マス確認無しで選んだあとに『これらのでいいですか？』の確認にするのはどう？」。
+// ⚠ 基本設定の「マスを選んだ後に『このマスでいいですか？』と確認する」を切っている人には
+//   聞かない（1マスずつの確認と同じ設定に従う＝設定が2つに割れないように）。
+// ⚠ CPU・自動代行には出さない（常に「はい」）。
+async function confirmPickedCellsForEffect(cardId, player, n) {
+  if (isCpuSelectingNow(pickerOwner(player))) return true;
+  if (!isCellConfirmEnabled()) return true;
+  return !!(await confirmGenericYesNo(t("ce.ex0PeekConfirmAll", { n }), {
+    owner: player,
+    cardId,
+    cpuAutoResolveId: "yes",
+  }));
+}
+
 // 到達効果の処理後、その盤面カードが手札に加わる時の「吸い込まれる」演出（ユーザー要望
 // 「自動処理モードで到達後、カードが実際に手札へ吸い込まれて加わるアニメを入れたい」）。
 // ドロー演出(flyDrawnCardToHand)と同じ飛翔ゴースト方式だが、飛び元は山札ではなく、その
@@ -8538,7 +8604,9 @@ function playDeckToCellLanding(deckRect, location) {
 // 続き212（ユーザー要望2026-08-18）: 飛翔演出が完全に終わってから次のアクション（駒の移動等）へ
 // 進めるよう、着地完了で解決するPromiseを返す。呼び出し側（placeFrom*・moveAndSyncForEffect）が
 // awaitすると、engine側の `await helpers.placeFromDeckFaceUp(...)` 等が自然に着地を待ち切る。
-function playCardCellLanding(sourceRect, cellLocation, tokenId) {
+// landFaceUp（省略可）: 置いた直後に表向きにすると分かっている時 true。飛んでいるゴーストに
+//   **表の面**を使う（【#468】。既定は false ＝着地先の実カードの見た目＝裏向きをそのまま使う）。
+function playCardCellLanding(sourceRect, cellLocation, tokenId, landFaceUp = false) {
   if (isFlightAnimationDisabled() || !sourceRect) return Promise.resolve();
   const table = document.getElementById("game-table");
   if (!table) return Promise.resolve();
@@ -8547,7 +8615,14 @@ function playCardCellLanding(sourceRect, cellLocation, tokenId) {
   if (!cellEl || !cardEl) return Promise.resolve();
   const cellRect = cellEl.getBoundingClientRect();
   const cardRect = cardEl.getBoundingClientRect(); // 着地先の実カード（＝マスのカード）の見た目サイズ
-  const img = paintedBackgroundImage(cardEl);
+  // 【#468】表向きで置くと分かっているなら、飛んでいる間から表の面にする。
+  //   ⚠ 絵の出し方は盤面と同じ入口（getBoardCardImagePath）を通す——0th拡張は文字入りの
+  //     画像を持たないので、ここを生のURLにすると404になる（続き652 で踏んだ穴）。
+  const token実 = getState().tokens.find((t) => t.id === tokenId);
+  const img =
+    landFaceUp && token実?.cardId
+      ? `url("${getBoardCardImagePath(token実.cardId)}")`
+      : paintedBackgroundImage(cardEl);
   cardEl.style.visibility = "hidden"; // 実カードを隠してゴーストだけ動かす（着地後に見せる）
   flushBoard3d();
   const ghost = document.createElement("div");
@@ -9476,6 +9551,9 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         pickBoardCardsOrdered: requestBoardCardsOrderedForEffect, // #357: 盤面のカードを捨てる順に選ぶ（モーダル）
         onCardAcquiredToHand: onEffectCardAcquiredToHand,
         markPlacementTarget: markEffectPlacementTarget,
+        // 【#481】選んだマスの光を途中で消す／選び終えてから1回だけ確認する。
+        clearPlacementTargets: clearEffectPlacementTargets,
+        confirmPickedCells: confirmPickedCellsForEffect,
         markPlacedLocation: markEffectJustPlaced,
         placeFromDeck: placeFromDeckForEffect,
         placeFromDeckReveal: placeFromDeckRevealForEffect,
@@ -9614,6 +9692,9 @@ async function runAutoArrivalEffect(cardId, location, player) {
         announceHandPickups(seat, [{ cardId, wasPublic: wasFaceUp }]);
       },
       markPlacementTarget: markEffectPlacementTarget,
+      // 【#481】選んだマスの光を途中で消す／選び終えてから1回だけ確認する。
+      clearPlacementTargets: clearEffectPlacementTargets,
+      confirmPickedCells: confirmPickedCellsForEffect,
       markPlacedLocation: markEffectJustPlaced,
       placeFromDeck: placeFromDeckForEffect,
       placeFromDeckReveal: placeFromDeckRevealForEffect,
@@ -17371,8 +17452,12 @@ function buildSelfStatusOnlineWidget() {
   selfStatusOnlineCaptionEl = captionEl;
   selfStatusOnlineTooltipEl = tooltipEl;
   wireIconButtonClick(btn, {
-    detailTitle: t("game.online.title"),
-    detailParagraphs: [
+    // 🔴 【#470】値ではなく**関数**で渡す。値のまま渡すと「ボタンを作った瞬間の言語」で
+    //   固まり、言語を切り替えても詳細モーダルだけ前の言語で開く（報告「日本語モードで
+    //   ログイン中をクリックしたら英語のモーダルが出てきた」）。
+    //   続き618 で7か所を関数に直した時の取りこぼし。
+    detailTitle: () => t("game.online.title"),
+    detailParagraphs: () => [
       t("game.online.help1"),
       t("game.online.help2"),
     ],

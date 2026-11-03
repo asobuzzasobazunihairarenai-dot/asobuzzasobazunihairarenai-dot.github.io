@@ -1395,44 +1395,26 @@ async function runAction(action, ctx, helpers) {
       // 直接指定する手段が無い（サーバー側so7-apply-action.tsも同様）。新しいアクション
       // 型を追加せず、既存の「一番上を引く」を2回使う（1回目＝退避、2回目＝本来の対象）
       // →退避した分を捨て場へ戻す、という3ステップで実現する。
-      // 🔴 【#467】赤のはじまりの手札効果は、**発動の最初に自分自身を捨てる**（手札効果の
-      //   既定動作）ので、捨て場の一番上は「たった今そこへ置いた自分」になる。そのまま
-      //   数えると「上から２番目」＝「使う直前の１番上」＝**到達効果とまったく同じ札**に
-      //   なり、文を２番目に変えた意味が消える（実測でそうなった）。
-      //   ⇒ skipSelf を立てたカードでは、一番上が自分と同じ名前なら**数えない**。
-      //   ⚠ 赤のキューブ フェニックス（first-red）は**ロックエリアに残る＝捨て場に入らない**
-      //     ので、あちらは skipSelf を立てていない＝今までどおり。
-      //   ⚠ 「自分も数える」に戻したくなったら card-effects.js の skipSelf を外す1行で戻る。
-      const 退避 = [];
-      const 戻す = async () => {
-        // 取った順（上から）と逆に戻す＝元の重なり順に復元する。
-        for (const tk of [...退避].reverse()) await helpers.discardAndSync(tk.id, { silent: true }); // 【#268】戻すだけなので「捨てた」とは知らせない
-      };
-      if (action.skipSelf) {
-        const 捨て場 = getState().piles.discard;
-        if (捨て場.length > 0 && 捨て場[捨て場.length - 1] === ctx.cardId) {
-          const 自分 = await helpers.drawFromDiscard(ctx.player);
-          if (自分) 退避.push(自分);
-        }
-      }
-      if (getState().piles.discard.length < 2) {
-        await 戻す();
-        return false; // 善処の原則
-      }
+      // 🔴 【#467・2026-11-03 ユーザー説明】**「２番目」は、自分自身を数えた上での２番目**。
+      //   赤のはじまりは到達も手札も「捨て場の１番上を取りたい」カードだが、**手札効果は
+      //   『捨ててから発動』が原則**なので、そのまま「１番上」と書くと**発動して捨てた
+      //   赤のはじまり自身を永遠に拾い直す**ことになる。それを避けるための「２番目」であって、
+      //   結果として取れるのは**使う直前の１番上**＝到達効果と同じ札で**それが正しい**。
+      //   ⚠ 一度「自分は数えない」形にしたが（素直に数えると到達と同じ札になるので意図を
+      //     取り違えた）、ユーザー説明で**数えるのが正**と確定したので元に戻した。
+      //   ⚠ 赤のキューブ フェニックス（first-red）はロックエリアに残る＝捨て場に入らないので、
+      //     あちらは最初から「ふつうの２番目」として働く。
+      if (getState().piles.discard.length < 2) return false; // 善処の原則
       const setAsideToken = await helpers.drawFromDiscard(ctx.player);
-      if (!setAsideToken) {
-        await 戻す();
-        return false;
-      }
-      退避.push(setAsideToken);
+      if (!setAsideToken) return false;
       const targetToken = await helpers.drawFromDiscard(ctx.player);
       if (!targetToken) {
         // 2枚目が引けなかった場合（同時操作等でスタック枚数がズレた等）、退避した分を
         // 捨て場へ戻して原状回復する。
-        await 戻す();
+        await helpers.discardAndSync(setAsideToken.id, { silent: true }); // 【#268】戻すだけなので「捨てた」とは知らせない
         return false;
       }
-      await 戻す();
+      await helpers.discardAndSync(setAsideToken.id, { silent: true }); // 【#268】戻すだけなので「捨てた」とは知らせない
       // お知らせ（ユーザー要望）: 誰が捨て場から何を手札に加えたか。
       await helpers.announceEffectReason?.(
         ctx.cardId,
@@ -2119,7 +2101,8 @@ async function runAction(action, ctx, helpers) {
           // （効果カード本体）を盤面またはロックエリアへ置く。他の手札からの選択とは
           // 違い相手に選ばせる必要が無い。destは既に正しい形（cellまたはlock）で
           // 渡ってくるため、ここで作り直さずそのまま使う。
-          await helpers.moveAndSync(ctx.cardTokenId, dest);
+          // 【#468】表向きで置くと分かっている時は、**飛んでいる間から表の面**を見せる。
+          await helpers.moveAndSync(ctx.cardTokenId, dest, undefined, undefined, false, false, action.faceUp ? { landFaceUp: true } : null);
           // 表向き指定の時だけ明示的にめくる。ただしflipCardはトグルなので、置いた先の
           // 既定の向き(state.jsのfaceUpForLocation)によって向きが変わる:
           //   - cell/手札 … 既定は裏向き → flipで表向きになる（ジャンプ台の手札効果等、正しい）
@@ -2766,26 +2749,52 @@ async function runAction(action, ctx, helpers) {
       // ⚠ **オンラインでは裏向きのカードの cardId がマスクされて読めない**（意図的な仕様）。
       //   その時は helpers.peekCards 側が「手元で確かめてください」と出す。盤面は何も
       //   変わらないので、見られなくてもルール違反にはならない（CPU戦では普通に見える）。
+      // 🔴 【#481・2026-11-03 ユーザー指定】2マス以上の時の流れは
+      //     ①確認なしで N マス選ぶ → ②**まとめて1回だけ**「これらでいいですか？」
+      //     → ③選んだ順に1枚ずつ表面を見る
+      //   「ジェイクの到達効果で7マス選ぶ時、1マスずつ確認は煩わしい」への対応。
+      //   ⓘ 選んだマスは**光らせたまま**にし、③では**いま見ているマスだけ**を光らせ直すので、
+      //     「どの札がどのマスのものか」も分かる（#472／#482 の趣旨はこれで保てる）。
+      //   ⚠ 1マスだけの効果（鑑定士の技）は今までどおり——1マスずつの確認が出て、
+      //     まとめての確認は出ない。
       const want = action.count ?? 1;
+      const まとめ確認 = want >= 2;
+      let 選んだ = [];
+      for (;;) {
+        選んだ = [];
+        const 済 = new Set();
+        for (let i = 0; i < want; i++) {
+          const cells = getCellsWithFaceDownCardWithoutPiece().concat(
+            getAnyCellWithFaceDownCardCandidates().filter((c) => hasPieceAt(c.row, c.col))
+          ).filter((c) => !済.has(c.row + "," + c.col));
+          if (cells.length === 0) break;
+          const cell =
+            cells.length === 1 && !ctx.forcePrompt && want === 1
+              ? cells[0]
+              : await helpers.pickLocation(cells, t("ce.ex0PeekPick", { i: i + 1, n: want }), {
+                  // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
+                  skipConfirm: まとめ確認,
+                });
+          if (!cell) break;
+          済.add(cell.row + "," + cell.col);
+          選んだ.push(cell);
+          if (まとめ確認) helpers.markPlacementTarget?.(cell); // 選んだマスを光らせ続ける
+        }
+        if (選んだ.length === 0) return false; // 1マスも選べなかった（善処の原則）
+        if (!まとめ確認 || 選んだ.length < 2) break;
+        if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 選んだ.length)) break;
+        helpers.clearPlacementTargets?.(); // 「いいえ」＝選び直し。光を消して最初から
+      }
       const 見たもの = [];
-      const 選んだ = new Set();
-      for (let i = 0; i < want; i++) {
-        const cells = getCellsWithFaceDownCardWithoutPiece().concat(
-          getAnyCellWithFaceDownCardCandidates().filter((c) => hasPieceAt(c.row, c.col))
-        ).filter((c) => !選んだ.has(c.row + "," + c.col));
-        if (cells.length === 0) break;
-        const cell =
-          cells.length === 1 && !ctx.forcePrompt && want === 1
-            ? cells[0]
-            : await helpers.pickLocation(cells, t("ce.ex0PeekPick", { i: i + 1, n: want }));
-        if (!cell) break;
-        選んだ.add(cell.row + "," + cell.col);
+      for (const cell of 選んだ) {
         const top = findTopCardAtCell(cell.row, cell.col);
         if (!top) continue;
+        // ③ いま見ているマスだけを光らせる（どの札がどのマスのものか分かるように）。
+        if (まとめ確認) {
+          helpers.clearPlacementTargets?.();
+          helpers.markPlacementTarget?.(cell);
+        }
         見たもの.push(top.cardId ?? null);
-        // 🔴 #472: **選んだその場で見せる**。まとめて最後に N 枚出していたので、
-        //    どの札がどのマスのものか辿れなかった（報告「どのマスを選択しているのか
-        //    わかりづらい」）。1枚ずつなら、選んだ直後に出るので対応が分かる。
         // ⓘ 見えるのは**この効果を使っている人の画面だけ**（peekCards →
         //    playCenterCardFlipReveal は配信しない。みんなに見せる時は別の関数を使う）。
         await helpers.peekCards?.([top.cardId ?? null]);

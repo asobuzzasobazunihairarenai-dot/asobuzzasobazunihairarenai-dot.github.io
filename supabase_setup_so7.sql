@@ -3241,3 +3241,97 @@ as $$
 $$;
 revoke execute on function so7_get_admin_bug_reports() from public;
 grant execute on function so7_get_admin_bug_reports() to authenticated;
+
+-- ============================================================================
+-- 追加（2026-11-03・続き659）: フェイズの記録（turn_phase）を共有ステートに残す
+-- ============================================================================
+-- #167 で「オンラインで対局中に再読み込みすると必ずロックフェイズから再開し、そのターン
+-- 2枚目のロックができてしまう」を直したつもりだったが、**保存する場所が無かった**。
+--   ・src/state.js は turnPhase を持ち、SET_TURN_PHASE で更新する      … できていた
+--   ・Edge Function の reduce も turnPhase を作る                      … できていた
+--   ・🔴 **DBへ書く列が無い**                                          … 無かった
+--   ・🔴 **読み戻して hydrateState へ渡していない**                    … 無かった
+-- そのため fetchAndHydrate のたびに state.turnPhase が undefined へ上書きされ、
+-- phase-automation.js の restorableTurnPhase() が常に null を返していた
+-- （＝#167 は一度も効いていなかった。2026-11-03 に tools/check-hydrate-fields.mjs で発覚）。
+--
+-- 中身の形は src/state.js と同じ:
+--   { player, phase: "hand"|"move", turnNumber, moveActionTaken } | null
+-- ロックフェイズは「再開時の既定」なので記録しない（書き込みは1ターンに最大2〜3回）。
+alter table so7_games add column if not exists turn_phase jsonb;
+
+-- so7_apply_and_commitの再定義（turn_phaseをupdate対象の列に追加しただけで、
+-- それ以外は直前の定義とまったく同じ）。
+create or replace function so7_apply_and_commit(
+  p_game_id text,
+  p_expected_version int,
+  p_games_patch jsonb,
+  p_tokens jsonb,
+  p_piles jsonb
+) returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_current_version int;
+begin
+  select version into v_current_version from so7_games where id = p_game_id for update;
+  if v_current_version is null then
+    raise exception 'game_not_found';
+  end if;
+  if v_current_version <> p_expected_version then
+    raise exception 'version_conflict';
+  end if;
+
+  delete from so7_game_tokens where game_id = p_game_id;
+  insert into so7_game_tokens (
+    game_id, token_id, kind, card_id, face_up, color, piece_player,
+    zone, row, col, side, idx, hand_player, reveal_source, arrival_suppressed, my_deck_owner, order_index
+  )
+  select
+    p_game_id,
+    t->>'token_id',
+    t->>'kind',
+    t->>'card_id',
+    coalesce((t->>'face_up')::boolean, false),
+    t->>'color',
+    t->>'piece_player',
+    t->>'zone',
+    (t->>'row')::int,
+    (t->>'col')::int,
+    t->>'side',
+    (t->>'idx')::int,
+    t->>'hand_player',
+    t->>'reveal_source',
+    coalesce((t->>'arrival_suppressed')::boolean, false),
+    t->>'my_deck_owner',
+    coalesce((t->>'order_index')::int, 0)
+  from jsonb_array_elements(p_tokens) as t;
+
+  delete from so7_game_piles where game_id = p_game_id;
+  insert into so7_game_piles (game_id, pile_name, cards)
+  select p_game_id, p->>'pile_name', p->'cards'
+  from jsonb_array_elements(p_piles) as p;
+
+  update so7_games set
+    active_players = coalesce(p_games_patch->'active_players', active_players),
+    turn_player = coalesce(p_games_patch->>'turn_player', turn_player),
+    turn_number = coalesce((p_games_patch->>'turn_number')::int, turn_number),
+    round_number = coalesce((p_games_patch->>'round_number')::int, round_number),
+    start_player = coalesce(p_games_patch->>'start_player', start_player),
+    status = coalesce(p_games_patch->>'status', status),
+    timer_config = coalesce(p_games_patch->'timer_config', timer_config),
+    pending_final_lock = coalesce(p_games_patch->'pending_final_lock', pending_final_lock),
+    pending_contact = coalesce(p_games_patch->'pending_contact', pending_contact),
+    pending_timer_toggle = coalesce(p_games_patch->'pending_timer_toggle', pending_timer_toggle),
+    timer_toggle_reject_streak = coalesce(p_games_patch->'timer_toggle_reject_streak', timer_toggle_reject_streak),
+    pending_auto_processing_toggle = coalesce(p_games_patch->'pending_auto_processing_toggle', pending_auto_processing_toggle),
+    -- 【#167・続き659】フェイズの記録。null を入れて消せるよう、他の pending_* と同じ形にする
+    -- （patch に 'turn_phase' が無い時だけ今の値を残す＝coalesce の既定の働き）。
+    turn_phase = coalesce(p_games_patch->'turn_phase', turn_phase),
+    -- マイデッキ戦フラグ（BOOTSTRAP_GAME時にだけ patch に含まれる。boolean列なので ->> して ::boolean）。
+    my_deck_mode = coalesce((p_games_patch->>'my_deck_mode')::boolean, my_deck_mode),
+    version = version + 1
+  where id = p_game_id;
+end;
+$$;

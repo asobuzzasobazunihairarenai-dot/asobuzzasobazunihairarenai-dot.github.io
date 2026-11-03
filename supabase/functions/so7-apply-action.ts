@@ -286,6 +286,11 @@ type GameState = {
   timerConfig: TimerConfig;
   timerToggleRejectStreak: Record<string, number>;
   pendingAutoProcessingToggle: PendingAutoProcessingToggle;
+  // 【#167・続き659】手番プレイヤーが「今どのフェイズまで進んだか」。
+  //   { player, phase: "hand"|"move", turnNumber, moveActionTaken } | null（src/state.js と同じ形）。
+  //   🔴 これまで型に無く、DBへも書いていなかったので**再読み込みで必ず消えていた**＝#167 が
+  //   一度も効いていなかった（2026-11-03 に発覚）。列・保存・読み戻しをまとめて足した。
+  turnPhase: { player: string; phase: string; turnNumber: number | null; moveActionTaken?: boolean } | null;
   myDeckMode: boolean; // マイデッキ戦か（BOOTSTRAP_GAMEで確定、対局中は不変）
 };
 
@@ -524,6 +529,10 @@ function reduce(current: GameState, action: any): GameState {
       return {
         ...current,
         tokens,
+        // 【#167・続き659】新しいターンは「ロックフェイズから」が既定なので、前のターンの
+        //   フェイズの記録は持ち越さない（restorableTurnPhase は turnNumber も見るので
+        //   残っていても誤作動はしないが、DBに古い記録を残さない方が読み違えにくい）。
+        turnPhase: null,
         turnPlayer: next,
         turnNumber: (current.turnNumber ?? 1) + 1,
         roundNumber: next === current.startPlayer ? (current.roundNumber ?? 1) + 1 : current.roundNumber ?? 1,
@@ -990,6 +999,7 @@ async function loadState(db: any, gameId: string): Promise<{ state: GameState; v
       timerConfig: gameRow.timer_config ?? null,
       timerToggleRejectStreak: gameRow.timer_toggle_reject_streak ?? {},
       pendingAutoProcessingToggle: gameRow.pending_auto_processing_toggle ?? null,
+      turnPhase: gameRow.turn_phase ?? null, // 【#167・続き659】
       myDeckMode: gameRow.my_deck_mode ?? false,
     },
     version: gameRow.version,
@@ -1233,6 +1243,13 @@ Deno.serve(async (req) => {
     // 同じパターン。
     if (effectiveAction.type === "REQUEST_AUTO_PROCESSING_TOGGLE" || effectiveAction.type === "RESPOND_AUTO_PROCESSING_TOGGLE") {
       gamesPatch.pending_auto_processing_toggle = next.pendingAutoProcessingToggle ?? null;
+    }
+
+    // 【#167・続き659】フェイズの記録。SET_TURN_PHASE と NEXT_TURN の両方で書く
+    //   （NEXT_TURN は turnPhase を null に戻すので、消す方も保存しないと前のターンの
+    //   記録が残り続けて「まだムーブフェイズの途中」と誤認される）。
+    if (effectiveAction.type === "SET_TURN_PHASE" || effectiveAction.type === "NEXT_TURN") {
+      gamesPatch.turn_phase = next.turnPhase ?? null;
     }
 
     const { error: commitErr } = await db.rpc("so7_apply_and_commit", {

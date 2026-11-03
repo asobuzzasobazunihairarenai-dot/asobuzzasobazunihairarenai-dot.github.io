@@ -266,6 +266,16 @@ export async function runOneCase(spec) {
     endTurn: async (player) => { callLog.push(["endTurn", player]); },
     // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。見た cardId を残す。
     peekCards: async (ids) => { callLog.push(["peekCards", (ids || []).join(",")]); },
+    // 【#481】選び終えてからまとめて1回だけ聞く確認。台本に confirmCells: [false] と書けば
+    // 「いいえ（選び直し）」にできる。省略時は「はい」。
+    // ⚠ 本物（main.js の confirmPickedCellsForEffect）は、基本設定で確認を切っている人や
+    //   CPU には**聞かずに true を返す**。ここでは台本どおりに返す。
+    confirmPickedCells: async (cardId, player, n) => {
+      const want = nextPick("confirmCells");
+      callLog.push(["confirmPickedCells", String(n)]);
+      return want === undefined ? true : !!want;
+    },
+    clearPlacementTargets: () => { callLog.push(["clearPlacementTargets"]); },
     // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。筋書きは picks.number。
     pickNumber: async (cardId, min, max) => {
       const want = nextPick("number");

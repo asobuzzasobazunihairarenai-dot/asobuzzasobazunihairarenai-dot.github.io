@@ -648,6 +648,12 @@ export function broadcastColorsResolved() {
 
 // 自動処理モードのオン/オフ承認が全員完了した合図（続き66）。timer_configと違い
 // サーバー側に同期カラムを持たないため、pendingAutoProcessingToggleがnullに戻った
+// ⚠ 【2026-11-03・続き658】**この「同期カラムを持たない」は今は違う。**
+//   その後 SQL に pending_auto_processing_toggle 列が足され、Edge Function も読み書き
+//   している。このコメントを信じて「渡さなくていい」と思い込んだせいか、
+//   fetchAndHydrate の hydrateState に渡す行が抜けたままになっていた（下で直した）。
+//   この合図（broadcast）自体は今も要る——「承認で解決したのか却下で解決したのか」は
+//   列の値がnullに戻るだけでは区別できないため。
 // ことだけでは「承認で解決したのか却下で解決したのか」を他クライアントが区別できない。
 // そのため、最後の承認をした本人のクライアントがこの合図を送り、全クライアント
 // （config.broadcast.self:trueにより自分自身も含む）がこれを受けて一斉に
@@ -3629,6 +3635,22 @@ export async function fetchAndHydrate(gameId) {
       // 同じ理由（hydrateState()は丸ごと置き換えのため渡し忘れるとundefinedへ上書き
       // されてしまう）でここに含める必要がある。
       pendingTimerToggle: gameRow.pending_timer_toggle ?? null,
+      // 🔴 【2026-11-03・続き658】自動処理モードのオン/オフの承認待ち（続き66）。
+      //   **列も・SQLの保存も・Edge Function の読み書きも全部そろっているのに、
+      //   ここで渡すのを忘れていた**ので、`state.pendingAutoProcessingToggle` は
+      //   fetchAndHydrate のたびに undefined へ上書きされ、**相手の画面に承認モーダルが
+      //   一度も出ていなかった**。上の pendingFinalLock / pendingContact の2つのコメントが
+      //   警告している穴に、3つ目が落ちていた。
+      //   ⚠ 少し上（broadcastAutoProcessingResolved の所）の「サーバー側に同期カラムを
+      //     持たない」というコメントは**古い**（続き66 の時点の話で、その後 SQL に
+      //     pending_auto_processing_toggle 列が足された）。消さずに注記だけ足してある。
+      //   ⇒ 同じ足し忘れは tools/check-hydrate-fields.mjs が毎回見張る。
+      pendingAutoProcessingToggle: gameRow.pending_auto_processing_toggle ?? null,
+      // 🔴 【#167・続き659】手番プレイヤーが「今どのフェイズまで進んだか」。
+      //   これが無いと、再読み込みのたびに**必ずロックフェイズから再開**し、
+      //   そのターンに2枚目のロックができてしまう（#167 はここが抜けていて一度も
+      //   効いていなかった。列・保存・読み戻しの3点をまとめて足した）。
+      turnPhase: gameRow.turn_phase ?? null,
       // マイデッキ戦か（BOOTSTRAP_GAMEでサーバーが確定・対局中は不変）。select("*")なので
       // my_deck_mode列が未追加の環境ではundefined→false（後方互換）。pendingFinalLock等と
       // 同じく、hydrateStateは丸ごと置き換えなので渡し忘れるとundefinedへ上書きされる。

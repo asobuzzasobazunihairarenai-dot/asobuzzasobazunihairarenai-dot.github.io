@@ -1538,7 +1538,7 @@ export const CASES = [
   //   １番上＝green-growing-trees・２番目＝red-jump-pad。
   //   退避した１番上は捨て場へ戻るので、手札に来るのは**２番目の方だけ**。
   {
-    name: "赤のはじまり(手札): 捨て場の上から２番目を手札に加えて、このフェイズを終了する",
+    name: "赤のはじまり(手札): 自分を捨てた上での２番目＝使う直前の１番上が来る",
     kind: "hand",
     cardId: "ex0-red-beginning",
     state: {
@@ -1552,15 +1552,18 @@ export const CASES = [
     ctx: { player: "A", cardId: "ex0-red-beginning", cardTokenId: "self" },
     picks: {},
     expect: [
-      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 1 },        // ２番目の方が来る
-      { kind: "handHasCard", player: "A", cardId: "green-growing-trees", n: 0 }, // １番上は来ない（戻す）
-      { kind: "pileContains", pile: "discard", cardId: "green-growing-trees" },  // 退避した分は捨て場へ戻る
+      // 🔴 手札効果は**発動の最初に自分自身を捨てる**ので、捨て場は
+      //   [red-jump-pad, green-growing-trees, ex0-red-beginning] になる。
+      //   その「上から２番目」＝ green-growing-trees ＝**使う直前の１番上**で、これが正しい
+      //   （2026-11-03 ユーザー説明: 「１番上」と書くと捨てた自分を永遠に拾うので「２番目」）。
+      { kind: "handHasCard", player: "A", cardId: "green-growing-trees", n: 1 },
+      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 0 }, // その下は取らない
+      { kind: "pileContains", pile: "discard", cardId: "ex0-red-beginning" }, // 退避した自分は捨て場へ戻る
       { kind: "called", name: "endCurrentPhase" },
-      { kind: "pileContains", pile: "discard", cardId: "ex0-red-beginning" },    // 使用時に捨てる既定
     ],
   },
   {
-    name: "赤のはじまり(手札): 捨て場が１枚しか無ければ何も起きない（善処の原則）",
+    name: "赤のはじまり(手札): 捨て場が空なら、自分を捨てても１枚しか無いので取れない（善処の原則）",
     kind: "hand",
     cardId: "ex0-red-beginning",
     state: {
@@ -1569,12 +1572,14 @@ export const CASES = [
         { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
         { id: "self", kind: "card", cardId: "ex0-red-beginning", faceUp: true, location: { zone: "hand", player: "A" } },
       ],
-      piles: { deck: [], eternal: [], first: [], discard: ["red-jump-pad"] },
+      piles: { deck: [], eternal: [], first: [], discard: [] },
     },
     ctx: { player: "A", cardId: "ex0-red-beginning", cardTokenId: "self" },
     picks: {},
     expect: [
-      { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 0 }, // １枚だけなら取らない
+      // 自分を捨てた時点で捨て場は1枚だけ＝「２番目」が無いので何も取らない。
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-red-beginning" },
       // 🔴 「このフェイズを終了する。」は**句点の原則**で、前の句が不発でも行う（既定）。
       //    ここを変えたくなったら card-effects.js 側に stopIfPreviousFailed を足すこと。
       { kind: "called", name: "endCurrentPhase" },
