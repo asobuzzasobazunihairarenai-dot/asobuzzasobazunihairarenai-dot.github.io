@@ -45,6 +45,10 @@ import { t } from "./ui-text.js";
 import { logAction } from "./action-log.js";
 // 【続き643】全画面 canvas（約23MB）を張った瞬間を墜落の控えに残す。葉モジュールなので循環しない。
 import { noteBlackboxWeight } from "./crash-blackbox.js";
+// 【#459】勝利演出の前に、残っている霧散演出の canvas を手放させる。
+// card-dissolve.js は crash-blackbox.js だけを読む葉なので、ここから読んでも循環しない
+// （循環させると続き573 のように TDZ で落ちる）。
+import { releaseAllCardDissolves } from "./card-dissolve.js";
 
 // 盤面パレット(--color-*)はくすみ気味なので、演出用に彩度を上げた色を使う
 // （card-dissolve.js の DISSOLVE_HEX と同じ考え方・同じ値）。
@@ -209,6 +213,10 @@ export async function playVictoryCelebration(player, opts = {}) {
   const { keepWhite = true } = opts;
   if (running) return { dismiss: () => {} };
   running = true;
+  // 🔴 #459: ここで全面 canvas をもう1枚張る前に、霧散演出の取り残しを片付けさせる。
+  //    実測（#459 の控え）では、霧散を張った瞬間に合計 77MB・勝利演出の瞬間に 74MB だった。
+  //    重ねないだけで山がひとつ減る。止めても右の使用モーダルは必ず出る（スキップと同じ道）。
+  try { releaseAllCardDissolves(); } catch {}
   skipRequested = false;
   // ここから「勝利演出＋リザルト」の間は、対局中のお知らせ（獲得/ロック/効果の理由など）を
   // 出さない。既に出ているもの（7色目のロック通知など）もこの時点で片付ける。

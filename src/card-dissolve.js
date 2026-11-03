@@ -35,6 +35,22 @@ export function isCardDissolvePlaying() {
   return dissolveRequestedAt > 0 && performance.now() - dissolveRequestedAt < DISSOLVE_STARTUP_GRACE_MS;
 }
 
+// 【#459・2026-11-03】いま動いている霧散演出の後片付け係。
+// 🔴 なぜ要るか: 勝利演出も**ステージ全面の canvas を1枚**張る（約22MB）。霧散が残ったまま
+//    そこへ重なると、iPhone は例外を出さずにタブごと捨てる（「落ちてタイトルに戻る」に見える）。
+//    計器の実測（#459）: 霧散を張った瞬間の合計 77MB ／ 勝利演出を張った瞬間 74MB。
+// ⚠ 途中で止めても情報は落ちない——finish() は右の使用モーダル（onShowModal）を必ず出す。
+//    画面のどこかをタップした時のスキップと、まったく同じ道を通る。
+const activeDissolveFinishers = new Set();
+export function releaseAllCardDissolves() {
+  const 一覧 = [...activeDissolveFinishers];
+  activeDissolveFinishers.clear();
+  for (const f of 一覧) {
+    try { f(); } catch {}
+  }
+  return 一覧.length;
+}
+
 // 【#441 / #432・2026-10-28】いま何枚ぶんの霧散が生きているか。**呼ぶ側が重さを見て
 // 手加減するため**の数字。
 //
@@ -530,7 +546,12 @@ export async function playCardDissolve(usedCardId, opts = {}) {
       dissolvePlayingCount = Math.max(0, dissolvePlayingCount - 1); // 続き223: 再生中フラグOFF
       releaseSlot(); // #441: 席を返す（返し忘れても TTL で自然に消える）
       cancelAnimationFrame(raf);
+      // 🔴 #459: remove() だけでは canvas の中身（約22MB）が手放されない。幅と高さを 0 にすると
+      //    その場で捨てられる（勝利演出側は昔からこうしている＝victory-celebration.js）。
+      canvas.width = 0;
+      canvas.height = 0;
       canvas.remove();
+      activeDissolveFinishers.delete(finish);
       if (!modalShown) {
         modalShown = true;
         try {
@@ -545,6 +566,7 @@ export async function playCardDissolve(usedCardId, opts = {}) {
     // capture フェーズで拾うが preventDefault/stopPropagation はしない——ここで止めると
     // 盤面やモーダルの操作まで巻き添えで消える（続き76の「画面全体が固まって見える」と同根）。
     // スキップしても onShowModal（右の使用モーダル）は finish() が必ず呼ぶので情報は落ちない。
+    activeDissolveFinishers.add(finish);
     const onSkip = () => finish();
     document.addEventListener("pointerdown", onSkip, { capture: true, once: true });
     // 保険: 何かで終わらない場合でも必ず片付ける（総尺は 1/speed に比例するので speed を織り込む）

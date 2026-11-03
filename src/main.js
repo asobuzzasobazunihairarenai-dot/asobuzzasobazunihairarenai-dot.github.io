@@ -1952,13 +1952,33 @@ function maybeTriggerArrivalForPlacedCardForEffect(location, cardId) {
 // 完了まで待つ。「入れ替え」は移動ではないため裏向きは開かない＝表向きの時だけ発動する。
 // 発動対象席がその効果の自動処理対象(getAutoDriveSeat)でない場合はtriggerCardArrival側が
 // 拡大モーダルのみ出してonFullyResolvedを呼ぶ（既存の非自動到達と同じ挙動）ため、awaitは詰まらない。
+// 【#471・2026-11-03】いま「効果の選択をする権利」を持っている席。ふだんは null で、
+// その時は今までどおり優先権を持つ人（priorityPlayer）が選ぶ。
+// 🔴 なぜ要るか: 後援するヴィヴィアンのように**自分の手番のまま相手が到達する**場面がある。
+//    CPUが自動で選ぶ条件は activeEffectPicker.owner が立っていることなので、ここが空だと
+//    相手（CPU）の選択肢モーダルが**人間の画面に出て、人間が選べてしまう**（報告そのもの）。
+//    カードの文は「その相手が到達したカードを**自分の**手札に加えるなら、代わりにあなたの
+//    手札に加える」＝**移るのはカードだけで、選ぶ権利は相手のまま**。
+// ⚠ 必ず finally で元に戻す（戻し忘れると以降ずっと別人が選ぶことになる）。
+let effectChoiceSeatOverride = null;
+function pickerOwner(given) {
+  return given ?? effectChoiceSeatOverride ?? undefined;
+}
+
 async function triggerArrivalAtIfFaceUpForEffect(location, expectedPlayer) {
   if (!location) return;
   const top = findTopCardAt(location);
   if (!top || !top.faceUp) return;
   const owner = getPieceOwnerAt(location);
   if (!owner || (expectedPlayer && owner !== expectedPlayer)) return;
-  await new Promise((resolve) => triggerCardArrival(top.cardId, location, resolve));
+  // 到達したのは owner。だから到達効果の選択も owner のもの（#471）。
+  const 前の席 = effectChoiceSeatOverride;
+  effectChoiceSeatOverride = owner;
+  try {
+    await new Promise((resolve) => triggerCardArrival(top.cardId, location, resolve));
+  } finally {
+    effectChoiceSeatOverride = 前の席;
+  }
 }
 
 // PLACE_CARDのsource:"deck"用（終わりなき化学ゲンテクニーク・月下の漂流船プリドゥエン等）。
@@ -3598,13 +3618,16 @@ async function pickArrivalOptionForEffect(cardId, optionsWithUsability) {
 // 素通りさせるようガードを追加している（下のpointerdownリスナー参照）。
 function pickOptionForEffect(cardId, optionsWithUsability, title) {
   // CPUが選ぶ番はこの選択肢モーダルを表示しない（自動で選ばれる。結果は別途通知）。
-  const hidden = isCpuSelectingNow();
+  // 🔴 #471: 誰の選択かは pickerOwner() で決める（ヴィヴィアンのように、自分の手番のまま
+  //    相手が到達する場面がある）。ふだんは null なので今までどおり優先権の人を見る。
+  const 選ぶ席 = pickerOwner();
+  const hidden = isCpuSelectingNow(選ぶ席);
   return showHandEffectOptionPicker(
     cardId,
     optionsWithUsability,
     (resolveFn) => {
       // cardIdも持たせる（賢いCPUがカードごとに選択肢を評価するため。chooseEffectOption参照）。
-      activeEffectPicker = { type: "option", options: optionsWithUsability, cardId, resolve: resolveFn };
+      activeEffectPicker = { type: "option", options: optionsWithUsability, cardId, resolve: resolveFn, owner: 選ぶ席 };
     },
     { hidden, title } // title未指定なら既定「○○の効果を選択してください」（showHandEffectOptionPicker参照）
   ).then((option) => {
@@ -8103,7 +8126,7 @@ async function requestCellChoiceForEffect__inner(candidates, hint, options = {})
     const loc = await requestCellChoiceForEffectOnce(candidates, hint, options);
     if (!loc) return null; // スキップ／中止はそのまま返す
     if (cellPickAutoResolved) return loc; // 自動代行が選んだ＝本人の操作ではないので確認しない
-    if (!isCellConfirmEnabled() || isCpuSelectingNow(options.owner)) return loc;
+    if (!isCellConfirmEnabled() || isCpuSelectingNow(pickerOwner(options.owner))) return loc;
     const table = document.getElementById("game-table");
     const el = table ? findLocationElement(table, loc) : null;
     // 不具合報告#207「プレゼントの手札効果で相手を選ぶ時、駒を選ぶのに『このマスでいいですか』に
@@ -8161,7 +8184,7 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
     // CPUが選ぶ番はハイライト・案内・スキップボタンを出さない（自動で解決される。混乱防止）。
     // owner（この選択の主体）を渡せる——ゴメンナサイ等、CPUのターン中に人間が使うリアクション
     // 選択では owner=人間の席 を明示し、CPUのものと誤判定して隠さない/勝手に解決しないようにする(#33)。
-    const cpuSelecting = isCpuSelectingNow(options.owner);
+    const cpuSelecting = isCpuSelectingNow(pickerOwner(options.owner));
     if (!cpuSelecting) {
       for (const entry of entries) entry.el.classList.add("card-effect-target-cell");
       document.body.classList.add("card-effect-picking-cells");
@@ -8172,7 +8195,7 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
     if (options.allowSkip && !cpuSelecting) showEffectSkipButton(options.skipLabel ?? t("game.pick.noMore"));
     activeEffectPicker = {
       type: "cell",
-      owner: options.owner ?? null,
+      owner: pickerOwner(options.owner) ?? null,
       candidates,
       // #313: このマス選択の用途（"destroy" ＝ そのマスのカードを全部捨てる）。賢いCPUの
       // 選び方を用途で切り替えるために持つ（cpu-brain.js chooseEffectCell 参照）。
@@ -8282,13 +8305,13 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
     }
     // CPUが選ぶ番は相手アバターのハイライトを出さない（自動で選ばれる。混乱防止）。
     // owner（選ぶ主体）を渡せる（#33、ゴメンナサイ等の人間リアクション対応）。
-    if (!isCpuSelectingNow(options.owner)) {
+    if (!isCpuSelectingNow(pickerOwner(options.owner))) {
       for (const entry of entries) entry.el.classList.add("card-effect-target-avatar");
     }
     if (hint) showEffectPickerHint(hint);
     activeEffectPicker = {
       type: "player",
-      owner: options.owner ?? null,
+      owner: pickerOwner(options.owner) ?? null,
       players: new Set(candidates),
       resolve: (player) => {
         for (const entry of entries) entry.el.classList.remove("card-effect-target-avatar");
@@ -9888,9 +9911,18 @@ async function offerArrivalCancelInterrupt(cardId, location, arrivedPlayer) {
     if (!p) continue;
     const tokens = 持っている人(p);
     if (tokens.length === 0) continue;
+    // 🔴 #476: CPU がここをコイン投げで答えていた（cpuAutoResolveId が無く、cardId も
+    //    評価表に無いと yes/no が 50% になる＝main.js の #120 のコメントのとおり）。
+    //    カード名のとおり「**リーチを止める時だけ使う**」という基準を与える:
+    //      ・自分の到達は止めない（自分で自分の効果を消すのは、ほぼ損）
+    //      ・止めるのは、到達した相手が**あと1色で勝ち（6色ロック）**の時だけ
+    //    ⚠ 人間にはこの基準を当てない（今までどおり自分で決められる）。
+    //    ⚠ これは控えめな基準なので、CPU がこの札を使う場面は少ない。賢くするのは別件。
+    const 相手の到達 = !!arrivedPlayer && p !== arrivedPlayer;
+    const 相手がリーチ = 相手の到達 && getLockedCount(arrivedPlayer) === 6;
     const 使う = await confirmGenericYesNo(
       t("ce.ex0AskArrivalCancel", { card: cardDisplayName(cardId) }),
-      { owner: p, cardId: "ex0-yellow-reach-cancel", cpuAutoResolveId: null }
+      { owner: p, cardId: "ex0-yellow-reach-cancel", cpuAutoResolveId: 相手がリーチ ? "yes" : "no" }
     );
     if (!使う) continue;
     // 手札効果の既定どおり、使ったリーチキャンセル自身を先に捨てる。

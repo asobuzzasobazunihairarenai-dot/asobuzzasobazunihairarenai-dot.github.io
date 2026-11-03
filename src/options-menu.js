@@ -795,7 +795,9 @@ function buildLanguageRow() {
     btn.addEventListener("click", () => {
       // 【#390】切り替えは1秒前後かかるので、案内を出しながら行う。
       void setLangWithNotice(v); // localStorage（端末フォールバック）＋ onLangChange→再描画
-      saveMyPreference({ lang: v }); // ログイン済みならアカウントにも保存（端末をまたいで引き継ぐ）
+      // 【#469】アカウントへの保存はここでは行わない。online.js が onLangChange を購読して
+      // 1か所で書く（オープニング画面の言語ボタンはここを通らず、保存されていなかった
+      // ＝報告「ゲーム中に日本語に切り替えたのに、次始めるときまた英語からになっちゃう」）。
       refresh();
     });
     group.appendChild(btn);

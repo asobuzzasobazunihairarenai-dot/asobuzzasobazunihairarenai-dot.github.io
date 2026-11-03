@@ -32,7 +32,7 @@ import { stageGateInvasionRender } from "./gate-invasion-stage.js";
 // マイデッキ戦: ログイン時にアカウント保存のデッキを復元する（my-deck.jsはcards-data.jsのみ
 // 依存の葉モジュールなので、online.jsから直接importしても循環参照にならない）。
 import { setMyDeckFromAccount } from "./my-deck.js";
-import { setLang } from "./i18n.js";
+import { setLang, onLangChange } from "./i18n.js";
 import { setLastActionInfo } from "./last-action-info.js";
 // どのカードセット（リメイク / 0th拡張 / まぜる）で山札を組むか。オンラインでは
 // 「開始を押した人の選択を対局全体の固定値として1回だけ送る」方式（timerConfig と同じ）。
@@ -1108,6 +1108,18 @@ function startExtraPrefsAutoSave() {
   });
 }
 
+// 【#469・2026-11-03】表示言語をアカウントへ**書く**所が最初から無かった。
+// 報告「ゲーム中に日本語に切り替えたのに、次始めるときまた英語からになっちゃう」の正体:
+//   ① 言語の切り替え（setLang）は localStorage にしか残らない
+//   ② 次にログインすると下の fetchMyLang → setLang が**アカウントの古い値で上書きする**
+// ⇒ 切り替えたら必ずアカウントにも残す。lang 列は既にあるので SQL の実行は要らない。
+// ⚠ 未ログインの間は saveMyPreference が何もしないので、ローカルだけの利用は今までどおり。
+let restoringLangFromAccount = false;
+onLangChange((lang) => {
+  if (restoringLangFromAccount) return; // 復元で当てた値を書き戻さない
+  void saveMyPreference({ lang });
+});
+
 // 表示言語（ja/en）をアカウント（so7_user_profiles.lang）から読む。ユーザー要望「言語設定は
 // 端末を変えても引き継がれるようアカウントに記録」。他と同じく大きなSELECTには混ぜず独立クエリ
 // （lang列が未追加の環境でもここだけ失敗して他設定に影響させない）。未ログイン/未保存はnull。
@@ -1681,7 +1693,14 @@ export async function loadMyPreferences() {
   // 保存があればそれを、無ければ localStorage の値のまま（setLang は同値なら何もしない）。
   try {
     const lang = await fetchMyLang();
-    if (lang) setLang(lang);
+    // 🔴 #469: ここはアカウントの値を**読んで当てている**だけなので、書き戻さない
+    //    （同じ値を書くだけで無害ではあるが、ログインのたびに1回余計な書き込みが出る）。
+    restoringLangFromAccount = true;
+    try {
+      if (lang) setLang(lang);
+    } finally {
+      restoringLangFromAccount = false;
+    }
   } catch (err) {
     console.error(t("on.err.langLoad"), err);
   }

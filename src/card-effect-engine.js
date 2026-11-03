@@ -1460,7 +1460,8 @@ async function runAction(action, ctx, helpers) {
         }
       }
       if (対象.length === 0) return false;
-      for (const id of 対象) await helpers.discardAndSync(id);
+      // #463: 直後に「n枚捨てた」の要約を出すので、1枚ごとのお知らせは出さない。
+      for (const id of 対象) await helpers.discardAndSync(id, { batchNotice: true });
       await helpers.announceEffectReason?.(
         ctx.cardId,
         t("ce.discardedAdjacentN", { name: helpers.getPlayerName(ctx.player), n: 対象.length })
@@ -1696,7 +1697,7 @@ async function runAction(action, ctx, helpers) {
         }
       }
       for (const token of orderedStack) {
-        await helpers.discardAndSync(token.id);
+        await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
       }
       // 【#335】お知らせは中央が空くまで順番待ちする（実機で最大9秒）。既定の3秒で光が消えると
       // 文面の「光っているマス」が何も指さなくなるので、**お知らせが出て読み終わるまで光らせ続け**、
@@ -1888,7 +1889,7 @@ async function runAction(action, ctx, helpers) {
           }
         }
         for (const token of orderedHand) {
-          await helpers.discardAndSync(token.id);
+          await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
         }
         // 「あなたはこのターン移動できない」を実際に強制する（不具合#57）。ムーブフェイズの
         // ハイライトと人間の手動移動の確定で弾く（reconcileMovePhase / main.jsのドラッグ・
@@ -2310,7 +2311,7 @@ async function runAction(action, ctx, helpers) {
         }
       }
       for (const token of orderedCandidates) {
-        await helpers.discardAndSync(token.id);
+        await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
       }
       // お知らせ（ユーザー要望）: 盤面一括変化の要約。
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.L1409"));
@@ -2741,10 +2742,16 @@ async function runAction(action, ctx, helpers) {
         if (!cell) break;
         選んだ.add(cell.row + "," + cell.col);
         const top = findTopCardAtCell(cell.row, cell.col);
-        if (top) 見たもの.push(top.cardId ?? null);
+        if (!top) continue;
+        見たもの.push(top.cardId ?? null);
+        // 🔴 #472: **選んだその場で見せる**。まとめて最後に N 枚出していたので、
+        //    どの札がどのマスのものか辿れなかった（報告「どのマスを選択しているのか
+        //    わかりづらい」）。1枚ずつなら、選んだ直後に出るので対応が分かる。
+        // ⓘ 見えるのは**この効果を使っている人の画面だけ**（peekCards →
+        //    playCenterCardFlipReveal は配信しない。みんなに見せる時は別の関数を使う）。
+        await helpers.peekCards?.([top.cardId ?? null]);
       }
       if (見たもの.length === 0) return false;
-      await helpers.peekCards?.(見たもの);
       return true;
     }
     case VERBS.DECLARE_AND_OPEN_TO_HAND_REPEAT: {

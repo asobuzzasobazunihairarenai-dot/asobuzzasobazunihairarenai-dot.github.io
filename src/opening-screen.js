@@ -905,6 +905,16 @@ export function initOpeningScreen() {
   };
   startBtn.addEventListener("click", beginFromStart);
   startBtn.addEventListener("pointerup", beginFromStart);
+  // 【#455 / #460・2026-11-03】**3回目の報告**。#277 の click + pointerup でもまだ取りこぼす。
+  //  ① いちばん早いイベントでも受ける。pointerup は**指が少しでも動くとボタンの外で離れて
+  //     来ない**し、click は iOS で握り潰されることがある。pointerdown なら触れた瞬間に来る。
+  //  ② **白いガードのどこを押しても始まる**ようにする。ここには HUERISE ボタン以外に
+  //     押すものが無いので、間違って始まる心配が無い。「狙わせない」のがいちばん確実。
+  //     ⚠ 戻したい時はこの2行（startGate の方）を消すだけでよい。
+  // 二重発火は startPressed が防ぐ（どのイベントから来ても1回だけ）。
+  startBtn.addEventListener("pointerdown", beginFromStart);
+  startGate.addEventListener("pointerdown", beginFromStart);
+  startGate.addEventListener("click", beginFromStart);
 
   function showCard() {
     loginToggleBtn.style.display = "none";

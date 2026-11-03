@@ -240,7 +240,12 @@ function watchBgm(name, audioEl, getGain, getTarget) {
 }
 
 const BGM_FADE_IN_MS = 1400;
-function fadeInBgm(audioEl, gainNode, getTarget, timer) {
+// 【#456・2026-11-03】ホーム・対局のBGMだけ、長く・立ち上がりを寝かせる。
+// ユーザー要望「ループさせるために最初が違和感ある位置から曲が始まるからそれを隠したい」。
+// 直線だと 0.2秒で既に 14% まで上がって頭が聞こえてしまうが、2.2乗なら 0.2% ＝ ほぼ無音。
+const HOME_BGM_FADE_IN_MS = 3200;
+const HOME_BGM_FADE_CURVE = 2.2;
+function fadeInBgm(audioEl, gainNode, getTarget, timer, opts = {}) {
   if (timer.get()) clearInterval(timer.get());
   setBgmTrackVolume(audioEl, gainNode, 0);
   // 【2026-09-09・続き505】進み具合は「呼ばれた回数」ではなく**実際に経過した時間**で決める。
@@ -249,9 +254,11 @@ function fadeInBgm(audioEl, gainNode, getTarget, timer) {
   // ずっとほぼ無音＝「BGMが鳴っていない」ように聞こえてしまう。時間で見れば、何回呼ばれても
   // 必ず 1.4 秒で鳴り切る（遅れた時は一段が大きくなるだけ）。
   const startedAt = Date.now();
+  const 尺 = opts.durationMs ?? BGM_FADE_IN_MS;
+  const 曲線 = opts.curve ?? 1; // 1 なら今までどおりの直線
   timer.set(setInterval(() => {
-    const ratio = Math.min(1, (Date.now() - startedAt) / BGM_FADE_IN_MS);
-    setBgmTrackVolume(audioEl, gainNode, getTarget() * ratio);
+    const ratio = Math.min(1, (Date.now() - startedAt) / 尺);
+    setBgmTrackVolume(audioEl, gainNode, getTarget() * (曲線 === 1 ? ratio : Math.pow(ratio, 曲線)));
     if (ratio >= 1) {
       clearInterval(timer.get());
       timer.set(null);
@@ -371,7 +378,11 @@ export function playGameBgm() {
     }
   });
   const gameTarget = () => Math.min(1, Math.max(0, masterBgmVolume * getPerSoundVolume("--sound-volume-game-bgm")));
-  fadeInBgm(gameBgmAudio, gameBgmGain, gameTarget, gameFadeTimer);
+  // #456: ホーム・対局のBGMだけ、長く・寝かせて立ち上げる（曲の頭を隠す）。
+  fadeInBgm(gameBgmAudio, gameBgmGain, gameTarget, gameFadeTimer, {
+    durationMs: HOME_BGM_FADE_IN_MS,
+    curve: HOME_BGM_FADE_CURVE,
+  });
   watchBgm("game", gameBgmAudio, () => gameBgmGain, gameTarget);
 }
 
