@@ -52,6 +52,27 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-03",
+    fixes: [
+      "黒のファーストカードの絵に入っていた英語のつづりを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the English spelling printed on the art of the black First card.",
+    ],
+    devItems: [
+      "黒のキューブ ノワールの絵に焼き込まれた英字が BRACK だった（正しくは BLACK）。クラファン相談セッションがアナログ版の入稿データを7色ぶん確かめ、「青のキューブ セレスティア／BLUE」のように英語の色名が規則だと分かって誤植と確定した。アナログ版は印刷前なのでかくざとう氏へ修正を依頼する。デジタル版は本人判断「一旦直しとこうか」でこちらを先に直した。",
+      "直し方は最小の手術にした。R を描き直すのではなく、縦棒（x164-166）をそのまま残し、右のふくらみと脚だけ消して足を描き足した。縦棒を残すのは、L の縦棒と位置・太さ・縁のぼかし・地との馴染みが本物のままだから。足は紫のカード（PURPLE）の L から濃さごと移植した。⚠ 青（BLUE）の字には淡い光彩が付いているので使えない。紫は光彩が無く、縦棒3px・高さ13行がノワールと1ピクセルも違わなかった＝同じ書体・同じ大きさ。",
+      "消した所の地の埋め方は、字の無いきれいな所をわざと埋めて本物と比べて選んだ（横から写す 平均7.9〜38.9／縦に直線 5.4〜7.9／隣の列から借りる 11.9〜95.5）。地そのもののゆらぎが19〜47＝幅28なので、誤差7.9なら紛れる。⚠ R の真下は y165 から斜めの枠線が通っているので、下の目安をその列から取ると線が途切れる（最初それで一度途切れさせた）。きれいな列の縦の形だけを借りる形にした。",
+      "変わった画素は145個＝全体の0.08%で、全部が x167 y148 の 10x20 の箱の中。箱の外で8より大きく動いたのは1画素（差13＝webpに入れ直す時の誤差）。画像全体の平均差は0.25〜0.29。直したのは cards / cards-blank / cards-illust の3枚で、cards と cards-illust は直した後も同一のまま。",
+    ],
+    devItemsEn: [
+      "The black First card art had BRACK baked into it; the correct spelling is BLACK. The crowdfunding session checked the analog print data for all seven colours and found that the English colour name is the rule, which confirmed the typo. The analog version will be corrected by the illustrator; this side was fixed first on the user's call.",
+      "Minimal surgery rather than a redraw: the R's vertical stem was kept as-is and only the bowl and leg were erased, then the L's foot was grafted in from the PURPLE card, alpha and all. The BLUE card could not be used because its letters carry a soft glow; the purple one has none and matches noir exactly in stroke width and cap height.",
+      "The fill method for the erased area was chosen by erasing a clean patch and comparing against the truth. Per-column vertical interpolation won. The frame's diagonal line runs just below the letter, so the lower anchor had to come from clean columns instead.",
+      "145 pixels changed (0.08% of the image), all inside a 10x20 box. Only one pixel outside it moved by more than 8, which is webp re-encoding noise. Three files were updated and the two that were byte-identical before still are.",
+    ],
+  },
+  {
     date: "2026-11-02",
     fixes: [
       "いくつかのカードで、効果の文の言い方が揃っていなかったのを直しました。",
