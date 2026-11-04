@@ -931,7 +931,7 @@ function buildVictoryText(root, player, s) {
   const avatar = document.createElement("div");
   avatar.className = "vic-avatar";
   avatar.style.fontSize = `${s.avatarSize}vmin`;
-  applyAvatarContent(avatar, getPlayerAvatar(player));
+  applyAvatarContent(avatar, getPlayerAvatar(player), { large: true });
   const lead = document.createElement("div");
   lead.className = "vic-lead";
   lead.textContent = t("vic.lead");

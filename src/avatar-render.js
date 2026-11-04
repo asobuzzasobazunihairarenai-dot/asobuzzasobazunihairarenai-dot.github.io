@@ -1,3 +1,5 @@
+import { setThumbSrc } from "./image-thumbs.js";
+
 // アバターの値（絵文字1文字 / Googleプロフィール画像URL / ローカルのアバター画像パス）を
 // 実際にDOMへ描画する共通ロジック。以前はmain.js・turn-timer.jsにそれぞれ軽量複製されて
 // いたが、駒スキン画像への差し替え時にturn-timer.js側の判定が古いまま（http(s)://のみ対応）
@@ -49,7 +51,12 @@ export function getEnragedVariant(avatar) {
   return `${m[1]}-enraged${m[2]}`;
 }
 
-export function applyAvatarContent(el, avatar) {
+// 【2026-11-04・#505】既定は**小さい版**（256px角）を貼る。盤面の席は最大74px＝dpr3でも
+// 222pxなので、見た目は変わらないのにメモリは 2.25MB → 0.25MB になる（実測）。
+// 🔴 大きく出す所（自分のステータスの大きいアバター・勝利画面）だけ { large: true } を渡す。
+//    既定を「小さい方」にしてあるのは、**新しく足した表示が黙って重くならないようにする**ため
+//    （足し忘れると少しぼやけるだけで済む／逆だと誰も気づかないまま重くなる）。
+export function applyAvatarContent(el, avatar, opts) {
   if (isImageAvatar(avatar)) {
     let img = el.querySelector("img.avatar-image");
     if (!img) {
@@ -58,7 +65,8 @@ export function applyAvatarContent(el, avatar) {
       el.textContent = "";
       el.appendChild(img);
     }
-    img.src = avatar;
+    if (opts && opts.large) img.src = avatar;
+    else setThumbSrc(img, avatar);
   } else {
     el.querySelector("img.avatar-image")?.remove();
     el.textContent = avatar;

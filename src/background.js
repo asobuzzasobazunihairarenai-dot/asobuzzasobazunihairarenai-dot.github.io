@@ -6,7 +6,8 @@
 
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { saveMyPreference, isItemUnlocked, openShop } from "./online.js";
-import { t } from "./ui-text.js"; // UI英語化フェーズ13
+import { t } from "./ui-text.js";
+import { setThumbSrc } from "./image-thumbs.js"; // UI英語化フェーズ13
 
 export const BACKGROUND_OPTIONS = [
   // ユーザー指定の既定背景（assets/backgrounds/gray.webp、元は画像素材/背景/灰.webp）。
@@ -91,7 +92,8 @@ export function openBackgroundPicker() {
     swatch.className = "piece-skin-swatch";
     if (selectedBackgroundId === option.id) swatch.classList.add("is-selected");
     const img = document.createElement("img");
-    img.src = option.path;
+    // 【2026-11-04・#505】同上（原寸6枚で36MB）。
+    setThumbSrc(img, option.path);
     img.alt = backgroundLabel(option);
     swatch.appendChild(img);
     // ユーザー要望「背景画像を購入できるようにする」への対応。未所持の有料背景は

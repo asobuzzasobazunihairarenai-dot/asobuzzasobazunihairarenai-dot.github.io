@@ -23999,7 +23999,12 @@ body.theme-light-ingame .ranking-choice-item {
 
 /* ⑪ 白い光の中に、揃えた7枚のシルエットが一瞬だけ浮く。
    ⚠ 地は**常に白い光**なので、色＋白い縁を自分で持つこのやり方は明暗どちらのテーマでも読める
-      （文字色を継承に頼らない＝教訓15）。 */
+      （文字色を継承に頼らない＝教訓15）。
+   【2026-11-04・ユーザー報告】当初は 0.32×0.5＝実効0.16 しか色を乗せておらず、白地との差が
+      22〜33 しか無かった。ところが box-shadow の縁は差41＝**縁の方が濃い**ので、
+      「カードの枠だけが出る」という見え方になっていた（報告そのまま）。実効0.52 へ上げて
+      差を 72〜107 にし、**面が縁より濃い**状態にした。白い縁は、扇で重なった札の
+      切れ目として役に立つのでそのまま残す。 */
 .vic-silhouettes {
   position: absolute;
   inset: 0;
@@ -24010,7 +24015,7 @@ body.theme-light-ingame .ranking-choice-item {
   left: 50%;
   top: 46%;
   border-radius: 8%;
-  background: rgba(var(--vic-sil-rgb, 255, 255, 255), 0.32);
+  background: rgba(var(--vic-sil-rgb, 255, 255, 255), 0.9);
   border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow: 0 0.5rem 1.4rem rgba(60, 48, 80, 0.2);
   opacity: 0;
@@ -24021,7 +24026,7 @@ body.theme-light-ingame .ranking-choice-item {
     transform 420ms cubic-bezier(0.2, 0.8, 0.3, 1) var(--vic-sil-delay, 0ms);
 }
 .vic-silhouettes.is-on .vic-silhouette {
-  opacity: calc(0.5 * var(--vic-sil-power, 1));
+  opacity: calc(0.58 * var(--vic-sil-power, 1));
   transform: translate(-50%, -50%) translate(var(--vic-sil-x, 0px), var(--vic-sil-y, 0px))
     rotate(var(--vic-sil-rot, 0deg)) scale(1);
 }

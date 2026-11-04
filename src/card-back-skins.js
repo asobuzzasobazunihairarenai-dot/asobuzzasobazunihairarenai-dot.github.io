@@ -11,7 +11,8 @@
 // デザインセットに相当するため常にセットとして一括で切り替わる（個別には選べない）。
 
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
-import { t } from "./ui-text.js"; // UI英語化フェーズ10
+import { t } from "./ui-text.js";
+import { setThumbSrc } from "./image-thumbs.js"; // UI英語化フェーズ10
 
 // 0=標準（assets/cards/back-{eternal,first,normal}.webp）。
 // 1=画像素材/カード裏面追加/追加旧（旧称「追加1」、assets/cards/back-{eternal,first,normal}-1.png）。
@@ -135,7 +136,8 @@ export function openCardBackSkinPicker(options = {}) {
     swatch.className = "piece-skin-swatch";
     if (selectedIdx === idx) swatch.classList.add("is-selected");
     const img = document.createElement("img");
-    img.src = backImagePath("normal", idx);
+    // 【2026-11-04・#505】同上。
+    setThumbSrc(img, backImagePath("normal", idx));
     img.alt = setLabel(idx);
     swatch.appendChild(img);
     // ユーザー要望「カード裏面を購入できるようにする」への対応。未所持の有料セットは

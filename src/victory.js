@@ -207,7 +207,7 @@ function showVictoryModal(player, onClose, { subtitleKey = "game.victory.sub" } 
   // 勝利の瞬間の「素」の姿を見せたいため常にgetPlayerAvatarの値をそのまま使う）。
   const avatarEl = document.createElement("div");
   avatarEl.className = "victory-modal-avatar";
-  applyAvatarContent(avatarEl, getAvatarVariant(getPlayerAvatar(player), "front"));
+  applyAvatarContent(avatarEl, getAvatarVariant(getPlayerAvatar(player), "front"), { large: true });
 
   const trophy = document.createElement("div");
   trophy.className = "victory-modal-trophy";

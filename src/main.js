@@ -20,6 +20,7 @@ import {
   isMyDeckHandSortEnabled,
 } from "./admin.js";
 import { optionLabel } from "./card-effects.js"; // UI英語化フェーズ11
+import { setThumbSrc } from "./image-thumbs.js"; // #505: 小さく出す絵は小さい版を貼る
 import { logAction, initActionLogPanel, getActionLogText, getActionLogEntries } from "./action-log.js";
 import { initDeckViewer, openDeckViewer } from "./deck-viewer.js";
 import { initStatsPlayerLinkModal } from "./stats-player-link.js";
@@ -19413,9 +19414,9 @@ function updateSelfHandStatus() {
   const selfLockedCount = getLockedCount(getSelfSeat());
   if (selfLockedCount >= 6) selfAvatarSrc = getEnragedVariant(selfAvatarSrc);
   else if (selfLockedCount >= 4) selfAvatarSrc = getAwakenedVariant(selfAvatarSrc);
-  applyAvatarContent(selfStatusLargeAvatarEl, selfAvatarSrc);
+  applyAvatarContent(selfStatusLargeAvatarEl, selfAvatarSrc, { large: true });
   // 背面の半透明アバター（ユーザー要望）にも同じ画像を反映する。
-  if (selfStatusLargeAvatarGhostEl) applyAvatarContent(selfStatusLargeAvatarGhostEl, selfAvatarSrc);
+  if (selfStatusLargeAvatarGhostEl) applyAvatarContent(selfStatusLargeAvatarGhostEl, selfAvatarSrc, { large: true });
   // ハマりどころ: applyAvatarContent()の直後は毎回tooltip要素も一緒に消えている
   // ため（同じ理由でリングも消えていた、buildSelfHandStatusのコメント参照）、
   // ここで都度re-addする必要がある。文言はbuildSelfHandStatus側と揃える。
@@ -19435,9 +19436,11 @@ function updateSelfHandStatus() {
   selfStatusPieceThumbEl.appendChild(inner);
   addSimpleTooltip(selfStatusPieceThumbEl, t("game.self.pieceSkin"));
 
-  selfStatusCardBackThumbEl.querySelector("img").src = cardBackSetImagePath("normal", getCardBackSetIndex());
-  selfStatusPlaymatThumbEl.querySelector("img").src = getSelectedPlaymatPath();
-  selfStatusBackgroundThumbEl.querySelector("img").src = getSelectedBackgroundPath();
+  // 【2026-11-04・#505】この3つは 15x15px でしか出ないのに、原寸のままだと
+  // 6.0 + 4.5 + 0.7 = **11.2MB** 抱えていた（実測）。小さい版へ振り替える。
+  setThumbSrc(selfStatusCardBackThumbEl.querySelector("img"), cardBackSetImagePath("normal", getCardBackSetIndex()));
+  setThumbSrc(selfStatusPlaymatThumbEl.querySelector("img"), getSelectedPlaymatPath());
+  setThumbSrc(selfStatusBackgroundThumbEl.querySelector("img"), getSelectedBackgroundPath());
   if (selfStatusPetThumbEl) {
     // スプライトペット（キュビット等）は画像サムネイル、絵文字ペットは文字で表示する。
     const petOpt = PET_OPTIONS[getSelectedPetIndex()];

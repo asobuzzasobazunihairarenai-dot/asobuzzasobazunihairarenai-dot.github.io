@@ -1,4 +1,5 @@
-import { t } from "./ui-text.js"; // UI英語化フェーズ10
+import { t } from "./ui-text.js";
+import { setThumbSrc } from "./image-thumbs.js"; // UI英語化フェーズ10
 // プレイマットの選択。画像素材/プレイマット/配下に複数色（白・黒＋ゲームの7色テーマ）が
 // 用意されたため、セットアップウィザードの手順0、および左下の自分専用ステータスエリア
 // （main.jsのプレイマットアイコン）から選べるようにする（デフォルトは白）。他の実物画像
@@ -105,7 +106,8 @@ export function openPlaymatPicker() {
     swatch.className = "piece-skin-swatch";
     if (selectedPlaymatId === option.id) swatch.classList.add("is-selected");
     const img = document.createElement("img");
-    img.src = option.path;
+    // 【2026-11-04・#505】一覧は小さく並ぶので小さい版を貼る（原寸21枚で93MBになる）。
+    setThumbSrc(img, option.path);
     img.alt = t(option.labelKey);
     swatch.appendChild(img);
     // ユーザー要望「プレイマットを購入できるようにする」への対応。未所持の有料マットは
