@@ -40,8 +40,26 @@ if (!fs.existsSync(EX0_SRC_ROOT)) {
   process.exit(2);
 }
 
+// 🔴 【2026-11-04】**正方形版があればそちらを使う。**
+//   元の 0th拡張のイラストは横長（1024x512 等）で、squarify-illust.mjs が上半分に置いて
+//   下を空けていた。ユーザーが**カードと同じ正方形に描き直した版**（1254x1254）をくれたので、
+//   そちらが在る時はそれを使う（squarify はそのまま通す＝正方形なら余白を作らない）。
+//   置き場所は素材フォルダ直下の 1 つのフォルダで、**ファイル名はカードのフォルダ名と同じ**。
+//   ⚠ リポジトリには入らない（実物の絵は git 管理外）。
+const 正方形の置き場 = path.join(EX0_SRC_ROOT, "_正方形版");
+function 正方形版を探す(folder) {
+  if (!fs.existsSync(正方形の置き場)) return null;
+  for (const ext of [".png", ".webp", ".jpg", ".jpeg"]) {
+    const p = path.join(正方形の置き場, folder + ext);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 // フォルダ直下の1枚を探す（BN/ の中は没案なので見ない）
 function 絵を探す(folder) {
+  const sq = 正方形版を探す(folder);
+  if (sq) return { p: sq, 正方形: true };
   const dir = path.join(EX0_SRC_ROOT, folder);
   const files = fs.readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isFile() && /\.(jpe?g|png|webp)$/i.test(e.name))
@@ -72,6 +90,7 @@ const 問題 = [];
 for (const c of 対象) {
   const 絵 = 絵を探す(c.folder);
   if (絵.err) { 問題.push(c.id + ": " + 絵.err); continue; }
+  const 印 = 絵.正方形 ? "（正方形版）" : "";
   const blank = path.join(ROOT, "assets/cards-blank", c.id + ".webp");
   const illust = path.join(ROOT, "assets/cards-illust", c.id + ".webp");
   if (DRY) {
@@ -96,7 +115,7 @@ for (const c of 対象) {
       "--edition", EX0_CREDITS.edition,
     ]);
     作った++;
-    process.stdout.write("✅ " + c.id + "（" + c.name + "）\n");
+    process.stdout.write("✅ " + c.id + "（" + c.name + "）" + 印 + "\n");
   } catch (e) {
     問題.push(c.id + ": " + String(e.message || e));
   }

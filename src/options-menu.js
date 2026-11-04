@@ -28,6 +28,7 @@ import { isInteractionToggleVisible, setInteractionToggleVisible } from "./inter
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { isActionConfirmEnabled, setActionConfirmEnabled } from "./action-confirm-prefs.js";
 import { isCellConfirmEnabled, setCellConfirmEnabled } from "./cell-confirm.js";
+import { isAutoPaySingleExtraColorEnabled, setAutoPaySingleExtraColorEnabled } from "./auto-pay-single-cost.js"; // #489
 import { isBoardIllustOnly, setBoardIllustOnly } from "./board-card-display.js";
 import { isFixedHandEnabled, setFixedHandEnabled } from "./fixed-hand.js";
 import { getSoundVolume, setSoundVolume, getBgmVolume, setBgmVolume, supportsVibration, isVibrationEnabled, setVibrationEnabled, DEFAULT_SOUND_VOLUME, DEFAULT_BGM_VOLUME} from "./sound.js";
@@ -1174,6 +1175,12 @@ export function initOptionsMenu() {
                 setCellConfirmEnabled(checked, "options");
               })
             );
+            // 【#489】追色コストの候補が1枚しか無い時に、選ばせずに払う。既定は切。
+            content.appendChild(
+              buildCheckboxRow(t("opt.chk.autoPaySingleCost"), isAutoPaySingleExtraColorEnabled(), (checked) => {
+                setAutoPaySingleExtraColorEnabled(checked);
+              })
+            );
             // ユーザー要望2026-09-03「スマホであれば振動を与えることできる？」。**対応している
             // 端末でだけ**出す（iPhone/iPadのSafariにはVibration APIが無いため）。
             if (supportsVibration()) {
@@ -1189,6 +1196,7 @@ export function initOptionsMenu() {
             onReset: () => {
               setActionConfirmEnabled(true);
               setCellConfirmEnabled(true, "options-reset");
+              setAutoPaySingleExtraColorEnabled(false); // #489: 既定は切
               saveMyPreference({ action_confirm_enabled: true });
               renderContent();
             },

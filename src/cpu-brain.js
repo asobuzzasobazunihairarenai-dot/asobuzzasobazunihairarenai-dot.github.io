@@ -46,7 +46,41 @@ const ARRIVAL_VALUE = {
   "purple-trial-ritual": 1, // 試練の儀式: 連続移動（機動力）
   "red-jump-pad": 1, // ジャンプ台: 大きく移動（機動力）
   "black-contract-brand": 1,
+
+  // 🔴 【#504・2026-11-04】ユーザーの問い「**今オレンジバスに乗るとどうなるかまで予測させて
+  //   点数付けすることはできないの？**」——できる。評価値は**関数でも書ける**ようにした
+  //   （数のままのカードは今までどおり）。
+  //   報告は「CPUが2枚のオレンジバスを行き来する」。原因は**この札が自分で輪を作る**こと:
+  //     到達「『バスストップ』のあるマスに移動する。これをあなたの隣に表向きで置く。
+  //       その『バスストップ』をあなたの手札に加える。」
+  //   ＝乗るたびに**自分の隣へ置き直される**ので、次のターンもまた隣にオレンジバスがある。
+  //   そのうえ色は橙なので「まだ要る色」の+1 が毎回付き、前進より得に見えてしまう。
+  //   ⇒ **表向きのバスストップが場にある時だけ得**（移動＋カード1枚）。無ければ
+  //     「隣へ置き直されるだけ」＝**得が無いのに輪を作る**ので、はっきりマイナスにする。
+  "ex0-orange-bus": () => (hasFaceUpCardOnBoard("ex0-orange-bus-stop") ? 2 : -3),
 };
+
+// 場に**表向きで**置かれているカードがあるか（裏向きは非公開情報なので数えない
+// ＝CPUにだけ見える形にしない）。
+function hasFaceUpCardOnBoard(cardId) {
+  return getState().tokens.some(
+    (t) => t.kind === "card" && t.cardId === cardId && t.faceUp && t.location?.zone === "cell"
+  );
+}
+
+// ARRIVAL_VALUE の引き方。関数なら呼んで数にする（例外が出ても 0 で続ける＝
+// 評価の失敗で CPU が止まらないように）。
+function arrivalValueOf(cardId) {
+  const v = ARRIVAL_VALUE[cardId];
+  if (typeof v === "function") {
+    try {
+      return v() || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  return v ?? 0;
+}
 
 // このマスがどの座席のゲートか（ゲートでなければ null）。GATE_POSITIONS/着地候補はどちらも
 // state 絶対座標（performPriorityTimeoutAutoAction が dataset.row/col をそのまま state
@@ -143,7 +177,7 @@ function scoreMove(c, seat, ctx) {
     // ②③着地カードの評価（表向き、または最強ののぞき見時のみ中身が分かる）。
     const known = c.topCardId && (c.topFaceUp || ctx.peek);
     if (known) {
-      score += ARRIVAL_VALUE[c.topCardId] ?? 0;
+      score += arrivalValueOf(c.topCardId);
       const def = getCardDefinition(c.topCardId);
       if (def && ctx.needed.has(def.color)) score += 1; // まだ要る色
     }

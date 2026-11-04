@@ -959,24 +959,25 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 不思議な果実（桃・4枚） 到達効果: 「あなたの手札が奇数枚なら１枚ドロー。」
-  // ⚠ **手札効果はまだ自動処理にしていない**（「あなたの右隣の相手が、あなたを１マス移動させる」
-  //   ＝委任と『このターンを終了する』が要る）。到達だけ自動で、手札効果は今までどおり
-  //   文を読んで自分で処理する形になる。docs/ex0-effects-plan.md 参照。
+  // 不思議な果実（桃・4枚）
+  //   到達効果: 「あなたの手札が偶数枚なら１枚ドロー。」
+  //   手札効果: 「あなたの隣の２マス以上にカードが置かれている時に使える。
+  //     あなたの右隣の相手が、あなたを１マス移動させる。このフェイズを終了する。」
+  // 🔴 【#494・2026-11-04・ユーザー指定】3か所変わった:
+  //   ①到達が「奇数枚」→「**偶数枚**」 ②手札効果の「１枚ドロー。」が**無くなった**
+  //   ③手札効果の締めが「このターンを終了する。」→「**このフェイズを終了する。**」
+  //   ⓘ 「隣」＝前後左右の4マス（用語集）。「右隣の相手」＝手番順でひとつ前の席
+  //     （座席は A=手前/B=左/C=奥/D=右 で手番は A→B→C→D なので、A の右手側は D）。
   "ex0-pink-mystic-fruit": {
-    // 手札効果: 「あなたの隣の２マス以上にカードが置かれている時に使える。１枚ドロー。
-    //   あなたの右隣の相手が、あなたを１マス移動させる。このターンを終了する。」
-    // ⓘ 「隣」＝前後左右の4マス（用語集）。「右隣の相手」＝時計回りで次の席。
     handEffect: {
       requiresAdjacentCardsAtLeast: 2,
       actions: [
-        { verb: VERBS.DRAW, count: 1 },
         { verb: VERBS.MOVE_SELF_BY_RIGHT_NEIGHBOR, count: 1 },
-        { verb: VERBS.END_TURN },
+        { verb: VERBS.END_CURRENT_PHASE },
       ],
     },
     arrival: {
-      actions: [{ verb: VERBS.DRAW_IF_HAND_ODD, count: 1 }],
+      actions: [{ verb: VERBS.DRAW_IF_HAND_ODD, count: 1, parity: "even" }],
     },
   },
 
@@ -1596,7 +1597,8 @@ function renderAction(action, context) {
     case VERBS.DISCARD_ALL_ADJACENT_CARDS:
       return "あなたの隣のカードをすべて捨てる。";
     case VERBS.DRAW_IF_HAND_ODD:
-      return `あなたの手札が奇数枚なら${count}枚ドロー。`;
+      // 【#494】奇数／偶数はデータの parity で切り替える（既定は奇数＝元の形）。
+      return `あなたの手札が${action.parity === "even" ? "偶数" : "奇数"}枚なら${count}枚ドロー。`;
     case VERBS.PLACE_WHOLE_HAND_AT_CHOSEN_CELL:
       return "場の中央と四隅のマスのうち、プレイヤーのいないマスを１マス選ぶ。あなたの手札をすべて、そのマスの１番上に置く。";
     case VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL:

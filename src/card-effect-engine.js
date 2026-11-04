@@ -1426,16 +1426,44 @@ async function runAction(action, ctx, helpers) {
       // 大地創造「何もない４マスに山札から１枚ずつ裏向きで置く。それらをオープンする。」
       // 迷いの森「カードの置かれていない４マスに山札から１枚ずつ裏向きで置く。」
       // 善処の原則: 空きマスが count より少なければ**あるだけ置く**（置けないぶんは諦める）。
+      // 🔴 【#514・2026-11-04】報告「大地創造で4マス選び終わったタイミングで**これらのマスで
+      //    いいか？の確認が出なかった**」。#481（ジェイクの7マス）でユーザーが指定した流れ
+      //    ①確認なしで N マス選ぶ → ②まとめて1回だけ確認 → ③処理する、をこちらにも入れる。
+      //    ⚠ **置くのは全部選び終わってから**（途中で置くと、まとめて聞く前に盤面が変わる）。
+      //    ⚠ 1マスだけの時は今までどおり（1マスずつの確認が出て、まとめては聞かない）。
+      const 置ける枚数 = Math.min(action.count, getState().piles.deck.length);
+      const まとめ確認 = 置ける枚数 >= 2;
+      let 選んだマス = [];
+      for (;;) {
+        選んだマス = [];
+        const 済 = new Set();
+        for (let i = 0; i < 置ける枚数; i++) {
+          const candidates = getEmptyCellCandidates(!!action.requireNoPiece).filter(
+            (c) => !済.has(c.row + "," + c.col)
+          );
+          if (candidates.length === 0) break;
+          const dest =
+            candidates.length === 1 && !ctx.forcePrompt && !まとめ確認
+              ? candidates[0]
+              : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: action.count }), {
+                  purpose: "place",
+                  // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
+                  skipConfirm: まとめ確認,
+                });
+          if (!dest) break;
+          済.add(dest.row + "," + dest.col);
+          選んだマス.push(dest);
+          if (まとめ確認) helpers.markPlacementTarget?.(dest); // 選んだマスを光らせ続ける
+        }
+        if (選んだマス.length === 0) break;
+        if (!まとめ確認 || 選んだマス.length < 2) break;
+        if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 選んだマス.length)) break;
+        helpers.clearPlacementTargets?.(); // 「いいえ」＝選び直し
+      }
+      if (まとめ確認) helpers.clearPlacementTargets?.();
       const 置いた = [];
-      for (let i = 0; i < action.count; i++) {
+      for (const dest of 選んだマス) {
         if (getState().piles.deck.length === 0) break; // 山札が尽きたらそこまで
-        const candidates = getEmptyCellCandidates(!!action.requireNoPiece);
-        if (candidates.length === 0) break;
-        const dest =
-          candidates.length === 1 && !ctx.forcePrompt
-            ? candidates[0]
-            : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: action.count }), { purpose: "place" });
-        if (!dest) break;
         await helpers.placeFromDeck(dest); // マスへ置くと既定で裏向き（カードの文どおり）。本物の placeFromDeck は引数1つ
         helpers.markPlacedLocation?.(dest);
         置いた.push(dest);
@@ -1485,13 +1513,19 @@ async function runAction(action, ctx, helpers) {
       return true;
     }
     case VERBS.DRAW_IF_HAND_ODD: {
-      // 不思議な果実「あなたの手札が奇数枚なら１枚ドロー。」
+      // 不思議な果実「あなたの手札が**偶数**枚なら１枚ドロー。」（#494 で奇数から変わった）
       // 「手札」は公開ドロー置き場も含む（getHandTokens の定義＝続き55）。
       // ⓘ 到達効果なので、このカード自身はまだ盤面にある（数に入らない）。
+      // ⚠ 動詞の名前は ODD のままにしてある（**公開済みの名前を変えると、保存された
+      //   効果データや過去のログと食い違う**）。どちらを見るかは action.parity で決める。
+      const 偶数が当たり = action.parity === "even";
       const 枚数 = getHandTokens(ctx.player).length;
-      if (枚数 % 2 === 0) {
-        await helpers.announceEffectReason?.(ctx.cardId, t("ce.handEvenNoDraw", { n: 枚数 }));
-        return false; // 偶数なら不発（善処の原則）
+      if ((枚数 % 2 === 0) !== 偶数が当たり) {
+        await helpers.announceEffectReason?.(
+          ctx.cardId,
+          偶数が当たり ? t("ce.handOddNoDraw", { n: 枚数 }) : t("ce.handEvenNoDraw", { n: 枚数 })
+        );
+        return false; // 当たりでなければ不発（善処の原則）
       }
       await helpers.drawCards(ctx.player, action.count ?? 1);
       return true;
@@ -2811,6 +2845,10 @@ async function runAction(action, ctx, helpers) {
       // ⚠ 安全弁。理屈の上では山と盤が尽きるまで続く（試練の儀式と同じ考え方）。
       const MAX = 60;
       let 何かした = false;
+      // 【#490・2026-11-04】ユーザー要望「試練の儀式とギャンブルは終わったときにコングラッチ的な
+      //   演出が入ります。鑑定士とジェイクにも入れませんか？今後同様の効果には同じように入れよう！」
+      //   ⇒ **当たった時だけ**出す（外した時は何も出さない。外れを強調しても気分が悪いだけ）。
+      let 当たった回数 = 0;
       for (let i = 0; i < MAX; i++) {
         const cells = getCellsWithFaceDownCardWithoutPiece();
         if (cells.length === 0) break; // 善処の原則
@@ -2832,6 +2870,14 @@ async function runAction(action, ctx, helpers) {
         const 当たり = cardId === "rainbow-shard" || colors.includes(color);
         await helpers.announceColorsResolved?.({ hit: 当たり, color: cardId === "rainbow-shard" ? "rainbow" : color ?? null });
         if (!当たり) break;
+        当たった回数++;
+      }
+      if (当たった回数 > 0 && helpers.celebrate) {
+        await helpers.celebrate(ctx.cardId, {
+          tone: "success",
+          headline: t("ce.ex0GuessHitN", { n: 当たった回数 }),
+          sub: t("ce.ex0GuessSub", { name: helpers.getPlayerName?.(ctx.player) ?? "" }),
+        });
       }
       return 何かした;
     }
@@ -2869,6 +2915,15 @@ async function runAction(action, ctx, helpers) {
           if (!tk) continue;
           await helpers.moveAndSync(id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
           helpers.onCardAcquiredToHand?.(id, tk.cardId, true, ctx.player);
+        }
+        // 【#490】最後まで当て続けた＝この札のいちばんの見せ場。ギャンブル・試練の儀式と同じ
+        //   お祝いの演出を出す。⚠ 途中で外した時は何も出さない。
+        if (helpers.celebrate) {
+          await helpers.celebrate(ctx.cardId, {
+            tone: "success",
+            headline: t("ce.ex0GuessHitN", { n: 開けた.length }),
+            sub: t("ce.ex0GuessSub", { name: helpers.getPlayerName?.(ctx.player) ?? "" }),
+          });
         }
       }
       return 開けた.length > 0;
@@ -4136,6 +4191,10 @@ async function runHandEffectOption(ctx, option, helpers) {
     直前が成功 = await runActionSafely(action, runCtx, helpers);
     if (!直前が成功) ここまで全部成功 = false;
   }
+  // 【#515】駒が動いた先のカードを開けて到達させる（到達効果の側と同じ道を通す）。
+  // ⚠ ここを忘れると「手札効果で動かされた時だけオープンしない」という、
+  //   いちばん分かりにくい形で出る（報告そのもの）。
+  if (runCtx.arrivedAt) await helpers.handleArrivalDestination?.(runCtx.arrivedAt);
   recordHandEffectUsage(ctx.cardId, ctx.player);
   return true;
 }

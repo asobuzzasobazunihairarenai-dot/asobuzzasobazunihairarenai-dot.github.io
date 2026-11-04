@@ -21,6 +21,7 @@ import {
 } from "./admin.js";
 import { optionLabel } from "./card-effects.js"; // UI英語化フェーズ11
 import { setThumbSrc } from "./image-thumbs.js"; // #505: 小さく出す絵は小さい版を貼る
+import { isAutoPaySingleExtraColorEnabled } from "./auto-pay-single-cost.js"; // #489
 import { logAction, initActionLogPanel, getActionLogText, getActionLogEntries } from "./action-log.js";
 import { initDeckViewer, openDeckViewer } from "./deck-viewer.js";
 import { initStatsPlayerLinkModal } from "./stats-player-link.js";
@@ -8354,6 +8355,19 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
 // ゾーン）にある分も選択候補に含める（続き55、card-effect-engine.jsのgetHandTokens()と
 // 同じ定義。ヴァーディアンの効果で公開ドローされた2枚が選べる罠の「手札を半分捨てる」で
 // 選べなかった不具合の対応）。
+// 【#489・2026-11-04】追色コストの札を選ばせる口。**候補が1枚しか無い時だけ**、
+// 基本設定「追色コストが1枚なら自動で払う」が入っていれば聞かずに返す。
+// 🔴 既定は切（今までどおり1枚でも選ばせる）＝以前ユーザーが明示的に出した要望を守る。
+// ⚠ 2枚以上ある時は**必ず聞く**（どれを手放すかは意思の要る判断）。
+function pickDiscardCostForEffect(player, candidates, hint, idOf) {
+  const list = Array.isArray(candidates) ? candidates : [];
+  if (list.length === 1 && isAutoPaySingleExtraColorEnabled()) {
+    logAction("diag-auto-pay-single-cost", { player, cardId: list[0]?.cardId ?? null });
+    return Promise.resolve(list[0]);
+  }
+  return requestHandCardChoiceForEffect(player, hint, new Set(list.map(idOf)));
+}
+
 async function requestHandCardChoiceForEffect(...args) {
   await cameraHomeForPicking();
   return requestHandCardChoiceForEffect__inner(...args);
@@ -9051,6 +9065,12 @@ export function isAnyEffectProcessingBusy() {
 // 使用宣言だけは引き続き既存のhand_effect_use経路で届いているため、この新しい
 // broadcastには乗せていない。
 let anytimeInterruptOptedOut = false;
+// 「今後この割り込みモーダルを出さない」を立てる唯一の口。立てたら必ず
+// 画面の「割り込みを再開」ボタンを出し直す（戻す道が見えないまま消えるのを防ぐ）。
+function setAnytimeInterruptOptedOut(v) {
+  anytimeInterruptOptedOut = !!v;
+  updateResumeAnytimeInterruptButton();
+}
 let anytimeInterruptQueue = []; // ローカル対戦で複数プレイヤー分を順番に見せるための待ち行列
 let anytimeInterruptModalEl = null;
 let anytimeInterruptTimer = null;
@@ -9230,15 +9250,32 @@ function showAnytimeInterruptModal(player, tokens) {
   }
   modal.appendChild(list);
 
+  // 🔴 【#509・2026-11-04】報告「やり直しの鍵の割り込みモーダルに**使わないボタンもいるかも**！」。
+  //    これまでは**何も押さずに閉じる（または待つ）しか無かった**ので、「決めた」という
+  //    手応えが無く、しかも #491・#500 でロック宣言が**この窓が閉じるのを待つ**ようになった後は
+  //    「待ちたくないのに待たされている」ように見える。⇒ はっきり閉じる口を置く。
+  //    ⚠ 押した時は「この席は割り込まない」だけ＝**行列の残り（他の席）は打ち切らない**
+  //      （使った時だけ打ち切るのが元の決まり。使わないなら状況は変わっていない）。
+  const skipRow = document.createElement("div");
+  skipRow.id = "anytime-interrupt-modal-skip-row";
+  const skipBtn = document.createElement("button");
+  skipBtn.type = "button";
+  skipBtn.id = "anytime-interrupt-modal-skip";
+  skipBtn.textContent = t("game.anytime.skip");
+  skipBtn.addEventListener("click", () => {
+    logAction("diag-anytime-skip", { player });
+    closeAnytimeInterruptModal();
+    advanceAnytimeInterruptQueue();
+  });
+  skipRow.appendChild(skipBtn);
+  modal.appendChild(skipRow);
+
   const optOutRow = document.createElement("label");
   optOutRow.id = "anytime-interrupt-modal-optout";
   const optOutCheckbox = document.createElement("input");
   optOutCheckbox.type = "checkbox";
   optOutCheckbox.addEventListener("change", () => {
-    if (optOutCheckbox.checked) {
-      anytimeInterruptOptedOut = true;
-      updateResumeAnytimeInterruptButton();
-    }
+    if (optOutCheckbox.checked) setAnytimeInterruptOptedOut(true);
   });
   const optOutLabel = document.createElement("span");
   optOutLabel.textContent = t("game.anytime.never");
@@ -9422,7 +9459,7 @@ function confirmTouchAction(title, { cardId = null } = {}) {
 // confirmTouchActionと同じcontact-approval-*流用の汎用Yes/Noモーダルだが、こちらは
 // 誤操作防止用ではなく本当の任意選択（「〜してもよい」効果）向けのため、端末に関係なく
 // 常に表示する（続き89、カウンターロックの「あなたの手札を1枚ロックしてもよい」用に新設）。
-function confirmGenericYesNo(title, { yesLabel = t("game.confirm.yesPlain"), noLabel = t("game.confirm.noPlain"), owner = null, cardId = null, cpuAutoResolveId = null } = {}) {
+function confirmGenericYesNo(title, { yesLabel = t("game.confirm.yesPlain"), noLabel = t("game.confirm.noPlain"), owner = null, cardId = null, cpuAutoResolveId = null, optOut = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
     let blockerCheckTimer = null;
@@ -9477,7 +9514,26 @@ function confirmGenericYesNo(title, { yesLabel = t("game.confirm.yesPlain"), noL
     buttons.appendChild(yesBtn);
     buttons.appendChild(noBtn);
     modal.appendChild(buttons);
-
+    // 🔴 【#495・2026-11-04・ユーザー判断「割り込み系のモーダルには『今後表示しない』は
+    //    標準装備でいいと思う！再開ボタンもセットでね！」】
+    //    ふだんの割り込み（triggerAnytimeInterruptCheckpoint）の窓と**同じ設定**を使う
+    //    （別の設定にすると「切ったのにこっちだけ出る」になる）。入れた瞬間に
+    //    画面右下の「割り込みを再開」ボタンが出るので、戻す道は必ず見えている。
+    if (optOut) {
+      const optOutRow = document.createElement("label");
+      optOutRow.id = "generic-confirm-optout";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.addEventListener("change", () => {
+        if (!box.checked) return;
+        setAnytimeInterruptOptedOut(true);
+      });
+      const label = document.createElement("span");
+      label.textContent = t("game.anytime.never");
+      optOutRow.appendChild(box);
+      optOutRow.appendChild(label);
+      modal.appendChild(optOutRow);
+    }
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
     // 診断＋自己防衛（ユーザー報告2026-08-16「カウンターロックの『ロックしますか？』でボタンも
@@ -9712,7 +9768,7 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         // 【#315】まとめて捨てた分は1つのお知らせにまとめて見せる（ザ・ギャンブル等）。
         announceCardsDiscarded: (p, ids) => announceCardsDiscarded(p, ids, currentEffectReasonLabel()),
         drawCards: drawCardsForEffect,
-        pickDiscardCost: (candidates, hint) => requestHandCardChoiceForEffect(player, hint, new Set(candidates.map((t) => t.id))),
+        pickDiscardCost: (candidates, hint) => pickDiscardCostForEffect(player, candidates, hint, (t) => t.id),
         moveAndSync: moveAndSyncForEffect,
         recordMoveVisited,
         isLoopMoveDest,
@@ -9772,6 +9828,8 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         // なないろの巨光・スラム上がりの役人・ザ・ギャンブルの「このフェイズを
         // 終了する。」用。
         endCurrentPhase: forceEndCurrentPhase,
+        // 【#515】手札効果で駒が動いた時に、移動先のカードを開けて到達させる。
+        handleArrivalDestination: handleEffectArrivalDestination,
         // 0th拡張（ジョイナー等）の「このターンを終了する。」。endCurrentPhase とは別物。
         endTurn: endTurnForEffect,
         // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。
@@ -9988,7 +10046,7 @@ async function runAutoArrivalEffect(cardId, location, player) {
       // 0th拡張（紅の鉄拳）の「その相手に接触する」。ふだんのドラッグでの接触と同じ入口
       // （宣言→相手の承認→奪う→ゲートへ強制移動）をそのまま使う。
       initiateContact: submitContactProposal,
-      pickDiscardCost: (candidates, hint) => requestHandCardChoiceForEffect(player, hint, new Set(candidates.map((tk) => tk.id))),
+      pickDiscardCost: (candidates, hint) => pickDiscardCostForEffect(player, candidates, hint, (tk) => tk.id),
     }
   );
   clearEffectUiHighlights();
@@ -9999,6 +10057,17 @@ async function runAutoArrivalEffect(cardId, location, player) {
   // 「移動先のカードが裏向きなら自動でオープンするようにしたい」への対応で、通常の
   // 「オープンする/しない」を尋ねるプロンプトは出さず、自動処理の連鎖中はここで
   // そのままオープンしてから続ける。
+  await handleEffectArrivalDestination(arrivedAt);
+}
+
+// 🔴 【#515・2026-11-04】効果で駒が動いた先のカードを開けて到達させる処理。
+//    もともと runAutoArrivalEffect の末尾に**べた書き**されていて、**到達効果からしか
+//    通らなかった**。報告「不思議な果実の効果で移動させられた時オープンしなかった」の原因が
+//    これ——あの札の移動は**手札効果**なので、engine が立てた ctx.arrivedAt を
+//    runHandEffectOption が**捨てていた**（return true しかしていない）。
+//    ⇒ 関数に切り出して、手札効果の側からも同じ道を通す（helpers.handleArrivalDestination）。
+//    ⚠ 2か所に同じ処理を書かない（書くと必ず片方だけ直される）。
+async function handleEffectArrivalDestination(arrivedAt) {
   if (arrivedAt) {
     const nextCard = findTopCardAt(arrivedAt);
     if (nextCard) {
@@ -10288,7 +10357,14 @@ async function offerArrivalCancelInterrupt(cardId, location, arrivedPlayer) {
     const 相手がリーチ = 相手の到達 && getLockedCount(arrivedPlayer) === 6;
     const 使う = await confirmGenericYesNo(
       t("ce.ex0AskArrivalCancel", { card: cardDisplayName(cardId) }),
-      { owner: p, cardId: "ex0-yellow-reach-cancel", cpuAutoResolveId: 相手がリーチ ? "yes" : "no" }
+      {
+        owner: p,
+        cardId: "ex0-yellow-reach-cancel",
+        cpuAutoResolveId: 相手がリーチ ? "yes" : "no",
+        // 【#495】これも割り込みの窓なので「今後表示しない」を出す。
+        // ⚠ CPU が答える番は画面を出さない（isCpuSelectingNow）ので、この行は人間の時だけ見える。
+        optOut: true,
+      }
     );
     if (!使う) continue;
     // 手札効果の既定どおり、使ったリーチキャンセル自身を先に捨てる。

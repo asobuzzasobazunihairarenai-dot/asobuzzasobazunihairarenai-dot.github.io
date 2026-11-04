@@ -17483,6 +17483,21 @@ body.theme-light-ingame #ranked-result-modal .ranked-result-promote-line {
 .anytime-interrupt-modal-row-use:hover {
   background: rgba(34, 172, 56, 1);
 }
+#generic-confirm-optout,
+#anytime-interrupt-modal-skip-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+#anytime-interrupt-modal-skip {
+  padding: 0.3rem 1.1rem;
+  font-size: 0.8rem;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(148, 163, 184, 0.16);
+  color: inherit;
+  cursor: pointer;
+}
 #anytime-interrupt-modal-optout {
   display: flex;
   align-items: center;
@@ -21762,6 +21777,7 @@ body.theme-light .mdb-tut-progress,
 body.theme-light .mdb-tut-skip,
 body.theme-light .mdb-tut-title,
 body.theme-light .afk-cpu-tag,
+body.theme-light #generic-confirm-optout,
 body.theme-light #anytime-interrupt-modal-optout,
 body.theme-light #anytime-interrupt-resume-button,
 body.theme-light .bug-report-intro-desc,

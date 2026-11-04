@@ -1836,7 +1836,7 @@ export const CASES = [
 
   // --- 不思議な果実（桃・4枚。到達効果だけ自動処理） --------------------------------
   {
-    name: "不思議な果実(到達): 手札が奇数枚なら1枚ドロー",
+    name: "不思議な果実(到達): 手札が偶数枚ならドローしない（#494 で偶数が当たりに変わった）",
     kind: "arrival",
     cardId: "ex0-pink-mystic-fruit",
     state: {
@@ -1851,12 +1851,12 @@ export const CASES = [
     ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
     picks: {},
     expect: [
-      { kind: "deckLen", n: 1 },                // 1枚ドローした
-      { kind: "handCount", player: "A", n: 3 }, // 元の1枚＋引いた1枚＋自分自身
+      { kind: "deckLen", n: 2 },                // 手札1枚＝奇数なのでドローしない
+      { kind: "handCount", player: "A", n: 2 }, // 元の1枚＋自分自身
     ],
   },
   {
-    name: "不思議な果実(到達): 手札が偶数枚ならドローしない",
+    name: "不思議な果実(到達): 手札が偶数枚なら1枚ドロー（#494）",
     kind: "arrival",
     cardId: "ex0-pink-mystic-fruit",
     state: {
@@ -1872,8 +1872,8 @@ export const CASES = [
     ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
     picks: {},
     expect: [
-      { kind: "deckLen", n: 2 },                // ドローしていない
-      { kind: "handCount", player: "A", n: 3 }, // 元の2枚＋自分自身
+      { kind: "deckLen", n: 1 },                // 手札2枚＝偶数なので1枚ドロー
+      { kind: "handCount", player: "A", n: 4 }, // 元の2枚＋引いた1枚＋自分自身
     ],
   },
 
@@ -2875,7 +2875,7 @@ export const CASES = [
     ],
   },
   {
-    name: "不思議な果実(手札): 隣が2マスなら使える。右隣の相手が動かす先を決め、ターンを終了する",
+    name: "不思議な果実(手札): 隣が2マスなら使える。右隣の相手が動かす先を決め、フェイズを終了する（#494）",
     kind: "hand",
     state: {
       activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
@@ -2891,11 +2891,11 @@ export const CASES = [
     ctx: { player: "A", cardId: "ex0-pink-mystic-fruit", cardTokenId: "self" },
     picks: { delegate: [{ row: 2, col: 3 }] },
     expect: [
-      { kind: "deckLen", n: 1 },                                   // 1枚ドロー
+      { kind: "deckLen", n: 2 },                                   // #494: ドローは無くなった
       { kind: "called", name: "delegateToPlayer", arg: "choose-cell" },
       { kind: "called", name: "delegateToPlayer", arg: "B" },      // Aの右隣（2人なら相手）
       { kind: "pieceAt", player: "A", row: 2, col: 3 },
-      { kind: "called", name: "endTurn", arg: "A" },
+      { kind: "called", name: "endCurrentPhase" },
     ],
   },
   // 誰かの白きカゲ（到達）。「これを捨てる。このマスから十字方向の計１２マスに山札から

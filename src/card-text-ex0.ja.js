@@ -19,7 +19,7 @@ export const CARD_TEXT_EX0_JA = {
   "ex0-yellow-gate-charge": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "１枚ドロー。このターンにこれがオープンされたのなら、これをあなたのゲートに表向きで置く。そうでないなら、移動前のマスに強制移動し、これを捨てる。ただし相手のゲートへは移動できない。", hand: "これをあなたのゲートに表向きで置く。" },
   "ex0-green-creation": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "何もない４マスに山札から１枚ずつ裏向きで置く。それらをオープンする。", hand: "上記の到達効果を得る。" },
   "ex0-blue-strict-watch": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・あなたの手札が１枚になるように捨てる。\n・あなたのゲートに強制移動する。移動先のカードはオープンしない。", hand: "これをプレイヤーのいないマスに表向きで置く。" },
-  "ex0-pink-mystic-fruit": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "あなたの手札が奇数枚なら１枚ドロー。", hand: "あなたの隣の２マス以上にカードが置かれている時に使える。１枚ドロー。あなたの右隣の相手が、あなたを１マス移動させる。このターンを終了する。" },
+  "ex0-pink-mystic-fruit": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "あなたの手札が偶数枚なら１枚ドロー。", hand: "あなたの隣の２マス以上にカードが置かれている時に使える。あなたの右隣の相手が、あなたを１マス移動させる。このフェイズを終了する。" },
   "ex0-purple-redo-key": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。", hand: "相手がロックを宣言した時に使える。その相手はこのターンにロックできない。" },
   "ex0-flute-red": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・これと同色の、場の表向きのカード１枚をあなたの手札に加える。\n・任意の１マスのカードをオープンする。", hand: "上記の到達効果を得る。" },
   "ex0-flute-orange": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・これと同色の、場の表向きのカード１枚をあなたの手札に加える。\n・任意の１マスのカードをオープンする。", hand: "上記の到達効果を得る。" },
