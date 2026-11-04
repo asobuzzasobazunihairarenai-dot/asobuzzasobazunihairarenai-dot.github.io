@@ -291,6 +291,14 @@ const SOUND_DEFS = {
   victoryPulse: { path: "assets/sounds/victory-pulse.mp3", cssVar: "--sound-volume-victory-pulse" },
   victoryBurst: { path: "assets/sounds/victory-burst.mp3", cssVar: "--sound-volume-victory-burst" },
   victoryTitle: { path: "assets/sounds/victory-title.mp3", cssVar: "--sound-volume-victory-title" },
+  // 【#440・2026-11-03】ゲート侵攻成功。ユーザー報告「ゲート侵攻成功した時がなんか静か」。
+  //   それまでこの場面には音を鳴らすコードが1行も無かった（続き637 で調査済み）。
+  //   ⚠ 音源は ElevenLabs で4候補作り、**数字で選んだ**（私は音を聴けない）。採ったのは
+  //     芯（500Hz〜4kHz）が低音（<300Hz）より +16.6dB と最も中音寄りのもの。iPhone 本体の
+  //     スピーカーは300Hz以下がほとんど出ないので、ここが聞こえるかどうかを決める
+  //     （続き641 の S5＝脈動が「低音に全振りでスマホでほぼ聞こえない」になった失敗の対策）。
+  //     -15 LUFS / 真のピーク -3 dBFS に整えてある（2.20秒）。
+  gateInvasion: { path: "assets/sounds/gate-invasion.mp3", cssVar: "--sound-volume-gate-invasion" },
 };
 
 // オープニングBGM（ユーザー提供、音声/BGM/オープニング.mp3）。効果音(playSound)と違い

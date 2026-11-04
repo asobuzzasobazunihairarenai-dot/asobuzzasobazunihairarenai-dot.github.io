@@ -246,6 +246,10 @@ export async function runOneCase(spec) {
     },
     declareColors: async () => { const r = nextPick("colors"); callLog.push(["declareColors", r]); return r; },
     gambleReveal: async () => { const r = nextPick("gamble"); callLog.push(["gambleReveal", r]); return r; },
+    // 【#502】足下の隠し財産が「１番下へ沈める前に全員へ見せる」のを記録する。
+    // ⚠ 本物（main.js）が両側の helpers に持っているものは、ここにも同じ名前で置く
+    //   （スタブが本物より貧しいと検査にならず、豊かだと本番だけ落ちる＝続き657 の教訓）。
+    revealCardToAll: async (cardId) => { callLog.push(["revealCardToAll", cardId]); },
     delegateToPlayer: async (p, taskType, taskArg) => {
       callLog.push(["delegateToPlayer", p, taskType]);
       if (taskArg !== undefined) callLog.push(["delegateToPlayerArg", JSON.stringify(taskArg)]);

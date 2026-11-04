@@ -261,6 +261,48 @@ function openMatchChoiceModal() {
 
   panel.appendChild(options);
 
+  // 🔴 【#437・2026-11-03】ユーザー要望「このモーダルではまずCPUかフレンドリーかの2択だけで
+  //   いい気がします！CPUを選んだ後に細かい設定のがいいかも！」＋「CPU戦の方は『詳細を
+  //   設定する。』的なボタンを設けて、それを押さなければおすすめ設定でスタート」。
+  //   ⇒ 強さ・人数・ルール・カードセットは**畳んで**おき、押した時だけ開く。
+  //   ⓘ **おすすめ設定＝そのまま保存されている既定値**（CPU人数2＝あなた＋CPU1体／
+  //     強さ『普通』＝intermediate／ルールは全部切）なので、何も触らなければそれで始まる。
+  //   ⚠ **設定を変えた人の選択は捨てない。** 一度いじった人は次もその設定で始まるので、
+  //     既定と違う時だけ**畳んだ状態でも分かるように1行で出す**（黙って別の設定で
+  //     始まるのがいちばん困る）。
+  const details = document.createElement("div");
+  details.className = "home-match-choice-details";
+  details.hidden = true;
+  const detailsToggle = document.createElement("button");
+  detailsToggle.type = "button";
+  detailsToggle.className = "home-match-choice-details-toggle";
+  const detailsNote = document.createElement("div");
+  detailsNote.className = "home-match-choice-difficulty-hint";
+  // いまの設定が『おすすめ』のままかどうか。おすすめ＝人数2・強さ普通・ルール全部切。
+  const isRecommended = () =>
+    getCpuPlayerCount() === 2 &&
+    getCpuDifficulty() === "intermediate" &&
+    !isCpuBlackWhiteEnabled() &&
+    !isCpuBoostEnabled() &&
+    !isCpuMyDeckEnabled() &&
+    !isCpuSelfTimerEnabled();
+  const refreshDetailsToggle = () => {
+    detailsToggle.textContent = details.hidden
+      ? t("home.matchChoice.detailsOpen")
+      : t("home.matchChoice.detailsClose");
+    detailsToggle.setAttribute("aria-expanded", details.hidden ? "false" : "true");
+    // 畳んでいる間だけ、既定と違う設定になっていることを知らせる。
+    const 出す = details.hidden && !isRecommended();
+    detailsNote.hidden = !出す;
+    detailsNote.textContent = 出す ? t("home.matchChoice.detailsChanged") : "";
+  };
+  detailsToggle.addEventListener("click", () => {
+    details.hidden = !details.hidden;
+    refreshDetailsToggle();
+  });
+  panel.appendChild(detailsToggle);
+  panel.appendChild(detailsNote);
+
   // CPU戦用の「CPUの強さ」選択（ユーザー要望2026-08-09）。ここで選ぶと即 setCpuDifficulty で
   // 端末に保存され、上の「CPU戦（1人用）」を押した時にその強さで始まる。フレンドリーマッチには
   // 影響しない（CPU戦専用の設定）。基本設定のセグメント（options-menu.js buildCpuDifficultyRow）
@@ -302,7 +344,7 @@ function openMatchChoiceModal() {
   diffHint.textContent = t("home.matchChoice.difficultyHint");
   diff.appendChild(diffHint);
   refreshSeg();
-  panel.appendChild(diff);
+  details.appendChild(diff);
 
   // CPU戦の人数選択（2〜4人。続き226）。あなた＋残りがCPU（2人=あなた+CPU1体、3人=+2体、4人=+3体）。
   const cnt = document.createElement("div");
@@ -341,7 +383,7 @@ function openMatchChoiceModal() {
   cntHint.textContent = t("home.matchChoice.countHint");
   cnt.appendChild(cntHint);
   refreshCnt();
-  panel.appendChild(cnt);
+  details.appendChild(cnt);
 
   // CPU戦の対戦ルール（ユーザー要望2026-09-09「CPU戦でも 白黒あり／タイマーあり（実質自分だけ）／
   // ブーストあり／マイデッキあり を選べるようにしたい」）。オンラインの部屋で選べるものと同じ4つ。
@@ -381,7 +423,7 @@ function openMatchChoiceModal() {
   rulesHint.className = "home-match-choice-difficulty-hint";
   rulesHint.textContent = t("home.matchChoice.rulesHint");
   rules.appendChild(rulesHint);
-  panel.appendChild(rules);
+  details.appendChild(rules);
 
   // 🔴 管理者だけに出す「テストモード」。0th拡張（0th EDITION 拡張）の33種で遊ぶための入口。
   //   遊んでいる人には**この区画自体が存在しない**（既定はリメイクの33種のまま）。
@@ -425,7 +467,7 @@ function openMatchChoiceModal() {
     setHint.textContent = t("home.matchChoice.cardSetHint");
     setBox.appendChild(setHint);
     refreshSet();
-    panel.appendChild(setBox);
+    details.appendChild(setBox);
   }
 
   const cancel = document.createElement("button");
@@ -433,6 +475,8 @@ function openMatchChoiceModal() {
   cancel.className = "home-match-choice-cancel";
   cancel.textContent = t("common.back");
   cancel.addEventListener("click", closeMatchChoiceModal);
+  panel.appendChild(details);
+  refreshDetailsToggle(); // 文言と「設定を変えています」の1行を、開く前に一度そろえる
   panel.appendChild(cancel);
 
   // 背景クリックでも閉じる（パネル内クリックは伝播させない）。

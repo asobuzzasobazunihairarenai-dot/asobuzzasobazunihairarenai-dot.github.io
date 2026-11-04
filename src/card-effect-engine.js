@@ -3053,7 +3053,14 @@ async function runAction(action, ctx, helpers) {
         }
         if (!置いた) return i > 0;
         if (!置いた.faceUp) await helpers.flipCard?.(置いた.id);
-        await helpers.announceEffectNotice?.(ctx.cardId, t("ce.ex0RevealedToBottom", { name: cardDisplayName(置いた.cardId) }));
+        // 🔴 【#502・2026-11-04】ユーザー報告「隠し財産について、『表向きで置く』ので、その
+        //   カードは公開情報です。なので一度全プレイヤーに見せてからおきましょう」。
+        //   **そのとおり**——１番下へ沈めると上の札に隠れて誰にも見えなくなるので、
+        //   お知らせの文（名前だけ）では「見せた」ことにならない。
+        //   ⇒ 沈める**前に**、中央に出して全員へ1回見せる（revealCardToAll は配信する）。
+        //   ⓘ 文のお知らせはやめた——見せる演出に名前も出るので、同じことを2回出すと
+        //     モーダルが続いて煩わしい（#463・#449 でまとめた話と同じ）。
+        await helpers.revealCardToAll?.(置いた.cardId);
         await sinkCardToBottomOfCell(置いた.id, cell, helpers);
       }
       return true;
@@ -3929,9 +3936,17 @@ export async function runArrivalEffect(ctx, helpers) {
   //   **元いたマスの隣に置いてしまう**（実際にテストで出た）。そういう句にだけ
   //   データ側で stopIfPreviousFailed を立てる。
   let 直前が成功 = true;
+  // 🔴 【#492・2026-11-04】**「直前」ではなく「ここまで全部」に掛けたい句もある。**
+  //   オレンジバスの到達は「『バスストップ』のあるマスに移動する。これをあなたの隣に表向きで
+  //   置く。**その**「バスストップ」をあなたの手札に加える。」の3句。3句目の「その」は
+  //   1句目で移った先の札を指すので、**移動できていなければ行わない**のが正しいが、
+  //   2句目（置く）は成功するので `stopIfPreviousFailed` では止まらない。
+  let ここまで全部成功 = true;
   for (const action of effectDef.actions) {
     if (action.stopIfPreviousFailed && !直前が成功) break;
+    if (action.stopIfAnyPreviousFailed && !ここまで全部成功) break;
     直前が成功 = await runActionSafely(action, runCtx, wrappedHelpers);
+    if (!直前が成功) ここまで全部成功 = false;
     if (直前が成功) hadEffect = true;
   }
   // ユーザー要望「効果が不発だった場合（例: マスチェンジで３マス以内に相手がいない等）
@@ -4114,9 +4129,12 @@ async function runHandEffectOption(ctx, option, helpers) {
   };
   // 到達効果側と同じ「前の句が不発なら続けない」（上の runArrivalEffect のコメント参照）。
   let 直前が成功 = true;
+  let ここまで全部成功 = true; // 【#492】「ここまで全部」に掛ける句のため（到達側と同じ）
   for (const action of option.actions) {
     if (action.stopIfPreviousFailed && !直前が成功) break;
+    if (action.stopIfAnyPreviousFailed && !ここまで全部成功) break;
     直前が成功 = await runActionSafely(action, runCtx, helpers);
+    if (!直前が成功) ここまで全部成功 = false;
   }
   recordHandEffectUsage(ctx.cardId, ctx.player);
   return true;

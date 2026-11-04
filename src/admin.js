@@ -469,6 +469,8 @@ const GROUPS = [
       { key: "--sound-volume-victory-pulse", label: "勝利: キューブの脈動（×3）", unit: "%", min: 0, max: 100, step: 5, default: 60 },
       { key: "--sound-volume-victory-burst", label: "勝利: 白く弾ける（山場）", unit: "%", min: 0, max: 100, step: 5, default: 100 },
       { key: "--sound-volume-victory-title", label: "勝利: あなたの勝ち", unit: "%", min: 0, max: 100, step: 5, default: 45 },
+      // 【#440・2026-11-03】ゲート侵攻成功（既定値の根拠は style.css の同名の変数のコメント）。
+      { key: "--sound-volume-gate-invasion", label: "ゲート侵攻成功", unit: "%", min: 0, max: 100, step: 5, default: 85 },
       // ユーザー要望「『勝利時.mp3』をBGMフォルダへ移した。音量調整ではBGMとして
       // 扱ってほしい」への対応で、専用のCSS変数（-bgm接尾辞、オープニングBGMと
       // 同じ命名規則）に切り替えた（sound.jsのplayVictoryBgm参照）。
@@ -2271,6 +2273,11 @@ const TOGGLE_SECTIONS = [
         { key: "warpZoom", label: "ディメンション移動：寄り", min: 1, max: 3, step: 0.05 },
         { key: "warpYaw", label: "ディメンション移動：左右に振る", min: -30, max: 30, step: 1 },
         { key: "warpTilt", label: "ディメンション移動：傾きを足す", min: -15, max: 25, step: 1 },
+        // 【#499】効果でのオープン。既定値は cinematic-camera.js の CINEMATIC_TUNING_DEFAULT と
+        //   必ず同じ値にする（片方だけ直すと「戻す」で既定と違う値に戻る＝続き608・627 の事故）。
+        { key: "openZoom", label: "カードのオープン：寄り", min: 1, max: 3.5, step: 0.05 },
+        { key: "openYaw", label: "カードのオープン：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "openTilt", label: "カードのオープン：傾きを足す", min: -15, max: 25, step: 1 },
       ];
       const inputs = new Map();
       const showValues = async () => {

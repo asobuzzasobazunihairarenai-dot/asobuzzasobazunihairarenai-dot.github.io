@@ -24,6 +24,7 @@ import {
   getDeckById,
   saveDeck,
   FIRST_COLORS,
+  NOIR_FIRST_COLOR,
   MIN_DECK_SIZE,
   SPECIAL_TAX_RATIO,
 } from "./my-deck.js";
@@ -526,7 +527,7 @@ function buildSettingsRow() {
     refreshSettingsRow();
   });
   chips.appendChild(rnd);
-  for (const color of FIRST_COLORS) {
+  const makeFirstChip = (color) => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "mdb-first-pick mdb-first-card";
@@ -538,11 +539,27 @@ function buildSettingsRow() {
     chip.appendChild(img);
     chip.addEventListener("click", () => {
       currentDeck.firstColor = color;
+      // 黒の駒はスキンの番号違いが無いので0に固定（noir-1.webp 等は存在せず404になる）。
+      if (color === NOIR_FIRST_COLOR) currentDeck.pieceSkinIndex = 0;
       refreshSettingsRow();
     });
     attachHoverPreview(chip, `first-${color}`); // ホバーで拡大プレビュー
-    chips.appendChild(chip);
-  }
+    return chip;
+  };
+  for (const color of FIRST_COLORS) chips.appendChild(makeFirstChip(color));
+  // 🔴 【2026-11-03・ユーザー要望】**管理者だけ**「黒のキューブ ノワール＋黒の駒」も選べる。
+  //   ⚠ online.js を**静的 import しない**——このファイルの冒頭のコメントのとおり、
+  //     循環 import で TDZ（起動時ブラックスクリーン）になった前例があるため。
+  //     起動時には既に読み込み済みなので、動的 import でも実際の待ちはほぼ無い。
+  //   ⚠ 管理者でなければ**チップそのものを出さない**（押せないボタンを見せない）。
+  import("./online.js")
+    .then(({ isAdminUser }) => {
+      if (!isAdminUser()) return;
+      if (!chips.isConnected) return; // 画面が閉じた後に届いたら何もしない
+      chips.appendChild(makeFirstChip(NOIR_FIRST_COLOR));
+      refreshSettingsRow(); // 既に黒が選ばれているデッキなら、その選択を反映する
+    })
+    .catch(() => {});
   colorSetting.appendChild(chips);
   wrap.appendChild(colorSetting);
 
@@ -553,10 +570,13 @@ function buildSettingsRow() {
   pieceBtn.addEventListener("click", async () => {
     const { openPieceSkinPicker } = await import("./piece-skins.js");
     openPieceSkinPicker({
-      previewColor: currentDeck.firstColor || undefined,
-      selectedIndex: currentDeck.pieceSkinIndex ?? 0,
+      // 🔴 黒（ノワール）には**スキンの番号違いが無い**（assets/pieces/noir.webp の1枚だけ）。
+      //   previewColor に noir を渡すと見本が noir-1.webp 等を探して404になるので、
+      //   見本だけは赤（既定）にしておく。選んだ番号は下で0に握り潰す。
+      previewColor: currentDeck.firstColor === NOIR_FIRST_COLOR ? undefined : currentDeck.firstColor || undefined,
+      selectedIndex: currentDeck.firstColor === NOIR_FIRST_COLOR ? 0 : currentDeck.pieceSkinIndex ?? 0,
       onSelect: (idx) => {
-        currentDeck.pieceSkinIndex = idx;
+        currentDeck.pieceSkinIndex = currentDeck.firstColor === NOIR_FIRST_COLOR ? 0 : idx;
         refreshSettingsRow();
       },
     });

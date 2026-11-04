@@ -1029,14 +1029,20 @@ export const CARD_EFFECTS = {
           faceUp: true,
           count: 1,
           destination: { selection: TARGET_SELECTIONS.CHOOSE, onlyAdjacent: true },
-          // 🔴 移動できなかったら、ここも行わない（元いたマスの隣に置いてしまう）。
-          stopIfPreviousFailed: true,
+          // 🔴 【#492・2026-11-04】**ここは止めない。** ユーザー報告「オレンジバスの到達効果に
+          //   ついて、バスストップがなくても、このカードを隣に置くはできます」＝句点の原則
+          //   どおり、1句目（移動）が不発でも2句目（置く）は行う。
+          //   ⚠ 続き652 で `stopIfPreviousFailed: true` を立てたのは私の読み違い。テストで
+          //     「移動できていないのに元いたマスの隣に置いた」と見えたが、**それが正しい動き**
+          //     だった（置く先は「あなたの隣」＝移動していなければ元のマスの隣で合っている）。
         },
         {
           verb: VERBS.PICKUP_NAMED_CARD_AT_OWN_CELL,
           targetCardId: "ex0-orange-bus-stop",
           targetName: "バスストップ",
-          stopIfPreviousFailed: true,
+          // 3句目の「**その**『バスストップ』」は1句目で移った先の札を指すので、移動できて
+          // いなければ行わない。⚠ 「直前」では駄目——2句目（置く）は成功するので止まらない。
+          stopIfAnyPreviousFailed: true,
         },
       ],
     },

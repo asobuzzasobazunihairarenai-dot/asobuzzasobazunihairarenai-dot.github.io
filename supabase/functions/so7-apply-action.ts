@@ -176,6 +176,13 @@ function expandMyDeck(raw: any): string[] {
 const MYDECK_SPECIAL_COLORS = new Set(["white", "black", "rainbow"]);
 const NON_SPECIAL_CARD_IDS = NORMAL_CARDS.filter((c) => !MYDECK_SPECIAL_COLORS.has(c.color)).map((c) => c.id);
 const FIRST_COLORS = ["red", "orange", "yellow", "green", "blue", "pink", "purple"];
+// 🔴 【2026-11-04・ユーザー判断「Aで！」】管理者が選べる黒（ノワール）のマイデッキを、
+//   フレンドリーマッチでも効かせる。**"noir" は「色」ではない**（7色のロックスロットに
+//   対応する番号が無い）ので、FIRST_COLORS には足さず**別の一覧**で受け付ける。
+//   足してしまうと randomFirstColor() が黒を引いたり、`first-${色}` の組み立てが
+//   `COLORS.indexOf("noir") === -1` のまま通って**存在しないスロットへ置いて壊れる**。
+//   実際の配り方は BOOTSTRAP_GAME 側（ローカルの APPLY_SEAT_NOIR と同じ形）。
+const SELECTABLE_FIRST_COLORS = [...FIRST_COLORS, "noir"];
 function randomFirstColor(): string {
   return FIRST_COLORS[Math.floor(Math.random() * FIRST_COLORS.length)];
 }
@@ -198,7 +205,7 @@ function resolveSelectedDeck(raw: any): {
   petIndex: number | null;
   cardBackSetIndex: number | null;
 } {
-  const validColor = raw && FIRST_COLORS.includes(raw.firstColor) ? raw.firstColor : null;
+  const validColor = raw && SELECTABLE_FIRST_COLORS.includes(raw.firstColor) ? raw.firstColor : null;
   const cards = raw && raw.cards && typeof raw.cards === "object" ? raw.cards : null;
   const num = (v: any) => (typeof v === "number" ? v : null);
   if (cards && Object.keys(cards).length > 0) {
@@ -236,6 +243,7 @@ type Token = {
   location: Location;
   revealSource?: "manual" | "draw"; // 手札公開エリア（zone: "publicDraw"）内でのみ意味を持つ
   arrivalSuppressed?: boolean; // 続き59: 直前のMOVE_TOKENが「到達効果を得ない」移動だったか
+  placed?: boolean; // ノワール（黒のファーストカード）: 「置いている」だけで正式なロックではない（7色勝利に数えない）
   myDeckOwner?: string; // マイデッキ戦: このカードがどの席のマイデッキ由来か（裏面の印。手札→盤面→奪取後も保持）
 };
 
@@ -559,6 +567,16 @@ function reduce(current: GameState, action: any): GameState {
         // 被ってもよい（共有の firstPile からは取らない）。通常戦は従来通り無作為に配る。
         let cardId: string;
         let color: string;
+        // 🔴 【2026-11-04】黒（ノワール）のマイデッキ。**"noir" は色として配れない**ので、
+        //   ローカルの APPLY_SEAT_NOIR（src/state.js）とまったく同じ形にする:
+        //   ①無作為に配った色のスロットへ `first-noir` を **placed: true** で置く
+        //     （placed ＝「置いているだけ」＝victory.js の7色集計から除かれる）
+        //   ②駒の色だけ "noir" にする
+        //   ③ブーストの「効果なしファースト」はこの席には置かない（烙印と同じスロットに
+        //     重なるため。#391 でローカル側が同じ理由で取り除いている）
+        //   ⚠ 色スロットは**無作為のまま**でよい——ローカルも「普通に配ってから差し替える」
+        //     ので、どの色の枠に置かれるかは元から運。
+        const 黒のデッキ = !!action.myDeckMode && firstColor === "noir";
         if (action.myDeckMode && firstColor && COLORS.includes(firstColor)) {
           color = firstColor;
           cardId = `first-${firstColor}`;
@@ -571,18 +589,19 @@ function reduce(current: GameState, action: any): GameState {
         newTokens.push({
           id: uid("card"),
           kind: "card",
-          cardId,
+          cardId: 黒のデッキ ? "first-noir" : cardId,
           faceUp: true,
+          ...(黒のデッキ ? { placed: true } : {}),
           location: { zone: "lock", side, index: colorIndex },
         });
         newTokens.push({
           id: uid("piece"),
           kind: "piece",
-          color,
+          color: 黒のデッキ ? "noir" : color,
           player,
           location: { zone: "cell", ...GATE_POSITIONS[side] },
         });
-        if (boost) {
+        if (boost && !黒のデッキ) {
           // 両端は色相環でラップアラウンド（赤なら橙と紫、紫なら赤と桃）。常に左右2枚ロック。
           const n = COLORS.length;
           for (const nb of [(colorIndex - 1 + n) % n, (colorIndex + 1) % n]) {

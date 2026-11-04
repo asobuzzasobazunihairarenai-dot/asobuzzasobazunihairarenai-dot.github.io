@@ -21,6 +21,15 @@ import { t } from "./ui-text.js"; // UI英語化フェーズ13
 export const SPECIAL_CARD_COLORS = new Set(["white", "black", "rainbow"]);
 // ファーストカード（＝駒）に選べる7色。
 export const FIRST_COLORS = ["red", "orange", "yellow", "green", "blue", "pink", "purple"];
+// 🔴 【2026-11-03・ユーザー要望】**管理者アカウントだけ**、マイデッキ編集で
+//   「黒のキューブ ノワール（first-noir）＋黒の駒」を選べるようにした。
+//   ⚠ 7色の方（FIRST_COLORS）には**入れない**——あちらは「おまかせ」で引く抽選表でもあり、
+//     混ぜると**管理者でない人にも黒が当たる**（my-deck-select.js の randomFirstColor）。
+//   ⚠ 絵は assets/cards/first-noir.webp と assets/pieces/noir.webp。
+//     **駒スキンの番号違いは無い**ので、黒を選んだ時はスキン番号を0に固定する
+//     （noir-1.webp 等は存在せず404になる）。
+export const NOIR_FIRST_COLOR = "noir";
+export const ADMIN_FIRST_COLORS = [...FIRST_COLORS, NOIR_FIRST_COLOR];
 
 export function isSpecialDeckCard(cardId) {
   const def = getCardDefinition(cardId);
@@ -147,8 +156,12 @@ function normalizeDeck(d) {
     id: typeof d.id === "string" ? d.id : uid(),
     name: typeof d.name === "string" && d.name.trim() ? d.name : t("md.deck"),
     cards,
-    firstColor: FIRST_COLORS.includes(d.firstColor) ? d.firstColor : null,
-    pieceSkinIndex: typeof d.pieceSkinIndex === "number" ? d.pieceSkinIndex : null,
+    // 🔴 黒（ノワール）も通す。**選べるのは管理者だけ**（画面側で出し分ける）が、ここで
+    //   弾くと「管理者が保存した黒のデッキが、読み込み直しただけで色なしに戻る」ことになる。
+    firstColor: ADMIN_FIRST_COLORS.includes(d.firstColor) ? d.firstColor : null,
+    // 黒の駒はスキンの番号違いが無いので0に固定（noir-1.webp 等は存在せず404になる）。
+    pieceSkinIndex:
+      d.firstColor === NOIR_FIRST_COLOR ? 0 : typeof d.pieceSkinIndex === "number" ? d.pieceSkinIndex : null,
     petIndex: typeof d.petIndex === "number" ? d.petIndex : null,
     cardBackSetIndex: typeof d.cardBackSetIndex === "number" ? d.cardBackSetIndex : null,
     // メインカードは実際にデッキに入っている時だけ有効（抜けたら自動フォールバックに戻す）。

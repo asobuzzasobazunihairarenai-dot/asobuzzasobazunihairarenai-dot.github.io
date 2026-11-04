@@ -234,6 +234,62 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "ご報告のとおりでした。画面ごとの左上の「戻る」を測ったら、お知らせの画面だけがスマホ用に大きくしてあり、残りの7画面（図鑑・マイページ・ランキング・ショップ・マイデッキ2画面・基本設定）はその半分の大きさでした。8画面すべて同じ大きさに揃え、スマホでは指で押しやすい大きさにしました。",
     en: "You were right. Measuring the top-left Back button on every screen showed that only the news screen had been enlarged for phones - the other seven (codex, my page, ranking, shop, the two deck screens and settings) were half that size. All eight are now the same size, and large enough to tap comfortably on a phone.",
   },
+  433: {
+    ja: "間を置くようにしました。CPUの番に到達効果が続けて起きた時、次に進むまで少しだけ待つので、何が起きたのか追えるようになります。自分の番の速さは変わりません（動きを減らす設定にしている場合も今までどおりです）。",
+    en: "A pause has been added. When arrival effects happen one after another on a CPU's turn, the game now waits a moment before moving on, so you can follow what happened. Your own turn is just as fast as before, and nothing changes if you have reduced motion turned on.",
+  },
+  437: {
+    ja: "すっきりさせました。「CPUマッチ＆フレンドリーマッチ」を押した時は、まず「CPU戦」「フレンドリーマッチ」の2択だけが出ます。強さ・人数・白黒カード・ブーストなどは「⚙ 詳細を設定する」の中にしまってあり、押さなければおすすめの設定（CPU1体・強さ普通・追加ルールなし）でそのまま始まります。前に設定を変えていた場合は、閉じたままでもそれが分かるように1行で出します。",
+    en: "Tidied up. Pressing CPU / Friendly match now shows just those two choices. Difficulty, player count, black-and-white cards, boost and the rest live inside a Set details button; if you do not open it, the match starts with the recommended setup (one CPU, normal difficulty, no extra rules). If you had changed those settings before, a single line tells you so while they stay closed.",
+  },
+  440: {
+    ja: "音を作って入れました。ゲート侵攻が成功した時に専用の効果音が鳴ります（今までこの場面には音がありませんでした）。音量は⚙オプションの音量調整から変えられます。スマホのスピーカーでも芯が聞こえるように、低い音に頼らない音を選んでいます。",
+    en: "A sound has been made and added, so a successful gate invasion now has its own effect (this moment used to be silent). You can change its volume from the volume sliders in Options. It was chosen to stay audible on a phone speaker rather than relying on bass.",
+  },
+  461: {
+    ja: "入れました。相手プレイヤーを選ぶ場面で、名前のボタンが並んだ画面も出るようにしました。盤面のアイコンを直接押す今までの選び方もそのまま残してあるので、どちらでも選べます。スリカエだけでなく、相手を選ぶカードすべてで出ます。",
+    en: "Added. When a card asks you to pick an opponent, a panel of player names now appears as well. Tapping a player icon on the board still works exactly as before, so you can use either. This shows for every card that picks an opponent, not just Swap.",
+  },
+  475: {
+    ja: "ご相談のうえ、今のままにしました。手札の効果の演出中は、画面を触れば演出を飛ばせる仕組みが既に入っているので、そちらをお使いください。",
+    en: "After talking it over we have left this as it is. While a hand-card effect is playing you can already tap the screen to skip the animation, so please use that.",
+  },
+  491: {
+    ja: "直しました。ロックが宣言された瞬間の割り込みは、これまで「画面を出すだけ」で、答えを待たずにロックが進んでいました。やり直しのカギはロックそのものを止めるカードなので、間に合わないと使う意味がありません。割り込める人がいる時は、答えが出るまでロックを待つようにしました。誰も割り込めるカードを持っていない時は待たないので、ふだんのロックの速さは変わりません。",
+    en: "Fixed. The interrupt window that opens when a lock is declared used to be show-and-forget: the lock went through without waiting for an answer. Key of Redo stops the lock itself, so being too late makes it useless. Now, when someone can interrupt, the lock waits for the answer. When nobody holds a usable card there is no wait at all, so ordinary locks are as fast as before.",
+  },
+  492: {
+    ja: "直しました。オレンジバスの到達効果は、バスストップが無くて移動できなかった場合でも、このカードを自分の隣に表向きで置けるようになりました（ご指摘のとおりです）。3つめの「そのバスストップを手札に加える」だけは、移動できた時にしか起きません。",
+    en: "Fixed. Orange Bus's arrival effect now places the card face up beside you even when there was no Bus Stop to move to - exactly as you said. Only the third part, taking that Bus Stop into your hand, still requires the move to have happened.",
+  },
+  496: {
+    ja: "直しました。カードの効果が「他のプレイヤーに選ばせる」時、選ぶ権利がその相手に移っていませんでした。そのため、CPUの番にあなたが選ぶはずの場面がCPUのものとして扱われ、勝手に決まってしまっていました。委任している間は選ぶ権利もその人のものになるようにしたので、パーティ・ヤエザ・役人・合同建設など、相手に選ばせるカードすべてで直ります。",
+    en: "Fixed. When an effect asks another player to choose, the right to choose was not actually handed over. On a CPU's turn a choice that was yours was treated as the CPU's and decided automatically. The right to choose now moves with the delegation, which fixes every card that asks someone else to choose - Party, Yaeza, the Official, Joint Construction and the rest.",
+  },
+  499: {
+    ja: "もっと寄るようにしました。カード効果で場のカードがオープンされる時のカメラの寄りを、ぐっと強くしました（何のカードか分かる近さです）。何枚も続けてオープンする効果では、間で元の視点に戻らずマスからマスへ滑り、最後の1枚の後だけ元に戻ります。強さや角度は管理者モードのつまみで調整できます。",
+    en: "Now closer. The camera moves in much harder when a card effect opens a card on the board - close enough to read it. For effects that open several cards in a row it slides from square to square without returning in between, and only goes back after the last one. The strength and angle can be tuned from admin mode.",
+  },
+  500: {
+    ja: "直しました（#491 と同じ原因です）。ロックが宣言された瞬間の割り込みが、答えを待たずに先へ進んでいたため、やり直しのカギを使う前にロックが済んでしまっていました。割り込める人がいる時は答えが出るまで待つようにしました。",
+    en: "Fixed - the same cause as #491. The interrupt window did not wait for an answer, so the lock was already done before Key of Redo could be used. Now, when someone can interrupt, it waits for the answer.",
+  },
+  501: {
+    ja: "直しました。ご指摘のとおり、手札は非公開情報です。あの画面はもともと「1台の端末を回して遊ぶ対戦」向けに、他の席の分も見せて代わりに決めてもらう作りでしたが、CPU戦では①CPUの手札が見えてしまう②CPUが割り込むかを人が決めてしまう、という2つの問題がありました。CPUが動かしている席は画面を出さず、CPU自身の判断で決めるようにしました（人同士で1台を回して遊ぶ場合は今までどおりです）。",
+    en: "Fixed. You are right that hands are private. That window was built for passing one device around, where showing the other seats' cards is fine; in a CPU battle it both exposed the CPU's hand and let a person decide for it. Seats driven by the CPU now skip the window and decide for themselves. Passing one device between people is unchanged.",
+  },
+  502: {
+    ja: "直しました。ご指摘のとおり「表向きで置く」＝公開情報なので、マスの1番下に沈める前に、中央で1回大きく見せるようにしました。オンラインでは相手の画面にも同じように出ます。",
+    en: "Fixed. You are right that \"place face up\" means it is public information, so the card is now shown once, large, in the centre before it is slid to the bottom of the square. Online, the other players see the same reveal.",
+  },
+  503: {
+    ja: "直しました。手札から表向きで置くカードは、飛んでいる間も着地した時も表向きのままになります。これまでは表で飛んできたのに、置かれる瞬間だけ裏になり、そのあとめくれる、という3段の見え方になっていました。",
+    en: "Fixed. A card placed face up from your hand now stays face up the whole way - while it flies and when it lands. Before, it flew in face up, turned face down for the moment it was placed, and then flipped over again.",
+  },
+  506: {
+    ja: "直しました（#496 と同じ原因です）。ヤエザのように「相手に選ばせる」カードで、選ぶ権利がその相手に移っていませんでした。委任している間は選ぶ権利もその人のものになるようにしました。",
+    en: "Fixed - the same cause as #496. For cards like Yaeza that ask an opponent to choose, the right to choose was not handed over. It now moves with the delegation.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

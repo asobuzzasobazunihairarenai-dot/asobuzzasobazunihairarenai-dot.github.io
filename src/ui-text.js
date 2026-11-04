@@ -1062,6 +1062,12 @@ const UI = {
     "ce.ex0PickAddColorS": "追色コストを何枚払いますか？（奪えるのはその２倍）",
     // 【#481】ジェイク等で何マスも選んだ後に、まとめて1回だけ聞く確認。
     "ce.ex0PeekConfirmAll": "この{n}マスでいいですか？（選んだ順に1枚ずつ表面を見ます）",
+    // 【#461】相手を選ぶモーダルの見出し（効果側が案内文を渡さなかった時だけ使う）。
+    "ce.pickPlayerTitle": "相手を選んでください",
+    // 【#437】CPU戦の細かい設定を畳むボタンと、既定と違う時の1行。
+    "home.matchChoice.detailsOpen": "⚙ 詳細を設定する",
+    "home.matchChoice.detailsClose": "⚙ 詳細を閉じる",
+    "home.matchChoice.detailsChanged": "※ おすすめ以外の設定になっています（⚙ から確認できます）",
     "ce.ex0FromDeck": "山札から",
     "ce.ex0FromHand": "手札から",
     "ce.ex0PickHandForBottom": "１番下に置く手札を1枚選んでください",
@@ -3108,6 +3114,10 @@ const UI = {
     "ce.ex0PickDeckOrHand": "Place from where?",
     "ce.ex0PickAddColorS": "How many cards for the colour cost? (you steal twice that many)",
     "ce.ex0PeekConfirmAll": "Look at these {n} squares? (you will see them one at a time, in the order you picked)",
+    "ce.pickPlayerTitle": "Choose a player",
+    "home.matchChoice.detailsOpen": "⚙ Set up the details",
+    "home.matchChoice.detailsClose": "⚙ Close the details",
+    "home.matchChoice.detailsChanged": "Note: these are not the recommended settings (open ⚙ to check)",
     "ce.ex0FromDeck": "From the deck",
     "ce.ex0FromHand": "From your hand",
     "ce.ex0PickHandForBottom": "Pick one card from your hand to place at the bottom",

@@ -32,7 +32,7 @@ import {
   isCpuMyDeckEnabled,
   isCpuSelfTimerEnabled,
 } from "./cpu-battle-state.js";
-import { resetGame, setupMyDeckMode } from "./state.js";
+import { resetGame, setupMyDeckMode, applySeatNoir } from "./state.js";
 // マイデッキ戦（本気エイドス戦）用。my-deck.jsはcards-data.jsだけに依存する葉モジュールなので
 // ここから安全にimportできる（online.js等は経由しない）。
 import { getSelectedDeckId, getDeckById, makeRandomDeck } from "./my-deck.js";
@@ -221,11 +221,24 @@ export async function runCpuBattleSetup({
   }
   // 開始色（ファーストカード）を A に反映（デッキに色があれば。おまかせデッキも resolveDeck で
   // ランダム色が確定しているので常に色が入る）。C はノワールへ差し替わるので指定しない。
-  const firstColors = deckA?.firstColor ? { A: deckA.firstColor } : null;
+  // 🔴 【2026-11-03】黒（ノワール）は**色としては配れない**。ファーストカードは「山から
+  //   その色の札を探す」仕組みで、`first-noir` の色は "noir"＝7色のロックスロットに対応する
+  //   番号が無く、そのまま渡すと置き先が -1 になって壊れる。
+  //   ⇒ 既にある**エイドス物語戦と同じ道**（applySeatNoir＝セットアップ後に差し替える）へ回す。
+  //   ⚠ そのため黒のデッキで遊ぶと seatCount が 2 になる（noirSeat 指定時の既存の決まり）。
+  //   ⚠ **noirSeat には入れない。** あちらは「相手(C)がノワール＝エイドス物語戦」用で、
+  //     人数が必ず2人に固定される（下の seatCount）。こちらは**自分(A)が黒**なだけなので、
+  //     人数は選んだとおりのままにしたい。⇒ 別の変数で持って、quickStart の後に差し替える。
+  const 黒のデッキ = deckA?.firstColor === "noir";
+  const firstColors = deckA?.firstColor && !黒のデッキ ? { A: deckA.firstColor } : null;
   // 物語のエイドス戦（noirSeat が指定されている＝相手がノワール）は必ず2人。
   // 通常のCPU戦は count(2〜4)人——マイデッキ戦を選んでいても人数は減らさない。
   const seatCount = noirSeat ? 2 : count;
   await quickStart(seatCount, includeBlackWhite, boost, noirSeat, noirBrands, firstColors);
+  // 【2026-11-03】管理者が黒（ノワール）のマイデッキを選んだ時は、セットアップが終わってから
+  //   自分(A)のファースト・駒を黒へ差し替える（エイドス物語戦とまったく同じ仕組みを流用）。
+  //   ⚠ 烙印（noirBrands）は付けない——あれはエイドス物語戦の演出。
+  if (黒のデッキ) applySeatNoir("A", false);
   if (myDeck && deckA) {
     // A: 確定したデッキ、C(エイドス): おまかせランダム（ユーザー合意: エイドスのデッキは一旦
     // ランダム）。cardsは{cardId:count}なので展開＋シャッフルして「一番上=末尾」のcardId配列に

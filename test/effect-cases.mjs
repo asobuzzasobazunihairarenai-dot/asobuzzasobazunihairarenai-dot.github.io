@@ -2983,6 +2983,9 @@ export const CASES = [
       { kind: "called", name: "pickLocationCandidates", arg: "2" }, // 自分のマス(2,2)を外す／隣(2,3)は残る
       { kind: "called", name: "pickChoiceOptions", arg: "deck,hand" }, // 両方あるので聞く
       { kind: "called", name: "pickHandCard", arg: "h2" },
+      // 【#502】「表向きで置く」＝公開情報。１番下へ沈めると見えなくなるので、沈める前に
+      //   全員へ1回見せる（revealCardToAll は配信する側の入口）。
+      { kind: "called", name: "revealCardToAll", arg: "red-jump-pad" },
       { kind: "deckLen", n: 2 }, // 手札から出したので山札は減らない
       { kind: "cellStackOrder", row: 2, col: 3, cards: ["red-jump-pad", "red-counter-lock"] }, // 置いた札が1番下
       { kind: "tokenFaceUp", id: "h2" },
@@ -3043,8 +3046,13 @@ export const CASES = [
       { kind: "tokenAtCell", id: "bsDown", row: 0, col: 0 }, // 裏向きは手付かず
     ],
   },
+  // 🔴 【#492・2026-11-04】ユーザー報告「オレンジバスなら到達効果について、バスストップが
+  //   なくても、このカードを隣に置くはできます」。句点の原則どおり**1句目（移動）が不発でも
+  //   2句目（置く）は行う**。⚠ 3句目の「**その**『バスストップ』」は移った先の札を指すので、
+  //   移動できていなければ行わない（`stopIfAnyPreviousFailed`＝「ここまで全部成功」で見る。
+  //   「直前」では駄目——2句目は成功するので止まらない）。
   {
-    name: "オレンジバス(到達): 表向きのバスストップが無ければ移動しない（裏向きは対象外）",
+    name: "オレンジバス(到達): 表向きのバスストップが無ければ移動しないが、これを隣へ置くのは行う（#492）",
     kind: "arrival",
     state: {
       activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
@@ -3056,11 +3064,13 @@ export const CASES = [
       piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
     },
     ctx: { player: "A", cardId: "ex0-orange-bus", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
-    picks: {},
+    picks: { location: [{ row: 2, col: 3 }] },
     expect: [
-      { kind: "pieceAt", player: "A", row: 2, col: 2 },
-      { kind: "tokenAtCell", id: "self", row: 2, col: 2 },
-      { kind: "tokenAtCell", id: "bsDown", row: 0, col: 0 },
+      { kind: "pieceAt", player: "A", row: 2, col: 2 }, // 移動は不発
+      { kind: "called", name: "pickLocationCandidates", arg: "4" }, // 「あなたの隣」＝元のマスの隣4マス
+      { kind: "tokenAtCell", id: "self", row: 2, col: 3 }, // 置くのは行う
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "tokenAtCell", id: "bsDown", row: 0, col: 0 }, // 3句目は行わない（裏向きは手付かず）
     ],
   },
   // ゲートチャージ（到達）。オープンされた枝。A のゲートは (6,3)。

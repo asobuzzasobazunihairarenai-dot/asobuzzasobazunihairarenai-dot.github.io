@@ -15,6 +15,7 @@ import { isFlightAnimationDisabled, isArrivalEffectDisabled } from "./motion-pre
 import { t } from "./ui-text.js"; // UI英語化フェーズ6
 import { getCardName } from "./card-text.js";
 import { releaseGateInvasionStage, clearGateInvasionStage } from "./gate-invasion-stage.js";
+import { playSound } from "./sound.js"; // 【#440】ゲート侵攻成功の音
 
 // ユーザー要望「ゲート侵攻のエターナル獲得のド派手な演出がオンラインで出ない（テストモードでは
 // 出る）」。ローカル版(gate-invasion.js)はrunEternalでeternalAnimHelper（3Dフリップ＋色バースト）
@@ -100,7 +101,9 @@ function buildCardsHtml(player, pickups) {
 function buildSteps(events) {
   const steps = [];
   for (const ev of events) {
-    steps.push({ text: t("game.gate.step.invade", { attacker: getPlayerNameOrYou(ev.attacker), defender: getPlayerNameOrYou(ev.defender) }) });
+    // 【#440・2026-11-03】侵攻の1段目で音を鳴らす（ローカル版 gate-invasion.js の
+    // runBonusFor の頭と同じ位置。あちらと同じ音を同じ回数＝1人ぶん1回）。
+    steps.push({ text: t("game.gate.step.invade", { attacker: getPlayerNameOrYou(ev.attacker), defender: getPlayerNameOrYou(ev.defender) }), sound: "gateInvasion" });
 
     if (ev.stolenCount > 0) {
       // buildStepsは各クライアントで動く（getSelfSeatは自分の視点）。奪われた本人には、
@@ -239,6 +242,10 @@ export function forceCloseGateInvasionModal() {
 }
 
 function showStep(step) {
+  // 【#440・2026-11-03】段に音が指定されていれば鳴らす（いまはゲート侵攻の告知だけ）。
+  if (step.sound) {
+    try { playSound(step.sound); } catch (err) { console.error("step sound failed", err); }
+  }
   // 帰還の演出は「盤面で起きたこと」を見せるだけなので、モーダルは止めずに同時に出す。
   if (step.returnHomeAnim && returnHomeAnimHelper && !isArrivalEffectDisabled()) {
     try { returnHomeAnimHelper(step.returnHomeAnim.attacker); } catch (err) { console.error("returnHomeAnim failed", err); }

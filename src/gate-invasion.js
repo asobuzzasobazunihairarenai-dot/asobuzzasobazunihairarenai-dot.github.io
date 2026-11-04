@@ -18,6 +18,7 @@ import { getCardName } from "./card-text.js";
 import { isFlightAnimationDisabled, isArrivalEffectDisabled } from "./motion-prefs.js";
 import { logAction } from "./action-log.js";
 import { neutralModalSkin } from "./ui-helpers.js";
+import { playSound } from "./sound.js"; // 【#440】ゲート侵攻成功の音
 
 function notifyChange() {
   window.dispatchEvent(new CustomEvent("admin:change"));
@@ -288,6 +289,11 @@ function runReturnHome(attacker, onDone) {
 }
 
 function runBonusFor(attacker, defender, done) {
+  // 【#440・2026-11-03】ユーザー報告「ゲート侵攻成功した時がなんか静か」。侵攻1人ぶんの
+  // 頭で1回だけ鳴らす（この後に続く「奪う」「エターナル」「帰還」の各段には既存の音が
+  // 付いているので、ここで重ねない）。複数人が同時に侵攻した場合は人数ぶん鳴る＝
+  // 1件ずつ順に処理するので重ならない（続き626 で処理順をターンプレイヤーからに直した）。
+  try { playSound("gateInvasion"); } catch (err) { console.error("gateInvasion sound failed", err); }
   runStealHand(attacker, defender, () => {
     runEternal(attacker, () => {
       runReturnHome(attacker, done);

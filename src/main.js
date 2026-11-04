@@ -1913,6 +1913,23 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
   // 続き212: 飛翔演出が完全に終わってから呼び出し側（engine）の次アクションへ進めるようawaitする。
   // 【#468】置いた先で表向きになると分かっている時は、**飛んでいる間から表の面**を見せる
   //   （ユーザー要望「手札から飛翔するときから表向きがいいかも！」）。
+  // 🔴 【#503・2026-11-04】ユーザー報告「ゲートチャージが手札から飛翔する時は表だったけど、
+  //   置かれるとき裏向きに置かれた、その後オープンした。置く時も表のまま置いて！」。
+  //   #468 で**飛んでいるゴースト**だけを表の面にしたが、**着地で見せる実カードは裏向き**
+  //   （手札→マスの移動は state の既定で裏向きになる）で、engine が着地演出の**後**に
+  //   めくっていた ⇒ 表で飛ぶ → 裏で着地 → めくる、という3段になっていた。
+  //   ⇒ **着地演出より前にめくっておく**（実カードは飛翔中ずっと隠れているので、
+  //     めくる瞬間は画面に出ない＝「表のまま置かれた」ように見える）。
+  //   ⓘ engine 側のめくりは `faceUp === false` の時だけ走るので、ここで表にすれば自然に
+  //     素通りする（二重にめくって裏返る事故にならない）。「このターンにオープンされた」の
+  //     記録は flipToFaceUpForEffect の中で今までどおり付く。
+  if (landingSourceRect && animOpts?.landFaceUp && location?.zone === "cell") {
+    const 置いた札 = getState().tokens.find((t) => t.id === tokenId);
+    if (置いた札 && 置いた札.faceUp === false) {
+      await flipToFaceUpForEffect(tokenId, { skipCamera: true });
+      render(); // めくった面でゴーストと実カードを揃える（この後ずっと隠れているので見えない）
+    }
+  }
   if (landingSourceRect) await playCardCellLanding(landingSourceRect, location, tokenId, !!animOpts?.landFaceUp);
   if (liftSourceRect) await playCardLiftToHand(liftSourceRect, location.player, tokenId, liftSourceImg);
 }
@@ -1942,15 +1959,21 @@ async function focusCameraOnFlippedCard(tokenId) {
   if (!table) return;
   const el = findLocationElement(table, token.location);
   if (!el) return;
-  await focusCameraOnElement(el, { zoom: 1.28, ms: 320 });
+  // 【#499】「もっと寄ってもいいです！何のカードが開かれたか分かるくらい！」
+  //   ⇒ 決め打ちをやめ、他の決め所と同じ**管理者モードで回せるつまみ**にした。
+  const tu = getCinematicTuning();
+  await focusCameraOnElement(el, { zoom: tu.openZoom, ms: 380, yaw: tu.openYaw, tilt: tu.openTilt });
   // 戻りの予約は効果の処理を待たずにここで入れる（#370 の理由＝選択を聞く間ずっと
   // 寄りっぱなしにしないため）。**次のオープンが来れば、その寄りがこの予約を取り消す**ので、
   // 何枚も続けて開ける時はマスからマスへ滑って、最後の1枚の後だけ元へ戻る。
   scheduleCameraHome(1200);
 }
 
-async function flipToFaceUpForEffect(tokenId) {
-  await focusCameraOnFlippedCard(tokenId); // 【#485】めくる前に寄る（めくるところが見える）
+// skipCamera（省略可）: カメラを寄せない。【#503】手札から表向きで置く時に、着地の演出の
+//   前にここを通すため——あちらは飛翔のゴーストが既に目を引いているので、重ねて寄せると
+//   画面が落ち着かない（オープン＝「裏だったものが開く」場面だけ寄せたい）。
+async function flipToFaceUpForEffect(tokenId, { skipCamera = false } = {}) {
+  if (!skipCamera) await focusCameraOnFlippedCard(tokenId); // 【#485】めくる前に寄る（めくるところが見える）
   if (isOnlineMode()) {
     try {
       // 【#285】印は送信より前に付ける（理由は self-handled-tokens.js の冒頭）。
@@ -4773,9 +4796,23 @@ async function endTurnForEffect(player) {
 
 async function delegateToPlayerForEffect(player, taskType, taskArg) {
   const releaseDelegation = beginEffectDelegation(player, taskType);
+  // 🔴 【#496・#506・2026-11-04】**委任している間は、選ぶ権利も委任先のもの。**
+  //   #471（到達）・#483（手札効果）で「選ぶ席」を立てる形にしたが、**委任だけが抜けていた**
+  //   ——手札効果の間は使った本人が立っているので、効果の途中で他人へ委任しても
+  //   `pickerOwner()` は**使った本人**を返し続ける。実害は**両方向に出た**:
+  //   ・#506「ヤエザを相手に使ったのに私に選択モーダルが出る」＝相手が選ぶはずの画面が私に出た
+  //   ・#496「パーティでの私の選択が自動で行われてしまいました」＝私が選ぶはずの画面を
+  //     CPU（カードを使った席）のものと見なし、疑似CPUが勝手に解決した
+  //   ⇒ 委任の入口は**この1か所**（engine の delegateToPlayer は全部ここへ来る）なので、
+  //     ここで差し替えれば委任を使う全カード（ヤエザ・パーティ・役人・合同建設・ピュア
+  //     バーガー・ヴィヴィアン・不思議な果実・ヴド族…）に一度で効く。
+  //   ⚠ 必ず finally で戻す（戻し忘れると以降ずっと別人が選ぶことになる＝#471 のコメント参照）。
+  const 前の選ぶ席 = effectChoiceSeatOverride;
+  effectChoiceSeatOverride = player ?? 前の選ぶ席;
   try {
     return await delegateToPlayerForEffect__inner(player, taskType, taskArg);
   } finally {
+    effectChoiceSeatOverride = 前の選ぶ席;
     releaseDelegation();
   }
 }
@@ -6826,7 +6863,8 @@ async function performLockPhaseClick__inner(tokenId, { skipConfirm = false, acti
     const queue = getFinalLockApprovalOrder(player, getState().activePlayers);
     if (queue.length > 0) {
       // ロック宣言の瞬間としてチェックポイントを発火（ドラッグ経路と同じ）。
-      fireAnytimeCheckpoint(player, "lock-declare");
+      // 【#491・#500】割り込みの窓が閉じるまで待ち、ロックできなくなったらやめる。
+      if (await fireLockDeclareAndShouldAbort(player, tokenId)) return;
       if (isOnlineMode()) {
         try {
           await requestFinalLock(tokenId, dropTarget, player, queue);
@@ -6846,7 +6884,9 @@ async function performLockPhaseClick__inner(tokenId, { skipConfirm = false, acti
   // ユーザー要望（続き77）「移動もロックも宣言と処理を分けてください」。実際に状態を
   // 動かす直前を「ロック宣言」の瞬間とみなして発火する（処理側はmaybeAnnounceLock内、
   // 既存の通り）。
-  fireAnytimeCheckpoint(player, "lock-declare");
+  // 【#491・#500】割り込みの窓が閉じるまで待ち、ロックできなくなったらやめる
+  //   （誰も割り込める札を持っていなければ待ちは0＝今までどおりの速さ）。
+  if (await fireLockDeclareAndShouldAbort(player, tokenId)) return;
   // #2（ユーザー要望2026-08-19「ロックするときも、手札→マスに行くときの演出を付け足したい」）:
   // 手札→ロックスロットの飛翔（着地）演出の飛び元＝移動前の手札カードのrectを捕捉しておく。
   const lockSourceRect = cardElRectForToken(tokenId);
@@ -8375,6 +8415,38 @@ function requestHandCardChoiceForEffect__inner(player, hint, tokenIdFilter, opti
 // candidatesは座席の配列（例: ["B","C"]）。マスチェンジ等のpickLocationと同じ
 // 「候補をハイライトしてクリックを待つ」形だが、対象がマス/手札カードではなく
 // プレイヤーのアバターであるため専用の関数にした。
+// 🔴 【#461・2026-11-03】ユーザー要望「スリカエで相手を選ぶとき、プレイヤー選択モーダルが
+//   出るといい」→「**全部モーダルにします**」。相手を選ぶカードは手品師の技だけでなく
+//   リトルマウス・ヴィヴィアン・ヤエザ・マックール・紅の鉄拳・プレゼント等たくさんあり、
+//   **全部この1つの関数を通る**ので、ここに出せば全部に効く。
+// ⚠ **覆い（backdrop）は置かない。** 置くと盤面のアバターが押せなくなり、今までの選び方
+//   （アバターを直接クリック）が消える。モーダルは**増やす**だけにして、アバターの
+//   ハイライトもクリックも今までどおり残す（どちらで選んでも同じ）。
+// ⚠ CPU が選ぶ番は**出さない**（ハイライトと同じ条件）。自動で選ばれるので出すと紛らわしい。
+function buildPlayerPickModal(entries, hint, onPick) {
+  const modal = document.createElement("div");
+  modal.id = "player-pick-modal";
+  const titleEl = document.createElement("div");
+  titleEl.className = "contact-approval-title";
+  titleEl.textContent = hint || t("ce.pickPlayerTitle");
+  modal.appendChild(titleEl);
+  const buttons = document.createElement("div");
+  buttons.className = "contact-approval-buttons";
+  for (const entry of entries) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "contact-approval-approve";
+    btn.textContent = getPlayerName(entry.player);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onPick(entry.player);
+    });
+    buttons.appendChild(btn);
+  }
+  modal.appendChild(buttons);
+  return modal;
+}
+
 function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
   return new Promise((resolve) => {
     const entries = candidates
@@ -8386,8 +8458,16 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
     }
     // CPUが選ぶ番は相手アバターのハイライトを出さない（自動で選ばれる。混乱防止）。
     // owner（選ぶ主体）を渡せる（#33、ゴメンナサイ等の人間リアクション対応）。
-    if (!isCpuSelectingNow(pickerOwner(options.owner))) {
+    const 人が選ぶ = !isCpuSelectingNow(pickerOwner(options.owner));
+    let modal = null;
+    if (人が選ぶ) {
       for (const entry of entries) entry.el.classList.add("card-effect-target-avatar");
+      // 【#461】アバターのハイライトに加えて、名前を並べたモーダルからも選べるようにする。
+      modal = buildPlayerPickModal(entries, hint, (player) => {
+        // 盤面のアバターを押した時とまったく同じ道を通す（後始末を二重に書かない）。
+        activeEffectPicker?.resolve?.(player);
+      });
+      document.body.appendChild(modal);
     }
     if (hint) showEffectPickerHint(hint);
     activeEffectPicker = {
@@ -8396,6 +8476,8 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
       players: new Set(candidates),
       resolve: (player) => {
         for (const entry of entries) entry.el.classList.remove("card-effect-target-avatar");
+        modal?.remove(); // 【#461】CPUの自動解決・持ち時間切れの代行で閉じる経路もここを通る
+        modal = null;
         hideEffectPickerHint();
         resolve(player);
       },
@@ -9013,17 +9095,83 @@ function buildAnytimeInterruptResumeButton() {
   bar.appendChild(resumeAnytimeInterruptButtonEl);
 }
 
+// 🔴 【#491・#500・2026-11-04】「割り込むか悩んでいる間にCPUのフェイズが進んでしまった」。
+//   この割り込みの窓はもともと**待たない**作り（出すだけ出して、呼んだ側はそのまま先へ進む）。
+//   ふだんのスリカエ等は「割り込んだら状況が変わる」だけなので困らなかったが、
+//   **やり直しのカギは「その相手はこのターンにロックできない」＝ロックそのものを止める札**
+//   なので、ロックが確定した後に答えても意味が無い。
+//   ⇒ 窓が閉じるのを **await できる口**を足す（呼ぶ側が待ちたい時だけ使う）。
+//   ⚠ 既存の呼び出し（fireAnytimeCheckpoint）は1つも変えていない＝待たない動きのまま。
+let anytimeWindowWaiters = [];
+function settleAnytimeWindowWaiters(used) {
+  if (anytimeWindowWaiters.length === 0) return;
+  const 待っていた人 = anytimeWindowWaiters;
+  anytimeWindowWaiters = [];
+  for (const resolve of 待っていた人) {
+    try {
+      resolve(used);
+    } catch (err) {
+      console.error("settleAnytimeWindowWaiters failed", err);
+    }
+  }
+}
+// 窓が開いていなければ即 false。開いていれば閉じるまで待ち、「誰かが割り込んだか」を返す。
+// ⚠ 保険の期限を必ず付ける（窓の閉じ方を1つ取りこぼすと、ロックが永久に止まる）。
+function waitForAnytimeWindowToClose() {
+  if (!anytimeInterruptModalEl && anytimeInterruptQueue.length === 0) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (used) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(保険);
+      resolve(used);
+    };
+    const 保険 = setTimeout(() => finish(false), ANYTIME_INTERRUPT_MODAL_DURATION_MS * 4 + 30000);
+    anytimeWindowWaiters.push(finish);
+  });
+}
+
 function advanceAnytimeInterruptQueue() {
   if (anytimeInterruptQueue.length === 0) {
     // 0th拡張（やり直しのカギ）: 行列が尽きた＝この窓は閉じた。種類を残しておくと、
     // 関係ない場面でも「ロック宣言の窓」のつもりで使えてしまう。
     clearInterruptWindow();
+    settleAnytimeWindowWaiters(false);
     return;
   }
   const player = anytimeInterruptQueue.shift();
   const tokens = getAnytimeUsableHandTokensFor(player);
   if (tokens.length === 0) {
     advanceAnytimeInterruptQueue();
+    return;
+  }
+  // 🔴 【#501・2026-11-04】「CPUのやり直しの鍵の割り込みモーダルが私の画面に表示されちゃって
+  //   ます。本来手札は基本非公開なので、これだと持ってるのバレちゃうよ」。**そのとおり。**
+  //   この窓は**1画面での持ち回り対戦**（`game.anytime.haveNamed`＝「○○さんが…持っています」）
+  //   を前提に、相手の席の分も人間に見せて代わりに決めてもらう作りだった。CPU戦では
+  //   ①**CPUの手札が丸ごと見える** ②そのCPUが割り込むかを人間が決めてしまう——両方おかしい。
+  //   ⇒ CPUが動かしている席は**モーダルを出さず、CPUの評価で決める**
+  //     （`chooseHandEffectCard` はハンドフェイズのCPUが使っているものと同じ。0以下＝
+  //     「今は使うべきでない」なら null を返すので、その時は黙って次の席へ送る）。
+  //   ⚠ 1画面での人間同士の対戦（疑似CPU対象でない席）は**今までどおり名前付きで出す**
+  //     ——あちらは全員が同じ画面を覗いている前提で、隠す相手がいない。
+  if (isCpuSelectingNow(player)) {
+    const chosen = chooseHandEffectCard(tokens, player);
+    if (!chosen) {
+      logAction("diag-anytime-cpu-skip", { player, candidates: tokens.length });
+      advanceAnytimeInterruptQueue();
+      return;
+    }
+    logAction("diag-anytime-cpu-use", { player, cardId: chosen.cardId });
+    anytimeInterruptQueue = [];
+    clearInterruptWindow();
+    const turnPlayer = getState().turnPlayer;
+    if (turnPlayer) transferPriorityTo(player);
+    runAutoHandEffect(chosen.cardId, chosen.id, player).finally(() => {
+      if (turnPlayer) transferPriorityTo(turnPlayer);
+      settleAnytimeWindowWaiters(true);
+    });
     return;
   }
   showAnytimeInterruptModal(player, tokens);
@@ -9072,6 +9220,8 @@ function showAnytimeInterruptModal(player, tokens) {
       if (turnPlayer) transferPriorityTo(player);
       runAutoHandEffect(token.cardId, token.id, player).finally(() => {
         if (turnPlayer) transferPriorityTo(turnPlayer);
+        // 【#491・#500】待っている側（ロック宣言）へ「割り込まれた」ことを知らせる。
+        settleAnytimeWindowWaiters(true);
       });
     });
     row.appendChild(useBtn);
@@ -9138,6 +9288,29 @@ function fireAnytimeCheckpoint(afterPlayer, kind = null) {
   noteInterruptWindow(kind, afterPlayer);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
   if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer, kind });
+}
+
+// 🔴 【#491・#500・2026-11-04】ロック宣言の窓だけは**閉じるまで待つ**。
+//   やり直しのカギは「その相手はこのターンにロックできない」＝**ロックそのものを止める札**
+//   なので、宣言と同じ一瞬でロックを確定させてしまうと、割り込む隙が物理的に無い
+//   （報告「割り込ませるか悩んでいる間にCPUのフェイズがハンドフェイズに行ってしまいました」）。
+//   戻り値 true ＝「このロックはやめる」。
+//   ⓘ **誰も割り込める札を持っていなければ、窓はその場で閉じるので待ちは0**
+//     （`waitForAnytimeWindowToClose` が即 false を返す）＝ふだんのロックは今までどおりの速さ。
+//   ⚠ 割り込まれても、やめるのは**ロックできなくなった時だけ**。スリカエのように
+//     「ロックを止めない」割り込みなら、そのまま今までどおりロックを続ける。
+async function fireLockDeclareAndShouldAbort(player, tokenId) {
+  fireAnytimeCheckpoint(player, "lock-declare");
+  if (!(await waitForAnytimeWindowToClose())) return false;
+  const 札 = getState().tokens.find((t) => t.id === tokenId);
+  if (札 && isCardLockable(札, player)) return false;
+  logAction("diag-lock-aborted-by-interrupt", { tokenId, player, tokenGone: !札 });
+  // 理由は既にある判定（#434 で足したもの）から引く＝文言を2か所に持たない。
+  if (player === getSelfSeat() && 札 && getLockBlockReason(札, player) === "lock-disabled") {
+    showQuickNote(t("game.lock.disabledThisTurn"));
+  }
+  render();
+  return true;
 }
 // 他クライアントからの合図の受信側。自分自身が送った合図のこだま（broadcastChannelは
 // self:trueのため自分にも返ってくる）は、afterPlayerが自分の座席と一致するかでは
@@ -9576,6 +9749,11 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         announceEffectNotice: announceEffectNoticeForEffect, // 続き214: 非ブロックの軽い通知
         celebrate: celebrateForEffect,
         gambleReveal: (cardId) => revealCenterCardForAll(cardId, t("game.label.gambleReveal")),
+        // 【#502・2026-11-04】足下の隠し財産: 「表向きで置く」＝**公開情報**。ところが
+        //   １番下へ沈めると上の札に隠れて誰にも見えなくなる（ユーザー報告「一度全プレイヤーに
+        //   見せてからおきましょう」）。⇒ 沈める前に**全員へ1回見せる**。
+        //   ⓘ revealCenterCardForAll は**配信する**（playCenterCardFlipReveal 単体は本人だけ）。
+        revealCardToAll: (cardId) => revealCenterCardForAll(cardId, t("game.label.reveal")),
         startSuspenseSound: startHeartbeat,
         stopSuspenseSound: stopHeartbeat,
         delay: (ms) => wait(ms),
@@ -9662,10 +9840,30 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
   }
 }
 
+// 🔴 【#433・2026-11-03】報告「さっきのゴメンナサイに2回到達したCPUのターンの処理が
+//   早すぎました！」。ユーザー指定の長さは「**認知できる程度**」。
+//   ⇒ **CPU（自分が操作していない席）の到達効果が連鎖した2回目から**、効果を走らせる前に
+//     少しだけ間を置く。自分の手番は今までどおり（自分でやっているので速い方がよい）。
+//   ⚠ **1回目には入れない**——ふだんの到達まで遅くすると、CPU戦全体がもたつく。
+//     「連鎖して続けて起きた時だけ、何が起きたか分かる間を置く」のが報告の趣旨。
+//   ⚠ 演出を減らす設定（isFlightAnimationDisabled）の人には入れない（速さを選んでいる人）。
+const CPU_CHAINED_ARRIVAL_PAUSE_MS = 800;
+async function pauseForChainedCpuArrival(player) {
+  // 🔴 数えるのは **arrivalChainDepth()**（本物の到達の入れ子）であって
+  //   arrivalEffectProcessingDepth ではない。後者には「移動〜到達の空白を埋めるガード」の分が
+  //   含まれていて（#293）、**普通の1回目の到達でも 1 になってしまう**＝毎回待つことになる。
+  if (arrivalChainDepth() < 1) return; // 連鎖の2回目から
+  if (player === getSelfSeat()) return; // 自分の到達は待たせない
+  if (!isSeatAutoDriven(player)) return; // 人が操作している席は待たせない
+  if (isFlightAnimationDisabled()) return; // 動きを減らす設定なら待たない
+  await new Promise((r) => setTimeout(r, CPU_CHAINED_ARRIVAL_PAUSE_MS));
+}
+
 async function runAutoArrivalEffect(cardId, location, player) {
   const piece = getState().tokens.find((t) => t.kind === "piece" && t.player === player);
   const cardToken = findTopCardAt(location);
   if (!piece || !cardToken) return;
+  await pauseForChainedCpuArrival(player); // 【#433】連鎖した時だけ、認知できる間を置く
   const arrivedAt = await runArrivalEffect(
     { cardId, player, pieceTokenId: piece.id, cardTokenId: cardToken.id, pieceLocation: location },
     {
@@ -9713,6 +9911,8 @@ async function runAutoArrivalEffect(cardId, location, player) {
       announceEffectNotice: announceEffectNoticeForEffect, // 続き214: 非ブロックの軽い通知
       celebrate: celebrateForEffect,
       gambleReveal: (cardId) => revealCenterCardForAll(cardId, t("game.label.gambleReveal")),
+      // 【#502】足下の隠し財産（手札効果の側）。理由は到達側の同じ行のコメント参照。
+      revealCardToAll: (cardId) => revealCenterCardForAll(cardId, t("game.label.reveal")),
       startSuspenseSound: startHeartbeat,
       stopSuspenseSound: stopHeartbeat,
       delay: (ms) => wait(ms),
@@ -16871,7 +17071,8 @@ async function onDragEnd(e) {
           // ロックは承認を待つ特別なフローのため、実際に承認済みでロックが確定する
           // タイミング（respondToFinalLock→maybeAnnounceLock、既存の処理側）とは別に、
           // ここ（承認依頼を出す＝宣言した瞬間）でも発火させる。
-          fireAnytimeCheckpoint(getSelfSeat(), "lock-declare");
+          // 【#491・#500】割り込みの窓が閉じるまで待ち、ロックできなくなったらやめる。
+          if (await fireLockDeclareAndShouldAbort(getSelfSeat(), tokenId)) return;
           if (isOnlineMode()) {
             try {
               await requestFinalLock(tokenId, dropTarget, ownerSeat, queue);
