@@ -447,6 +447,7 @@ function openMatchChoiceModal() {
     for (const [v, key] of [
       [CARD_SETS.REMAKE, "home.matchChoice.cardSetRemake"],
       [CARD_SETS.EX0, "home.matchChoice.cardSetEx0"],
+      [CARD_SETS.FIRST_ED, "home.matchChoice.cardSet1st"],
       [CARD_SETS.MIXED, "home.matchChoice.cardSetMixed"],
     ]) {
       const b = document.createElement("button");

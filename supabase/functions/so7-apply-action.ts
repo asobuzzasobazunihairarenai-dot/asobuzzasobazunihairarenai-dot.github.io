@@ -120,13 +120,43 @@ const EX0_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
   { id: "ex0-red-crimson-fist", color: "red", count: 4 },
 ];
 
+// 1st EDITION の通常カード19種。**管理者だけが選べるテストモード**で使う。
+// 🔴 **src/cards-data-1st.js と同じ内容を持つ写し**（正はあちら＝tools/first-cards.mjs が作る）。
+//   枚数を直す時は両方。合計105枚＋なないろの欠片7枚＝112枚でリメイクと同じになる。
+// ⚠ マイデッキ戦の検証（NORMAL_CARD_ID_SET）には**入れない**——マイデッキはリメイク専用。
+const FIRST_ED_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
+  { id: "1st-red-poor-march", color: "red", count: 7 },
+  { id: "1st-red-unrest", color: "red", count: 7 },
+  { id: "1st-orange-conglomerate", color: "orange", count: 7 },
+  { id: "1st-orange-festival", color: "orange", count: 7 },
+  { id: "1st-yellow-privilege", color: "yellow", count: 7 },
+  { id: "1st-yellow-lock-change", color: "yellow", count: 7 },
+  { id: "1st-green-largesse", color: "green", count: 7 },
+  { id: "1st-green-bubble", color: "green", count: 7 },
+  { id: "1st-blue-robbery", color: "blue", count: 7 },
+  { id: "1st-blue-poor-heart", color: "blue", count: 7 },
+  { id: "1st-pink-overeating", color: "pink", count: 7 },
+  { id: "1st-pink-growth", color: "pink", count: 7 },
+  { id: "1st-purple-slum", color: "purple", count: 7 },
+  { id: "1st-purple-bribe", color: "purple", count: 7 },
+  { id: "1st-white-airship", color: "white", count: 1 },
+  { id: "1st-white-whim", color: "white", count: 1 },
+  { id: "1st-white-revolution", color: "white", count: 1 },
+  { id: "1st-black-depression", color: "black", count: 2 },
+  { id: "1st-black-great-order", color: "black", count: 2 },
+];
+
 // どのカードセットで山札を組むか。クライアント（src/card-set.js）と同じ文字列。
 function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; count: number }[] {
   if (cardSet === "ex0") {
     // 0th拡張のみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
     return [...EX0_NORMAL_CARDS, ...NORMAL_CARDS.filter((c) => c.id === "rainbow-shard")];
   }
-  if (cardSet === "mixed") return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS];
+  if (cardSet === "1st") {
+    // 1st EDITION のみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
+    return [...FIRST_ED_NORMAL_CARDS, ...NORMAL_CARDS.filter((c) => c.id === "rainbow-shard")];
+  }
+  if (cardSet === "mixed") return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS];
   return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
 }
 
@@ -870,7 +900,10 @@ function applyGateInvasions(
     if (state.piles.eternal.length > 0) {
       const eternalPile = [...state.piles.eternal];
       eternalCardId = eternalPile.pop()!;
-      const color = eternalCardId.replace(/^eternal-/, "");
+      // 🔴 1st EDITION の Eカードは id が "eternal-1st-red" のような形なので、
+      //   "eternal-" を落とすだけだと "1st-red" になって COLORS に当たらない（-1 で壊れる）。
+      //   **末尾の1語を色として読む**（"eternal-red" でも "eternal-1st-red" でも通る）。
+      const color = eternalCardId.split("-").pop()!;
       const colorIndex = COLORS.indexOf(color);
       const side = SEAT_TO_SIDE[attacker];
       const bumpedTokens = state.tokens.filter(
@@ -960,6 +993,28 @@ const ETERNAL_CARD_IDS = [
   "eternal-pink",
   "eternal-purple",
 ];
+
+// 1st EDITION の Eカード7種。🔴 ユーザー判断（2026-11-05）で**リメイクと同じ役回り**
+//   ＝ゲート侵攻に成功したら、その色のロックエリアへ即ロック。
+//   カードセットが "1st" の時だけ、エターナルの山がこれになる。
+// 🔴 **src/cards-data-1st.js の FIRST_ED_ETERNAL_CARDS と同じ並び**（tools/check-cards.mjs が照合する）。
+const FIRST_ED_ETERNAL_CARD_IDS = [
+  "eternal-1st-red",
+  "eternal-1st-orange",
+  "eternal-1st-yellow",
+  "eternal-1st-green",
+  "eternal-1st-blue",
+  "eternal-1st-pink",
+  "eternal-1st-purple",
+];
+
+// エターナルの山を、その対局のカードセットに従って返す。
+// ⚠ 知らない値が来たらリメイク（古いクライアントが cardSet を送ってこない場合も同じ）。
+// ⚠ "mixed" も**リメイクのもの**（クライアントの getEternalCards と同じ判断。
+//   7枚の山に14種を混ぜると、同じ色のEカードが2枚出る形も作れてしまう）。
+function eternalPoolForCardSet(cardSet: string | null | undefined): string[] {
+  return cardSet === "1st" ? FIRST_ED_ETERNAL_CARD_IDS : ETERNAL_CARD_IDS;
+}
 
 // ---------------------------------------------------------------------------
 // DB <-> GameState 変換
@@ -1198,7 +1253,7 @@ Deno.serve(async (req) => {
     // BOOTSTRAP_GAMEのeternal placeholderを正しい構成に差し替える
     // （reduce()内で仮の値を入れているのはETERNAL_CARD_IDSの定義位置の都合のため）。
     if (action.type === "BOOTSTRAP_GAME") {
-      next.piles.eternal = shuffled(ETERNAL_CARD_IDS);
+      next.piles.eternal = shuffled(eternalPoolForCardSet((action as { cardSet?: string }).cardSet));
     }
 
     if (next === current) {

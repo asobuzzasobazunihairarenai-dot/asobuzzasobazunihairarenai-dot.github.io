@@ -4,9 +4,10 @@
 // カードの拡大画像とルール補足テキストをまとめたモーダルが開く。管理者モードと同様、
 // ゲーム本編のUIではなく開発用ツール。
 
-import { NORMAL_CARDS, ETERNAL_CARDS, FIRST_CARDS, getCardImagePath, getCardDefinition } from "./cards-data.js";
+import { NORMAL_CARDS, FIRST_CARDS, getEternalCards, getCardImagePath, getCardDefinition } from "./cards-data.js";
 // 0th拡張（管理者だけのテストモード）。どちらも import を持たない葉なので循環しない。
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
+import { FIRST_ED_NORMAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js";
 import { getCardSet, CARD_SETS } from "./card-set.js";
 import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
@@ -247,15 +248,30 @@ export function buildDeckSections() {
   // 0th拡張を選んでいる時は、その33種を先に出す（いま山札に入っているものが上に来るように）。
   // 🔴 「まぜる」の時は両方出す。既定（リメイク）では**1枚も出さない**——この関数は図鑑からも
   //   使われるので、遊んでいる人に未公開のカードが並ばないようにする。
+  // 🔴 「いま山札に入っているものだけ」を出す。セットが3つ以上になったので、
+  //   「REMAKE 以外なら0th拡張」のような**裏返しの条件では足りない**（1st EDITION を
+  //   選んだ時に0th拡張が並んでしまう）。⇒ セットごとに**何を出すかを直接書く**。
   const セット = getCardSet();
-  if (セット !== CARD_SETS.REMAKE) {
+  const 混ぜる = セット === CARD_SETS.MIXED;
+  if (セット === CARD_SETS.EX0 || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.ex0"), EX0_NORMAL_CARDS));
   }
-  if (セット !== CARD_SETS.EX0) {
+  if (セット === CARD_SETS.FIRST_ED || 混ぜる) {
+    wrap.appendChild(buildSection(t("deckviewer.firstEd"), FIRST_ED_NORMAL_CARDS));
+  }
+  if (セット === CARD_SETS.REMAKE || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.normal"), NORMAL_CARDS));
   }
-  wrap.appendChild(buildSection(t("deckviewer.eternal"), ETERNAL_CARDS));
+  // エターナル。🔴 1st EDITION を選んでいる時は**その対局で実際に出てくるのは1st のEカード**
+  //   なので、そちらを出す（getEternalCards と同じ判断。ズレると「一覧に無い札が出てくる」）。
+  wrap.appendChild(buildSection(t("deckviewer.eternal"), getEternalCards()));
   wrap.appendChild(buildSection(t("deckviewer.first"), FIRST_CARDS));
+  // 1st EDITION の Fカード7種。⚠ **まだどの山にも入れていない**（ファーストカードを1st の
+  //   ものに差し替えるかは別途相談）ので、「ここにあるよ」と見せるだけ。
+  //   見せるのは 1st を選んでいる人だけ＝遊んでいる人に未公開のカードは並ばない。
+  if (セット === CARD_SETS.FIRST_ED) {
+    wrap.appendChild(buildSection(t("deckviewer.firstEd1st"), FIRST_ED_FIRST_CARDS));
+  }
   return wrap;
 }
 

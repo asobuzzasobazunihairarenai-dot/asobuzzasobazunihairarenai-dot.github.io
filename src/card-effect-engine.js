@@ -19,6 +19,7 @@ import { getState } from "./state.js";
 import { VERBS, TARGETS, TARGET_SELECTIONS, CARD_EFFECTS, optionLabel } from "./card-effects.js";
 import { getCardDefinition } from "./cards-data.js";
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ11: 表示用のカード名
+import { wealthSatisfies, wealthCountFor, formatWealth, describeWealthRequirement } from "./wealth.js"; // 1st EDITION の【財力】
 import { t } from "./ui-text.js";
 
 // 表示用のカード名（英語のカードテキストがあればそれ、無ければ日本語の原名）。
@@ -328,6 +329,7 @@ export function resetHandEffectUsage() {
   movementDisabledUntilTurn.clear();
   contactDisabledUntilTurn.clear();
   movementBoostUntilTurn.clear();
+  wealthBonusForAllUntilTurn = null; // 1st EDITION（全員の財力＋1）: 対局・ケース間に漏らさない
 }
 
 // 「追色」コスト（同色の別カードを手札から捨てる）で実際に捨てられる候補。cardTokenIdは
@@ -384,6 +386,12 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   if (!autoProcessingEnabled) return false;
   if (isHandEffectDisabledThisTurn(cardTokenId)) return false;
   if (!isUnderUsageLimit(option.usageLimit, cardId, player)) return false;
+  // 🔴 1st EDITION の【財力】。手札効果は**発動の最初にこのカード自身を捨てる**ので、
+  //   捨てた後の枚数で数えたくなるが、**印字は発動前の条件**として書かれている
+  //   （リメイクの追色コストと同じ位置＝効果文の頭）。だからここ（＝発動前）で見る。
+  //   ⚠ スラム上がりの役人の補足「手札のカウントの際にこのカード自身は含まない」は
+  //     **効果の中の数え方**の話で、発動条件の話ではない。
+  if (!meetsWealth(option.wealth, player)) return false;
   if (option.cost?.verb === VERBS.DISCARD_SAME_COLOR) {
     const color = getCardDefinition(cardId)?.color;
     const candidates = findSameColorDiscardCandidates(cardTokenId, color, player);
@@ -540,6 +548,11 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   if (!autoProcessingEnabled) return t("ce.L291");
   if (isHandEffectDisabledThisTurn(cardTokenId)) return t("ce.L292");
   if (!isUnderUsageLimit(option.usageLimit, cardId, player)) return t("ce.L293");
+  // 🔴 isHandEffectOptionUsable と**同じ順番・同じ条件**で並べる決まり（この関数の冒頭のコメント）。
+  //   ここに書かないと「押せないのに理由が出ない」になる（続き651 で同じ形を踏んだ）。
+  if (!meetsWealth(option.wealth, player)) {
+    return t("ce.wealthNotMet", { now: formatWealth(getWealth(player)), need: describeWealthRequirement(option.wealth) });
+  }
   if (option.cost?.verb === VERBS.DISCARD_SAME_COLOR) {
     const color = getCardDefinition(cardId)?.color;
     const candidates = findSameColorDiscardCandidates(cardTokenId, color, player);
@@ -681,10 +694,86 @@ function getHandTokens(player) {
   );
 }
 
+// ───────────────────────── 1st EDITION の【財力】 ─────────────────────────
+// 財力＝そのプレイヤーの**手札の枚数**（＋修正値）。考え方は src/wealth.js の冒頭に全部書いた。
+// 🔴 リメイクの【追色】と違い**何も捨てない**（条件を見るだけ）。
+//
+// 「全員の財力を１多く計算する」（1st の黄のEカードの手札効果）の持ち越し。
+//   そのプレイヤーの次のターンの開始時まで効くので、「いつまで」をターン番号で持つ
+//   （既存の handEffectDisabledUntilTurn と同じ形。state には入れない＝
+//   入れるとサーバー側のリデューサーにも同じ処理が要る＝続き653・654 と同じ判断）。
+let wealthBonusForAllUntilTurn = null; // { turnNumber } | null
+export function registerWealthBonusForAll(turnNumber) {
+  wealthBonusForAllUntilTurn = { turnNumber };
+}
+export function clearWealthBonusForAll() {
+  wealthBonusForAllUntilTurn = null;
+}
+function forcedWealthBonus() {
+  if (!wealthBonusForAllUntilTurn) return 0;
+  // 「次のあなたのターンの開始時まで」＝登録したターンの間だけ効く、として扱う。
+  // ⚠ ターン番号が進んだら自然に切れる（自動失効）。読む時に見るだけなので取りこぼしが無い。
+  return getState().turnNumber === wealthBonusForAllUntilTurn.turnNumber ? 1 : 0;
+}
+
+// そのプレイヤーが「持っている」1st の Eカードの枚数。
+// 🔴 **手札でも、自分のロックエリアでも「持っている」**。印字の
+//   「あなたはいつでも、自分の財力を１多く計算してもよい」には場所の限定が無く、
+//   同じカードに「この手札効果はロックエリアにロックされていても使える」と書かれている
+//   ＝ロック中でも効いている作りだから（ユーザー判断待ちの読み：続き666 の申し送り）。
+function countOwnedFirstEdEternals(player) {
+  const side = SEAT_TO_SIDE[player];
+  return getState().tokens.filter((tk) => {
+    if (tk.kind !== "card" || !tk.cardId?.startsWith("eternal-1st-")) return false;
+    if (tk.location.zone === "hand" || tk.location.zone === "publicDraw") return tk.location.player === player;
+    if (tk.location.zone === "lock") return tk.location.side === side;
+    return false;
+  }).length;
+}
+
+// そのプレイヤーの財力。base＝実際の枚数（＋強制の修正）、bonusMax＝任意で足せる上限。
+export function getWealth(player) {
+  const base = getHandTokens(player).length + forcedWealthBonus();
+  return { base, bonusMax: countOwnedFirstEdEternals(player) };
+}
+
+// 財力の条件を満たしているか（条件が無ければ常に true）。
+function meetsWealth(cond, player) {
+  if (!cond) return true;
+  return wealthSatisfies(cond, getWealth(player));
+}
+
+// 【財力＝S】の S（枚数・マス数として使う値）。
+function wealthCount(player) {
+  return wealthCountFor(getWealth(player));
+}
+
+// アクションの「枚数・マス数」を実際の数にする。
+// 🔴 データ側に `count: "wealth"`（または maxCount: "wealth"）と書くと、
+//   **その場のそのプレイヤーの財力**になる（1st EDITION の【財力＝S】）。
+//   ⚠ 文に出す時は card-effects.js の toFullWidthNumber が "S" に直す（印字と同じ形）。
+function amountOf(action, player, key = "count") {
+  const v = action[key];
+  return v === "wealth" ? wealthCount(player) : v;
+}
+
+// 「あなたの財力が１番小さいなら」（1st EDITION・貧しき心）。
+// ⚠ **同率も含む**（カウンターロックの isFewestLocked と同じ扱い。補足「１番少なくロック
+//   しているとは、ロックしている枚数が１番少ないことである」＝枚数が最小かどうかを見る）。
+// ⚠ 比べるのは base（実際の枚数）だけ。任意の＋1は「自分に有利な時だけ宣言する」ものなので、
+//   「自分が1番小さい」を狙う時には誰も宣言しない。
+function isLowestWealth(player) {
+  const list = getState().activePlayers.map((p) => getWealth(p).base);
+  if (list.length === 0) return false;
+  return getWealth(player).base === Math.min(...list);
+}
+
 // 選べる罠専用: arrivalOptionsの1つの選択肢が今選べるか（docs/cards.mdの善処の原則
 // 条件を満たすか）。requiresMinHandSize/requiresNotAtOwnGate/requiresHasLockedCardの
 // いずれかを満たさなければ選べない（指定の無い条件はチェックしない）。
 function isArrivalOptionUsable(player, pieceLocation, option, cardId) {
+  // 🔴 1st EDITION の【財力】（条件を満たさない選択肢は選べない＝善処の原則と同じ扱い）。
+  if (!meetsWealth(option.wealth, player)) return false;
   // 🔴 到達効果の選択肢に**追色コスト**が付くのは 0th拡張（紅の鉄拳）が最初。
   //   手札効果の側（isHandEffectOptionUsable）には元からあった判定を、こちらにも足す。
   //   これが無いと「払えないのに選べて、払う所で止まる」ことになる。
@@ -1431,7 +1520,9 @@ async function runAction(action, ctx, helpers) {
       //    ①確認なしで N マス選ぶ → ②まとめて1回だけ確認 → ③処理する、をこちらにも入れる。
       //    ⚠ **置くのは全部選び終わってから**（途中で置くと、まとめて聞く前に盤面が変わる）。
       //    ⚠ 1マスだけの時は今までどおり（1マスずつの確認が出て、まとめては聞かない）。
-      const 置ける枚数 = Math.min(action.count, getState().piles.deck.length);
+      // 🔴 1st EDITION（大盤振舞）: count: "wealth" ＝【財力＝S】。
+      const 欲しい枚数 = amountOf(action, ctx.player);
+      const 置ける枚数 = Math.min(欲しい枚数, getState().piles.deck.length);
       const まとめ確認 = 置ける枚数 >= 2;
       let 選んだマス = [];
       for (;;) {
@@ -1445,7 +1536,7 @@ async function runAction(action, ctx, helpers) {
           const dest =
             candidates.length === 1 && !ctx.forcePrompt && !まとめ確認
               ? candidates[0]
-              : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: action.count }), {
+              : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: 欲しい枚数 }), {
                   purpose: "place",
                   // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
                   skipConfirm: まとめ確認,
@@ -1617,15 +1708,18 @@ async function runAction(action, ctx, helpers) {
       //   既定は「してもよい」のまま（サフランの挙動を変えないため、false を明示した時だけ必須）。
       const 範囲なし = action.withinCells == null;
       const してもよい = action.optional !== false;
+      // 🔴 1st EDITION（財閥の威光）: maxCount: "wealth" ＝【財力＝S】。
+      //   **1回だけ数える**（ループの中で数えると、オープンのたびに手札が増えて上限が動く）。
+      const 上限 = amountOf(action, ctx.player, "maxCount");
       let flippedCount = 0;
-      for (let i = 0; i < action.maxCount; i++) {
+      for (let i = 0; i < 上限; i++) {
         const candidates = 範囲なし
           ? getAnyCellWithFaceDownCardCandidates()
           : getCellsWithFaceDownCardWithinRange(ctx.pieceLocation, action.withinCells);
         if (candidates.length === 0) break;
         const chosen = await helpers.pickLocation(
           candidates,
-          してもよい ? t("ce.pickOpenCells", { n: action.maxCount - i }) : t("ce.pickOpenCellRequired"),
+          してもよい ? t("ce.pickOpenCells", { n: 上限 - i }) : t("ce.pickOpenCellRequired"),
           してもよい ? { allowSkip: true, skipLabel: t("ce.L842") } : undefined
         );
         if (!chosen) break; // 「してもよい」なので、これ以上選ばない＝正常終了
@@ -2265,6 +2359,16 @@ async function runAction(action, ctx, helpers) {
       if (!dest) return false;
       await helpers.moveAndSync(ctx.cardTokenId, dest);
       await helpers.moveAndSync(partner.id, dest);
+      return true;
+    }
+    // 1st EDITION（貧しき心）: 「あなたの財力が１番小さいなら２枚ドロー。」
+    case VERBS.DRAW_IF_LOWEST_WEALTH: {
+      if (!isLowestWealth(ctx.player)) return false;
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.lowestWealthDraw", { name: helpers.getPlayerName(ctx.player), n: action.count ?? 1 })
+      );
+      await helpers.drawCards(ctx.player, action.count ?? 1);
       return true;
     }
     case VERBS.DRAW_IF_FEWEST_LOCKED: {
@@ -3997,7 +4101,17 @@ export async function runArrivalEffect(ctx, helpers) {
   //   1句目で移った先の札を指すので、**移動できていなければ行わない**のが正しいが、
   //   2句目（置く）は成功するので `stopIfPreviousFailed` では止まらない。
   let ここまで全部成功 = true;
-  for (const action of effectDef.actions) {
+  // 🔴 1st EDITION の【財力】。条件を満たしていなければ**この到達効果は丸ごと不発**。
+  //   ⚠ カード自身を手札に加える既定動作は**そのまま行う**（印字に「これはあなたの手札に
+  //     加えない」と書かれていない限り、条件を満たさなくても札は手に入る＝不発の扱いと同じ）。
+  const 財力を満たす = meetsWealth(effectDef.wealth, ctx.player);
+  if (!財力を満たす) {
+    logAction("effect-wealth-unmet", {
+      cardId: ctx.cardId, player: ctx.player, wealth: formatWealth(getWealth(ctx.player)),
+      need: describeWealthRequirement(effectDef.wealth),
+    });
+  }
+  for (const action of 財力を満たす ? effectDef.actions : []) {
     if (action.stopIfPreviousFailed && !直前が成功) break;
     if (action.stopIfAnyPreviousFailed && !ここまで全部成功) break;
     直前が成功 = await runActionSafely(action, runCtx, wrappedHelpers);
@@ -4074,6 +4188,17 @@ async function runHandEffectOption(ctx, option, helpers) {
       });
       return false;
     }
+  }
+  // 🔴 1st EDITION の【財力】。isHandEffectOptionUsable で既に止めているが、**実行側にも置く**
+  //   ——CPU・持ち時間切れの代行・割り込みの経路は、使えるかの判定を通らずにここへ来ることが
+  //   ある（#72 のフェニックスで「判定にだけ条件があり、実行側で止めていた」逆の形を踏んでいる）。
+  //   まだ何も捨てていない・何も見せていないこの位置で返すので、札も演出も無駄にならない。
+  if (!meetsWealth(option.wealth, ctx.player)) {
+    logAction("effect-wealth-unmet", {
+      cardId: ctx.cardId, player: ctx.player, wealth: formatWealth(getWealth(ctx.player)),
+      need: describeWealthRequirement(option.wealth), where: "hand",
+    });
+    return false;
   }
   // ユーザー要望「手札効果を使用したら、このカードが使用されるよ！って知らしめる
   // モーダルをしっかりと出したい」。実際の状態変更（捨てる・コスト支払い等）より前、

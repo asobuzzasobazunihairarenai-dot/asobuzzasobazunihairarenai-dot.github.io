@@ -40,11 +40,12 @@ const RUN_NAV = ARGS.includes("--nav");
 // 0th拡張（0th EDITION 拡張）のカードセットで回す（続き652）。管理者だけのテストモードと
 // 同じ localStorage の鍵（src/card-set.js の KEY）を先に入れておくだけ。
 //   node test/smoke.mjs 2 --ex0     … 0th拡張の33種＋なないろの欠片で回す
+//   node test/smoke.mjs 2 --1st     … 1st EDITION の19種＋なないろの欠片で回す
 //   node test/smoke.mjs 2 --mixed   … リメイクと0th拡張を混ぜて回す
 // 🔴 **ユニットテストでは通らない所**（CPUの自動選択・DOM・演出・フェイズの自動処理）を
 //   実際に通すのが目的。0th拡張のカードは**半分以上がまだ手動**なので、自動処理されない
 //   カードに当たっても止まらないことも同時に見ている。
-const CARD_SET = ARGS.includes("--ex0") ? "ex0" : ARGS.includes("--mixed") ? "mixed" : null;
+const CARD_SET = ARGS.includes("--ex0") ? "ex0" : ARGS.includes("--1st") ? "1st" : ARGS.includes("--mixed") ? "mixed" : null;
 // 連続実行の回数（in-app版「連続実行 N回」に相当。ユーザー要望2026-08-19）。
 //   node test/smoke.mjs 3 --repeat 5   … 3人を5回連続で回す
 const REPEAT = (() => {

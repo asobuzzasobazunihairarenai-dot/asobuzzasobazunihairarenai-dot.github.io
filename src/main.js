@@ -1968,7 +1968,9 @@ async function focusCameraOnFlippedCard(tokenId) {
   // 戻りの予約は効果の処理を待たずにここで入れる（#370 の理由＝選択を聞く間ずっと
   // 寄りっぱなしにしないため）。**次のオープンが来れば、その寄りがこの予約を取り消す**ので、
   // 何枚も続けて開ける時はマスからマスへ滑って、最後の1枚の後だけ元へ戻る。
-  scheduleCameraHome(1200);
+  // 【#510】戻り切ったら合図を出す（お知らせはそれを待ってから出る）。
+  openCameraHomePending = true;
+  scheduleCameraHome(1200, 420, noteOpenCameraWentHome);
 }
 
 // skipCamera（省略可）: カメラを寄せない。【#503】手札から表向きで置く時に、着地の演出の
@@ -3457,6 +3459,9 @@ async function announceEffectReasonForEffect(cardId, text) {
   if (isOnlineMode()) {
     broadcastEffectReason({ fromPlayer: getSelfSeat(), cardId, text });
   }
+  // 【#510】オープンでカメラが寄っている間は出さない（お知らせがカードに被って読めない）。
+  // ⚠ 中継（上）より後に置く＝**他の人は待たされない**。詳しくは waitForCardOpenCameraHome。
+  await waitForCardOpenCameraHome();
   await showAndAwaitEffectReason(cardId, text);
 }
 
@@ -14075,18 +14080,56 @@ function cancelScheduledCameraHome() {
     cameraHomeTimer = null;
   }
 }
-function scheduleCameraHome(delay = 700, ms = 420) {
+// onDone（省略可）: 実際に元の視点へ戻り切った時に1回だけ呼ぶ。【#510】お知らせを
+//   「カメラが戻ってから」出すために、戻り終わりを知る必要がある（下の
+//   waitForCardOpenCameraHome）。待ち直しが挟まっても引き継ぐ。
+function scheduleCameraHome(delay = 700, ms = 420, onDone = null) {
   cancelScheduledCameraHome();
   cameraHomeTimer = setTimeout(() => {
     cameraHomeTimer = null;
     // 演出の最中なら戻らずに待ち直す（上の説明）。新しい寄りが来れば取り消されるので、
     // 待ち直しが残り続けることはない。
     if (isBoardAnimationPlaying()) {
-      scheduleCameraHome(CAMERA_HOME_RETRY_MS, ms);
+      scheduleCameraHome(CAMERA_HOME_RETRY_MS, ms, onDone);
       return;
     }
-    void cameraHome(ms);
+    void Promise.resolve(cameraHome(ms)).finally(() => {
+      try {
+        onDone?.();
+      } catch (err) {
+        console.error("scheduleCameraHome onDone failed", err);
+      }
+    });
   }, delay);
+}
+
+// 🔴 【#510・2026-11-05】報告「笛でオープンした時、**お知らせがズームしたカードに被って**
+//    何のカードか見えない」。ユーザー判断は「**カメラが戻ってから出す**のがいいかも」。
+//  ・寄せているのは #485/#499 の「オープンしたカードへ寄る」演出で、戻るのは 1200ms 後
+//    （+ 戻りの動き 420ms）。**いつ戻るかを知っているのは main.js だけ**なので、
+//    カード効果エンジン側には何も足さず、**お知らせを出す関数の中で待つ**。
+//  ・⚠ 待つのは**自分の画面だけ**。他の人へ中継する方は待たせない
+//    （他の人のカメラは寄っていないので、待たせると情報が遅れるだけ損）。
+//    announceEffectReasonForEffect は**中継してから**この待ちに入る形になっている。
+//  ・⚠ 待つのは**オープンで寄った時だけ**（移動やゲート侵攻の寄りでは待たない）。
+//    あちらは待つ理由が無いうえ、全部のお知らせに 1.6秒 足すと遅くなる。
+//  ・⚠ **必ず上限を付ける**。新しい寄りが来ると戻りの予約は取り消される（焼き直される）ので、
+//    戻り切りの合図を取りこぼす経路があり得る。取りこぼしても**上限で必ず進む**。
+const OPEN_CAMERA_HOME_MAX_WAIT_MS = 2400;
+let openCameraHomePending = false;
+let openCameraHomeWaiters = [];
+function noteOpenCameraWentHome() {
+  openCameraHomePending = false;
+  const list = openCameraHomeWaiters;
+  openCameraHomeWaiters = [];
+  for (const r of list) r();
+}
+async function waitForCardOpenCameraHome() {
+  if (!openCameraHomePending) return;
+  await Promise.race([
+    new Promise((r) => openCameraHomeWaiters.push(r)),
+    wait(OPEN_CAMERA_HOME_MAX_WAIT_MS),
+  ]);
 }
 
 // 【報告#361】手札が画面（ステージ）の外へ出そうな時、盤面全体を縮める代わりに

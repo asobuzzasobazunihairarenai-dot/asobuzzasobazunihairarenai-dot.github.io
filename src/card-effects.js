@@ -25,6 +25,7 @@
 // --- 語彙（今回のパイロット5枚を表現するのに必要な最小セット） -----------------------
 // verb一覧。新しいカードを追加するたびに、ここに無い動詞が必要になったら追記する。
 import { t } from "./ui-text.js"; // UI英語化フェーズ11（選択肢ラベルの解決に使う）
+import { renderWealthCondition } from "./wealth.js"; // 1st EDITION の【財力】（印字の形で文に出す）
 
 export const VERBS = {
   MOVE: "move", // 自分の駒を移動する
@@ -35,6 +36,7 @@ export const VERBS = {
   SWAP_POSITION: "swap_position", // 自分の駒と、範囲内にいる相手の駒の位置を入れ替える（「移動」ではない）
   LOCK_PAIR: "lock_pair", // なないろの欠片専用: 手札の同名2枚を任意のロックスロットへまとめてロックする
   DRAW_IF_FEWEST_LOCKED: "draw_if_fewest_locked", // カウンターロック専用: 自分のロック枚数が全員中で最少（同率含む）なら1枚ドロー
+  DRAW_IF_LOWEST_WEALTH: "draw_if_lowest_wealth", // 1st EDITION・貧しき心専用: 自分の財力が全員中で最小（同率含む）ならNドロー
   SWAP_RANDOM_HAND_CARD: "swap_random_hand_card", // 手品師の技専用: 選んだ相手と、互いの手札から無作為に1枚ずつ交換する
   DRAW_ALL_FEWEST_LOCKED: "draw_all_fewest_locked", // プレゼント専用: ロック枚数が全員中で最少（同率含む）の全員がそれぞれ1枚ドロー
   DISCARD_ALL_FACEUP_ON_BOARD: "discard_all_faceup_on_board", // 白の意思の覚醒専用: 盤面（マス）にある表向きのカードを全て捨てる
@@ -1542,6 +1544,195 @@ export const CARD_EFFECTS = {
     arrivalOptions: EX0_FLUTE_OPTIONS,
     handEffectOptions: EX0_FLUTE_OPTIONS,
   },
+
+  // ================= ここから 1st EDITION =================
+  // ⚠ ここに載っているカードだけが自動処理される。**載っていないカードは今までどおり
+  //   「文を読んでプレイヤーが自分で処理する」**（0th拡張と同じ段取り）。
+  //
+  // 🔴 【財力】＝そのプレイヤーの手札の枚数（＋修正値）。リメイクの【追色】とは**別の仕組み**で、
+  //   何も捨てない「条件」。考え方と読み方は src/wealth.js の冒頭に全部書いた。
+  //   データでは `wealth: { eq: 0 } / { max: 2 } / { min: 3 } / { variable: true }` と書く。
+  //   🔴 **罰の効果（治安悪化等）でも「本人は宣言しないはず」と決め打ちしない**
+  //   （ユーザー指摘「あえて罰を受けたいときも出てきます」）。宣言で結果が変わる時だけ
+  //   本人に聞く＝wealthNeedsDeclaration() で見る。【状況】カードを入れる時にここを使う。
+  //
+  // ⚠ **生成文と印字は一致しない。** 1st EDITION の印字は「このカードを捨てる。」のような
+  //   **旧い言い回し**で、生成側は続き647 で「これ」に揃えてある。画面に出るのは印字の方
+  //   （src/card-text-1st.ja.js）なので遊びには影響しないが、**カード開発モードの照合は
+  //   1st では当てにならない**ので見ない。
+  //
+  // ⚠ **片側だけ入れているカードがある。** もう片方は今までどおり手で処理する
+  //   （canAutoProcessArrival と hasHandEffectData は別々に見るので、作りとして成立する
+  //   ＝続き652 で確かめた）。カードごとのコメントに「もう片方はまだ」と書いてある。
+
+  // 貧しき心（青・7枚）
+  //   到達: 「あなたの財力が１番小さいなら２枚ドロー。」
+  //   手札: 「【財力≦２】捨て場の１番上のカードをあなたの手札に加える。このカードを捨てる。」
+  // ⚠ 「１番小さい」は**同率も含む**（カウンターロックの「１番少なくロック」と同じ扱い）。
+  // 🔴 **捨てる順が大事。** 印字は「捨て場の１番上のカードをあなたの手札に加える。**このカードを
+  //   捨てる。**」＝拾ってから捨てる。engine の既定（発動時にまず自分を捨てる）だと、
+  //   **捨てた自分自身が１番上になって、それを拾ってしまう**（テストで実際にそうなった。
+  //   赤のはじまりが「２番目」と書かれているのと同じ罠）。
+  //   ⇒ keepsCardOnUse で既定を止め、**最後に DISCARD_SELF** で印字どおりの順にする。
+  //   ⓘ docs/cards.md の凡例「効果カード自身の処遇の**記載がなければ**発動時に捨てる」にも合う
+  //     （1st は記載が在るので、書かれた順に従う）。
+  "1st-blue-poor-heart": {
+    arrival: {
+      actions: [{ verb: VERBS.DRAW_IF_LOWEST_WEALTH, count: 2 }],
+    },
+    handEffect: {
+      wealth: { max: 2 },
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.PICKUP_DISCARD_TOP }, { verb: VERBS.DISCARD_SELF }],
+    },
+  },
+
+  // 食べ過ぎ（桃・7枚）
+  //   到達: 「２枚ドロー。あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに
+  //         重ねて置く。」← **まだ**（隣のカードを自分のマスへ積む動詞が無い）
+  //   手札: 「【財力≧３】２枚ドロー。このカードを捨てる。このターンを終了する。」
+  // ⚠ 印字どおりの順（引く→捨てる→ターン終了）にしてある（貧しき心と同じ理由）。
+  "1st-pink-overeating": {
+    handEffect: {
+      wealth: { min: 3 },
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.DRAW, count: 2 }, { verb: VERBS.DISCARD_SELF }, { verb: VERBS.END_TURN }],
+    },
+  },
+
+  // 路地裏のスラム街（紫・7枚）
+  //   到達: 「【財力≧３】以下の効果のうち１つ得る。…」← **まだ**
+  //         （「手札を２枚以下になるように**無作為に**捨てる」「このカードを裏向きにする」が無い）
+  //   手札: 「【財力≧３】このカードを任意のマスに裏向きで置く。」
+  "1st-purple-slum": {
+    handEffect: {
+      wealth: { min: 3 },
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
+  // 飛空艇アルヴァ（白・1枚）
+  //   到達: 「【財力≧６】あなたの手札を無作為に３枚捨てる。そうしたなら、カードの置かれて
+  //         いない７マス先に一気に強制移動してもよい。…」← **まだ**
+  //   手札: 「このカードを任意のマスに表向きで置く。」（財力の条件は無い）
+  "1st-white-airship": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
+  // ドゥエンの革命（白・1枚）
+  //   到達: 「手札が１番多いプレイヤーは…捨て、１番少ないプレイヤーは…ドロー。…」← **まだ**
+  //   手札: 「このカードをプレイヤーの隣以外のマスに表向きで置く（プレイヤーのいるマスを除く）。」
+  // ⚠ 「隣」＝前後左右の4マス（用語集）。駒のいるマスも除く＝続き651 で作った2つの絞り込みそのもの。
+  "1st-white-revolution": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeAdjacent: true, excludePieceCells: true },
+        },
+      ],
+    },
+  },
+
+  // 財閥の威光（橙・7枚）
+  //   到達: 「【財力≧３】財力の１番少ないプレイヤーを１人選ぶ。そのプレイヤーの手札に
+  //         あなたの手札から２枚加える。」← **まだ**（相手に手札を渡す動詞が無い）
+  //   手札: 「このカードを任意のマスに裏向きで置く。【財力＝S】任意のマスのカードを
+  //         Sマスまでオープンしてもよい。」
+  // 🔴 **財力の印が2文目の頭に付いている**ので、効果全体ではなく**アクションに**付ける
+  //   （generateEffectText がその句の頭に出す）。【財力＝S】は条件ではなく「S＝あなたの財力」の宣言。
+  // ⚠ Sは**オープンを始める前に1回だけ数える**（engine の 上限）。オープンで手札が増えても伸びない。
+  "1st-orange-conglomerate": {
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+        { verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, maxCount: "wealth", wealth: { variable: true } },
+      ],
+    },
+  },
+
+  // 大盤振舞（緑・7枚）
+  //   到達: 「あなたの隣計２マスにあなたの手札から裏向きで１枚ずつ置く。」← **まだ**
+  //         （隣に手札から置く動詞が無い。山札からの PLACE_DECK_CARDS_ON_ADJACENT はある）
+  //   手札: 「【財力＝S】カードの置かれていないSマスに山札からカードを裏向きで１枚ずつ置く。
+  //         このカードを捨てる。」
+  // ⚠ 「カードの置かれていない」＝カードが無いだけで**駒はいてよい**（用語集。requireNoPiece: false）。
+  // 🔴 印字は「…置く。**このカードを捨てる。**」＝置いてから捨てる。既定（先に捨てる）だと
+  //   Sを数える時の手札が1枚少なくなるので、**印字どおりの順**にする（貧しき心と同じ）。
+  "1st-green-largesse": {
+    handEffect: {
+      wealth: { variable: true },
+      keepsCardOnUse: true,
+      actions: [
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: "wealth", requireNoCard: true, requireNoPiece: false, reveal: false },
+        { verb: VERBS.DISCARD_SELF },
+      ],
+    },
+  },
+
+  // ── 1st EDITION の Eカード（ゲート侵攻で獲得。ロックされていても手札効果が使える） ──
+  // ⚠ 基本効果の「あなたはいつでも、自分の財力を１多く計算してもよい」は**効果データではなく
+  //   財力の計算そのもの**に入っている（card-effect-engine.js の countOwnedFirstEdEternals）。
+
+  // 新緑の史文　グリングリン（緑）
+  //   手札: 「【財力＝３】任意の１マスに手札からカードを１枚裏向きで置く。」
+  "eternal-1st-green": {
+    handEffect: {
+      wealth: { eq: 3 },
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "hand",
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
+  // 古の蒼書　ティセリオス（青）
+  //   手札: 「【財力＝４】捨て場の１番上から２枚のカードをあなたの手札に加える。
+  //         このフェイズを終了する。」
+  // ⚠ 「１番上から２枚」＝1枚取るともう1枚が１番上に来るので、同じ動詞を2回で足りる。
+  "eternal-1st-blue": {
+    handEffect: {
+      wealth: { eq: 4 },
+      actions: [
+        { verb: VERBS.PICKUP_DISCARD_TOP },
+        { verb: VERBS.PICKUP_DISCARD_TOP },
+        { verb: VERBS.END_CURRENT_PHASE },
+      ],
+    },
+  },
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------
@@ -1556,6 +1747,10 @@ export const CARD_EFFECTS = {
 // 半角の数値をそのまま埋め込まず全角に変換する。
 const FULLWIDTH_DIGITS = "０１２３４５６７８９";
 function toFullWidthNumber(n) {
+  // 🔴 1st EDITION の【財力＝S】。枚数・マス数が「その場の財力」で決まるアクションは
+  //   データ側に count: "wealth" と書く（card-effect-engine.js の amountOf が実際の数にする）。
+  //   文に出す時は印字どおり **半角の S**（数字ではなく記号なので全角にしない＝【追色S】と同じ）。
+  if (n === "wealth") return "S";
   return String(n).replace(/[0-9]/g, (d) => FULLWIDTH_DIGITS[Number(d)]);
 }
 
@@ -1763,6 +1958,8 @@ function renderAction(action, context) {
       return "その２枚を任意の１箇所にロックする。";
     case VERBS.DRAW_IF_FEWEST_LOCKED:
       return "１番少なくロックしているなら１枚ドロー。";
+    case VERBS.DRAW_IF_LOWEST_WEALTH:
+      return `あなたの財力が１番小さいなら${toFullWidthNumber(action.count ?? 1)}枚ドロー。`;
     case VERBS.SWAP_RANDOM_HAND_CARD:
       return "相手１人の手札から無作為に１枚、あなたの手札に加える。あなたの手札から１枚、その相手の手札に加える。";
     case VERBS.DRAW_ALL_FEWEST_LOCKED:
@@ -1884,6 +2081,11 @@ export function generateEffectText(effectDef) {
     parts.push(`あなたの隣の${toFullWidthNumber(effectDef.requiresAdjacentCardsAtLeast)}マス以上にカードが置かれている時に使える。`);
   const costText = renderCost(effectDef.cost);
   if (costText) parts.push(costText);
+  // 🔴 1st EDITION の【財力】。リメイクの【追色】と同じ位置（効果文の頭）に出す。
+  //   ⚠ **アクションごとに付くこともある**（財閥の威光の手札効果は「…置く。【財力＝S】…」と
+  //     2文目の頭に付いている）。そちらは下の action.wealth で前置きする。
+  const wealthText = renderWealthCondition(effectDef.wealth);
+  if (wealthText) parts.push(wealthText);
   // inheritsArrival: true（マスチェンジ・手品師の技の手札効果等）は、実際の
   // アクション配列（エンジン実行用にactionsは引き続き持つ）をテキスト化せず、
   // 代わりに「上記の到達効果を得る。」という参照文だけを出す
@@ -1893,7 +2095,8 @@ export function generateEffectText(effectDef) {
     parts.push("上記の到達効果を得る。");
   } else {
     for (const action of effectDef.actions) {
-      parts.push(renderAction(action, context));
+      // アクション単位の【財力】はその句の頭に出す（財閥の威光の手札効果）。
+      parts.push(renderWealthCondition(action.wealth) + renderAction(action, context));
     }
   }
   const limitText = renderUsageLimit(effectDef.usageLimit);

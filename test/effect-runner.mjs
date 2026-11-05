@@ -356,5 +356,10 @@ export async function runOneCase(spec) {
   // 0th拡張（やり直しのカギ）の検査用。state には入らない印なので、結果に添えて返す。
   const lockDisabled = {};
   for (const p of S().activePlayers || []) lockDisabled[p] = !!eng.isLockDisabledThisTurn?.(p);
-  return { calls: callLog, tokens: S().tokens, piles: S().piles, diag, lockDisabled };
+  // 1st EDITION の【財力】の検査用。state には入らない計算値なので、結果に添えて返す。
+  // 🔴 **効果を走らせた後の値**になる（手札が増えていれば増えている）。
+  //   「条件を満たしていたか」を見たい時は handUsable（下の diag）か、効果の結果で見る。
+  const wealth = {};
+  for (const p of S().activePlayers || []) wealth[p] = eng.getWealth?.(p) ?? null;
+  return { calls: callLog, tokens: S().tokens, piles: S().piles, diag, lockDisabled, wealth };
 }

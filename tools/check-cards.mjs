@@ -11,6 +11,7 @@
 // 🔴 **探し方が空振りすると「0件＝合格」になってしまう**ので、まず「それらしい数が取れたか」を
 // 確かめ、取れていなければ検査そのものを失敗にする（黙って合格しない）。
 import fs from "node:fs";
+const QUOTE = String.fromCharCode(34); // 二重引用符1文字（正規表現を使わずに id を切り出すため）
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -79,7 +80,22 @@ const ex0Ids = (() => {
     return [];
   }
 })();
-const known = new Set([...cards.map((c) => c.id), ...ex0Ids]);
+const firstEdIds = (() => {
+  try {
+    return [...read("src/cards-data-1st.js").matchAll(/\{\s*id:\s*"((?:1st|eternal-1st|first-1st)-[a-z0-9-]+)"/g)].map((m) => m[1]);
+  } catch (e) {
+    return [];
+  }
+})();
+// 1st EDITION のEカードは山札に入らないので cards-data-1st.js に居ない。文の方から拾う。
+const firstEdTextIds = (() => {
+  try {
+    return [...read("src/card-text-1st.ja.js").matchAll(/^ {2}"((?:1st|eternal-1st|first-1st)-[a-z0-9-]+)":/gm)].map((m) => m[1]);
+  } catch (e) {
+    return [];
+  }
+})();
+const known = new Set([...cards.map((c) => c.id), ...ex0Ids, ...firstEdIds, ...firstEdTextIds]);
 for (const [label, ids] of [["効果データ", effectIds], ["日本語の文", jaIds], ["英語の文", enIds]]) {
   for (const id of ids) {
     if (!known.has(id)) note(`カード一覧に無いのに ${label} だけ在る: ${id}（消し忘れ？）`);
@@ -132,13 +148,13 @@ if (ex0Src) {
 //   「CPU戦では0th拡張なのに、フレンドリーマッチだと枚数が違う」という分かりにくい形で出る。
 //   ⚠ サーバーの方は**手でコピペしてデプロイする運用**なので、機械で見張る価値が高い。
 // ⓘ 正規表現を使わずに読む（この環境では置換スクリプトの \ が食われて空振りしたことがある）。
-function 表を読む(本文, 始まりの目印) {
+function 表を読む(本文, 始まりの目印, 接頭辞) {
   const i = 本文.indexOf(始まりの目印);
   if (i < 0) return null;
   const 塊 = 本文.slice(i, 本文.indexOf("];", i));
   const 表 = new Map();
   for (const 行 of 塊.split("\n")) {
-    const a = 行.indexOf('id: "ex0-');
+    const a = 行.indexOf('id: "' + 接頭辞);
     if (a < 0) continue;
     const id = 行.slice(a + 5).split('"')[0];
     const c = 行.indexOf('color: "');
@@ -159,8 +175,8 @@ if (ex0Src) {
     edge = null; // Edge Function が無い環境（切り出し後など）では見ない
   }
   if (edge) {
-    const 写し = 表を読む(edge, "const EX0_NORMAL_CARDS");
-    const 正 = 表を読む(ex0Src, "export const EX0_NORMAL_CARDS");
+    const 写し = 表を読む(edge, "const EX0_NORMAL_CARDS", "ex0-");
+    const 正 = 表を読む(ex0Src, "export const EX0_NORMAL_CARDS", "ex0-");
     if (!写し || !正 || 写し.size < 20 || 正.size < 20) {
       console.error("❌ 検査そのものが怪しい: 0th拡張の表が 正" + (正 ? 正.size : "読めず") + " / 写し" + (写し ? 写し.size : "読めず") + " しか取れなかった");
       process.exit(2);
@@ -173,10 +189,122 @@ if (ex0Src) {
   }
 }
 
+// --- 6. 1st EDITION ---------------------------------------------------------------
+// 🔴 0th拡張とまったく同じ見方（絵は blank と illust の2種・文は専用ファイル・assets/cards は作らない）。
+//   ⚠ **効果データとテストはまだ0件**。1st EDITION のコストは【財力】という別の仕組みで、
+//     いまは文を出すだけ（処理はプレイヤーの自己申告＝CLAUDE.md の段階目標どおり）。
+//     無い数をそのまま出して、進み具合が毎回見えるようにする。
+//   ⚠ Fカード7種は「別途相談」なので、そもそも src に書き出していない（表にだけ在る）。
+const firstEdSrc = (() => {
+  try {
+    return read("src/cards-data-1st.js");
+  } catch (e) {
+    return null;
+  }
+})();
+let firstEdLine = "";
+if (firstEdSrc) {
+  // ⚠ ここは**山札に入る通常カード19種だけ**（id が 1st- で始まるもの）。E/Fカードは別に下で見る。
+  const fe = [...firstEdSrc.matchAll(/\{\s*id:\s*"(1st-[a-z0-9-]+)"\s*,\s*name:\s*"([^"]*)"/g)].map((m) => ({ id: m[1], name: m[2] }));
+  if (fe.length < 15) {
+    console.error(`❌ 検査そのものが怪しい: cards-data-1st.js から ${fe.length} 種しか読めなかった`);
+    process.exit(2);
+  }
+  const jaFe = new Set([...read("src/card-text-1st.ja.js").matchAll(/^ {2}"((?:1st|eternal-1st|first-1st)-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  const enFe = new Set([...read("src/card-text-1st.en.js").matchAll(/^ {2}"((?:1st|eternal-1st|first-1st)-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  let 効果あり = 0;
+  let テストあり = 0;
+  for (const c of fe) {
+    if (!jaFe.has(c.id)) note(`1st EDITION: 日本語の文が無い: ${c.id}（${c.name}）→ node tools/gen-1st-text.mjs`);
+    if (!enFe.has(c.id)) note(`1st EDITION: 英語の文が無い: ${c.id}（${c.name}）→ node tools/gen-1st-text.mjs`);
+    for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${c.id}.webp`))) note(`1st EDITION: 絵が無い: ${dir}/${c.id}.webp → node tools/make-1st-art.mjs`);
+    }
+    if (effectIds.has(c.id)) 効果あり++;
+    if (casesSrc.includes(`"${c.id}"`)) テストあり++;
+  }
+  // Eカード7種は山札に入らない（別の山）ので cards-data-1st.js には居ない。絵と文だけ確かめる。
+  const eternal1st = [...jaFe].filter((id) => id.startsWith("eternal-1st-"));
+  let E効果あり = 0;
+  for (const id of eternal1st) {
+    if (!enFe.has(id)) note(`1st EDITION: 英語の文が無い: ${id} → node tools/gen-1st-text.mjs`);
+    for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${id}.webp`))) note(`1st EDITION: 絵が無い: ${dir}/${id}.webp → node tools/make-1st-art.mjs`);
+    }
+    if (effectIds.has(id)) E効果あり++;
+  }
+  if (eternal1st.length !== 7) note(`1st EDITION: Eカードが7種でない: ${eternal1st.length} 種`);
+  // 🔴 Fカード7種は**暫定で印刷データ（完成カード）を当てている**ので、文字入りの
+  //   assets/cards/ と assets/cards-illust/ を持つ（cards-blank は持たない）。
+  //   cards-data.js の hasBakedCardFace がこの前提で分岐しているので、ここで見張る。
+  const first1st = [...jaFe].filter((id) => id.startsWith("first-1st-"));
+  if (first1st.length !== 7) note(`1st EDITION: Fカードが7種でない: ${first1st.length} 種`);
+  for (const id of first1st) {
+    if (!enFe.has(id)) note(`1st EDITION: 英語の文が無い: ${id} → node tools/gen-1st-text.mjs`);
+    for (const dir of ["assets/cards", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${id}.webp`))) note(`1st EDITION: Fカードの暫定絵が無い: ${dir}/${id}.webp → node tools/make-1st-art.mjs`);
+    }
+    if (fs.existsSync(path.join(ROOT, "assets/cards-blank", `${id}.webp`)))
+      note(`1st EDITION: Fカードは文字入りの暫定絵なので cards-blank を持たないはず: ${id}`);
+  }
+  firstEdLine =
+    `ⓘ 1st EDITION ${fe.length} 種（＋Eカード ${eternal1st.length} 種・Fカード ${first1st.length} 種）: 文(日英)と絵は上で検査済み。` +
+    `効果データ 通常 ${効果あり}/${fe.length}・E ${E効果あり}/${eternal1st.length}、テスト ${テストあり}/${fe.length}` +
+    `（Fカードは絵だけ暫定＝印刷データ。効果は別途相談で保留）`;
+
+  // サーバー側の写しとのズレ（0th拡張と同じ理由。手でコピペしてデプロイする運用なので見張る）
+  let edge2 = null;
+  try {
+    edge2 = read("supabase/functions/so7-apply-action.ts");
+  } catch (e) {
+    edge2 = null;
+  }
+  if (edge2) {
+    const 写し = 表を読む(edge2, "const FIRST_ED_NORMAL_CARDS", "1st-");
+    const 正 = 表を読む(firstEdSrc, "export const FIRST_ED_NORMAL_CARDS", "1st-");
+    if (!写し || !正 || 写し.size < 15 || 正.size < 15) {
+      console.error("❌ 検査そのものが怪しい: 1st EDITION の表が 正" + (正 ? 正.size : "読めず") + " / 写し" + (写し ? 写し.size : "読めず") + " しか取れなかった");
+      process.exit(2);
+    }
+    for (const [id, v] of 正) {
+      if (!写し.has(id)) note("1st EDITION: サーバー側の写しに無い: " + id + " → supabase/functions/so7-apply-action.ts の FIRST_ED_NORMAL_CARDS");
+      else if (写し.get(id) !== v) note("1st EDITION: 色か枚数がサーバー側とズレている: " + id + "（正 " + v + " / 写し " + 写し.get(id) + "）");
+    }
+    for (const id of 写し.keys()) if (!正.has(id)) note("1st EDITION: サーバー側にだけ在る: " + id + "（消し忘れ？）");
+
+    // 🔴 Eカードの山も同じ理由で見張る（1st を選んだ時だけこちらになる）。
+    //   ズレると「CPU戦では1stのEカードなのに、オンラインではリメイクのEカード」になる。
+    const 札 = (本文, 目印) => {
+      const i = 本文.indexOf(目印);
+      if (i < 0) return null;
+      const j = 本文.indexOf("]", i);
+      if (j < 0) return null;
+      return 本文
+        .slice(i, j)
+        .split("eternal-1st-")
+        .slice(1)
+        .map((x) => "eternal-1st-" + x.split(QUOTE)[0]);
+    };
+    const E写し = 札(edge2, "const FIRST_ED_ETERNAL_CARD_IDS");
+    const E正 = 札(firstEdSrc, "export const FIRST_ED_ETERNAL_CARDS");
+    if (!E写し || !E正 || E写し.length !== 7 || E正.length !== 7) {
+      console.error(
+        "❌ 検査そのものが怪しい: 1st EDITION のEカードの表が 正" +
+          (E正 ? E正.length : "読めず") + " / 写し" + (E写し ? E写し.length : "読めず") + " しか取れなかった"
+      );
+      process.exit(2);
+    }
+    if (E写し.join(",") !== E正.join(",")) {
+      note("1st EDITION: Eカードの山がサーバー側とズレている（正 " + E正.join(",") + " / 写し " + E写し.join(",") + "）");
+    }
+  }
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
   if (ex0Line) console.log("   " + ex0Line);
+  if (firstEdLine) console.log("   " + firstEdLine);
   process.exit(0);
 }
 console.log(`❌ ${problems.length} 件`);

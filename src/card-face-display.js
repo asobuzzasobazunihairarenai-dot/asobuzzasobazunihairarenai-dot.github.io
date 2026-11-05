@@ -11,6 +11,7 @@
 // ドラッグ中のゴースト・飛翔演出・canvas（victory-summary / card-dissolve）は DOM スロットでは
 // ないため対象外（常に画像/canvasのまま）。
 import { buildCardFace } from "./card-renderer.js";
+import { hasBakedCardFace, getCardImagePath } from "./cards-data.js";
 import { getLang } from "./i18n.js";
 
 const STORE_KEY = "so7-card-face-mode";
@@ -64,7 +65,10 @@ export function clearCardFaceMount(el) {
 export function showCardFace(el, cardId, imageUrl) {
   if (!el) return;
   const prev = el.querySelector(":scope > .card-face-mount");
-  if (isCardFaceTextMode() && cardId) {
+  // 🔴 絵に文字が焼き込まれているカード（1st EDITION の Fカード7種＝暫定で印刷データを
+  //   当てている）は、テキストモードでも**画像のまま**出す。上から文字を描くと二重になる。
+  //   正式な絵ができたら hasBakedCardFace が空になり、自動でテキストモードに戻る。
+  if (isCardFaceTextMode() && cardId && !hasBakedCardFace(cardId)) {
     el.style.backgroundImage = "none";
     // マウントは inset:0 の絶対配置なので、スロットが包含ブロック（positioned）である必要がある。
     // 【重要】未挿入(detached)の要素は getComputedStyle が常に position:static を返す（スタイルが
@@ -83,6 +87,9 @@ export function showCardFace(el, cardId, imageUrl) {
     el.insertBefore(face, el.firstChild);
   } else {
     if (prev) prev.remove();
-    if (imageUrl) el.style.backgroundImage = `url("${imageUrl}")`;
+    // 焼き込み済みのカードは、呼び出し側が絵のURLを渡していなくても絵を敷く
+    // （テキストモードから回ってくるので、渡されていないことがある）。
+    const url = imageUrl || (cardId && hasBakedCardFace(cardId) ? getCardImagePath(cardId) : null);
+    if (url) el.style.backgroundImage = `url("${url}")`;
   }
 }

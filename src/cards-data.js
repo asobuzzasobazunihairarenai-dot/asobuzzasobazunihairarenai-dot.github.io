@@ -1,6 +1,7 @@
 import { getCardBackSetIndex, backImagePath } from "./card-back-skins.js";
 import { getLang } from "./i18n.js"; // UI英語化フェーズ12: ブーストカードの仮デザイン内の文字だけに使う
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
+import { FIRST_ED_NORMAL_CARDS, FIRST_ED_ETERNAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js"; // 1st EDITION の19種＋E7種＋F7種
 import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
 
 // 実際のカードデータ（docs/cards.md, docs/rulebook.mdより）。
@@ -176,7 +177,11 @@ export const NOIR_FIRST_CARD = {
 // 🔴 0th拡張の33種は**どのセットで遊んでいても逆引きできる**ようにここへ入れる。
 //   切り替わるのは「山札に何を入れるか」だけで、名前・色・絵の引きは常に通る必要がある
 //   （オンラインで相手が0th拡張のカードを出した時に、こちらが引けないと描けない）。
-const ALL_CARDS = [...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...ETERNAL_CARDS, ...FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD];
+const ALL_CARDS = [
+  ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS,
+  ...ETERNAL_CARDS, ...FIRST_ED_ETERNAL_CARDS,
+  ...FIRST_CARDS, ...FIRST_ED_FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD,
+];
 const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 
 // 山札に入れる「通常カード」を、いま選ばれているカードセットに従って返す。
@@ -185,14 +190,33 @@ const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 //   そのため 0th拡張の山札には、リメイクの rainbow-shard をそのまま足して 112 枚にする。
 // ⚠ 0th拡張には**ファーストカード・エターナルカードが無い**。そちらはリメイクのものを使う
 //   （ユーザー確認済み）。ここが返すのは通常カードだけなので、その2種には影響しない。
+// ⚠ 1st EDITION も同じで、**虹（なないろの欠片）だけリメイクのものを使い回す**
+//   （印字が一字一句同じなので作っていない＝0th拡張と同じ）。Eカード・Fカードは別の山なので
+//   ここには出てこない（1st のEカードは入れていない＝続き665 の申し送り参照）。
 export function getDeckNormalCards() {
   const set = getCardSet();
+  const rainbow = NORMAL_CARDS.find((c) => c.id === "rainbow-shard");
   if (set === CARD_SETS.EX0) {
-    const rainbow = NORMAL_CARDS.find((c) => c.id === "rainbow-shard");
     return rainbow ? [...EX0_NORMAL_CARDS, rainbow] : [...EX0_NORMAL_CARDS];
   }
-  if (set === CARD_SETS.MIXED) return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS];
+  if (set === CARD_SETS.FIRST_ED) {
+    return rainbow ? [...FIRST_ED_NORMAL_CARDS, rainbow] : [...FIRST_ED_NORMAL_CARDS];
+  }
+  if (set === CARD_SETS.MIXED) return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS];
   return NORMAL_CARDS;
+}
+
+// エターナルカードの山を、いま選ばれているカードセットに従って返す。
+//
+// 🔴 1st EDITION には**専用のEカード7種がある**。ユーザー判断（2026-11-05）で
+//   「1stのエターナルの基本効果（手札にあるならロックエリアを全部手札に加える）は無くして、
+//   リメイク同様に侵攻成功したら即ロックでいい」となったので、**役回りはリメイクと同じ**
+//   ＝この山から1枚取って、その色のロックエリアへ表向きでロックする。
+// ⚠ 0th拡張には Eカードが無いので、あちらはリメイクのものを使う（ユーザー確認済み）。
+// ⚠ 「まぜる」も**リメイクのもの**にしてある（7枚の山に14種を混ぜると、どの色が出るかが
+//   運になりすぎるうえ、同じ色のEカードが2枚出る形も作れてしまう）。
+export function getEternalCards() {
+  return getCardSet() === CARD_SETS.FIRST_ED ? FIRST_ED_ETERNAL_CARDS : ETERNAL_CARDS;
 }
 
 export function getCardDefinition(cardId) {
@@ -216,8 +240,34 @@ export function getCardImagePath(cardId) {
   //   検査している）。ところが**生のURLを使う所**（飛翔ゴースト・霧散演出・山札一覧の img）が
   //   あり、そこで必ず404になっていた（0th拡張でCPU戦を回して初めて分かった）。
   //   文字なしの下地へ振り替える——文字は乗らないが、**絵が出ないより良い**。
-  if (cardId.startsWith("ex0-")) return getCardBlankPath(cardId);
+  //   🔴 **1st EDITION も同じ**（続き665）。prefix を2か所に散らさないよう1つの関数にまとめた
+  //   ——4つ目のセットを足した人が、同じ穴をもう一度掘らないように。
+  if (hasNoPrintedFace(cardId)) return getCardBlankPath(cardId);
   return `assets/cards/${cardId}.webp`;
+}
+
+// 「文字を焼き込んだ画像（assets/cards/）を持たない」カードか。
+// 0th拡張・1st EDITION は文字をアプリが描くので、あちらには置かない（検査もそうなっている）。
+export function hasNoPrintedFace(cardId) {
+  if (typeof cardId !== "string") return false;
+  // 🔴 1st EDITION の Fカード7種だけは例外で、**文字入りの絵を持っている**
+  //   （暫定で印刷データ＝完成カードそのものを当てているため＝hasBakedCardFace 参照）。
+  if (hasBakedCardFace(cardId)) return false;
+  return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("eternal-1st-");
+}
+
+// 「カードの絵に文字が焼き込まれている」カードか（＝アプリは文字を描かず、絵をそのまま出す）。
+//
+// 🔴 ユーザー判断（2026-11-05「とりあえず暫定で、旧デザインのカードを当てておくとかできる？」）。
+//   1st EDITION の Fカード7種は、どのイラストが印刷に使われたかがまだ決まっていないので、
+//   **印刷データ（1st EDITION の完成カードそのもの）を縮めて当てている**。
+//   文字まで焼き込まれているので、その上からアプリが文字を描くと**二重になる**。
+//   ⇒ この7枚だけ「画像モード」で出す（card-face-display.js の showCardFace）。
+// ⚠ 引き換えに、この7枚は**英語に切り替わらない／効果文を直しても絵に反映されない**。
+//   正式な絵が決まったら、tools/first-cards.mjs の 暫定印刷絵 を外して
+//   assets/cards-blank + cards-illust を作り直し、ここも空にする。
+export function hasBakedCardFace(cardId) {
+  return typeof cardId === "string" && cardId.startsWith("first-1st-");
 }
 
 // 「イラストのみ」版のカード画像（assets/cards-illust/配下、cardIdをそのままファイル名に）。

@@ -1,0 +1,40 @@
+// 1st EDITION のカード面テキスト（英語）。card-text-1st.ja.js と同じ cardId キー。
+//
+// ⚠ いまは**カード名だけ**。効果文は空にしてある。card-text.js は空のフィールドを
+//   日本語で出す作りなので、英語表示でも「名前は英語・効果文は日本語」で崩れない。
+//   訳せたら tools/gen-1st-text.mjs に足して作り直す。**手で直さない。**
+export const CARD_TEXT_1ST_EN = {
+  "eternal-1st-red": { name: "Scarlet Chronicle: Joynarl", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "eternal-1st-orange": { name: "Picture Book of Greed: Oregang", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "eternal-1st-yellow": { name: "Teachings of the Yellow King: Neroism", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "eternal-1st-green": { name: "Verdant Record: Gringrin", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "eternal-1st-blue": { name: "Ancient Azure Tome: Tiselios", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "eternal-1st-pink": { name: "Old Love Letters: Lovebook", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "eternal-1st-purple": { name: "Thesis of Chaos: Chaos Paper", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-red": { name: "Red Jewel: Rubinagna", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-orange": { name: "Orange Jewel: Caliblanc", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-yellow": { name: "Yellow Jewel: Luminazia", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-green": { name: "Green Jewel: Neoleafia", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-blue": { name: "Blue Jewel: Lapistia", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-pink": { name: "Pink Jewel: Morgalite", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "first-1st-purple": { name: "Purple Jewel: Lavelknight", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-red-poor-march": { name: "March of the Poor", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-red-unrest": { name: "Rising Crime", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-orange-conglomerate": { name: "Glory of the Conglomerate", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-orange-festival": { name: "Festival", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-yellow-privilege": { name: "Noble Privilege", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-yellow-lock-change": { name: "Lock Change", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-green-largesse": { name: "Grand Largesse", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-green-bubble": { name: "Construction Bubble", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-blue-robbery": { name: "Bitter Robbery", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-blue-poor-heart": { name: "Poor Heart", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-pink-overeating": { name: "Overeating", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-pink-growth": { name: "Economic Growth", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-purple-slum": { name: "Back-Alley Slums", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-purple-bribe": { name: "Bribe of the Shadow Noble", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-white-airship": { name: "Airship Alva", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-white-whim": { name: "Whim of the Tycoon", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-white-revolution": { name: "Duen's Revolution", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-black-depression": { name: "Depression", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "1st-black-great-order": { name: "The Great Decree", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+};

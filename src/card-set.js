@@ -16,7 +16,8 @@
 export const CARD_SETS = {
   REMAKE: "remake", // リメイクの33種（既定）
   EX0: "ex0", // 0th拡張の33種＋なないろの欠片
-  MIXED: "mixed", // 両方まぜる（枚数は単純に合算。試験用）
+  FIRST_ED: "1st", // 1st EDITION の19種＋なないろの欠片（2026-11-05 追加）
+  MIXED: "mixed", // 全部まぜる（枚数は単純に合算。試験用）
 };
 
 const KEY = "so7-card-set";
@@ -72,10 +73,12 @@ export function onCardSetChange(fn) {
 export const CARD_SET_LABEL_JA = {
   [CARD_SETS.REMAKE]: "リメイク（33種）",
   [CARD_SETS.EX0]: "0th拡張（33種）",
-  [CARD_SETS.MIXED]: "まぜる（66種）",
+  [CARD_SETS.FIRST_ED]: "1st EDITION（19種）",
+  [CARD_SETS.MIXED]: "まぜる（全部）",
 };
 export const CARD_SET_LABEL_EN = {
   [CARD_SETS.REMAKE]: "Remake (33 cards)",
   [CARD_SETS.EX0]: "0th Expansion (33 cards)",
-  [CARD_SETS.MIXED]: "Mixed (66 cards)",
+  [CARD_SETS.FIRST_ED]: "1st EDITION (19 cards)",
+  [CARD_SETS.MIXED]: "Mixed (all)",
 };

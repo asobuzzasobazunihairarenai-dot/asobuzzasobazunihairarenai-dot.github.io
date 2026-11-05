@@ -52,6 +52,41 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-05",
+    summary: [],
+    summaryEn: [],
+    items: [],
+    itemsEn: [],
+    fixes: [
+      "カードが開かれた時のお知らせが、カードに重なって読めないことがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the notice about a revealed card covering the card itself.",
+    ],
+    devItems: [
+      "#510「笛でオープンした時、お知らせがズームしたカードに被る」。ユーザー判断「カメラが戻ってから出すのがいいかも」。⇒ **お知らせを出す関数の中で、オープンの寄りが元へ戻り切るのを待つ**ようにした（scheduleCameraHome に「戻り終わったら呼ぶ」口を足し、announceEffectReasonForEffect がそれを待つ）。⚠ 待つのは**自分の画面だけ**——**中継より後ろに置いた**ので、他の人には今までどおりすぐ届く（他の人のカメラは寄っていないので待たせる意味が無い）。⚠ 待つのは**オープンで寄った時だけ**（移動やゲート侵攻の寄りでは待たない＝全部のお知らせに1.6秒足すと遅くなる）。⚠ **上限2.4秒を必ず付けた**——新しい寄りが来ると戻りの予約は取り消されるので、合図を取りこぼす経路があり得る。取りこぼしても必ず進む。",
+      "**1st EDITION の土台を入れた**（27種＝通常19種＋Eカード7種＋虹は使い回し。管理者だけのテストモード）。0th拡張と同じ手順: tools/first-cards.mjs（表＝正）→ tools/make-1st-art.mjs（絵2種）→ tools/1st-text-source.json ＋ tools/gen-1st-text.mjs（文）。🔴 **名前は印刷データ（カードの印字）を1枚ずつ目で読んで確かめた**——素材フォルダの名前は旧称が多い（飛空艇ブランカ→**飛空艇アルヴァ**／大富豪の力→**大富豪の気紛れ**／革命→**ドゥエンの革命**／賄賂→**裏貴族の賄賂**／偉大なる号令→**偉大なる大号令**／状況：財産の流出→**デプレッション**／Fカードの「○の色石」→**「○のジュエル」**）。26フォルダの絵が印字と一致することも目で確かめた（取り違え0件）。⚠ **効果の自動処理は 0/19**——1st のコストは【財力】（＝手札の枚数）という別の仕組みなので、いまは文を出すだけ（処理は自己申告）。⚠ Fカード7種は「別途相談」で保留。⚠ **【H】大恐慌 のフォルダはどのカードにも対応しない**（没案）。",
+      "🔴 続き652 で0th拡張が踏んだ穴（文字入りの画像を持たないのに生URLを使って404）が、1st でも同じ形で残っていた。prefix の判定を hasNoPrintedFace() 1か所にまとめて塞いだ——**4つ目のセットを足した人が同じ穴をもう一度掘らないように**。",
+      "tools/check-cards.mjs に 1st EDITION の見張りを足した（文・絵2種・サーバー側の写しとのズレ）。**わざと8通り壊して、落ちるべき時に落ちることを確かめた**（後片付けで元と違うファイル0件）。あわせて test/smoke.mjs に --1st を足し、**本物のCPU戦を1st の山札で8ターン回して404も例外も0件**を確認した。",
+      "🔴 **【財力】の土台を入れた**（1st EDITION のコスト。ユーザー判断「あなたのおすすめで今のカード効果に不都合がないように実装して」）。財力＝**手札の枚数**で、リメイクの【追色】と違い**何も捨てない「条件」**。データでは wealth: { eq / max / min / variable } と書き、**到達・手札の両方の「使えるか」判定と実行側の3か所**で見る（判定だけ・実行だけに置くと #72 と同じ形で食い違う）。枚数が財力で決まるアクションは count: \"wealth\"（文では印字どおり S と出る）。🔴 **Eカードの「あなたはいつでも、自分の財力を１多く計算してもよい」も入れた**——持っている1枚につき任意で＋1なので、財力は1つの数ではなく **base〜base+bonusMax の幅**になる。「してもよい」なので**本人に有利な方に読む**（幅の中に満たす値があればよい）。🔴 **罰の効果だけは「本人は宣言しないはず」と決め打ちしない**（ユーザー指摘「あえて罰を受けたいときも出てきます」）——最初に置いた penalty: true の逃げ道は取り除き、**宣言で結果が変わる時だけ本人に聞く**形（wealthNeedsDeclaration）にした。考え方の全文は src/wealth.js の冒頭（import を1つも持たない葉にした＝続き573 の TDZ 対策）。",
+      "1st EDITION のカード効果を **7/19（通常）＋2/7（Eカード）** 入れた（貧しき心は到達・手札とも、食べ過ぎ／路地裏のスラム街／財閥の威光／大盤振舞／飛空艇アルヴァ／ドゥエンの革命は手札側、Eカードは新緑の史文グリングリンと古の蒼書ティセリオス）。新しい動詞は **DRAW_IF_LOWEST_WEALTH の1つだけ**で、あとは 0th拡張で作った部品（PLACE_CARD の置き先の絞り込み・FLIP_UP_TO_N_WITHIN_RANGE・PICKUP_DISCARD_TOP・END_TURN・END_CURRENT_PHASE）がそのまま届いた。テストは 15 件足した（財力の幅・Eカードでの＋1・候補の数まで見る）。残り（【状況】カード5種30枚ほか）の作業表は docs/1st-effects-plan.md。⚠ **生成文と印字は一致しない**（1st の印字は「このカードを捨てる。」のような旧い言い回し。画面に出るのは印字の方なので遊びには影響しないが、カード開発モードの照合は 1st では当てにならない）。",
+      "🔴 **1st EDITION の Eカード7種を「使われる」ようにした**（ユーザー判断「1stのエターナルの基本効果のその効果は無くして、リメイク同様に侵攻成功したら即ロックでいいです」）。印字の1行目（手札にあるならロックエリアを全部手札に加え…）を文の出どころから外し、カードセットが 1st の時だけエターナルの山がこの7種になる（getEternalCards）。🔴 **id を 1st-eternal-… から eternal-1st-… へ付け替えた**のが効いた——接頭辞でカードの種類を見分けている所が**約30か所**ある（裏面の絵・カード面のレイアウト・他カードの効果の対象外・ロック中でも手札効果が使える・CPUの「大事な札」判定…）ので、名前を合わせるだけで全部そのまま通る。サーバー側は色の読み取りが eternal- を落とすだけだったので**末尾の1語を色として読む**形に直した（1st-red では COLORS に当たらず壊れていた）。",
+      "🔴 **1st EDITION の Fカード7種に、暫定で旧デザインの絵を当てた**（ユーザー判断「とりあえず暫定で、旧デザインのカードを当てておくとかできる？」）。どのイラストが印刷に使われたかがまだ決まっていないので、**印刷データ（完成カードそのもの）を 433px へ縮めて** assets/cards/ と assets/cards-illust/ に置いた。⚠ 文字が焼き込まれているので、この7枚だけ**アプリは文字を描かない**（cards-data.js の hasBakedCardFace）。引き換えに英語に切り替わらず、効果文を直しても絵に反映されない。正式な絵が決まったら 暫定印刷絵 を外せば他の26種と同じ合成の道に戻る。**どの山にも入れていない**（ファーストカードを1st のものに差し替えるかは別途相談）。",
+      "🔴 検査器の壊れた正規表現を1つ直した。tools/check-cards.mjs の 1st EDITION の id を拾う式が **/{s*id:s*\"…/** になっていて（バックスラッシュが落ちた形＝続き650 で見つけた「heredoc がバックスラッシュを1段食う」が検査器に刺さっていた）、**ずっと1件も拾えていなかった**。別の式が覆っていたので気づけなかった。あわせて Eカードの山のサーバー側の写しも毎回照合するようにした。",
+    ],
+    devItemsEn: [
+      "#510: the notice about a revealed card covered the zoomed card. Per the owner-s choice, notices now wait until the open-zoom camera has returned home. Only the local screen waits - the relay to other players happens before the wait, so they are not delayed. A 2.4s cap guarantees progress.",
+      "Added the 1st EDITION foundation (27 cards: 19 normal + 7 eternal; rainbow is reused). Admin-only test mode, same pipeline as the 0th Expansion. Names were read one by one from the printed card data - several source folder names were outdated. Effect automation is 0/19 so far: 1st EDITION uses a different cost system (Wealth = your hand size), so the text is shown and players resolve it themselves. The 7 First cards are on hold pending discussion.",
+      "Closed the same image-path hole the 0th Expansion hit earlier (no printed-face image, raw URL, 404). The prefix check now lives in one helper.",
+      "Extended tools/check-cards.mjs to watch the 1st EDITION tables (text, both images, and drift against the server copy), verified by deliberately breaking it 8 ways. test/smoke.mjs gained a --1st flag and ran a real CPU game with 0 404s and 0 exceptions.",
+      "Added the Wealth cost system used by 1st EDITION. Wealth is your hand size and, unlike the remake Color Cost, nothing is discarded - it is a condition. Eternal cards let you optionally count +1 each, so Wealth is a range and conditions are read in the holder-s favour. See src/wealth.js for the full reasoning.",
+      "Implemented 7 of the 19 normal 1st EDITION cards plus 2 of the 7 Eternal cards, needing only one new verb. 15 tests added. The remaining work, including the five Situation cards, is written up in docs/1st-effects-plan.md.",
+      "The seven 1st EDITION Eternal cards are now the Eternal pile when that card set is selected, locking on a successful gate invasion exactly like the remake ones. Renaming their ids to the eternal- prefix made about 30 existing prefix checks work unchanged.",
+      "The seven 1st EDITION First cards now use the original printed card art as a placeholder, so they are no longer blank. Those seven keep their baked-in text, so the app does not draw text over them.",
+      "Fixed a broken regular expression in the card checker that had never matched anything (a lost backslash). The Eternal pile copy on the server is now cross-checked too.",
+    ],
+  },
+  {
     date: "2026-11-04",
     summary: [
       "カードがオープンされる時、カメラがぐっと寄るようになりました",

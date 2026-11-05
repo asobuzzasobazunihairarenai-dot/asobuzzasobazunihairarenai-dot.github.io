@@ -6,7 +6,7 @@
 // のid配列）」だけ。将来docs/game-state-design.mdの本格的なGameState設計へ拡張し、オンライン
 // 非同期化する際は同じactionをサーバーに送って同期する流れにそのまま乗せる想定。
 
-import { getDeckNormalCards, ETERNAL_CARDS, FIRST_CARDS } from "./cards-data.js";
+import { getDeckNormalCards, getEternalCards, ETERNAL_CARDS, FIRST_CARDS, getCardDefinition } from "./cards-data.js";
 import { COLORS, GATE_POSITIONS, SEAT_ORDER, SEAT_TO_SIDE } from "./board-layout.js";
 import { logAction, registerTurnInfoProvider } from "./action-log.js";
 
@@ -64,7 +64,7 @@ function createInitialState() {
     }
   }
 
-  const eternal = shuffled(expandDeck(ETERNAL_CARDS));
+  const eternal = shuffled(expandDeck(getEternalCards()));
   // ファーストカードは本来ゲーム開始時に各プレイヤーへ1枚ずつ自動配布されるものだが、
   // Phase1はセットアップ自動化のスコープ外。他の山と同じ「シャッフルされた山」として置き、
   // 手動でドラッグして配れるようにするだけに留める。
@@ -478,7 +478,7 @@ function reduce(current, action) {
         tokens: [],
         piles: {
           deck: shuffled(expandDeck(getDeckNormalCards())),
-          eternal: shuffled(expandDeck(ETERNAL_CARDS)),
+          eternal: shuffled(expandDeck(getEternalCards())),
           first: shuffled(expandDeck(FIRST_CARDS)),
           discard: [],
         },
@@ -828,7 +828,10 @@ function reduce(current, action) {
     // （ルール「ロックする箇所に既にカードがある場合、全て手札に加える」）。
     case "GATE_INVASION_ETERNAL": {
       const eternalPile = current.piles.eternal.slice(0, -1);
-      const def = ETERNAL_CARDS.find((c) => c.id === action.cardId);
+      // 🔴 ETERNAL_CARDS（リメイクの7種）だけを探すと、1st EDITION の Eカード
+      //   （eternal-1st-*）が見つからず def が undefined になって落ちる。
+      //   逆引き（CARD_BY_ID）は**どのセットでも全部入っている**のでそちらを使う。
+      const def = getCardDefinition(action.cardId) || ETERNAL_CARDS.find((c) => c.id === action.cardId);
       const colorIndex = COLORS.indexOf(def.color);
       const side = SEAT_TO_SIDE[action.attacker];
       const bumpedIds = new Set(

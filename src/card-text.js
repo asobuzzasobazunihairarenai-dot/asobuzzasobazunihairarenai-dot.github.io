@@ -13,12 +13,14 @@ import { CARD_TEXT_JA } from "./card-text.ja.js";
 import { CARD_TEXT_EN } from "./card-text.en.js";
 import { CARD_TEXT_EX0_JA } from "./card-text-ex0.ja.js";
 import { CARD_TEXT_EX0_EN } from "./card-text-ex0.en.js";
+import { CARD_TEXT_1ST_JA } from "./card-text-1st.ja.js";
+import { CARD_TEXT_1ST_EN } from "./card-text-1st.en.js";
 
 // 🔴 0th拡張の文は**別ファイル**で持ち、ここで混ぜる。
 //   card-text.ja.js は tools/gen-card-text.mjs が「カード効果　テキスト.txt」から
 //   **丸ごと上書きして作る**ので、あちらに書き足すと次の生成で黙って消えるため。
-const JA = { ...CARD_TEXT_JA, ...CARD_TEXT_EX0_JA };
-const EN = { ...CARD_TEXT_EN, ...CARD_TEXT_EX0_EN };
+const JA = { ...CARD_TEXT_JA, ...CARD_TEXT_EX0_JA, ...CARD_TEXT_1ST_JA };
+const EN = { ...CARD_TEXT_EN, ...CARD_TEXT_EX0_EN, ...CARD_TEXT_1ST_EN };
 const LANGS = {
   ja: JA,
   en: EN,
