@@ -6,6 +6,7 @@
 import { createBackdrop, createModalCloseX } from "./ui-helpers.js";
 import { buildCardFace, clearCardFaceFitCache } from "./card-renderer.js";
 import { NORMAL_CARDS, ETERNAL_CARDS, FIRST_CARDS, getCardDefinition } from "./cards-data.js";
+import { FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js";
 import {
   LAYOUT, ELEMENT_META, TYPE_LABEL, GROUP_LABEL, PROP_RANGE, groupOf, cfVar, propsFor,
 } from "./card-layout-config.js";
@@ -47,6 +48,9 @@ function allCards() {
     normal: NORMAL_CARDS.map((c) => c.id),
     eternal: ETERNAL_CARDS.map((c) => c.id),
     first: FIRST_CARDS.map((c) => c.id),
+    // 1st EDITION のファースト（◯のジュエル）。配置が別グループ(first1st)なので、
+    // ここに出していないとエディタから選べず調整できない。
+    first1st: FIRST_ED_FIRST_CARDS.map((c) => c.id),
   };
 }
 

@@ -4,10 +4,16 @@
 // style.css の各 var(..., 既定) の「既定値」と一致させること
 // （tools/gen-cardface-css.mjs がこの設定からCSSを生成する）。
 //
-// レイアウトは2グループ:
-//  - std  : 通常カード と エターナルカード（位置調整は共通・ユーザー要望）。効果は fx＝基本/到達/手札を
-//           1セットで上から詰め、間に仕切り線。
-//  - first: ファーストカード（基本→タイトル→能力名→手札の交互配置。効果も個別。文字は全て白・効果中央）。
+// レイアウトは3グループ:
+//  - std     : 通常カード と エターナルカード（位置調整は共通・ユーザー要望）。効果は fx＝基本/到達/手札を
+//              1セットで上から詰め、間に仕切り線。
+//  - first   : ファーストカード（基本→タイトル→能力名→手札の交互配置。効果も個別。文字は全て白・効果中央）。
+//  - first1st: **1st EDITION のファーストカード（◯のジュエル）専用**。
+//      🔴 first と分けた理由: 1st の手札効果は【財力＝１（あなたの手札の枚数が…）】という
+//        説明つきの長文で（財力のサマリーを兼ねるのでユーザー判断で短くしない）、リメイクと
+//        同じ配置だと**枠の下辺（約94.9%）を越えてクレジット行に被る**（実測 94.1〜95.9%）。
+//        1st 用の値にすると 85.0〜85.8% に収まる。
+//      ⚠ cardTypeOf は "first-1st-" を **"first-" より先に**見ること（後ろだと first に取られる）。
 
 export const LAYOUT = {
   std: {
@@ -31,12 +37,23 @@ export const LAYOUT = {
     handcost: { y: 69, w: 64.5, s: 2.9, props: ["y", "w", "s"] }, // 手札効果の【追色N】（…）部分（中央・マーカー無し）
     hand:     { y: 82.5, w: 61.5, s: 2.9, props: ["y", "w", "s"] }, // 手札効果の本文（中央・マーカー無し）
   },
+  // 1st EDITION のファースト（◯のジュエル）。first の写しから、長い手札効果が収まるよう
+  // 上へ詰めて文字を少し小さくした値。カード面エディタの「1st EDITION ファースト」で調整できる。
+  first1st: {
+    basic:    { y: 10, w: 60, s: 2.5, props: ["y", "w", "s"] },
+    title:    { y: 25, w: 90, s: 3.3, props: ["y", "w", "s"] },
+    ruby:     { s: 1.6, oy: 0, props: ["s", "oy"] },
+    sub:      { y: 56.5, w: 90, s: 3.4, props: ["y", "w", "s"] },
+    handicon: { x: 10, y: 64.5, s: 7, props: ["x", "y", "s"] },
+    handcost: { y: 64.5, w: 66, s: 2.45, props: ["y", "w", "s"] },
+    hand:     { y: 76, w: 66, s: 2.45, props: ["y", "w", "s"] },
+  },
 };
 
 // カード種別 → レイアウトグループ（通常・エターナルは共通の std）。
-export const TYPE_GROUP = { normal: "std", eternal: "std", first: "first" };
+export const TYPE_GROUP = { normal: "std", eternal: "std", first: "first", first1st: "first1st" };
 // グループ → CSS変数の接頭文字。
-const GROUP_LETTER = { std: "s", first: "f" };
+const GROUP_LETTER = { std: "s", first: "f", first1st: "f1" };
 
 // 要素 → CSSセレクタ・表示名・種類。effect=マーカー付き効果行, fx=効果セットのコンテナ, ruby=ふりがな。
 export const ELEMENT_META = {
@@ -55,11 +72,18 @@ export const ELEMENT_META = {
   gap:     { sel: ".card-face-effect",            labelJa: "アイコン→文の間隔", kind: "gap", sLabel: "間隔" },
 };
 
-export const TYPE_LABEL = { normal: "通常", eternal: "エターナル", first: "ファースト" };
+export const TYPE_LABEL = { normal: "通常", eternal: "エターナル", first: "ファースト", first1st: "ファースト（1st）" };
 // エディタでグループを説明する見出し。
-export const GROUP_LABEL = { std: "通常／エターナル（共通）", first: "ファースト" };
+export const GROUP_LABEL = {
+  std: "通常／エターナル（共通）",
+  first: "ファースト",
+  first1st: "1st EDITION ファースト",
+};
 
 export function cardTypeOf(cardId) {
+  // 🔴 "first-1st-" は "first-" でも始まるので、**必ず先に**見る。順番を入れ替えると
+  //   1st のファーストがリメイクのファーストの配置に吸われる。
+  if (cardId?.startsWith("first-1st-")) return "first1st";
   if (cardId?.startsWith("first-")) return "first";
   if (cardId?.startsWith("eternal-")) return "eternal";
   return "normal";

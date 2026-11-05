@@ -20232,7 +20232,9 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-divider::before { content: ""; height: 0.22cqw; flex: 1; background: rgba(20, 20, 20, 0.8); }
 /* タイトルは全て黒文字（ユーザー指定）。ファーストのみ中央寄せ。フォント＝FOT-マティス。 */
 .card-face-title { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 800; line-height: 1.08; letter-spacing: 0.2cqw; color: #141414; text-align: left; }
-.card-face[data-card-type="first"] .card-face-title { text-align: center; }
+/* ⚠ ここから下の「ファーストの見た目」は ^= で first と first1st の両方に効かせる。
+   = にすると 1st EDITION のファーストだけ中央寄せも白文字も外れる。 */
+.card-face[data-card-type^="first"] .card-face-title { text-align: center; }
 /* ルビは絶対配置で base の「上」に浮かせる＝タイトルの行高に影響しない
    （ルビ有無でタイトルの縦位置がズレない）。各漢字ランを基準に中央に置き、
    translateY(=--cf-*-ruby-oy) で上下微調整（正=下）。
@@ -20250,30 +20252,12 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 /* フレーバーは斜体にしない（ユーザー指摘）。フォント＝FOT-マティス。 */
 .card-face-flavor { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 600; font-style: normal; text-align: center; color: #fff; line-height: 1.25; text-shadow: 0 0.4cqw 1cqw rgba(0, 0, 0, 0.85), 0 0 0.4cqw rgba(0, 0, 0, 0.6); }
 /* ファーストは文字が全て白（ユーザー指定）。効果は全て中央揃え・ただしアイコン(マーカー)は左揃え。 */
-.card-face[data-card-type="first"] .card-face-title,
-.card-face[data-card-type="first"] .card-face-title rt,
-.card-face[data-card-type="first"] .card-face-title .card-face-title-rt,
-.card-face[data-card-type="first"] .card-face-subtitle,
-.card-face[data-card-type="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
-.card-face[data-card-type="first"] .card-face-effect-body { text-align: center; }
-/* 2026-09-26 の新しい絵から、タイトルの帯が「薄い色」→「濃い色」に変わった。
-   以前の絵では濃い文字が正しかったが、そのままだと濃い帯に濃い文字で読めない。
-   印字カードと同じく、通常・エターナルのタイトル（ふりがな含む）を白にする。
-   ファーストは元から全て白（上の規則）。 */
-.card-face[data-card-type=normal] .card-face-title,
-.card-face[data-card-type=eternal] .card-face-title { color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.55); }
-/* 【#415・2026-10-16】ユーザー報告「カードタイトルのルビが白色ですが**背景が白**なので黒文字が
-   いいかと！」。**ふりがなだけは題の帯の外（真上）に浮いている**（`bottom: 100%`。実測でも
-   ルビの下端が題の箱の上端より上にある）。帯そのものは濃いので題の白は正しいが、**ルビが乗って
-   いるのは帯の上の淡い所**なので、白いままだと読めない。ルビだけ濃い字に戻す
-   （基底の `.card-face-title-rt` が持っている #141414 と同じ）。
-   ⚠ **ファーストは触らない**——あちらは題もルビも**絵の上**に乗る作りで、全部白が正しい
-   （上の `[data-card-type="first"]` の規則）。 */
-.card-face[data-card-type=normal] .card-face-title rt,
-.card-face[data-card-type=normal] .card-face-title .card-face-title-rt,
-.card-face[data-card-type=eternal] .card-face-title rt,
-.card-face[data-card-type=eternal] .card-face-title .card-face-title-rt { color: #141414; text-shadow: none; }
-
+.card-face[data-card-type^="first"] .card-face-title,
+.card-face[data-card-type^="first"] .card-face-title rt,
+.card-face[data-card-type^="first"] .card-face-title .card-face-title-rt,
+.card-face[data-card-type^="first"] .card-face-subtitle,
+.card-face[data-card-type^="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
+.card-face[data-card-type^="first"] .card-face-effect-body { text-align: center; }
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,
 .card-face.cf-outline .card-face-flavor,
@@ -20307,6 +20291,14 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type="first"] .card-face-hand-icon { position: absolute; left: var(--cf-f-handicon-x, 9cqw); top: var(--cf-f-handicon-y, 69cqw); width: var(--cf-f-handicon-s, 8cqw); height: var(--cf-f-handicon-s, 8cqw); }
 .card-face[data-card-type="first"] .card-face-effect.is-hand-cost { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f-handcost-y, 69cqw); width: var(--cf-f-handcost-w, 64.5cqw); font-size: calc(var(--cf-f-handcost-s, 2.9cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="first"] .card-face-effect.is-hand { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f-hand-y, 82.5cqw); width: var(--cf-f-hand-w, 61.5cqw); font-size: calc(var(--cf-f-hand-s, 2.9cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-effect.is-basic { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-basic-y, 10cqw); width: var(--cf-f1-basic-w, 60cqw); font-size: calc(var(--cf-f1-basic-s, 2.5cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-title { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-title-y, 25cqw); width: var(--cf-f1-title-w, 90cqw); font-size: calc(var(--cf-f1-title-s, 3.3cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-title rt,
+.card-face[data-card-type="first1st"] .card-face-title .card-face-title-rt { font-size: calc(var(--cf-f1-ruby-s, 1.6cqw) * var(--cf-fit, 1)); transform: translateX(-50%) translateY(var(--cf-f1-ruby-oy, 0cqw)); }
+.card-face[data-card-type="first1st"] .card-face-subtitle { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-sub-y, 56.5cqw); width: var(--cf-f1-sub-w, 90cqw); font-size: calc(var(--cf-f1-sub-s, 3.4cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-hand-icon { position: absolute; left: var(--cf-f1-handicon-x, 10cqw); top: var(--cf-f1-handicon-y, 64.5cqw); width: var(--cf-f1-handicon-s, 7cqw); height: var(--cf-f1-handicon-s, 7cqw); }
+.card-face[data-card-type="first1st"] .card-face-effect.is-hand-cost { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-handcost-y, 64.5cqw); width: var(--cf-f1-handcost-w, 66cqw); font-size: calc(var(--cf-f1-handcost-s, 2.45cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-effect.is-hand { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-hand-y, 76cqw); width: var(--cf-f1-hand-w, 66cqw); font-size: calc(var(--cf-f1-hand-s, 2.45cqw) * var(--cf-fit, 1)); }
 
 /* ===== カード面エディタ（card-render-preview.js・開発用） ===== */
 #card-render-editor {

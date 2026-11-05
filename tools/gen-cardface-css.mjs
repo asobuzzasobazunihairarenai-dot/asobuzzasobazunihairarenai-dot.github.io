@@ -72,7 +72,9 @@ const BASE = `/* ===== カード面レンダラ（card-renderer.js）＝テキ�
 .card-face-divider::before { content: ""; height: 0.22cqw; flex: 1; background: rgba(20, 20, 20, 0.8); }
 /* タイトルは全て黒文字（ユーザー指定）。ファーストのみ中央寄せ。フォント＝FOT-マティス。 */
 .card-face-title { font-family: ${FONT_TITLE}; font-weight: 800; line-height: 1.08; letter-spacing: 0.2cqw; color: #141414; text-align: left; }
-.card-face[data-card-type="first"] .card-face-title { text-align: center; }
+/* ⚠ ここから下の「ファーストの見た目」は ^= で first と first1st の両方に効かせる。
+   = にすると 1st EDITION のファーストだけ中央寄せも白文字も外れる。 */
+.card-face[data-card-type^="first"] .card-face-title { text-align: center; }
 /* ルビは絶対配置で base の「上」に浮かせる＝タイトルの行高に影響しない
    （ルビ有無でタイトルの縦位置がズレない）。各漢字ランを基準に中央に置き、
    translateY(=--cf-*-ruby-oy) で上下微調整（正=下）。
@@ -90,12 +92,12 @@ const BASE = `/* ===== カード面レンダラ（card-renderer.js）＝テキ�
 /* フレーバーは斜体にしない（ユーザー指摘）。フォント＝FOT-マティス。 */
 .card-face-flavor { font-family: ${FONT_TITLE}; font-weight: 600; font-style: normal; text-align: center; color: #fff; line-height: 1.25; text-shadow: 0 0.4cqw 1cqw rgba(0, 0, 0, 0.85), 0 0 0.4cqw rgba(0, 0, 0, 0.6); }
 /* ファーストは文字が全て白（ユーザー指定）。効果は全て中央揃え・ただしアイコン(マーカー)は左揃え。 */
-.card-face[data-card-type="first"] .card-face-title,
-.card-face[data-card-type="first"] .card-face-title rt,
-.card-face[data-card-type="first"] .card-face-title .card-face-title-rt,
-.card-face[data-card-type="first"] .card-face-subtitle,
-.card-face[data-card-type="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
-.card-face[data-card-type="first"] .card-face-effect-body { text-align: center; }
+.card-face[data-card-type^="first"] .card-face-title,
+.card-face[data-card-type^="first"] .card-face-title rt,
+.card-face[data-card-type^="first"] .card-face-title .card-face-title-rt,
+.card-face[data-card-type^="first"] .card-face-subtitle,
+.card-face[data-card-type^="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
+.card-face[data-card-type^="first"] .card-face-effect-body { text-align: center; }
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,
 .card-face.cf-outline .card-face-flavor,
@@ -106,7 +108,7 @@ const BASE = `/* ===== カード面レンダラ（card-renderer.js）＝テキ�
 `;
 
 // 通常・エターナルは同じグループ(std)の変数を参照＝位置調整が共通（ユーザー要望）。first は別(f)。
-const TYPES = ["normal", "eternal", "first"];
+const TYPES = ["normal", "eternal", "first", "first1st"];
 let gen = "\n/* --- 各テキスト要素の絶対配置（自動生成：card-layout-config.js） --- */\n";
 for (const type of TYPES) {
   const group = TYPE_GROUP[type];
