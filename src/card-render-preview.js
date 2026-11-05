@@ -8,7 +8,7 @@ import { buildCardFace, clearCardFaceFitCache } from "./card-renderer.js";
 import { NORMAL_CARDS, ETERNAL_CARDS, FIRST_CARDS, getCardDefinition } from "./cards-data.js";
 import { FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js";
 import {
-  LAYOUT, ELEMENT_META, TYPE_LABEL, GROUP_LABEL, PROP_RANGE, groupOf, cfVar, propsFor,
+  LAYOUT, ELEMENT_META, TYPE_LABEL, GROUP_LABEL, PROP_RANGE, groupOf, cfVar, propsFor, elementSlotsOf,
 } from "./card-layout-config.js";
 import { getLang, setPreviewLang, clearPreviewLang, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
 
@@ -94,7 +94,7 @@ function buildControls(cardId) {
   note.className = "cf-ed-groupnote";
   note.textContent = `調整対象: ${GROUP_LABEL[group]}`;
   wrap.appendChild(note);
-  const slots = LAYOUT[group] || {};
+  const slots = elementSlotsOf(group);
   for (const el of Object.keys(slots)) {
     const g = document.createElement("div");
     g.className = "cf-ed-group";
@@ -208,7 +208,7 @@ function buildOverlay(close) {
     resetBtn.type = "button"; resetBtn.textContent = "このグループをリセット";
     resetBtn.addEventListener("click", () => {
       const group = groupOf(currentId);
-      const slots = LAYOUT[group] || {};
+      const slots = elementSlotsOf(group);
       const map = loadSaved();
       for (const el of Object.keys(slots)) {
         for (const prop of propsFor(slots[el])) {

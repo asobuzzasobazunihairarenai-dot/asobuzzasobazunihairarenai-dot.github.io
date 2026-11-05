@@ -6,7 +6,7 @@
 // のid配列）」だけ。将来docs/game-state-design.mdの本格的なGameState設計へ拡張し、オンライン
 // 非同期化する際は同じactionをサーバーに送って同期する流れにそのまま乗せる想定。
 
-import { getDeckNormalCards, getEternalCards, ETERNAL_CARDS, FIRST_CARDS, getCardDefinition } from "./cards-data.js";
+import { getDeckNormalCards, getEternalCards, getFirstCards, ETERNAL_CARDS, getCardDefinition } from "./cards-data.js";
 import { COLORS, GATE_POSITIONS, SEAT_ORDER, SEAT_TO_SIDE } from "./board-layout.js";
 import { logAction, registerTurnInfoProvider } from "./action-log.js";
 
@@ -68,7 +68,7 @@ function createInitialState() {
   // ファーストカードは本来ゲーム開始時に各プレイヤーへ1枚ずつ自動配布されるものだが、
   // Phase1はセットアップ自動化のスコープ外。他の山と同じ「シャッフルされた山」として置き、
   // 手動でドラッグして配れるようにするだけに留める。
-  const first = shuffled(expandDeck(FIRST_CARDS));
+  const first = shuffled(expandDeck(getFirstCards()));
 
   return {
     tokens,
@@ -479,7 +479,7 @@ function reduce(current, action) {
         piles: {
           deck: shuffled(expandDeck(getDeckNormalCards())),
           eternal: shuffled(expandDeck(getEternalCards())),
-          first: shuffled(expandDeck(FIRST_CARDS)),
+          first: shuffled(expandDeck(getFirstCards())),
           discard: [],
         },
         activePlayers: [],
@@ -579,12 +579,12 @@ function reduce(current, action) {
         let cardId;
         const wantColor = forcedColors[player];
         if (wantColor) {
-          const fi = firstPile.findIndex((id) => FIRST_CARDS.find((c) => c.id === id)?.color === wantColor);
+          const fi = firstPile.findIndex((id) => getCardDefinition(id)?.color === wantColor);
           cardId = fi >= 0 ? firstPile.splice(fi, 1)[0] : firstPile.pop();
         } else {
           cardId = firstPile.pop();
         }
-        const def = FIRST_CARDS.find((c) => c.id === cardId);
+        const def = getCardDefinition(cardId);
         const colorIndex = COLORS.indexOf(def.color);
         newTokens.push({
           id: uid("card"),

@@ -52,6 +52,49 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-06",
+    summary: [
+      "カードの文章が、単語の途中で折り返されなくなりました",
+    ],
+    summaryEn: [
+      "Card text no longer breaks in the middle of a word",
+    ],
+    items: [
+      "カードの効果文やフレーバーが、熟語や単語の途中で改行されないようになりました。意味の切れ目で折り返すので、ぱっと見で読みやすくなっています。",
+    ],
+    itemsEn: [
+      "Card effect text and flavour text no longer wrap in the middle of a word. Lines now break at natural phrase boundaries, so cards are easier to read at a glance.",
+    ],
+    fixes: [],
+    fixesEn: [],
+    devItems: [
+      "🔴 **1st EDITION の効果を 7/19 → 33/33（通常19種・Eカード7種・Fカード7種）にした**（ユーザー指示「1stの残りの効果の実装についてすべてやっておいて」）。新しい動詞20個＋既存8個の拡張。いちばん大きいのは**【状況】カードの仕組み**（治安悪化・フェスティバル・建設バブル・経済成長・デプレッション＝**30枚**）——到達で「場の中央に表向きで置く」だけで、以後**全員のターン開始時に**効き続ける。CARD_EFFECTS の situation に書き、main.js の resolveSituationAtTurnStart（平和への願いと同じ subscribe）が走らせる。⚠ **効くのは中央の１番上の表向き1枚だけ**と読んだ（新しい状況札を置けば前の札は下に隠れて読めなくなる＝１番上の原則）。ルールの読みなのでユーザー判断待ち。",
+      "🔴 到達効果の helpers を **buildArrivalEffectHelpers() として関数に切り出した**。【状況】カードがターン開始時に同じエンジンを走らせるので、**2か所に同じ helpers を書かない**ため（分かれると片方に口を足し忘れて「ある時だけ効かない」になる＝#477 と同じ形）。tools/check-effect-helpers.mjs もその関数を読むように直した。",
+      "🔴 **テスト用スタブの flipCard が「裏→表」の片道だった**のを、本物どおり**反転**に直した。本物（main.js の flipToFaceUpForEffect）は名前に反してトグルなので、1st の「このカードを裏向きにする」（路地裏のスラム街）や「裏向きにして重ねる」（食べ過ぎ）を**一度も検査できていなかった**＝スタブが本物より甘いと検査にならない（続き479 の教訓）。直したら、その2件が実際に落ちて中身を直せた。",
+      "ロック宣言の割り込みの窓に「**いまロックしようとしている札**」を乗せた（noteInterruptWindow の第3引数）。裏貴族の賄賂の手札効果「相手がロックしようとしたカードをあなたの手札に加える」に要る。オンラインの中継（broadcastAnytimeCheckpoint）にも乗せてある。",
+      "貧民の行進の手札効果のために、**「このターン通常の移動では移動先のカードをオープンしない」**を足した（既存の移動範囲の拡張と対の自動失効パターン）。見るのは**通常の移動の2経路だけ**（タップ＝performPhaseMoveToCell／ドラッグ＝maybeTriggerCardArrival）。接触の強制移動やカード効果の移動には掛けない（印字が「通常の移動では」と限定しているため）。",
+      "🔴 **アプリの中で【状況】カードを本物の合図から走らせて測った**（state を hydrateState で置いて turnPlayer を変えるだけで main.js の subscribe が鳴る＝続き654 と同じやり方）。経済成長は「はい」で山札4→3・手札0→1、「いいえ」で変化なし。デプレッションは財力3で手札の選択が開き、財力1では**聞かれない**（対象外で正しい）。状況札が無い時は何も起きない（リメイクの対局への影響なし）。例外0件。⚠ 手札を実際に捨てる所まではプローブから押せない（当たり判定が #game-table の自前判定なので el.click() では発火しない＝教訓4）。そこはユニットテストで見ている。",
+      "カード文の折り返しに **word-break: auto-phrase ＋ line-break: strict** を入れた（Chrome 119+。対応していないブラウザでは今までどおり）。1st のファーストカードには八角形に沿わせる shape-outside も入れてある（見えない浮き島を2本挿す形）。🔴 **この日のうちに続き669 で直した**——高さを打ち消すために入れた負の margin-bottom が、土手そのものを無効にしていた（下記）。",
+      "🔴 **続き667 で入れた「文を八角形に沿わせる土手」は、1行も効いていなかった**（ユーザー指摘「あれ？さっきはよかったのに基本効果文がはみ出してるよ！」）。原因は**自分で入れた負のマージン**——「場所取りはそのままで親の高さには 0 として効く」と書いたが、float が行を短くするかどうかは**マージン箱の縦の範囲**で決まるので、高さ 0 に潰すと shape-outside ごと無効になる。**①そのまま ②負マージンを 0 ③土手を丸ごと remove の3通りを測って、①と③が1 cqw も違わなかった**＝在っても無くても同じ。⇒ マージンをやめ、押し広がった箱の方を見ない形（土手を持つ要素だけ、箱ではなく中の行で測る）にした。**土手を持つのは1st のファーストだけ**なので、リメイク・0th拡張のカードは1行も経路が変わらない。実測で、焼き込みの財力の印（左端80.6%）との隙間が **0.6% → 6.5%** になった。",
+      "🔴 **【財力】の読みを2つ直した**（どちらも私の読みが間違っていた）。①Eカードの「自分の財力を１多く計算してもよい」は**自分のロックエリアに在る分だけ**（ユーザー回答「手札では得られません」）。手札に持っている分は**ただの手札1枚**として数えるだけ。②【財力＝S】の S は、**＋1 できる状況ならその都度本人に聞く**（ユーザー回答「ETERNALを持っていて＋１に任意でできる状況ならその都度聞こう！」）。聞くのは**1つの効果につき1回だけ**（同じ効果で2回聞かれると煩わしいので覚えておく）。⚠ 既存のテスト名「1stのEカード1枚で届く」は**嘘になっていた**（Eカードが手札にあり、ただの手札として数えていただけ）ので名前ごと直し、「手札では＋1 が付かない／ロックエリアなら付く」を固定するケースを足した（182件）。",
+      "**ファーストカードをエディションで切り替えるようにした**（ユーザー提案「そのEDITIONのファーストカードにするようにしよう。混ぜる場合は0thと1st両方のファーストカードの中からゲーム開始時にランダムに配る」）。getFirstCards() を getEternalCards() と同じ形で足した: リメイク／0th拡張＝リメイクの7種（**0th拡張にファーストカードは無い**）、1st＝◯のジュエル7種、まぜる＝**色ごとにどちらか1枚を抽選**。🔴 まぜるを「14枚の山」にしなかったのは、**同じ色のファーストが2人に配られる**形ができて7色勝利の数え方が崩れるため（Eカードと同じ判断）。⚠ **ここは私の読み**なので、14枚から配る形が良ければ1行で変えられる。🔴 **サーバー側（Edge Function）の手動再デプロイが要る**——貼るまではオンライン戦だけ今までどおりリメイクのファーストになる（壊れはしない）。写しのズレを見張る検査も足し、わざと6通り壊して落ちることを確かめた。",
+      "⚠ **実機での通し確認はしていない**（ヘッドレスのユニットテスト181件・CPU自己対戦・プローブまで）。とくに【状況】カード・ロック宣言への割り込み・「移動先をオープンしない」は、実際に出るまで見えないので CPU戦で1st を回してもらうのが確実。",
+    ],
+    devItemsEn: [
+      "Implemented the remaining 1st EDITION effects: 7/19 -> 33/33 (19 normal, 7 eternal, 7 first). 20 new verbs plus 8 extended ones. The big one is the Situation card mechanism (30 cards): the arrival effect places the card face-up at the board centre, and from then on it applies at the start of every player-s turn. Whether only the topmost face-up centre card counts is a rules reading and needs the owner-s confirmation.",
+      "Extracted the arrival-effect helpers into buildArrivalEffectHelpers() so the Situation turn-start path uses the exact same set - two copies would drift and break one path silently (the #477 failure mode). The helper-coverage checker was updated to read the function.",
+      "Fixed the test stub for flipCard: it only flipped face-down to face-up, while the real one toggles. That meant the new face-down effects were never actually checked. After the fix two cases failed for real and were corrected.",
+      "The lock-declaration interrupt window now carries the token being locked, which the Bribe card needs. It is relayed online too.",
+      "Added a per-turn flag that suppresses auto-opening the destination card on a normal move, used by the Poor March hand effect. It only applies to the two normal-move paths, not to contact or card-effect moves.",
+      "Verified the Situation mechanism inside the real app by flipping turnPlayer on a hydrated state, so main.js-s own subscriber fires. Economic Growth draws on yes and does nothing on no; Depression prompts at Wealth 3 and stays silent at Wealth 1; with no Situation card nothing happens. Zero exceptions.",
+      "Card text now uses word-break: auto-phrase with line-break: strict, and the 1st EDITION First cards use shape-outside so the text follows the octagon.",
+      "The shape-outside gutters added yesterday for the 1st EDITION First cards were doing nothing: the negative bottom margin meant to hide their height also disabled the float exclusion. Measured three ways (as-is / margin 0 / gutters removed) and as-is was identical to removed. Fixed by keeping the margin and instead measuring the text lines rather than the box. Only 1st First cards have gutters, so no other card changed. The gap to the baked Wealth mark went from 0.6% to 6.5%.",
+      "Corrected two Wealth readings. The Eternal bonus (+1 to your own Wealth) only counts copies in your own lock area, not in hand. And when the optional +1 is available, the game now asks you what to count your Wealth as, once per effect.",
+      "First cards now follow the chosen edition: Remake and 0th Expansion use the Remake set (the 0th Expansion has no First cards), 1st EDITION uses the seven Jewels, and Mixed picks one of the two per colour so every colour still appears exactly once. The server function needs a manual redeploy for online games.",
+      "Not verified on a real device: headless unit tests (181), CPU self-play and probes only.",
+    ],
+  },
+  {
     date: "2026-11-05",
     summary: [],
     summaryEn: [],

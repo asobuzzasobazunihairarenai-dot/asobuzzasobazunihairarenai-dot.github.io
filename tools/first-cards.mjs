@@ -54,17 +54,17 @@ export const FIRST_ED_CARDS = [
   //
   //    🔴 **ただし絵が1枚も無いと図鑑も手札も空になる**ので、ユーザー判断
   //    （2026-11-05「とりあえず暫定で、旧デザインのカードを当てておくとかできる？」）で
-  //    **印刷データ（1st EDITION の完成カードそのもの）を縮めて当てている**（暫定印刷絵: true）。
+  //    **ジュエル版の文字無しの絵**（tools/make-jewel-first.mjs）を当てている（続き668）。
   //    ⇒ 文字が焼き込まれているので、この7枚だけは **assets/cards/ を持ち、アプリは文字を描かない**
-  //      （cards-data.js の hasBakedCardFace()）。正式な絵が決まったら 暫定印刷絵 を外して
+  //      文字はアプリが描く（cards-data.js の hasBakedCardFace は空）。絵を描き直す時は
   //      pick を書けば、他の26種と同じ合成の道に戻る。
-  { no: "08", id: "first-1st-red",    kind: "first", name: "赤のジュエル　ルビナグナ",   color: "red",    frame: "ファーストカード_表_赤", count: 1, folder: "【H】Fカード　赤の色石　レッドスピネル", 保留: true, 暫定印刷絵: true },
-  { no: "09", id: "first-1st-orange", kind: "first", name: "橙のジュエル　カリブランス", color: "orange", frame: "ファーストカード_表_橙", count: 1, folder: "【H】Fカード　橙の色石　サンストーン", 保留: true, 暫定印刷絵: true },
-  { no: "10", id: "first-1st-yellow", kind: "first", name: "黄のジュエル　ルミナジア",   color: "yellow", frame: "ファーストカード_表_黄", count: 1, folder: "【H】Fカード　黄の色石　ヘリオドール", 保留: true, 暫定印刷絵: true },
-  { no: "11", id: "first-1st-green",  kind: "first", name: "緑のジュエル　ネオリーフィア", color: "green", frame: "ファーストカード_表_緑", count: 1, folder: "【H】Fカード　緑の色石　ジェイド", 保留: true, 暫定印刷絵: true },
-  { no: "12", id: "first-1st-blue",   kind: "first", name: "青のジュエル　ラピスティア", color: "blue",   frame: "ファーストカード_表_青", count: 1, folder: "【H】Fカード　青の色石　ラピスラズリ", 保留: true, 暫定印刷絵: true },
-  { no: "13", id: "first-1st-pink",   kind: "first", name: "桃のジュエル　モルガライト", color: "pink",   frame: "ファーストカード_表_桃", count: 1, folder: "【H】Fカード　桃の色石　モルガナイト", 保留: true, 暫定印刷絵: true },
-  { no: "14", id: "first-1st-purple", kind: "first", name: "紫のジュエル　ラヴェルナイト", color: "purple", frame: "ファーストカード_表_紫", count: 1, folder: "【H】Fカード　紫の色石　ラヴェルライト", 保留: true, 暫定印刷絵: true },
+  { no: "08", id: "first-1st-red",    kind: "first", name: "赤のジュエル　ルビナグナ",   color: "red",    frame: "ファーストカード_表_赤", count: 1, folder: "【H】Fカード　赤の色石　レッドスピネル", 保留: true },
+  { no: "09", id: "first-1st-orange", kind: "first", name: "橙のジュエル　カリブランス", color: "orange", frame: "ファーストカード_表_橙", count: 1, folder: "【H】Fカード　橙の色石　サンストーン", 保留: true },
+  { no: "10", id: "first-1st-yellow", kind: "first", name: "黄のジュエル　ルミナジア",   color: "yellow", frame: "ファーストカード_表_黄", count: 1, folder: "【H】Fカード　黄の色石　ヘリオドール", 保留: true },
+  { no: "11", id: "first-1st-green",  kind: "first", name: "緑のジュエル　ネオリーフィア", color: "green", frame: "ファーストカード_表_緑", count: 1, folder: "【H】Fカード　緑の色石　ジェイド", 保留: true },
+  { no: "12", id: "first-1st-blue",   kind: "first", name: "青のジュエル　ラピスティア", color: "blue",   frame: "ファーストカード_表_青", count: 1, folder: "【H】Fカード　青の色石　ラピスラズリ", 保留: true },
+  { no: "13", id: "first-1st-pink",   kind: "first", name: "桃のジュエル　モルガライト", color: "pink",   frame: "ファーストカード_表_桃", count: 1, folder: "【H】Fカード　桃の色石　モルガナイト", 保留: true },
+  { no: "14", id: "first-1st-purple", kind: "first", name: "紫のジュエル　ラヴェルナイト", color: "purple", frame: "ファーストカード_表_紫", count: 1, folder: "【H】Fカード　紫の色石　ラヴェルライト", 保留: true },
 
   // ── 通常カード（7色 × 2種 × 7枚） ──
   { no: "15", id: "1st-red-poor-march",      kind: "normal", name: "貧民の行進",         color: "red",    frame: "通常カード_表_赤１", count: 7, folder: "【H】貧民の行進" },

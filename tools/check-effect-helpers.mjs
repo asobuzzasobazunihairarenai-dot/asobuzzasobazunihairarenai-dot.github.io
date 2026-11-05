@@ -89,6 +89,25 @@ function ヘルパーの鍵(呼び出し) {
   const 開き = main.indexOf("{", ctx閉じ);
   const 閉じ = 閉じ括弧(main, 開き);
   const 本体 = main.slice(開き, 閉じ + 1);
+  return 鍵を拾う(本体);
+}
+
+// 🔴 到達側の helpers は**関数へ切り出してある**（続き668）。【状況】カードがターン開始時に
+//   同じエンジンを走らせるので、2か所に同じ helpers を書かないため。呼び出しの形が
+//   `runArrivalEffect(ctx, buildArrivalEffectHelpers(player))` になったので、
+//   オブジェクトはその関数の中を読む。
+function 関数の鍵(名前) {
+  const 目印 = "function " + 名前 + "(";
+  const i = main.indexOf(目印);
+  if (i < 0) throw new Error("関数が見つからない: " + 名前);
+  const r = main.indexOf("return {", i);
+  if (r < 0) throw new Error("return { が見つからない: " + 名前);
+  const 開き = main.indexOf("{", r);
+  const 閉じ = 閉じ括弧(main, 開き);
+  return 鍵を拾う(main.slice(開き, 閉じ + 1));
+}
+
+function 鍵を拾う(本体) {
   const ks = new Set();
   for (const 行 of 本体.split("\n")) {
     const t = 行.trim();
@@ -106,7 +125,7 @@ function ヘルパーの鍵(呼び出し) {
 let 手札の鍵, 到達の鍵;
 try {
   手札の鍵 = ヘルパーの鍵("await runHandEffect(");
-  到達の鍵 = ヘルパーの鍵("await runArrivalEffect(");
+  到達の鍵 = 関数の鍵("buildArrivalEffectHelpers");
 } catch (e) {
   console.error("🔴 main.js の helpers を取り出せなかった: " + e.message);
   process.exit(2);

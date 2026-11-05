@@ -170,6 +170,33 @@ const FIRST_CARDS: { id: string; color: string }[] = [
   { id: "first-purple", color: "purple" },
 ];
 
+// 1st EDITION のファーストカード（◯のジュエル）7種。
+// 🔴 **src/cards-data-1st.js の FIRST_ED_FIRST_CARDS と同じ並び**（tools/check-cards.mjs が照合する）。
+const FIRST_ED_FIRST_CARDS: { id: string; color: string }[] = [
+  { id: "first-1st-red", color: "red" },
+  { id: "first-1st-orange", color: "orange" },
+  { id: "first-1st-yellow", color: "yellow" },
+  { id: "first-1st-green", color: "green" },
+  { id: "first-1st-blue", color: "blue" },
+  { id: "first-1st-pink", color: "pink" },
+  { id: "first-1st-purple", color: "purple" },
+];
+
+// ファーストカードの山を、その対局のカードセットに従って返す（クライアントの
+// getFirstCards と同じ判断。ユーザー判断 2026-11-06）。
+// ⚠ 知らない値が来たらリメイク（古いクライアントが cardSet を送ってこない場合も同じ）。
+// 🔴 mixed は**色ごとにどちらか1枚**。14枚の山にすると同じ色のファーストが2人に配られる。
+function firstPoolForCardSet(cardSet: string | null | undefined): { id: string; color: string }[] {
+  if (cardSet === "1st") return FIRST_ED_FIRST_CARDS;
+  if (cardSet === "mixed") {
+    return FIRST_CARDS.map((c) => {
+      const alt = FIRST_ED_FIRST_CARDS.find((f) => f.color === c.color);
+      return alt && Math.random() < 0.5 ? alt : c;
+    });
+  }
+  return FIRST_CARDS;
+}
+
 function shuffled<T>(array: T[]): T[] {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
@@ -590,7 +617,9 @@ function reduce(current: GameState, action: any): GameState {
       // 対象にもならない）。端の色は盤内の隣だけロックする。
       const boost: boolean = !!action.boost;
 
-      const firstPile = shuffled(expandDeck(FIRST_CARDS));
+      // 🔴 ファーストカードもカードセットに従う（1st なら◯のジュエル、まぜるなら色ごとに抽選）。
+      const 配るファースト = firstPoolForCardSet((action as { cardSet?: string }).cardSet);
+      const firstPile = shuffled(expandDeck(配るファースト));
       const newTokens: Token[] = [];
       for (const { player, side, firstColor } of players) {
         // マイデッキ戦: ファーストは各自が選んだデッキの色（first-<color>）で配る。同じ色が
@@ -613,7 +642,7 @@ function reduce(current: GameState, action: any): GameState {
         } else {
           if (firstPile.length === 0) break;
           cardId = firstPile.pop()!;
-          color = FIRST_CARDS.find((c) => c.id === cardId)!.color;
+          color = 配るファースト.find((c) => c.id === cardId)!.color;
         }
         const colorIndex = COLORS.indexOf(color);
         newTokens.push({

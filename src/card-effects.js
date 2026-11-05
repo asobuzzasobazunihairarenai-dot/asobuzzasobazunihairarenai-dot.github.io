@@ -126,6 +126,30 @@ export const VERBS = {
   // 色スロットへ手札のカードを1枚ロックする（そのロック札は7色カウントに入る・除去され得る）。
   // スロットに既にロック札があれば使えない（除去されて空けば再度使える）。
   LOCK_HAND_CARD_INTO_NOIR_SLOT: "lock_hand_card_into_noir_slot",
+  // ── ここから 1st EDITION（続き668）。 ───────────────────────────────────────────
+  // 🔴 【状況】カード5種の共通の到達効果。「このカードを場の中央に表向きで置く。」
+  //   置いたあとは `situation` の効果が**全員のターン開始時に**効き続ける
+  //   （card-effect-engine.js の getActiveSituationCardId / runSituationEffect）。
+  PLACE_SELF_AT_BOARD_CENTER: "place_self_at_board_center",
+  QUALIFYING_PLAYERS_DRAW_AND_MOVE: "qualifying_players_draw_and_move", // 貧民の行進(到達): 財力N以下の全員がドローして移動
+  GIVE_HAND_CARDS_TO_CHOSEN_PLAYER: "give_hand_cards_to_chosen_player", // 財閥の威光・恋の押付け: 選んだ相手に自分の手札を渡す
+  PICKUP_OWN_LOCKED_TO_HAND: "pickup_own_locked_to_hand", // ロックチェンジ: 自分のロックしているカードを手札に戻す
+  MOVE_CHOSEN_PLAYER_ONE_CELL: "move_chosen_player_one_cell", // 貴族の特権(手札②): 選んだプレイヤーが1マス移動する
+  STACK_ADJACENT_CARDS_ON_OWN_CELL: "stack_adjacent_cards_on_own_cell", // 食べ過ぎ(到達): 隣のカードを裏向きで自分のマスへ積む
+  FLIP_SELF_FACE_DOWN: "flip_self_face_down", // 路地裏のスラム街(到達①): このカードを裏向きにする
+  PICKUP_FROM_OPPONENT_GATE: "pickup_from_opponent_gate", // 苦渋の強盗(到達): 相手ゲートのカードを手札に加える
+  STEAL_LOCKED_FROM_MOST_LOCKED: "steal_locked_from_most_locked", // 苦渋の強盗(手札): 1番多くロックしている人のロック札を1枚奪う
+  STEAL_RANDOM_AND_GIVE_SELF: "steal_random_and_give_self", // 裏貴族の賄賂(到達): 無作為に1枚奪い、これを相手の手札へ
+  BRIBE_ON_LOCK_DECLARE: "bribe_on_lock_declare", // 裏貴族の賄賂(手札): ロック宣言に割り込み、その札を奪って1枚渡す
+  GIVE_SELF_TO_EXTREME_WEALTH: "give_self_to_extreme_wealth", // 大富豪の気紛れ(到達): 財力が1番多い人へこれを渡す
+  ALL_OPPONENTS_DISCARD_LOCKED_AND_DRAW: "all_opponents_discard_locked_and_draw", // 大富豪の気紛れ(手札)
+  EQUALIZE_HAND_SIZES: "equalize_hand_sizes", // ドゥエンの革命(到達): 1番多い人が捨て、1番少ない人が引く
+  ALL_PLAYERS_DISCARD_TO_FEWEST: "all_players_discard_to_fewest", // 偉大なる大号令: 全員が1番少ない人の枚数まで捨てる
+  PLACE_DECK_CARDS_AROUND_CENTER: "place_deck_cards_around_center", // 偉大なる大号令: 中央の周囲8マスに山札から置く
+  ALL_PLAYERS_MOVE_TO_CENTER_ADJACENT: "all_players_move_to_center_adjacent", // 偉大なる大号令: 全員が中央の上下左右へ
+  PICKUP_ALL_AT_CHOSEN_CELL_TO_HAND: "pickup_all_at_chosen_cell_to_hand", // 愚直な欲求(E橙): 任意の1マスのカードを全部手札へ
+  WEALTH_BONUS_FOR_ALL_UNTIL_NEXT_TURN: "wealth_bonus_for_all_until_next_turn", // 富豪の教え(E黄): 全員の財力を1多く
+  SWAP_ENTIRE_HAND_WITH_CHOSEN: "swap_entire_hand_with_chosen", // カオスチェンジ(E紫): 相手と手札を全部交換
 };
 
 // 効果の主語（誰が対象か）。
@@ -1589,10 +1613,14 @@ export const CARD_EFFECTS = {
 
   // 食べ過ぎ（桃・7枚）
   //   到達: 「２枚ドロー。あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに
-  //         重ねて置く。」← **まだ**（隣のカードを自分のマスへ積む動詞が無い）
+  //         重ねて置く。」
   //   手札: 「【財力≧３】２枚ドロー。このカードを捨てる。このターンを終了する。」
   // ⚠ 印字どおりの順（引く→捨てる→ターン終了）にしてある（貧しき心と同じ理由）。
+  // ⚠ 到達の「隣」＝前後左右の4マス（用語集）。裏向きで足下へ積むので到達は起きない。
   "1st-pink-overeating": {
+    arrival: {
+      actions: [{ verb: VERBS.DRAW, count: 2 }, { verb: VERBS.STACK_ADJACENT_CARDS_ON_OWN_CELL }],
+    },
     handEffect: {
       wealth: { min: 3 },
       keepsCardOnUse: true,
@@ -1601,10 +1629,33 @@ export const CARD_EFFECTS = {
   },
 
   // 路地裏のスラム街（紫・7枚）
-  //   到達: 「【財力≧３】以下の効果のうち１つ得る。…」← **まだ**
-  //         （「手札を２枚以下になるように**無作為に**捨てる」「このカードを裏向きにする」が無い）
+  //   到達: 「【財力≧３】以下の効果のうち１つ得る。
+  //         ・あなたの手札を２枚以下になるように無作為に捨てる。このカードを裏向きにする。
+  //         ・あなたのロックしているカードを１枚捨てる。」
   //   手札: 「【財力≧３】このカードを任意のマスに裏向きで置く。」
+  // 🔴 ①は **keepsCardOnBoard**（このカードは手札に入らず、裏向きでそのマスに残る）。
+  //   選択肢ごとに違うので effectDef ではなく**選択肢に**書く（②は今までどおり手札へ）。
+  // ⚠ 財力の条件は選択肢それぞれに付ける（arrivalOptions は effectDef の wealth を見ない）。
   "1st-purple-slum": {
+    arrivalOptions: [
+      {
+        id: "1st-slum-random-discard",
+        labelKey: "cef.opt.feSlumRandomDiscard",
+        wealth: { min: 3 },
+        keepsCardOnBoard: true,
+        actions: [
+          { verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, keep: 2, random: true },
+          { verb: VERBS.FLIP_SELF_FACE_DOWN },
+        ],
+      },
+      {
+        id: "1st-slum-discard-locked",
+        labelKey: "cef.opt.feSlumDiscardLocked",
+        wealth: { min: 3 },
+        requiresHasLockedCard: true,
+        actions: [{ verb: VERBS.DISCARD_ONE_LOCKED_CARD }],
+      },
+    ],
     handEffect: {
       wealth: { min: 3 },
       keepsCardOnUse: true,
@@ -1621,9 +1672,29 @@ export const CARD_EFFECTS = {
 
   // 飛空艇アルヴァ（白・1枚）
   //   到達: 「【財力≧６】あなたの手札を無作為に３枚捨てる。そうしたなら、カードの置かれて
-  //         いない７マス先に一気に強制移動してもよい。…」← **まだ**
+  //         いない７マス先に一気に強制移動してもよい。このカードをあなたの隣に表向きで置く。」
   //   手札: 「このカードを任意のマスに表向きで置く。」（財力の条件は無い）
+  // 🔴 「そうしたなら」＝**捨てられた時だけ**次へ進む（stopIfPreviousFailed）。
+  // 🔴 「７マス先に一気に」＝ちょうど距離7のマス全部（atOnce）。盤は7x7なので、
+  //   端から端までを渡る大移動になる。requireEmpty ＝「カードの置かれていない」。
+  // ⚠ 「あなたの隣に置く」は**移動したあとの隣**（onlyAdjacent は ctx.pieceLocation を見る）。
+  // ⚠ addsCardToHandAfter: false ＝これ自身は手札に入らず盤面へ置く（オレンジバスと同じ）。
   "1st-white-airship": {
+    arrival: {
+      wealth: { min: 6 },
+      addsCardToHandAfter: false,
+      actions: [
+        { verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, count: 3, random: true },
+        { verb: VERBS.FORCED_MOVE, count: 7, atOnce: true, requireEmpty: true, optional: true, stopIfPreviousFailed: true },
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, onlyAdjacent: true },
+        },
+      ],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -1639,10 +1710,17 @@ export const CARD_EFFECTS = {
   },
 
   // ドゥエンの革命（白・1枚）
-  //   到達: 「手札が１番多いプレイヤーは…捨て、１番少ないプレイヤーは…ドロー。…」← **まだ**
+  //   到達: 「手札が１番多いプレイヤーは、手札が１番少ないプレイヤーの手札枚数になるまで
+  //         カードを捨て、手札が１番少ないプレイヤーは、手札が１番多いプレイヤーの手札枚数に
+  //         なるまでドロー。このカードを捨てる。」
   //   手札: 「このカードをプレイヤーの隣以外のマスに表向きで置く（プレイヤーのいるマスを除く）。」
   // ⚠ 「隣」＝前後左右の4マス（用語集）。駒のいるマスも除く＝続き651 で作った2つの絞り込みそのもの。
+  // 🔴 到達は**手札の枚数**で数える（財力ではない＝印字のとおり。Eカードの＋1は入らない）。
   "1st-white-revolution": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.EQUALIZE_HAND_SIZES }, { verb: VERBS.DISCARD_SELF }],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -1659,13 +1737,19 @@ export const CARD_EFFECTS = {
 
   // 財閥の威光（橙・7枚）
   //   到達: 「【財力≧３】財力の１番少ないプレイヤーを１人選ぶ。そのプレイヤーの手札に
-  //         あなたの手札から２枚加える。」← **まだ**（相手に手札を渡す動詞が無い）
+  //         あなたの手札から２枚加える。」
   //   手札: 「このカードを任意のマスに裏向きで置く。【財力＝S】任意のマスのカードを
   //         Sマスまでオープンしてもよい。」
   // 🔴 **財力の印が2文目の頭に付いている**ので、効果全体ではなく**アクションに**付ける
   //   （generateEffectText がその句の頭に出す）。【財力＝S】は条件ではなく「S＝あなたの財力」の宣言。
   // ⚠ Sは**オープンを始める前に1回だけ数える**（engine の 上限）。オープンで手札が増えても伸びない。
   "1st-orange-conglomerate": {
+    arrival: {
+      wealth: { min: 3 },
+      // ⚠ 「プレイヤー」＝自分も含む（「相手」と書かれていない）。自分が1番少ない時は
+      //   自分しか選べず、自分に渡す＝何も起きない（literal な読み）。
+      actions: [{ verb: VERBS.GIVE_HAND_CARDS_TO_CHOSEN_PLAYER, pick: "lowest_wealth", count: 2 }],
+    },
     handEffect: {
       keepsCardOnUse: true,
       actions: [
@@ -1681,14 +1765,17 @@ export const CARD_EFFECTS = {
   },
 
   // 大盤振舞（緑・7枚）
-  //   到達: 「あなたの隣計２マスにあなたの手札から裏向きで１枚ずつ置く。」← **まだ**
-  //         （隣に手札から置く動詞が無い。山札からの PLACE_DECK_CARDS_ON_ADJACENT はある）
+  //   到達: 「あなたの隣計２マスにあなたの手札から裏向きで１枚ずつ置く。」
   //   手札: 「【財力＝S】カードの置かれていないSマスに山札からカードを裏向きで１枚ずつ置く。
   //         このカードを捨てる。」
   // ⚠ 「カードの置かれていない」＝カードが無いだけで**駒はいてよい**（用語集。requireNoPiece: false）。
   // 🔴 印字は「…置く。**このカードを捨てる。**」＝置いてから捨てる。既定（先に捨てる）だと
   //   Sを数える時の手札が1枚少なくなるので、**印字どおりの順**にする（貧しき心と同じ）。
   "1st-green-largesse": {
+    arrival: {
+      // 「隣**計２マス**」＝前後左右の4マスのうち2マスを選ぶ。出どころは**手札**。
+      actions: [{ verb: VERBS.PLACE_DECK_CARDS_ON_ADJACENT, source: "hand", total: 2 }],
+    },
     handEffect: {
       wealth: { variable: true },
       keepsCardOnUse: true,
@@ -1733,6 +1820,331 @@ export const CARD_EFFECTS = {
       ],
     },
   },
+
+  // ══════════ 1st EDITION の残り（2026-11-06・続き668 で追加） ══════════
+
+  // 貧民の行進（赤・7枚）
+  //   到達: 「このカードをあなたの手札に加える。財力２以下のプレイヤーは全員、２枚ドローし
+  //         ２マス移動する、移動先のカードはオープンしない。」
+  //   手札: 「【財力≦２】このターン通常の移動では２マス移動し、移動先のカードはオープンしない。
+  //         このカードを捨てる。」
+  // ⚠ 到達の1文目は既定動作（手札に加える）そのものなので、アクションには書かない。
+  // ⚠ 「２マス移動」は距離2のマス（ring）として扱う。「２マス先に一気に」との違いは途中の
+  //   マスに止まるかどうかだけで、ここは**オープンしない**指定なので差が出ない。
+  "1st-red-poor-march": {
+    arrival: {
+      actions: [{ verb: VERBS.QUALIFYING_PLAYERS_DRAW_AND_MOVE, qualifyWealth: { max: 2 }, draw: 2, move: 2 }],
+    },
+    handEffect: {
+      wealth: { max: 2 },
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, noOpen: true }, { verb: VERBS.DISCARD_SELF }],
+    },
+  },
+
+  // 治安悪化（赤・7枚）【状況】
+  //   常時: 「【状況】財力５以上のプレイヤーは全員、自分のターン開始時に以下の効果のうち１つ得る。
+  //         ・自分のロックしているカードを１枚捨てる。／・自分の手札を４枚捨てる。」
+  //   到達: 「このカードを場の中央に表向きで置く。」　手札: 「上記の到達時の効果を得る。」
+  // 🔴 **罰の効果でも「本人は宣言しないはず」と決め打ちしない**（ユーザー指摘「あえて罰を
+  //   受けたいときも出てきます」）。宣言で効くかどうかが変わる人にだけ聞く
+  //   （situationNeedsWealthDeclaration → main.js が本人に確認する）。
+  "1st-red-unrest": {
+    situation: {
+      wealth: { min: 5 },
+      options: [
+        {
+          id: "1st-unrest-discard-locked",
+          labelKey: "cef.opt.feUnrestDiscardLocked",
+          requiresHasLockedCard: true,
+          actions: [{ verb: VERBS.DISCARD_ONE_LOCKED_CARD }],
+        },
+        {
+          id: "1st-unrest-discard-4",
+          labelKey: "cef.opt.feUnrestDiscard4",
+          requiresMinHandSize: 1,
+          actions: [{ verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, count: 4 }],
+        },
+      ],
+    },
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // フェスティバル（橙・7枚）【状況】
+  //   常時: 「【状況】プレイヤー全員は、自分のターン開始時に相手プレイヤーの周囲以外のカードを
+  //         １枚、自分の手札に加えてもよい。」
+  // ⚠ 「周囲」＝縦横斜めの8マス（用語集。「隣」＝前後左右4マスとは別）。
+  "1st-orange-festival": {
+    situation: {
+      actions: [{ verb: VERBS.PICKUP_TO_HAND, optional: true, excludeOpponentSurrounding: true }],
+    },
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 貴族の特権（黄・7枚）
+  //   到達: 「【財力≧３】あなたのロックエリアにカードを１枚ロックしてもよい、
+  //         ただし最後のロックはできない。」
+  //   手札: 「【財力≧３】このカードを捨て、以下の効果のうち１つ得る。
+  //         ・上記の到達時の効果を得る。／・任意のプレイヤーを１人選ぶ。そのプレイヤーは１マス移動する。」
+  // ⚠ 「最後のロックはできない」＝7色目になるスロットは除く（LOCK_ONE_HAND_CARD_EXCEPT_FINAL
+  //   が元からそうなっている＝セレナーデと同じ）。
+  "1st-yellow-privilege": {
+    arrival: {
+      wealth: { min: 3 },
+      actions: [{ verb: VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL, lockArea: true, optional: true }],
+    },
+    handEffectOptions: [
+      {
+        id: "1st-privilege-lock",
+        labelKey: "cef.opt.fePrivilegeLock",
+        wealth: { min: 3 },
+        requiresLockableCardAvailable: true,
+        actions: [{ verb: VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL, lockArea: true, optional: true }],
+      },
+      {
+        id: "1st-privilege-move",
+        labelKey: "cef.opt.fePrivilegeMove",
+        wealth: { min: 3 },
+        actions: [{ verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL }],
+      },
+    ],
+  },
+
+  // ロックチェンジ（黄・7枚）
+  //   到達: 「あなたのロックしているカードを１枚、あなたの手札に加える。そうしたなら、
+  //         あなたのロックエリアにカードを１枚ロックする、ただし最後のロックはできない。」
+  //   手札: 「この効果はいつでも使える。このカードを捨てる。上記の到達時の効果を得る。」
+  // 🔴 「そうしたなら」＝戻せた時だけロックする（stopIfPreviousFailed）。
+  //   ⓘ 戻した1枚をそのまま置き直すこともできる（印字に除外が無い）。それでも
+  //     **色を変えたい時に役に立つ**のがこのカードの狙い。
+  "1st-yellow-lock-change": {
+    arrival: {
+      actions: [
+        { verb: VERBS.PICKUP_OWN_LOCKED_TO_HAND },
+        { verb: VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL, lockArea: true, stopIfPreviousFailed: true },
+      ],
+    },
+    handEffect: {
+      usableAnytime: true,
+      usableAnytimeLabel: "この効果はいつでも使える。",
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.DISCARD_SELF }, { verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 建設バブル（緑・7枚）【状況】
+  //   常時: 「【状況】プレイヤー全員は、自分のターン開始時にカードの置かれていない２マスに
+  //         自分の手札または山札からカードを裏向きで１枚ずつ置く。」
+  // ⚠ 「カードの置かれていない」＝カードが無いだけで**駒はいてよい**（requireNoPiece: false）。
+  "1st-green-bubble": {
+    situation: {
+      actions: [
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 2, requireNoCard: true, requireNoPiece: false, allowHand: true },
+      ],
+    },
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 苦渋の強盗（青・7枚）
+  //   到達: 「【財力≦２】相手ゲートのカードを１枚、あなたの手札に加える。」
+  //   手札: 「【財力≦２】１番多くロックしているプレイヤーを１人選び、そのプレイヤーの
+  //         ロックしているカード１枚をあなたの手札に加える。このカードを捨てる。このターンを終了する。」
+  // ⚠ 印字どおりの順（奪う→捨てる→ターン終了）＝貧しき心と同じ理由で keepsCardOnUse。
+  "1st-blue-robbery": {
+    arrival: {
+      wealth: { max: 2 },
+      actions: [{ verb: VERBS.PICKUP_FROM_OPPONENT_GATE }],
+    },
+    handEffect: {
+      wealth: { max: 2 },
+      keepsCardOnUse: true,
+      actions: [
+        { verb: VERBS.STEAL_LOCKED_FROM_MOST_LOCKED },
+        { verb: VERBS.DISCARD_SELF },
+        { verb: VERBS.END_TURN },
+      ],
+    },
+  },
+
+  // 経済成長（桃・7枚）【状況】
+  //   常時: 「【状況】プレイヤーは全員、自分のターン開始時に１枚ドローしてもよい。」
+  "1st-pink-growth": {
+    situation: {
+      actions: [{ verb: VERBS.DRAW, count: 1, optional: true }],
+    },
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 裏貴族の賄賂（紫・7枚）
+  //   到達: 「相手プレイヤーを１人選ぶ。その相手の手札から無作為に１枚、あなたの手札に加える。
+  //         このカードをその相手の手札に加える。」
+  //   手札: 「相手プレイヤーがロックを宣言した時に使える。このカードを捨てる。相手がロックしよう
+  //         としたカードをあなたの手札に加える。あなたの手札から１枚、その相手の手札に加える。」
+  // 🔴 到達は addsCardToHandAfter: false（これ自身は**相手の**手札へ行く）。
+  // 🔴 手札効果は**ロック宣言の窓でだけ**使える（やり直しのカギと同じ仕組み）。さらに
+  //   「どの札をロックしようとしているか」が分かっている時だけ（requiresLockDeclaredToken）。
+  "1st-purple-bribe": {
+    handEffectReactiveOnly: true,
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.STEAL_RANDOM_AND_GIVE_SELF }],
+    },
+    handEffect: {
+      usableAnytime: true,
+      usableAnytimeLabel: "相手プレイヤーがロックを宣言した時に使える。",
+      requiresOpponentLockDeclaration: true,
+      requiresLockDeclaredToken: true,
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.BRIBE_ON_LOCK_DECLARE }],
+    },
+  },
+
+  // 大富豪の気紛れ（白・1枚）
+  //   到達: 「２枚ドロー。財力の１番多いプレイヤーを１人選び、このカードをそのプレイヤーの
+  //         手札に加える。」
+  //   手札: 「【財力≧６】相手プレイヤーは全員、自分のロックしているカードを１枚捨て、２枚ドロー。
+  //         このカードを捨てる。」
+  "1st-white-whim": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.DRAW, count: 2 }, { verb: VERBS.GIVE_SELF_TO_EXTREME_WEALTH }],
+    },
+    handEffect: {
+      wealth: { min: 6 },
+      keepsCardOnUse: true,
+      actions: [
+        { verb: VERBS.ALL_OPPONENTS_DISCARD_LOCKED_AND_DRAW, draw: 2 },
+        { verb: VERBS.DISCARD_SELF },
+      ],
+    },
+  },
+
+  // デプレッション（黒・2枚）【状況】
+  //   常時: 「【状況】財力２以上のプレイヤーは全員、自分のターン開始時に自分の手札を１枚捨てる。」
+  "1st-black-depression": {
+    situation: {
+      wealth: { min: 2 },
+      actions: [{ verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, count: 1 }],
+    },
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      inheritsArrival: true,
+      actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // 偉大なる大号令（黒・2枚）
+  //   到達: 「場の中央の周囲８マスに山札からカードを裏向きで置く。プレイヤー全員は、場の中央の
+  //         上下左右（各自ゲートの方角）のマスに移動し、移動先のカードはオープンしない。
+  //         プレイヤー全員は、１番手札の少ないプレイヤーの手札枚数になるまで手札を捨てる。」
+  //   手札: 「【財力≧５】このカードを捨てる。上記の到達時の効果を得る。」
+  // ⚠ 「各自ゲートの方角」は座標から決まるので誰にも聞かない。
+  "1st-black-great-order": {
+    arrival: {
+      actions: [
+        { verb: VERBS.PLACE_DECK_CARDS_AROUND_CENTER },
+        { verb: VERBS.ALL_PLAYERS_MOVE_TO_CENTER_ADJACENT },
+        { verb: VERBS.ALL_PLAYERS_DISCARD_TO_FEWEST },
+      ],
+    },
+    handEffect: {
+      wealth: { min: 5 },
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.DISCARD_SELF }, { verb: VERBS.INHERIT_ARRIVAL_ACTIONS }],
+    },
+  },
+
+  // ── 1st EDITION の Eカード（残り5色） ──
+
+  // 赤き焔の書　フレイムドレイク（赤）
+  //   手札: 「【財力＝０】このターンの通常の移動は２マス移動する。」
+  // ⚠ 既存の ANNOUNCE_MOVEMENT_BOOST_THIS_TURN をそのまま使う（ディメンションと同じ仕組み）。
+  //   印字は「２マス移動する」で「一気に」が無いが、このアプリは途中のマスに止まる形を
+  //   持たないので、行ける先（距離2のマス）は同じになる。
+  "eternal-1st-red": {
+    handEffect: {
+      wealth: { eq: 0 },
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, plain: true }],
+    },
+  },
+
+  // 橙の渇望書　グリードアンバー（橙）
+  //   手札: 「【財力＝１】任意の１マスのカードをすべてあなたの手札に加える。このターンを終了する。」
+  "eternal-1st-orange": {
+    handEffect: {
+      wealth: { eq: 1 },
+      actions: [{ verb: VERBS.PICKUP_ALL_AT_CHOSEN_CELL_TO_HAND }, { verb: VERBS.END_TURN }],
+    },
+  },
+
+  // 黄金の富書　ゴールドリッチ（黄）
+  //   手札: 「【財力＝２】次のあなたのターン開始時までプレイヤー全員は、財力を１多く計算する。
+  //         この効果は１ターンに１度のみ得られる。」
+  "eternal-1st-yellow": {
+    handEffect: {
+      wealth: { eq: 2 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [{ verb: VERBS.WEALTH_BONUS_FOR_ALL_UNTIL_NEXT_TURN }],
+    },
+  },
+
+  // 桃色の情書　ピンクラブ（桃）
+  //   手札: 「【財力＝５】相手プレイヤーを１人選ぶ。あなたの手札から任意の枚数選び、
+  //         その相手の手札に加える。」
+  // ⚠ 「任意の枚数」＝0枚でもよい（選ばなければそこで終わり＝不発）。
+  "eternal-1st-pink": {
+    handEffect: {
+      wealth: { eq: 5 },
+      actions: [{ verb: VERBS.GIVE_HAND_CARDS_TO_CHOSEN_PLAYER, count: "any" }],
+    },
+  },
+
+  // 紫闇の魔書　パープルカオス（紫）
+  //   手札: 「【財力＝６】相手プレイヤーを１人選ぶ。その相手と手札をすべて交換する。
+  //         このターンを終了する。」
+  "eternal-1st-purple": {
+    handEffect: {
+      wealth: { eq: 6 },
+      actions: [{ verb: VERBS.SWAP_ENTIRE_HAND_WITH_CHOSEN }, { verb: VERBS.END_TURN }],
+    },
+  },
+
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------
@@ -1771,7 +2183,8 @@ function renderAction(action, context) {
       // 通常移動をcount回繰り返す想定（各回で移動先にカードが必要、到達判定も毎回発生）。
       return action.atOnce ? `${count}マス先に一気に移動する。` : `${count}マス移動する。`;
     case VERBS.DRAW:
-      return `${renderTargetLabel(action.target)}${count}枚ドロー。`;
+      // 1st EDITION（経済成長の【状況】）「…１枚ドローしてもよい。」
+      return `${renderTargetLabel(action.target)}${count}枚ドロー${action.optional ? "してもよい。" : "。"}`;
     case VERBS.PICKUP_DISCARD_SECOND_FROM_TOP:
       return "捨て場の１番上から２番目のカードをあなたの手札に加える。";
     case VERBS.PICKUP_DISCARD_TOP:
@@ -1786,6 +2199,11 @@ function renderAction(action, context) {
       return "これと同色の、場の表向きのカード１枚をあなたの手札に加える。";
     case VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS: {
       const どのマス = action.requireNoPiece ? "何もない" : "カードの置かれていない";
+      // 🔴 1st EDITION（建設バブル）だけ**語順が違う**（印字が「…からカードを裏向きで
+      //   １枚ずつ置く。」）。既存の文（大地創造・迷いの森・大盤振舞）は1文字も変えない。
+      if (action.allowHand) {
+        return `${どのマス}${toFullWidthNumber(action.count)}マスに自分の手札または山札からカードを裏向きで１枚ずつ置く。`;
+      }
       const 置く = `${どのマス}${toFullWidthNumber(action.count)}マスに山札から１枚ずつ裏向きで置く。`;
       return action.reveal ? `${置く}それらをオープンする。` : 置く;
     }
@@ -1799,6 +2217,12 @@ function renderAction(action, context) {
     case VERBS.DRAW_PER_FACEDOWN_AT_CHOSEN_CELL:
       return "任意の１マスを選ぶ。そのマスの裏向きのカードの枚数分ドロー。";
     case VERBS.DISCARD_OWN_HAND_DOWN_TO:
+      // 1st EDITION で2つ足した書き方（印字に合わせて文も分ける）:
+      //   count ＝「ちょうどN枚捨てる」／ random ＝「無作為に」。
+      if (action.count != null) {
+        return `あなたの手札を${action.random ? "無作為に" : ""}${count}枚捨てる。`;
+      }
+      if (action.random) return `あなたの手札を${toFullWidthNumber(action.keep)}枚以下になるように無作為に捨てる。`;
       return `あなたの手札が${toFullWidthNumber(action.keep)}枚になるように捨てる。`;
     case VERBS.DISCARD_ANY_HAND_THEN_DRAW_SAME:
       return "あなたの手札を任意の枚数捨ててもよい。捨てた枚数分ドロー。";
@@ -1820,6 +2244,11 @@ function renderAction(action, context) {
     case VERBS.FORCED_MOVE: {
       if (action.repeat === "any")
         return `${action.requireEmpty ? "何もないあなたの隣のマス" : count + "マス"}に強制移動することを、任意の回数繰り返す。`;
+      // 1st EDITION（飛空艇アルヴァ）「カードの置かれていない７マス先に一気に強制移動してもよい。」
+      if (action.atOnce) {
+        const 頭 = action.stopIfPreviousFailed ? "そうしたなら、" : "";
+        return `${頭}${action.requireEmpty ? "カードの置かれていない" : ""}${count}マス先に一気に強制移動${action.optional ? "してもよい。" : "する。"}`;
+      }
       return `${count}マス強制移動する。${action.noArrival ? "移動先のカードはオープンしない。" : ""}`;
     }
     case VERBS.FORCED_MOVE_TO_PREVIOUS_CELL:
@@ -1857,6 +2286,10 @@ function renderAction(action, context) {
     case VERBS.END_TURN_IF_OWN_TURN:
       return "あなたのターンに使ったなら、このターンを終了する。";
     case VERBS.PLACE_DECK_CARDS_ON_ADJACENT:
+      // 1st EDITION（大盤振舞）「あなたの隣計２マスにあなたの手札から裏向きで１枚ずつ置く。」
+      if (action.total != null || action.source === "hand") {
+        return `あなたの隣計${toFullWidthNumber(action.total)}マスに${action.source === "hand" ? "あなたの手札" : "山札"}から裏向きで１枚ずつ置く。`;
+      }
       return `あなたの隣に山札から${count}枚ずつ裏向きで置く。`;
     case VERBS.ALL_PLAYERS_SET_HAND_SIZE:
       return `${toFullWidthNumber(action.min)}〜${toFullWidthNumber(action.max)}の数字を${toFullWidthNumber(1)}つ選ぶ。全員は手札がその枚数になるようにドローする、または捨てる。`;
@@ -1879,8 +2312,20 @@ function renderAction(action, context) {
     case VERBS.PUBLIC_DRAW_DISABLE_HAND_EFFECTS_CONDITIONAL_DISCARD:
       return `${count}枚ドロー。それらを公開する。それらの手札効果はこのターン使うことができない。その中に橙のカードがあったなら、あなたの手札をすべて捨て、あなたはこのターン移動できない。`;
     case VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN:
+      // 1st EDITION: 貧民の行進（noOpen）と基本走術（E赤）は印字が「２マス移動する」で
+      //   「一気に」が無い。ディメンション（リメイク）は今までどおり。
+      if (action.noOpen) return "このターン通常の移動では２マス移動し、移動先のカードはオープンしない。";
+      if (action.plain) return "このターンの通常の移動は２マス移動する。";
       return "このターンの通常の移動は２マス先に一気に移動する。";
     case VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL:
+      // 🔴 1st EDITION（貴族の特権・ロックチェンジ）は印字が「あなたの**ロックエリアに**
+      //   カードを１枚ロックする」。リメイク（セレナーデ等）は「あなたの手札を１枚ロックする」。
+      //   言い回しが違うだけで中身は同じなので、**データに書いた文言の指定**で切り替える
+      //   （stopIfPreviousFailed のような処理用のフラグから文を推測しない）。
+      if (action.lockArea) {
+        const 頭 = action.stopIfPreviousFailed ? "そうしたなら、" : "";
+        return `${頭}あなたのロックエリアにカードを１枚ロック${action.optional ? "してもよい" : "する"}、ただし最後のロックはできない。`;
+      }
       return "あなたの手札を１枚ロックする、ただし最後のロックはできない。";
     case VERBS.LOCK_HAND_CARD_INTO_NOIR_SLOT:
       return "これの置かれた色のロックエリアにカードを１枚ロックする。そうしたなら、";
@@ -1891,6 +2336,11 @@ function renderAction(action, context) {
           ? `任意の${toFullWidthNumber(action.target.count)}マスの`
           : "";
       if (action.target?.saveAs) context.selections[action.target.saveAs] = action.target;
+      // 1st EDITION（フェスティバルの【状況】）「相手プレイヤーの周囲以外のカードを１枚、
+      //   自分の手札に加えてもよい。」
+      if (action.excludeOpponentSurrounding) {
+        return `相手プレイヤーの周囲以外のカードを${toFullWidthNumber(action.count ?? 1)}枚、自分の手札に加え${action.optional ? "てもよい。" : "る。"}`;
+      }
       return `${zoneLabel}${count}枚をあなたの手札に加える。`;
     }
     case VERBS.PLACE_CARD: {
@@ -2016,6 +2466,52 @@ function renderAction(action, context) {
       return `あなたの手札が${toFullWidthNumber(action.maxHandSize)}枚以下なら${count}枚ドロー。`;
     case VERBS.INHERIT_ARRIVAL_ACTIONS:
       return "上記の到達効果を得る。";
+    // ══════════ ここから 1st EDITION（続き668） ══════════
+    case VERBS.PLACE_SELF_AT_BOARD_CENTER:
+      return "このカードを場の中央に表向きで置く。";
+    case VERBS.QUALIFYING_PLAYERS_DRAW_AND_MOVE:
+      return `財力${toFullWidthNumber(action.qualifyWealth?.max)}以下のプレイヤーは全員、${toFullWidthNumber(action.draw)}枚ドローし${toFullWidthNumber(action.move)}マス移動する、移動先のカードはオープンしない。`;
+    case VERBS.GIVE_HAND_CARDS_TO_CHOSEN_PLAYER:
+      if (action.pick === "lowest_wealth") {
+        return `財力の１番少ないプレイヤーを１人選ぶ。そのプレイヤーの手札にあなたの手札から${count}枚加える。`;
+      }
+      return "相手プレイヤーを１人選ぶ。あなたの手札から任意の枚数選び、その相手の手札に加える。";
+    case VERBS.PICKUP_OWN_LOCKED_TO_HAND:
+      return "あなたのロックしているカードを１枚、あなたの手札に加える。";
+    case VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL:
+      return "任意のプレイヤーを１人選ぶ。そのプレイヤーは１マス移動する。";
+    case VERBS.STACK_ADJACENT_CARDS_ON_OWN_CELL:
+      return "あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに重ねて置く。";
+    case VERBS.FLIP_SELF_FACE_DOWN:
+      return "このカードを裏向きにする。";
+    case VERBS.PICKUP_FROM_OPPONENT_GATE:
+      return "相手ゲートのカードを１枚、あなたの手札に加える。";
+    case VERBS.STEAL_LOCKED_FROM_MOST_LOCKED:
+      return "１番多くロックしているプレイヤーを１人選び、そのプレイヤーのロックしているカード１枚をあなたの手札に加える。";
+    case VERBS.STEAL_RANDOM_AND_GIVE_SELF:
+      return "相手プレイヤーを１人選ぶ。その相手の手札から無作為に１枚、あなたの手札に加える。このカードをその相手の手札に加える。";
+    case VERBS.BRIBE_ON_LOCK_DECLARE:
+      return "このカードを捨てる。相手がロックしようとしたカードをあなたの手札に加える。あなたの手札から１枚、その相手の手札に加える。";
+    case VERBS.GIVE_SELF_TO_EXTREME_WEALTH:
+      return "財力の１番多いプレイヤーを１人選び、このカードをそのプレイヤーの手札に加える。";
+    case VERBS.ALL_OPPONENTS_DISCARD_LOCKED_AND_DRAW:
+      return `相手プレイヤーは全員、自分のロックしているカードを１枚捨て、${toFullWidthNumber(action.draw)}枚ドロー。`;
+    case VERBS.EQUALIZE_HAND_SIZES:
+      return "手札が１番多いプレイヤーは、手札が１番少ないプレイヤーの手札枚数になるまでカードを捨て、手札が１番少ないプレイヤーは、手札が１番多いプレイヤーの手札枚数になるまでドロー。";
+    case VERBS.ALL_PLAYERS_DISCARD_TO_FEWEST:
+      return "プレイヤー全員は、１番手札の少ないプレイヤーの手札枚数になるまで手札を捨てる。";
+    case VERBS.PLACE_DECK_CARDS_AROUND_CENTER:
+      return "場の中央の周囲８マスに山札からカードを裏向きで置く。";
+    case VERBS.ALL_PLAYERS_MOVE_TO_CENTER_ADJACENT:
+      return "プレイヤー全員は、場の中央の上下左右（各自ゲートの方角）のマスに移動し、移動先のカードはオープンしない。";
+    case VERBS.PICKUP_ALL_AT_CHOSEN_CELL_TO_HAND:
+      return "任意の１マスのカードをすべてあなたの手札に加える。";
+    case VERBS.WEALTH_BONUS_FOR_ALL_UNTIL_NEXT_TURN:
+      // ⚠ 「この効果は１ターンに１度のみ得られる。」は書かない——**usageLimit が自動で足す**
+      //   （書くと2回出る。実測で見つけた）。
+      return "次のあなたのターン開始時までプレイヤー全員は、財力を１多く計算する。";
+    case VERBS.SWAP_ENTIRE_HAND_WITH_CHOSEN:
+      return "相手プレイヤーを１人選ぶ。その相手と手札をすべて交換する。";
     default:
       return `（未対応の動詞: ${action.verb}）`;
   }

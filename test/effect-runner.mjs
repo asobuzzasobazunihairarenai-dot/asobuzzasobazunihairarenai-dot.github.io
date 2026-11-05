@@ -40,7 +40,9 @@ export async function runOneCase(spec) {
   // 0th拡張（やり直しのカギ）: 「相手がロックを宣言した時」の割り込みの窓を筋書きから開ける。
   // 🔴 本物と同じ記録の関数（noteInterruptWindow）を通す。これが無いと**その枝を一度も
   //   通せない**（窓は main.js の fireAnytimeCheckpoint が開けるもので、テストには無い）。
-  if (spec.interruptWindow) eng.noteInterruptWindow?.(spec.interruptWindow.kind, spec.interruptWindow.player);
+  //   ⚠ 第3引数 tokenId は 1st EDITION（裏貴族の賄賂）が使う「いまロックしようとしている札」。
+  if (spec.interruptWindow)
+    eng.noteInterruptWindow?.(spec.interruptWindow.kind, spec.interruptWindow.player, spec.interruptWindow.tokenId ?? null);
   const picks = spec.picks || {};
   const cursors = {};
   const nextPick = (type) => {
@@ -67,7 +69,14 @@ export async function runOneCase(spec) {
 
   const helpers = {
     // --- 状態変更（本物の state.js を dispatch）---
-    moveAndSync: async (tokenId, location, sound, suppressArrival) => { callLog.push(["moveAndSync", tokenId, location]); st.moveToken(tokenId, location, suppressArrival); },
+    // 本物（main.js の moveAndSyncForEffect__inner）の並び:
+    //   (tokenId, location, soundName, suppressArrival, awaitExposedArrival, skipExposedArrival, animOpts)
+    // ⚠ スタブは本物と同じ並びで書く（続き479）。第6引数は記録だけ（state は変わらない）。
+    moveAndSync: async (tokenId, location, sound, suppressArrival, awaitExposedArrival, skipExposedArrival) => {
+      callLog.push(["moveAndSync", tokenId, location]);
+      if (skipExposedArrival) callLog.push(["moveAndSyncSkipExposed", tokenId]);
+      st.moveToken(tokenId, location, suppressArrival);
+    },
     // 第2引数は本物（main.js の discardFromHandReveal）ではオプション（{silent}/{noBurn}）。
     // 昔ここを「捨て先の山」として受けていた名残があったので、文字列の時だけ山名として扱う。
     discardAndSync: async (tokenId, opts) => {
@@ -76,7 +85,12 @@ export async function runOneCase(spec) {
       st.sendTokenToPile(tokenId, pile);
     },
     drawCards: async (player, count) => { callLog.push(["draw", player, count]); for (let i = 0; i < count; i++) st.drawFromPile("deck", { zone: "hand", player }); },
-    flipCard: async (tokenId) => { callLog.push(["flip", tokenId]); const t = findToken(tokenId); if (t && !t.faceUp) st.flipToken(tokenId); },
+    // 🔴 本物（main.js の flipToFaceUpForEffect）は**表裏を反転する**（名前に反してトグル。
+    //   card-effect-engine.js の PLACE_CARD のコメント参照）。ここは長らく「裏→表」の
+    //   片道だったので、1st EDITION の「このカードを裏向きにする」（路地裏のスラム街）や
+    //   「裏向きにして重ねる」（食べ過ぎ）を**一度も検査できていなかった**
+    //   ＝スタブが本物より甘いと検査にならない（続き479）。本物に合わせて反転にする。
+    flipCard: async (tokenId) => { callLog.push(["flip", tokenId]); const t = findToken(tokenId); if (t) st.flipToken(tokenId); },
     placeFromDeck: async (location, faceUp) => { callLog.push(["placeFromDeck", location, faceUp]); st.drawFromPile("deck", location); if (faceUp) { const top = S().tokens.filter((t)=>t.kind==="card"&&t.location.zone===location.zone&&(location.zone==="cell"?t.location.row===location.row&&t.location.col===location.col:t.location.side===location.side&&t.location.index===location.index)); const last = top[top.length-1]; if (last && !last.faceUp) st.flipToken(last.id); } },
     placeFromDeckReveal: async (location) => { callLog.push(["placeFromDeckReveal", location]); st.drawFromPile("deck", location); },
     swapPieces: async (pieceTokenId, fromLocation, targetLocation) => {
@@ -349,6 +363,16 @@ export async function runOneCase(spec) {
   }
   try {
     if (spec.kind === "arrival") await eng.runArrivalEffect(spec.ctx, helpers);
+    // 🔴 1st EDITION の【状況】カード。場の中央に在る間、**全員のターン開始時に**効く。
+    //   本物（main.js の resolveSituationAtTurnStart）と同じ入口を呼ぶ。
+    //   ⚠ 財力の条件は runSituationEffect の外（main.js 側）で見るので、ここでは
+    //     「対象かどうか」も合わせて確かめられるよう situationAppliesTo を通す。
+    else if (spec.kind === "situation") {
+      const 対象 = eng.situationAppliesTo(spec.ctx.cardId, spec.ctx.player);
+      callLog.push(["situationApplies", String(対象)]);
+      callLog.push(["situationNeedsAsk", String(eng.situationNeedsWealthDeclaration(spec.ctx.cardId, spec.ctx.player))]);
+      if (対象 || spec.situationForce) await eng.runSituationEffect(spec.ctx.cardId, spec.ctx.player, helpers);
+    }
     else await eng.runHandEffect(spec.ctx, helpers);
   } catch (e) {
     return { error: String(e && e.stack || e), calls: callLog, tokens: S().tokens, piles: S().piles, diag };

@@ -219,6 +219,28 @@ export function getEternalCards() {
   return getCardSet() === CARD_SETS.FIRST_ED ? FIRST_ED_ETERNAL_CARDS : ETERNAL_CARDS;
 }
 
+// ファーストカードの山を、いま選ばれているカードセットに従って返す。
+//
+// ユーザー判断（2026-11-06）:「今後プレイするエディションを選択できるようにします。その際に
+//   そのEDITIONのファーストカードにするようにしよう。混ぜる場合は0thと1st両方のファースト
+//   カードの中からゲーム開始時にランダムに配るようにしよう。」
+//
+// 🔴 「まぜる」は **色ごとに「リメイク／1st」のどちらか1枚**を選ぶ（14枚の山にはしない）。
+//   14枚にすると**同じ色のファーストが2人に配られる**形ができてしまい、7色勝利の
+//   数え方（色スロット）とロックエリアの前提が崩れる。getEternalCards と同じ判断。
+// ⚠ 0th拡張には**ファーストカードが無い**（続き649 で確認済み）ので、リメイクのものを使う。
+export function getFirstCards() {
+  const set = getCardSet();
+  if (set === CARD_SETS.FIRST_ED) return FIRST_ED_FIRST_CARDS;
+  if (set === CARD_SETS.MIXED) {
+    return FIRST_CARDS.map((c) => {
+      const alt = FIRST_ED_FIRST_CARDS.find((f) => f.color === c.color);
+      return alt && Math.random() < 0.5 ? alt : c;
+    });
+  }
+  return FIRST_CARDS;
+}
+
 export function getCardDefinition(cardId) {
   return CARD_BY_ID.get(cardId);
 }
@@ -250,24 +272,23 @@ export function getCardImagePath(cardId) {
 // 0th拡張・1st EDITION は文字をアプリが描くので、あちらには置かない（検査もそうなっている）。
 export function hasNoPrintedFace(cardId) {
   if (typeof cardId !== "string") return false;
-  // 🔴 1st EDITION の Fカード7種だけは例外で、**文字入りの絵を持っている**
-  //   （暫定で印刷データ＝完成カードそのものを当てているため＝hasBakedCardFace 参照）。
+  // 文字入りの絵を持つカードは除く（いまは該当なし＝hasBakedCardFace 参照）。
   if (hasBakedCardFace(cardId)) return false;
-  return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("eternal-1st-");
+  return cardId.startsWith("ex0-") || cardId.startsWith("1st-")
+    || cardId.startsWith("eternal-1st-") || cardId.startsWith("first-1st-");
 }
 
 // 「カードの絵に文字が焼き込まれている」カードか（＝アプリは文字を描かず、絵をそのまま出す）。
 //
-// 🔴 ユーザー判断（2026-11-05「とりあえず暫定で、旧デザインのカードを当てておくとかできる？」）。
-//   1st EDITION の Fカード7種は、どのイラストが印刷に使われたかがまだ決まっていないので、
-//   **印刷データ（1st EDITION の完成カードそのもの）を縮めて当てている**。
-//   文字まで焼き込まれているので、その上からアプリが文字を描くと**二重になる**。
-//   ⇒ この7枚だけ「画像モード」で出す（card-face-display.js の showCardFace）。
-// ⚠ 引き換えに、この7枚は**英語に切り替わらない／効果文を直しても絵に反映されない**。
-//   正式な絵が決まったら、tools/first-cards.mjs の 暫定印刷絵 を外して
-//   assets/cards-blank + cards-illust を作り直し、ここも空にする。
+// 絵に文字が焼き込まれているカード（その上からアプリが文字を描くと二重になるので画像モードで出す）。
+// 🔴 2026-11-06（続き668）時点で**該当なし**。
+//   1st EDITION の Fカード7種は、しばらく印刷データ（完成カードそのもの）を暫定で当てていて
+//   ここに載っていたが、ジュエル版の文字無しの絵（tools/make-jewel-first.mjs）へ差し替えたので
+//   外した。⇒ 7枚とも英語に切り替わり、効果文を直せば画面にも反映される。
+// ⚠ 関数は**残す**。また文字入りの絵を当てる日が来た時の入口
+//   （card-face-display.js の showCardFace と、下の hasNoPrintedFace が見ている）。
 export function hasBakedCardFace(cardId) {
-  return typeof cardId === "string" && cardId.startsWith("first-1st-");
+  return false;
 }
 
 // 「イラストのみ」版のカード画像（assets/cards-illust/配下、cardIdをそのままファイル名に）。

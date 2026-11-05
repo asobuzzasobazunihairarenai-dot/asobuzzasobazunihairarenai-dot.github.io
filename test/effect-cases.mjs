@@ -3343,7 +3343,7 @@ export const CASES = [
     ],
   },
   {
-    name: "食べ過ぎ(手札): 財力2では使えないが、1stのEカード1枚で届く（＋1を宣言する）",
+    name: "食べ過ぎ(手札): 手札のEカードは＋1にならない（ただの手札1枚として数える）",
     kind: "hand",
     cardId: "1st-pink-overeating",
     state: {
@@ -3359,8 +3359,31 @@ export const CASES = [
     ctx: { player: "A", cardId: "1st-pink-overeating", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
     picks: {},
     expect: [
-      { kind: "handUsable", value: true }, // base 3（自分＋1枚＋Eカード）で既に満たす
+      { kind: "handUsable", value: true }, // base 3（自分＋1枚＋Eカード＝ただの手札3枚）
+      { kind: "wealth", player: "A", bonusMax: 0 }, // 🔴 手札に持っていても＋1 は付かない
       { kind: "handCount", player: "A", n: 4 },
+    ],
+  },
+  {
+    name: "食べ過ぎ(手札): ロックエリアのEカードなら＋1 が付いて【財力≧３】に届く",
+    kind: "hand",
+    cardId: "1st-pink-overeating",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-pink-overeating", location: { zone: "hand", player: "A" } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "eA", kind: "card", cardId: "eternal-1st-purple", faceUp: true, location: { zone: "lock", side: "bottom", index: 6 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-pink-overeating", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "wealth", player: "A", bonusMax: 1 }, // ⚠ base は効果の後で測るので見ない
+      { kind: "handUsable", value: true }, // base 2 ＋ 任意の＋1 で 3 に届く
+      { kind: "handCount", player: "A", n: 3 }, // 自分を捨てて2枚引く → 1+2
     ],
   },
   {
@@ -3574,6 +3597,732 @@ export const CASES = [
       { kind: "handHasCard", player: "A", cardId: "red-counter-lock", n: 1 },
       { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 4 }, // 元の手札4枚（拾った分は別cardId）
       { kind: "called", name: "endCurrentPhase" },
+    ],
+  },
+
+  // ───────── 1st EDITION の残り（2026-11-06・続き668 で追加） ─────────
+  // 🔴【状況】カードは kind: "situation" で、場の中央に在る間の「自分のターン開始時」の
+  //   効果をそのまま走らせる（本物と同じ runSituationEffect を通る）。
+
+  {
+    name: "貧民の行進(到達): 財力２以下の全員が２枚ドローし２マス移動（オープンしない）",
+    kind: "arrival",
+    cardId: "1st-red-poor-march",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-red-poor-march", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 3, col: 5 } },
+        { id: "c2", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 0, col: 2 } },
+        // B は手札5枚＝財力5 なので対象外（A は0枚＝対象）。
+        { id: "hB0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-poor-march", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 5 }] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 5 },
+      { kind: "pieceAt", player: "B", row: 0, col: 0 }, // 財力5＝対象外なので動かない
+      { kind: "handCount", player: "B", n: 5 }, // ドローもしない
+      { kind: "deckLen", n: 1 }, // A が2枚引いた
+    ],
+  },
+  {
+    name: "貧民の行進(手札): このターン２マス移動・移動先はオープンしない。自身は捨てる",
+    kind: "hand",
+    cardId: "1st-red-poor-march",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-poor-march", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-poor-march", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true }, // 手札1枚（自分だけ）＝財力1 ≦ 2
+      { kind: "tokenGone", id: "self" },
+    ],
+  },
+  {
+    name: "治安悪化(状況): 財力５以上なら、ロックを１枚捨てる／手札４枚捨てるの２択",
+    kind: "situation",
+    cardId: "1st-red-unrest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-unrest", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "lk0", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-unrest" },
+    picks: { option: ["1st-unrest-discard-locked"] },
+    expect: [
+      { kind: "called", name: "situationApplies", arg: "true" },
+      { kind: "tokenGone", id: "lk0" },
+      { kind: "handCount", player: "A", n: 5 }, // 手札は減らない（ロックを捨てた方）
+    ],
+  },
+  {
+    name: "治安悪化(状況): 財力４なら対象外（宣言で５にできるので本人に聞く）",
+    kind: "situation",
+    cardId: "1st-red-unrest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-unrest", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 1st のEカードを持っていると財力の上限が＋1（4〜5）＝宣言で対象になり得る。
+        { id: "eA", kind: "card", cardId: "eternal-1st-red", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-unrest" },
+    picks: {},
+    expect: [
+      { kind: "called", name: "situationApplies", arg: "true" }, // 本人に有利に読むので「満たし得る」
+      { kind: "called", name: "situationNeedsAsk", arg: "true" }, // ⇒ 本人に聞く
+    ],
+  },
+  {
+    name: "フェスティバル(状況): 相手の周囲以外のカードを１枚だけ手札に加えられる",
+    kind: "situation",
+    cardId: "1st-orange-festival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 1, col: 1 } },
+        { id: "self", kind: "card", cardId: "1st-orange-festival", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // B の周囲8マス＋B のマス＝9マスは候補外。(0,0) は周囲なので取れない。
+        { id: "near", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "far", kind: "card", cardId: "green-growing-trees", location: { zone: "cell", row: 5, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-orange-festival" },
+    picks: { choice: ["yes"] },
+    expect: [
+      // 候補は (3,3)＝状況札自身 と (5,5) の2マスだけ（(0,0) は B の周囲なので外れる）。
+      { kind: "called", name: "pickLocationCandidates", arg: "2" },
+    ],
+  },
+  {
+    name: "フェスティバル(状況): 「加えない」を選べば何も起きない",
+    kind: "situation",
+    cardId: "1st-orange-festival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-orange-festival", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "far", kind: "card", cardId: "green-growing-trees", location: { zone: "cell", row: 5, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-orange-festival" },
+    picks: { choice: ["no"] },
+    expect: [
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "tokenAtCell", id: "far", row: 5, col: 5 },
+    ],
+  },
+  {
+    name: "貴族の特権(到達): 【財力≧３】を満たすなら、ロックしてもよい",
+    kind: "arrival",
+    cardId: "1st-yellow-privilege",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-yellow-privilege", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-yellow-privilege", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { choice: ["yes"], handCard: ["hA0"] },
+    expect: [
+      { kind: "tokenZone", id: "hA0", zone: "lock" },
+    ],
+  },
+  {
+    name: "貴族の特権(手札): ②を選ぶと、選んだプレイヤーが１マス移動する",
+    kind: "hand",
+    cardId: "1st-yellow-privilege",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-yellow-privilege", location: { zone: "hand", player: "A" } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-yellow-privilege", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["1st-privilege-move"], player: ["A"], location: [{ row: 3, col: 4 }] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 4 },
+    ],
+  },
+  {
+    name: "ロックチェンジ(到達): ロック１枚を手札へ戻し、そうしたなら１枚ロックし直す",
+    kind: "arrival",
+    cardId: "1st-yellow-lock-change",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-yellow-lock-change", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "lk0", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "hA0", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-yellow-lock-change", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { handCard: ["hA0"] },
+    expect: [
+      { kind: "tokenZone", id: "lk0", zone: "hand" }, // 戻ってきた
+      { kind: "tokenZone", id: "hA0", zone: "lock" }, // 代わりに緑をロック
+    ],
+  },
+  {
+    name: "ロックチェンジ(到達): ロックが１枚も無ければ、ロックし直しも行わない",
+    kind: "arrival",
+    cardId: "1st-yellow-lock-change",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-yellow-lock-change", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-yellow-lock-change", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenZone", id: "hA0", zone: "hand" }, // 「そうしたなら」なのでロックしない
+    ],
+  },
+  {
+    name: "建設バブル(状況): カードの置かれていない２マスへ山札から１枚ずつ置く",
+    kind: "situation",
+    cardId: "1st-green-bubble",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-green-bubble", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-green-bubble" },
+    picks: { location: [{ row: 0, col: 0 }, { row: 0, col: 1 }], confirmCells: [true] },
+    expect: [
+      { kind: "cardAtCell", row: 0, col: 0, n: 1 },
+      { kind: "cardAtCell", row: 0, col: 1, n: 1 },
+      { kind: "deckLen", n: 1 },
+      // 手札が無いので「山札から／手札から」は聞かない（選ぶ余地が無い）。
+      { kind: "called", name: "pickChoice", n: 0 },
+    ],
+  },
+  {
+    name: "苦渋の強盗(到達): 【財力≦２】なら相手ゲートのカードを１枚手札へ",
+    kind: "arrival",
+    cardId: "1st-blue-robbery",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 5, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-blue-robbery", faceUp: true, location: { zone: "cell", row: 5, col: 3 } },
+        // C（奥）のゲートは (0,3)。A（手前）のゲートは (6,3)＝相手ゲートではない。
+        { id: "gC", kind: "card", cardId: "green-growing-trees", location: { zone: "cell", row: 0, col: 3 } },
+        { id: "gA", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-blue-robbery", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 5, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenZone", id: "gC", zone: "hand" },
+      { kind: "tokenAtCell", id: "gA", row: 6, col: 3 }, // 自分のゲートは対象外
+    ],
+  },
+  {
+    name: "苦渋の強盗(手札): 1番多くロックしている相手のロック札を奪い、捨ててターン終了",
+    kind: "hand",
+    cardId: "1st-blue-robbery",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-blue-robbery", location: { zone: "hand", player: "A" } },
+        { id: "lkC", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "lock", side: "top", index: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-blue-robbery", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { player: ["C"] },
+    expect: [
+      { kind: "tokenZone", id: "lkC", zone: "hand" },
+      { kind: "tokenGone", id: "self" },
+      { kind: "called", name: "endTurn" },
+    ],
+  },
+  {
+    name: "食べ過ぎ(到達): ２枚ドローし、隣４マスのカードを裏向きで足元へ積む",
+    kind: "arrival",
+    cardId: "1st-pink-overeating",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-pink-overeating", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "up", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "down", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 4, col: 3 } },
+        // 斜めは「隣」ではないので動かない。
+        { id: "diag", kind: "card", cardId: "green-growing-trees", location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-pink-overeating", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "up", row: 3, col: 3 },
+      { kind: "tokenFaceDown", id: "up" }, // 「裏向きにして」
+      { kind: "tokenAtCell", id: "down", row: 3, col: 3 },
+      { kind: "tokenAtCell", id: "diag", row: 2, col: 2 }, // 斜めは動かない
+      { kind: "deckLen", n: 1 },
+    ],
+  },
+  {
+    name: "経済成長(状況): ドローするかを聞き、はいなら１枚引く",
+    kind: "situation",
+    cardId: "1st-pink-growth",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-pink-growth", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-pink-growth" },
+    picks: { choice: ["yes"] },
+    expect: [
+      { kind: "handCount", player: "A", n: 1 },
+      { kind: "deckLen", n: 1 },
+    ],
+  },
+  {
+    name: "路地裏のスラム街(到達①): 手札を無作為に２枚以下へ捨て、これは裏向きで場に残る",
+    kind: "arrival",
+    cardId: "1st-purple-slum",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-purple-slum", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-purple-slum", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["1st-slum-random-discard"] },
+    expect: [
+      { kind: "handCount", player: "A", n: 2 },
+      { kind: "tokenAtCell", id: "self", row: 6, col: 3 }, // 手札に入らない
+      { kind: "tokenFaceDown", id: "self" },
+    ],
+  },
+  {
+    name: "裏貴族の賄賂(到達): 相手から無作為に１枚奪い、これを相手の手札へ",
+    kind: "arrival",
+    cardId: "1st-purple-bribe",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-purple-bribe", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hB0", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-purple-bribe", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { player: ["B"] },
+    expect: [
+      { kind: "tokenZone", id: "hB0", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "B" },
+    ],
+  },
+  {
+    name: "裏貴族の賄賂(手札): ロック宣言に割り込み、その札を奪って１枚渡す",
+    kind: "hand",
+    cardId: "1st-purple-bribe",
+    interruptWindow: { kind: "lock-declare", player: "B", tokenId: "lockMe" },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "B",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-purple-bribe", location: { zone: "hand", player: "A" } },
+        { id: "give", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "lockMe", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-purple-bribe", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { handCard: ["give"] },
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenGone", id: "self" },
+      { kind: "tokenZone", id: "lockMe", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "give", zone: "hand", player: "B" },
+    ],
+  },
+  {
+    name: "飛空艇アルヴァ(到達): 【財力≧６】無作為に３枚捨て、７マス先へ一気に、これを隣へ表向き",
+    kind: "arrival",
+    cardId: "1st-white-airship",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-white-airship", faceUp: true, location: { zone: "cell", row: 0, col: 0 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA5", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-white-airship", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    picks: { choice: ["yes"], location: [{ row: 3, col: 4 }, { row: 3, col: 3 }] },
+    expect: [
+      { kind: "handCount", player: "A", n: 3 }, // 6枚 − 3枚
+      { kind: "pieceAt", player: "A", row: 3, col: 4 }, // (0,0) から距離7（3+4）
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 }, // 移動したあとの「隣」
+      { kind: "tokenFaceUp", id: "self" },
+    ],
+  },
+  {
+    name: "大富豪の気紛れ(到達): ２枚ドローし、財力が１番多い人へこれを渡す",
+    kind: "arrival",
+    cardId: "1st-white-whim",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-white-whim", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hB0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-white-whim", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "B" }, // B が5枚で1番多い
+    ],
+  },
+  {
+    name: "大富豪の気紛れ(手札): 【財力≧６】相手全員がロックを１枚捨てて２枚ドロー",
+    kind: "hand",
+    cardId: "1st-white-whim",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-white-whim", location: { zone: "hand", player: "A" } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "lkB", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "lock", side: "left", index: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-white-whim", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true }, // 手札6枚＝財力6 ≧ 6
+      { kind: "tokenGone", id: "lkB" },
+      { kind: "handCount", player: "B", n: 2 },
+      { kind: "tokenGone", id: "self" },
+    ],
+  },
+  {
+    name: "ドゥエンの革命(到達): 1番多い人が捨て、1番少ない人が引いて枚数が揃う",
+    kind: "arrival",
+    cardId: "1st-white-revolution",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-white-revolution", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-white-revolution", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { handCardsOrdered: [["hA0", "hA1", "hA2"]] },
+    expect: [
+      { kind: "handCount", player: "A", n: 0 }, // B が0枚なので0まで捨てる
+      { kind: "handCount", player: "B", n: 3 }, // A の3枚まで引く
+      { kind: "tokenGone", id: "self" },
+    ],
+  },
+  {
+    name: "デプレッション(状況): 財力２以上なら手札を１枚捨てる",
+    kind: "situation",
+    cardId: "1st-black-depression",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-black-depression", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-black-depression" },
+    picks: { handCard: ["hA0"] },
+    expect: [
+      { kind: "called", name: "situationApplies", arg: "true" },
+      { kind: "handCount", player: "A", n: 1 },
+      { kind: "tokenGone", id: "hA0" },
+    ],
+  },
+  {
+    name: "偉大なる大号令(到達): 中央の周囲８マスへ置き、全員が中央の隣へ動き、手札が揃う",
+    kind: "arrival",
+    cardId: "1st-black-great-order",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-black-great-order", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: {
+        deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "1st-black-great-order", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { handCardsOrdered: [["hA0", "hA1"]] },
+    expect: [
+      { kind: "deckLen", n: 0 }, // 8マスぶん置いた
+      { kind: "pieceAt", player: "A", row: 4, col: 3 }, // A のゲートは (6,3)＝中央の「下」
+      { kind: "pieceAt", player: "C", row: 2, col: 3 }, // C のゲートは (0,3)＝中央の「上」
+      // C は手札0枚なので、A も0枚まで捨てる（自身は到達の既定で手札へ入るので1枚残る）。
+      { kind: "handCount", player: "C", n: 0 },
+    ],
+  },
+  {
+    name: "基本走術/eternal-1st-red(手札): 【財力＝０】このターンの通常の移動が２マスになる",
+    kind: "hand",
+    cardId: "eternal-1st-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-red", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true }, // 手札0枚（ロックに在るので財力には入らない）
+    ],
+  },
+  {
+    name: "愚直な欲求/eternal-1st-orange(手札): 【財力＝１】任意の１マスのカードを全部手札へ",
+    kind: "hand",
+    cardId: "eternal-1st-orange",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-orange", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "c0", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "c1", kind: "card", cardId: "green-growing-trees", location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-orange", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "handUsable", value: true }, // 手札1枚＝財力1
+      { kind: "tokenZone", id: "c0", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "c1", zone: "hand", player: "A" },
+      { kind: "called", name: "endTurn" },
+    ],
+  },
+  {
+    name: "富豪の教え/eternal-1st-yellow(手札): 【財力＝２】全員の財力が１多く計算される",
+    kind: "hand",
+    cardId: "eternal-1st-yellow",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-yellow", faceUp: true, location: { zone: "lock", side: "bottom", index: 2 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-yellow", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true },
+      // 手札2枚 ＋ 全員ぶんの＋1 ＝ base 3（Eカード1枚ぶんの任意＋1 は bonusMax）。
+      { kind: "wealth", player: "A", base: 3, bonusMax: 1 },
+      { kind: "wealth", player: "B", base: 1, bonusMax: 0 },
+    ],
+  },
+  {
+    name: "恋の押付け/eternal-1st-pink(手札): 【財力＝５】相手に任意の枚数を渡す",
+    kind: "hand",
+    cardId: "eternal-1st-pink",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-pink", faceUp: true, location: { zone: "lock", side: "bottom", index: 5 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-pink", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { player: ["B"], handCard: ["hA0", "hA1", "skip"] },
+    expect: [
+      { kind: "handUsable", value: true }, // 手札5枚＝財力5
+      { kind: "tokenZone", id: "hA0", zone: "hand", player: "B" },
+      { kind: "tokenZone", id: "hA1", zone: "hand", player: "B" },
+      { kind: "handCount", player: "A", n: 3 }, // 「選ばない」で止まる
+    ],
+  },
+  {
+    name: "カオスチェンジ/eternal-1st-purple(手札): 【財力＝６】相手と手札を全部交換",
+    kind: "hand",
+    cardId: "eternal-1st-purple",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-purple", faceUp: true, location: { zone: "lock", side: "bottom", index: 6 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA4", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA5", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hB0", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-purple", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { player: ["B"] },
+    expect: [
+      { kind: "handUsable", value: true }, // 手札6枚＝財力6
+      { kind: "tokenZone", id: "hB0", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "hA0", zone: "hand", player: "B" },
+      { kind: "handCount", player: "A", n: 1 },
+      { kind: "handCount", player: "B", n: 6 },
+      { kind: "called", name: "endTurn" },
+    ],
+  },
+  {
+    name: "大盤振舞(到達): あなたの隣計２マスへ手札から１枚ずつ裏向きで置く",
+    kind: "arrival",
+    cardId: "1st-green-largesse",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-green-largesse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-green-largesse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 2, col: 3 }, { row: 4, col: 3 }], handCard: ["hA0", "hA1"] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "4" }, // 隣の4マス
+      { kind: "tokenAtCell", id: "hA0", row: 2, col: 3 },
+      { kind: "tokenAtCell", id: "hA1", row: 4, col: 3 },
+    ],
+  },
+  {
+    name: "財閥の威光(到達): 【財力≧３】財力が1番少ない人へ手札を２枚渡す",
+    kind: "arrival",
+    cardId: "1st-orange-conglomerate",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-orange-conglomerate", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-orange-conglomerate", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { handCard: ["hA0", "hA1"] },
+    expect: [
+      { kind: "tokenZone", id: "hA0", zone: "hand", player: "B" },
+      { kind: "tokenZone", id: "hA1", zone: "hand", player: "B" },
+      { kind: "handCount", player: "B", n: 2 },
     ],
   },
 ];

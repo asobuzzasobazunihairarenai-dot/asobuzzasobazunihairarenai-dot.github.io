@@ -48,6 +48,13 @@ import {
   rotatedActivePlayersFrom,
   isMovementDisabledThisTurn,
   isMovementBoostActiveThisTurn,
+  // 1st EDITION（貧民の行進）: 「このターン通常の移動では移動先のカードはオープンしない」。
+  isMoveOpenSuppressedThisTurn,
+  // 1st EDITION の【状況】カード（場の中央に置かれている間、全員のターン開始時に効く）。
+  getActiveSituationCardId,
+  situationAppliesTo,
+  situationNeedsWealthDeclaration,
+  runSituationEffect,
   isContactDisabledThisTurn,
   getLockableHandTokensExceptFinal,
   // 0th拡張（バスストップ）: 「このターンにこれがオープンされたのなら」の記録。
@@ -4791,6 +4798,41 @@ async function resolvePeaceWishesAtTurnStart(player) {
   render();
 }
 
+// 1st EDITION の【状況】カード（治安悪化・フェスティバル・建設バブル・経済成長・デプレッション）。
+// 🔴 場の中央に表向きで置かれている間、**全員のターン開始時に**効き続ける。
+//   呼ぶのは平和への願いと同じ場所（ターンが切り替わった瞬間を見ている subscribe）＝
+//   「ターン開始」の合図はそこ1つしかない。
+// ⚠ オンラインでは**その席の本人のクライアントだけ**が走らせる（呼び出し側で絞ってある）。
+// 🔴 財力の条件がある状況札（治安悪化・デプレッション）は、**宣言しだいで対象になるかが
+//   変わる人にだけ聞く**（ユーザー指摘「あえて罰を受けたいときも出てきます」）。
+//   決まっている人には聞かない（無駄に止めない）。
+async function resolveSituationAtTurnStart(player) {
+  if (!player) return;
+  const cardId = getActiveSituationCardId();
+  if (!cardId) return;
+  let 受ける = situationAppliesTo(cardId, player);
+  if (situationNeedsWealthDeclaration(cardId, player)) {
+    const 返事 = await pickChoiceForEffect(
+      cardId,
+      [
+        { id: "yes", label: t("ce.feSituationYes"), usable: true },
+        { id: "no", label: t("ce.feSituationNo"), usable: true },
+      ],
+      t("ce.feSituationAsk", { card: getCardName(cardId) })
+    );
+      受ける = 返事 === "yes";
+  }
+  if (!受ける) return;
+  try {
+    await announceEffectNoticeForEffect(cardId, t("ce.feSituationApplied", { card: getCardName(cardId), name: getPlayerName(player) }));
+    await runSituationEffect(cardId, player, buildArrivalEffectHelpers(player));
+  } catch (err) {
+    console.error("resolveSituationAtTurnStart failed", err);
+  }
+  clearEffectUiHighlights();
+  render();
+}
+
 async function endTurnForEffect(player) {
   try {
     await flushPendingTurnEndDiscards(player);
@@ -6744,6 +6786,13 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     if (moveStyle === "warp") scheduleCameraHome(900);
     const card = findTopCardAt(location);
     if (!card) return;
+    // 🔴 1st EDITION（貧民の行進の手札効果）「このターン通常の移動では…移動先のカードは
+    //   オープンしない。」ここは**通常の移動**（ムーブフェイズのタップ）なので効く。
+    //   接触の強制移動・カード効果での移動には掛からない（印字が「通常の移動では」と限定）。
+    if (!card.faceUp && isMoveOpenSuppressedThisTurn(player)) {
+      fireAnytimeCheckpoint(player);
+      return;
+    }
     if (!card.faceUp) {
       if (isOnlineMode()) {
         try {
@@ -9327,10 +9376,12 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
 // 🔴 第2引数 kind は「何の宣言で開いた窓か」。0th拡張の やり直しのカギ は
 //   「相手がロックを宣言した時に使える」なので、**ロック宣言の窓だけ**で使えるように
 //   区別が要る（渡さなければ今までどおり＝種類なしの窓）。
-function fireAnytimeCheckpoint(afterPlayer, kind = null) {
-  noteInterruptWindow(kind, afterPlayer);
+// 🔴 第3引数 tokenId は「いまロックしようとしている札」。1st EDITION の裏貴族の賄賂が
+//   「相手がロックしようとしたカードをあなたの手札に加える」ために要る（渡さなければ null）。
+function fireAnytimeCheckpoint(afterPlayer, kind = null, tokenId = null) {
+  noteInterruptWindow(kind, afterPlayer, tokenId);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
-  if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer, kind });
+  if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer, kind, tokenId });
 }
 
 // 🔴 【#491・#500・2026-11-04】ロック宣言の窓だけは**閉じるまで待つ**。
@@ -9343,7 +9394,7 @@ function fireAnytimeCheckpoint(afterPlayer, kind = null) {
 //   ⚠ 割り込まれても、やめるのは**ロックできなくなった時だけ**。スリカエのように
 //     「ロックを止めない」割り込みなら、そのまま今までどおりロックを続ける。
 async function fireLockDeclareAndShouldAbort(player, tokenId) {
-  fireAnytimeCheckpoint(player, "lock-declare");
+  fireAnytimeCheckpoint(player, "lock-declare", tokenId);
   if (!(await waitForAnytimeWindowToClose())) return false;
   const 札 = getState().tokens.find((t) => t.id === tokenId);
   if (札 && isCardLockable(札, player)) return false;
@@ -9362,8 +9413,8 @@ async function fireLockDeclareAndShouldAbort(player, tokenId) {
 // （同期的に）先に呼ばれてモーダルを出し始めているのが通常のため、こちらは単に
 // 同じ関数をもう一度呼ぶだけでよい——2回目の呼び出しは「既にモーダル表示中」
 // ガードで自然にサイレントno-opになる（hand_effect_use受信側と同じ考え方）。
-onAnytimeCheckpointEvents(({ afterPlayer, kind }) => {
-  noteInterruptWindow(kind ?? null, afterPlayer);
+onAnytimeCheckpointEvents(({ afterPlayer, kind, tokenId }) => {
+  noteInterruptWindow(kind ?? null, afterPlayer, tokenId ?? null);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
 });
 
@@ -9923,14 +9974,13 @@ async function pauseForChainedCpuArrival(player) {
   await new Promise((r) => setTimeout(r, CPU_CHAINED_ARRIVAL_PAUSE_MS));
 }
 
-async function runAutoArrivalEffect(cardId, location, player) {
-  const piece = getState().tokens.find((t) => t.kind === "piece" && t.player === player);
-  const cardToken = findTopCardAt(location);
-  if (!piece || !cardToken) return;
-  await pauseForChainedCpuArrival(player); // 【#433】連鎖した時だけ、認知できる間を置く
-  const arrivedAt = await runArrivalEffect(
-    { cardId, player, pieceTokenId: piece.id, cardTokenId: cardToken.id, pieceLocation: location },
-    {
+// 到達効果（と【状況】カード）へ渡す helpers 一式。
+// 🔴 元は runAutoArrivalEffect の中に直接書いていたが、1st EDITION の【状況】カード
+//   （治安悪化・フェスティバル・建設バブル・経済成長・デプレッション）が**ターン開始時に**
+//   同じエンジンを走らせるので、**2か所に同じ helpers を書かない**ために切り出した
+//   （分かれると片方に口を足し忘れて「ある時だけ効かない」になる＝#477 と同じ形）。
+function buildArrivalEffectHelpers(player) {
+  return {
       moveAndSync: moveAndSyncForEffect,
       recordMoveVisited,
       isLoopMoveDest,
@@ -10052,7 +10102,17 @@ async function runAutoArrivalEffect(cardId, location, player) {
       // （宣言→相手の承認→奪う→ゲートへ強制移動）をそのまま使う。
       initiateContact: submitContactProposal,
       pickDiscardCost: (candidates, hint) => pickDiscardCostForEffect(player, candidates, hint, (tk) => tk.id),
-    }
+  };
+}
+
+async function runAutoArrivalEffect(cardId, location, player) {
+  const piece = getState().tokens.find((t) => t.kind === "piece" && t.player === player);
+  const cardToken = findTopCardAt(location);
+  if (!piece || !cardToken) return;
+  await pauseForChainedCpuArrival(player); // 【#433】連鎖した時だけ、認知できる間を置く
+  const arrivedAt = await runArrivalEffect(
+    { cardId, player, pieceTokenId: piece.id, cardTokenId: cardToken.id, pieceLocation: location },
+    buildArrivalEffectHelpers(player)
   );
   clearEffectUiHighlights();
   render();
@@ -10746,6 +10806,10 @@ function triggerLockEffect__inner(cardId, location) {
 // onResolved自体は「オープンする/しないの選択が決着した瞬間」に発火するだけで、
 // 自動処理の非同期処理はまだ走っている最中のことが多いため、優先権の返却
 // （respondToContact参照）のような「本当に全部終わってから」が必要な用途向け。
+// 1st EDITION（貧民の行進）: 直後の1回だけ「移動先のカードをオープンしない」。
+//   ⚠ 引数で渡せない（呼び出しが複数行のコールバックで終わる）ので、呼ぶ直前に立てる印。
+//     立てるのは**通常の移動（ドラッグ）の1か所だけ**。読んだら必ず消す。
+let normalMoveNoOpenPending = false;
 function maybeTriggerCardArrival(dropTarget, pieceTokenId, onResolved, onFullyResolved) {
   // チュートリアルCPU戦の進行中は、到達（表向き）も「オープンする/しない」（裏向き）も
   // 台本側(tutorial-battle.js)が制御するため、通常のドラッグ経路のこの分岐は出さない
@@ -10767,6 +10831,16 @@ function maybeTriggerCardArrival(dropTarget, pieceTokenId, onResolved, onFullyRe
     return;
   }
   if (!card.faceUp) {
+    // 🔴 1st EDITION（貧民の行進の手札効果）「移動先のカードはオープンしない。」
+    //   ⚠ **通常の移動（ドラッグ）の時だけ**。接触の強制移動には掛けない（印字が
+    //     「通常の移動では」と限定しているため）＝印は呼ぶ直前に立てて、ここで消す。
+    const 開けない = normalMoveNoOpenPending;
+    normalMoveNoOpenPending = false;
+    if (開けない) {
+      onResolved?.();
+      onFullyResolved?.();
+      return;
+    }
     promptCardOpen(pieceTokenId, card, onResolved, onFullyResolved);
     return;
   }
@@ -17454,6 +17528,8 @@ async function onDragEnd(e) {
         postMoveGuardReleased = true;
         endPostMoveArrivalGuard();
       };
+      // 1st EDITION（貧民の行進）の「移動先のカードはオープンしない」。通常の移動のみ。
+      normalMoveNoOpenPending = isMoveOpenSuppressedThisTurn(getSelfSeat());
       maybeTriggerCardArrival(dropTarget, tokenId, undefined, () => {
         releasePostMoveGuard();
         if (token) fireAnytimeCheckpoint(token.player);
@@ -20978,6 +21054,8 @@ subscribe(() => {
       resolvePeaceWishesAtTurnStart(turnPlayer).catch((err) => console.error("resolvePeaceWishesAtTurnStart failed", err));
       // ② 我忘れの白き龍の【色者】: 「各プレイヤーのターン終了時」＝今終わったターンのぶん。
       resolveShikijaAtTurnEnd(prevTurnPlayerForAnnouncement).catch((err) => console.error("resolveShikijaAtTurnEnd failed", err));
+      // ③ 1st EDITION の【状況】カード: 「自分のターン開始時に」。
+      resolveSituationAtTurnStart(turnPlayer).catch((err) => console.error("resolveSituationAtTurnStart failed", err));
     }
     if (isGateInvasionPending() || isGateInvasionQueueActive()) {
       pendingTurnAnnouncePlayer = turnPlayer;

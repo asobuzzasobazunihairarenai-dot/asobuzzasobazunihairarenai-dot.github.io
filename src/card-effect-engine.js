@@ -19,7 +19,7 @@ import { getState } from "./state.js";
 import { VERBS, TARGETS, TARGET_SELECTIONS, CARD_EFFECTS, optionLabel } from "./card-effects.js";
 import { getCardDefinition } from "./cards-data.js";
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ11: 表示用のカード名
-import { wealthSatisfies, wealthCountFor, formatWealth, describeWealthRequirement } from "./wealth.js"; // 1st EDITION の【財力】
+import { wealthSatisfies, wealthNeedsDeclaration, wealthCountFor, formatWealth, describeWealthRequirement } from "./wealth.js"; // 1st EDITION の【財力】
 import { t } from "./ui-text.js";
 
 // 表示用のカード名（英語のカードテキストがあればそれ、無ければ日本語の原名）。
@@ -156,9 +156,11 @@ export function isLockDisabledThisTurn(player) {
 // 🔴 ふだんの割り込みモーダルは**ロック宣言・移動宣言・接触・到達の後**に共通で出るので、
 //   「どの宣言で開いた窓か」を覚えておかないと、ロックと関係ない場面でも使えてしまう。
 //   main.js の fireAnytimeCheckpoint が種類を渡し、窓が閉じる時に clearInterruptWindow する。
-let interruptWindow = null; // { kind, player }
-export function noteInterruptWindow(kind, player) {
-  interruptWindow = kind ? { kind, player } : null;
+// ⚠ tokenId（ロックしようとしている札）は 1st EDITION の裏貴族の賄賂が使う
+//   （「相手がロックしようとしたカードをあなたの手札に加える」）。渡されなければ null。
+let interruptWindow = null; // { kind, player, tokenId }
+export function noteInterruptWindow(kind, player, tokenId = null) {
+  interruptWindow = kind ? { kind, player, tokenId: tokenId ?? null } : null;
 }
 export function clearInterruptWindow() {
   interruptWindow = null;
@@ -167,6 +169,14 @@ function getLockDeclarerInWindow(viewer) {
   if (!interruptWindow || interruptWindow.kind !== "lock-declare") return null;
   if (!interruptWindow.player || interruptWindow.player === viewer) return null; // 「相手が」
   return interruptWindow.player;
+}
+// 裏貴族の賄賂（1st）専用: いま相手がロックしようとしている札そのもの。
+// ⚠ 窓が「ロック宣言」でない／自分の宣言／札が分からない時は null（＝この効果は使えない）。
+function getLockDeclaredTokenInWindow(viewer) {
+  if (!getLockDeclarerInWindow(viewer)) return null;
+  const id = interruptWindow?.tokenId;
+  if (!id) return null;
+  return getState().tokens.find((tk) => tk.id === id) ?? null;
 }
 
 // 0th拡張（平和への願い）専用: 「次のあなたのターンの開始時、…その間に誰も手札効果を
@@ -278,6 +288,19 @@ export function isMovementBoostActiveThisTurn(player) {
   return movementBoostUntilTurn.get(player) === getState().turnNumber;
 }
 
+// 1st EDITION（貧民の行進の手札効果）専用: 「このターン通常の移動では…移動先のカードは
+// オープンしない。」移動の範囲を伸ばす上の仕組みと**対**で使う（同じ自動失効パターン）。
+// 🔴 掛かるのは「通常の移動」＝ムーブフェイズの移動だけ。接触の強制移動や、カード効果での
+//   移動には掛けない（印字が「通常の移動では」と限定しているため）。見るのは main.js の
+//   ムーブフェイズの2経路（タップ＝performPhaseMoveToCell／ドラッグ＝maybeTriggerCardArrival）。
+const moveOpenSuppressedUntilTurn = new Map(); // player -> turnNumber
+function suppressMoveOpenForTurn(player) {
+  moveOpenSuppressedUntilTurn.set(player, getState().turnNumber);
+}
+export function isMoveOpenSuppressedThisTurn(player) {
+  return moveOpenSuppressedUntilTurn.get(player) === getState().turnNumber;
+}
+
 // 禁断の果実 マルメゴ専用（PUBLIC_DRAW_DISABLE_HAND_EFFECTS_CONDITIONAL_DISCARD）: 公開ドローの
 // 中に橙があった時の「あなたはこのターン移動できない。」を実際に強制する（不具合#57: 以前は
 // 案内するだけで、その後のムーブフェイズで移動できてしまっていた）。他の「このターン○○
@@ -329,7 +352,71 @@ export function resetHandEffectUsage() {
   movementDisabledUntilTurn.clear();
   contactDisabledUntilTurn.clear();
   movementBoostUntilTurn.clear();
+  moveOpenSuppressedUntilTurn.clear(); // 1st EDITION（貧民の行進）: ケース間に漏らさない
   wealthBonusForAllUntilTurn = null; // 1st EDITION（全員の財力＋1）: 対局・ケース間に漏らさない
+}
+
+// ───────────────────── 1st EDITION の【状況】カード ─────────────────────
+// 🔴 5種（治安悪化・フェスティバル・建設バブル・経済成長・デプレッション＝**30枚**）の共通の形。
+//   到達すると「このカードを場の中央に表向きで置く」だけで、本体の効果は
+//   **そこに在る限り、全員のターン開始時に効き続ける**（印字の【状況】の行）。
+// ⚠ **効くのは場の中央の１番上の表向きのカード1枚だけ**、と読んだ。物理的に、新しい状況札を
+//   中央へ置けば前の札はその下に隠れて読めなくなるため（１番上の原則と同じ考え方）。
+//   ⚠ ここはルールの読みなのでユーザー判断待ち。変えるならこの関数1つを直せばよい。
+export const BOARD_CENTER = { zone: "cell", row: 3, col: 3 };
+export function getActiveSituationCardId() {
+  const top = findTopCardAtCell(BOARD_CENTER.row, BOARD_CENTER.col);
+  if (!top || !top.faceUp) return null;
+  return CARD_EFFECTS[top.cardId]?.situation ? top.cardId : null;
+}
+// その状況札が、いまその人のターン開始時に効くか（財力の条件を見る）。
+export function situationAppliesTo(cardId, player) {
+  const def = CARD_EFFECTS[cardId]?.situation;
+  if (!def) return false;
+  return meetsWealth(def.wealth, player);
+}
+// 🔴 その人が「財力の宣言しだいで効くかどうかが変わる」か（＝本人に聞く必要があるか）。
+//   ユーザー指摘「あえて罰を受けたいときも出てきます」のとおり、罰の効果でも
+//   「本人は宣言しないはず」と決め打ちしない。
+export function situationNeedsWealthDeclaration(cardId, player) {
+  const def = CARD_EFFECTS[cardId]?.situation;
+  if (!def?.wealth) return false;
+  return wealthNeedsDeclaration(def.wealth, getWealth(player));
+}
+// ターン開始時にその人へ状況札の効果を走らせる。呼ぶのは main.js の1か所だけ
+// （ターンが切り替わった瞬間を見ている subscribe ＝平和への願いと同じ所）。
+export async function runSituationEffect(cardId, player, helpers) {
+  const def = CARD_EFFECTS[cardId]?.situation;
+  if (!def) return false;
+  const token = getState().tokens.find(
+    (tk) => tk.kind === "card" && tk.cardId === cardId && tk.location.zone === "cell"
+  );
+  const runCtx = {
+    player,
+    cardId,
+    cardTokenId: token?.id ?? null,
+    pieceTokenId: getState().tokens.find((tk) => tk.kind === "piece" && tk.player === player)?.id ?? null,
+    pieceLocation: getState().tokens.find((tk) => tk.kind === "piece" && tk.player === player)?.location ?? null,
+    selections: {},
+    arrivedAt: null,
+  };
+  // 「以下の効果のうち１つ得る」形（治安悪化）は選択肢で持つ。選ぶのは**その本人**。
+  if (def.options) {
+    const usable = def.options.filter((opt) => isArrivalOptionUsable(player, runCtx.pieceLocation, opt, cardId));
+    if (usable.length === 0) return false;
+    const chosen = usable.length === 1 ? usable[0] : await helpers.pickArrivalOption?.(cardId, usable, player);
+    const opt = chosen ?? usable[0];
+    let 何かした = false;
+    for (const action of opt.actions) {
+      if (await runActionSafely(action, runCtx, helpers)) 何かした = true;
+    }
+    return 何かした;
+  }
+  let 何かした = false;
+  for (const action of def.actions ?? []) {
+    if (await runActionSafely(action, runCtx, helpers)) 何かした = true;
+  }
+  return 何かした;
 }
 
 // 「追色」コスト（同色の別カードを手札から捨てる）で実際に捨てられる候補。cardTokenIdは
@@ -434,6 +521,9 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   // 🔴 窓が開いていない時は使えない（これが無いと、どの割り込みの場面でも使えてしまう）。
   if (option.requiresOpponentLockDeclaration) {
     if (!getLockDeclarerInWindow(player)) return false;
+    // 1st EDITION（裏貴族の賄賂）: どの札をロックしようとしているかまで分かっている時だけ
+    //   使える（「相手がロックしようとしたカードをあなたの手札に加える」ため）。
+    if (option.requiresLockDeclaredToken && !getLockDeclaredTokenInWindow(player)) return false;
   }
   // リーチキャンセル（0th拡張）。実行は main.js の専用の窓が行うので、ふだんの経路では
   // 使えないままにする（handEffectReactiveOnly と二重の守り）。
@@ -581,6 +671,7 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   }
   if (option.requiresOpponentLockDeclaration) {
     if (!getLockDeclarerInWindow(player)) return t("ce.ex0NeedLockDeclaration");
+    if (option.requiresLockDeclaredToken && !getLockDeclaredTokenInWindow(player)) return t("ce.ex0NeedLockDeclaration");
   }
   if (option.requiresArrivalEffectWindow) return t("ce.ex0NeedArrivalWindow");
   if (option.requiresOtherHandCard) {
@@ -717,17 +808,14 @@ function forcedWealthBonus() {
 }
 
 // そのプレイヤーが「持っている」1st の Eカードの枚数。
-// 🔴 **手札でも、自分のロックエリアでも「持っている」**。印字の
-//   「あなたはいつでも、自分の財力を１多く計算してもよい」には場所の限定が無く、
-//   同じカードに「この手札効果はロックエリアにロックされていても使える」と書かれている
-//   ＝ロック中でも効いている作りだから（ユーザー判断待ちの読み：続き666 の申し送り）。
+// 🔴 **自分のロックエリアにある分だけ**（ユーザー判断 2026-11-06「手札では得られません」）。
+//   続き666 では「手札でも持っている」と読んでいたが、それは私の読みで、正しくなかった。
+//   ⇒ 手札に持っているだけでは財力の＋1は得られない。ロックして初めて効く。
 function countOwnedFirstEdEternals(player) {
   const side = SEAT_TO_SIDE[player];
   return getState().tokens.filter((tk) => {
     if (tk.kind !== "card" || !tk.cardId?.startsWith("eternal-1st-")) return false;
-    if (tk.location.zone === "hand" || tk.location.zone === "publicDraw") return tk.location.player === player;
-    if (tk.location.zone === "lock") return tk.location.side === side;
-    return false;
+    return tk.location.zone === "lock" && tk.location.side === side;
   }).length;
 }
 
@@ -744,17 +832,29 @@ function meetsWealth(cond, player) {
 }
 
 // 【財力＝S】の S（枚数・マス数として使う値）。
-function wealthCount(player) {
-  return wealthCountFor(getWealth(player));
+// 🔴 Eカードを**ロックしていて任意の＋1 ができる状況なら、その都度本人に聞く**
+//   （ユーザー判断 2026-11-06）。続き666 では「宣言で起きることの量が変わるので base 固定」
+//   としていたが、それは私の判断で、正しくなかった。
+//   ⚠ 聞くのは**1つの効果につき1回だけ**（同じ効果の中で2回聞かれると煩わしいので ctx に覚える）。
+async function askWealthCount(ctx, helpers) {
+  const w = getWealth(ctx.player);
+  if (!w.bonusMax) return wealthCountFor(w);
+  if (ctx && ctx.__wealthDeclared != null) return ctx.__wealthDeclared;
+  const 下 = w.base, 上 = w.base + w.bonusMax;
+  const n = await helpers.pickNumber?.(ctx.cardId, 下, 上, t("ce.feWealthDeclare", { base: 下, max: 上 }));
+  const 値 = Number.isFinite(n) ? Math.max(下, Math.min(上, n)) : 下;
+  if (ctx) ctx.__wealthDeclared = 値;
+  return 値;
 }
 
 // アクションの「枚数・マス数」を実際の数にする。
 // 🔴 データ側に `count: "wealth"`（または maxCount: "wealth"）と書くと、
 //   **その場のそのプレイヤーの財力**になる（1st EDITION の【財力＝S】）。
 //   ⚠ 文に出す時は card-effects.js の toFullWidthNumber が "S" に直す（印字と同じ形）。
-function amountOf(action, player, key = "count") {
+//   ⚠ 財力は本人に聞くことがあるので **await が要る**（"wealth" 以外はその場で返る）。
+async function amountOf(action, ctx, helpers, key = "count") {
   const v = action[key];
-  return v === "wealth" ? wealthCount(player) : v;
+  return v === "wealth" ? await askWealthCount(ctx, helpers) : v;
 }
 
 // 「あなたの財力が１番小さいなら」（1st EDITION・貧しき心）。
@@ -1039,9 +1139,13 @@ function getForcedMoveCandidates(fromLocation, count, opts = {}) {
   const candidates = [];
   if (!fromLocation || typeof fromLocation.row !== "number") return candidates;
   const n = count ?? 1;
-  for (const { dr, dc } of DIRECTIONS) {
-    const row = fromLocation.row + dr * n;
-    const col = fromLocation.col + dc * n;
+  // 🔴 1st EDITION（飛空艇アルヴァ）「カードの置かれていない７マス先に**一気に**強制移動」。
+  //   「一気に」＝ちょうど距離Nのマス全部（ジャンプ台と同じ enumerateManhattanRing）。
+  //   既定（atOnce 無し）は今までどおり**まっすぐ4方向のN マス先**だけ。
+  const offsets = opts.atOnce ? enumerateManhattanRing(n) : DIRECTIONS.map(({ dr, dc }) => ({ dr: dr * n, dc: dc * n }));
+  for (const { dr, dc } of offsets) {
+    const row = fromLocation.row + dr;
+    const col = fromLocation.col + dc;
     if (!inBounds(row, col)) continue;
     if (hasPieceAt(row, col)) continue;
     if (opts.requireEmpty && hasCardAt(row, col)) continue;
@@ -1430,8 +1534,22 @@ async function runAction(action, ctx, helpers) {
           : action.target === TARGETS.ALL_PLAYERS
             ? getState().activePlayers
             : [ctx.player];
+      // 🔴 1st EDITION（経済成長の【状況】）「１枚ドローしてもよい」。optional の時だけ聞く
+      //   （既定は今までどおり必ず引く）。聞くのは**その人自身**ではなく効果の処理者だが、
+      //   状況カードはその人のターン開始時に本人の画面で走るので同じになる。
+      if (action.optional) {
+        const 返事 = await helpers.pickChoice?.(
+          ctx.cardId,
+          [
+            { id: "yes", label: t("ce.feDrawYes", { n: await amountOf(action, ctx, helpers) }), usable: true },
+            { id: "no", label: t("ce.feDrawNo"), usable: true },
+          ],
+          t("ce.feDrawOptional")
+        );
+        if (返事 !== "yes") return false;
+      }
       for (const p of players) {
-        await helpers.drawCards(p, action.count);
+        await helpers.drawCards(p, await amountOf(action, ctx, helpers));
       }
       return true;
     }
@@ -1521,7 +1639,7 @@ async function runAction(action, ctx, helpers) {
       //    ⚠ **置くのは全部選び終わってから**（途中で置くと、まとめて聞く前に盤面が変わる）。
       //    ⚠ 1マスだけの時は今までどおり（1マスずつの確認が出て、まとめては聞かない）。
       // 🔴 1st EDITION（大盤振舞）: count: "wealth" ＝【財力＝S】。
-      const 欲しい枚数 = amountOf(action, ctx.player);
+      const 欲しい枚数 = await amountOf(action, ctx, helpers);
       const 置ける枚数 = Math.min(欲しい枚数, getState().piles.deck.length);
       const まとめ確認 = 置ける枚数 >= 2;
       let 選んだマス = [];
@@ -1552,8 +1670,42 @@ async function runAction(action, ctx, helpers) {
         helpers.clearPlacementTargets?.(); // 「いいえ」＝選び直し
       }
       if (まとめ確認) helpers.clearPlacementTargets?.();
+      // 🔴 1st EDITION（建設バブルの【状況】）「自分の**手札または山札から**１枚ずつ置く」。
+      //   allowHand の時だけ、置く前に1回「どちらから出すか」を聞く（足下の隠し財産と同じ形）。
+      //   ⚠ 片方しか無い時は聞かない（選ぶ余地が無い）。
+      let 出どころ = "deck";
+      if (action.allowHand) {
+        const 手 = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+        const 山 = getState().piles.deck.length > 0;
+        出どころ = 山 ? "deck" : "hand";
+        if (山 && 手.length > 0) {
+          出どころ =
+            (await helpers.pickChoice?.(
+              ctx.cardId,
+              [
+                { id: "deck", label: t("ce.ex0FromDeck"), usable: true },
+                { id: "hand", label: t("ce.ex0FromHand"), usable: true },
+              ],
+              t("ce.ex0PickDeckOrHand")
+            )) ?? "deck";
+        }
+      }
       const 置いた = [];
       for (const dest of 選んだマス) {
+        if (出どころ === "hand") {
+          const 残り = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+          if (残り.length === 0) break;
+          const chosen =
+            残り.length === 1 && !ctx.forcePrompt
+              ? 残り[0]
+              : await helpers.pickHandCard(ctx.player, t("ce.ex0PickHandForBottom"), new Set(残り.map((tk) => tk.id)));
+          if (!chosen) break;
+          // 第6引数 true ＝到達を起こさない（裏向きで置くので、そもそも到達の条件を満たさない）。
+          await helpers.moveAndSync(chosen.id, dest, undefined, undefined, false, true);
+          helpers.markPlacedLocation?.(dest);
+          置いた.push(dest);
+          continue;
+        }
         if (getState().piles.deck.length === 0) break; // 山札が尽きたらそこまで
         await helpers.placeFromDeck(dest); // マスへ置くと既定で裏向き（カードの文どおり）。本物の placeFromDeck は引数1つ
         helpers.markPlacedLocation?.(dest);
@@ -1710,7 +1862,7 @@ async function runAction(action, ctx, helpers) {
       const してもよい = action.optional !== false;
       // 🔴 1st EDITION（財閥の威光）: maxCount: "wealth" ＝【財力＝S】。
       //   **1回だけ数える**（ループの中で数えると、オープンのたびに手札が増えて上限が動く）。
-      const 上限 = amountOf(action, ctx.player, "maxCount");
+      const 上限 = await amountOf(action, ctx, helpers, "maxCount");
       let flippedCount = 0;
       for (let i = 0; i < 上限; i++) {
         const candidates = 範囲なし
@@ -2063,7 +2215,13 @@ async function runAction(action, ctx, helpers) {
       // 2マス先・一気に（atOnce）へ切り替えるようにした（activateMovementBoostForTurn、
       // isMovementBoostActiveThisTurnで参照）。
       activateMovementBoostForTurn(ctx.player);
-      await helpers.announceEffectReason?.(ctx.cardId, t("ce.moveBoost", { name: helpers.getPlayerName(ctx.player) }));
+      // 🔴 1st EDITION（貧民の行進の手札効果）「…移動先のカードはオープンしない。」
+      //   範囲を伸ばすのと対で、ムーブフェイズの自動オープンを止める印を立てる。
+      if (action.noOpen) suppressMoveOpenForTurn(ctx.player);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t(action.noOpen ? "ce.feMoveBoostNoOpen" : "ce.moveBoost", { name: helpers.getPlayerName(ctx.player) })
+      );
       return true;
     }
     case VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL: {
@@ -2076,6 +2234,19 @@ async function runAction(action, ctx, helpers) {
       // 状況が変わった」ような稀なケースへの保険。
       const { candidateSlotsFor, tokens } = getLockableHandTokensExceptFinal(ctx.player);
       if (tokens.length === 0) return false;
+      // 🔴 1st EDITION（貴族の特権）「…ロックしてもよい、ただし最後のロックはできない。」
+      //   optional の時だけ「する／しない」を聞く（既定は今までどおり必ず1枚ロックする）。
+      if (action.optional) {
+        const 返事 = await helpers.pickChoice?.(
+          ctx.cardId,
+          [
+            { id: "yes", label: t("ce.feLockYes"), usable: true },
+            { id: "no", label: t("ce.feLockNo"), usable: true },
+          ],
+          t("ce.feLockOptional")
+        );
+        if (返事 !== "yes") return false;
+      }
       const lockableTokenIds = new Set(tokens.map((t) => t.id));
       // purpose:"lock" でCPUは「ロックしたい札（虹・要る色）優先」で自動選択（ユーザー要望2026-08-10）。
       const chosen = await helpers.pickHandCard(ctx.player, t("ce.L1086"), lockableTokenIds, { purpose: "lock" });
@@ -2094,9 +2265,36 @@ async function runAction(action, ctx, helpers) {
     case VERBS.PICKUP_TO_HAND: {
       // withinCells指定時（橙のキューブ ハーベスト等）は「Nマス以内」に絞る。未指定なら
       // 従来通り盤面全体（収穫と種まき等）。
-      const candidates =
+      let candidates =
         action.withinCells != null ? getCellsWithCardWithinRange(ctx.pieceLocation, action.withinCells) : getAnyCellWithCardCandidates();
+      // 🔴 1st EDITION（フェスティバルの【状況】）「相手プレイヤーの**周囲以外**のカードを１枚」。
+      //   「周囲」＝縦横斜めの8マス（用語集。「隣」＝前後左右の4マスとは別）。
+      //   ⚠ 相手が立っているマスそのものも除く（「周囲」の中心＝その相手のいる所も取れない、
+      //     と読んだ。駒の足下の札を抜くのは「周囲以外」の意図から外れるため）。
+      if (action.excludeOpponentSurrounding) {
+        const 禁止 = new Set();
+        for (const tk of getState().tokens) {
+          if (tk.kind !== "piece" || tk.player === ctx.player || tk.location?.zone !== "cell") continue;
+          禁止.add(tk.location.row + "," + tk.location.col);
+          for (const { dr, dc } of enumerateSurroundingOffsets()) {
+            禁止.add(tk.location.row + dr + "," + (tk.location.col + dc));
+          }
+        }
+        candidates = candidates.filter((c) => !禁止.has(c.row + "," + c.col));
+      }
       if (candidates.length === 0) return false;
+      // 🔴 1st EDITION（フェスティバル）「…自分の手札に加えて**もよい**」。
+      if (action.optional) {
+        const 返事 = await helpers.pickChoice?.(
+          ctx.cardId,
+          [
+            { id: "yes", label: t("ce.feTakeYes"), usable: true },
+            { id: "no", label: t("ce.feTakeNo"), usable: true },
+          ],
+          t("ce.feTakeOptional")
+        );
+        if (返事 !== "yes") return false;
+      }
       // #336（ユーザー報告「収穫の種まきの到達効果でその収穫と種まき自身を回収するのは
       // 勿体無いです！」）。到達効果でこのカード自身のマスを選ぶと二重に損をする——
       //   ①到達効果の既定動作（処理後にこのカード自身を手札に加える）で**どうせ手札に入る**札に
@@ -2501,12 +2699,29 @@ async function runAction(action, ctx, helpers) {
       // 厳重警戒（0th拡張）「あなたの手札が１枚になるように捨てる。」
       // 作りは DISCARD_HALF_HAND と同じ（2枚以上なら順番を付けてまとめて選ぶ＝#344）。
       // 「手札」は公開ドロー置き場も含む（getHandTokens の定義＝続き55）。
-      const handTokens2 = getHandTokens(ctx.player);
-      const discardCount2 = Math.max(0, handTokens2.length - (action.keep ?? 0));
+      // 🔴 1st EDITION で2つ足した:
+      //   ① action.count ＝「ちょうどN枚捨てる」（治安悪化の「手札を４枚捨てる」・
+      //      デプレッション「手札を１枚捨てる」）。手札がそれより少なければ**あるだけ**（善処の原則）。
+      //   ② action.random ＝「**無作為に**捨てる」（路地裏のスラム街・飛空艇アルヴァ）。
+      //      選ばせずにこちらで引く＝本人も何が捨てられるか選べない。
+      // ⚠ action.keep（今までの形＝「N枚になるように捨てる」）はそのまま。
+      const handTokens2 = getHandTokens(ctx.player).filter((tk) => !action.exceptSelf || tk.id !== ctx.cardTokenId);
+      const discardCount2 =
+        action.count != null
+          ? Math.min(await amountOf(action, ctx, helpers), handTokens2.length)
+          : Math.max(0, handTokens2.length - (action.keep ?? 0));
       if (discardCount2 === 0) return false; // 既にその枚数以下＝何もしない（善処の原則）
       const discardedNames2 = [];
       let ordered2 = null;
-      if (discardCount2 >= 2 && helpers.pickHandCardsOrdered) {
+      if (action.random) {
+        // 無作為に discardCount2 枚（Fisher-Yates で並べ替えてから頭から取る）。
+        const 袋 = [...handTokens2];
+        for (let i = 袋.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [袋[i], 袋[j]] = [袋[j], 袋[i]];
+        }
+        ordered2 = 袋.slice(0, discardCount2);
+      } else if (discardCount2 >= 2 && helpers.pickHandCardsOrdered) {
         const picked = await helpers.pickHandCardsOrdered(
           ctx.player,
           t("ce.pickDiscardOrderN", { n: discardCount2 }),
@@ -2521,8 +2736,11 @@ async function runAction(action, ctx, helpers) {
           await helpers.discardAndSync(token.id);
         }
       } else {
+        // ⚠ exceptSelf を渡した時は、まとめて選ぶ側だけでなくここでも候補を絞る
+        //   （2か所に同じ条件を書かない＝同じ handTokens2 から作る）。
+        const 候補id2 = action.exceptSelf ? new Set(handTokens2.map((tk) => tk.id)) : undefined;
         for (let i = 0; i < discardCount2; i++) {
-          const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount2 - i }));
+          const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount2 - i }), 候補id2);
           if (!chosen) break;
           discardedNames2.push(cardDisplayName(chosen.cardId));
           await helpers.discardAndSync(chosen.id);
@@ -2818,13 +3036,52 @@ async function runAction(action, ctx, helpers) {
       // ⓘ 「隣」＝前後左右の4マス。盤の外へは置けない（善処の原則）。
       const here = ctx.pieceLocation;
       if (!here || here.zone !== "cell") return false;
-      let 置いた = 0;
+      const 隣 = [];
       for (const { dr, dc } of DIRECTIONS) {
         const row = here.row + dr;
         const col = here.col + dc;
-        if (!inBounds(row, col)) continue;
+        if (inBounds(row, col)) 隣.push({ zone: "cell", row, col });
+      }
+      // 🔴 1st EDITION（大盤振舞の到達）「あなたの隣**計２マス**にあなたの**手札から**
+      //   裏向きで１枚ずつ置く。」= 隣の4マスのうち2マスを選ぶ・出どころは手札。
+      //   ⚠ 既定（total も source も無し）は今までどおり**隣の全マスに山札から count 枚ずつ**
+      //     （ピーターフッド）。
+      if (action.total != null || action.source === "hand") {
+        const 枚数 = (await amountOf(action, ctx, helpers, "total")) ?? 隣.length;
+        const 済 = new Set();
+        let 置いたT = 0;
+        for (let i = 0; i < 枚数; i++) {
+          const cands = 隣.filter((c) => !済.has(c.row + "," + c.col));
+          if (cands.length === 0) break;
+          const 残り = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+          if (action.source === "hand" && 残り.length === 0) break; // 善処の原則
+          if (action.source !== "hand" && getState().piles.deck.length === 0) break;
+          const dest =
+            cands.length === 1 && !ctx.forcePrompt
+              ? cands[0]
+              : await helpers.pickLocation(cands, t("ce.placeNth", { i: i + 1, n: 枚数 }), { purpose: "place" });
+          if (!dest) break;
+          済.add(dest.row + "," + dest.col);
+          if (action.source === "hand") {
+            const chosen =
+              残り.length === 1 && !ctx.forcePrompt
+                ? 残り[0]
+                : await helpers.pickHandCard(ctx.player, t("ce.ex0PickHandForBottom"), new Set(残り.map((tk) => tk.id)));
+            if (!chosen) break;
+            // 第6引数 true ＝到達を起こさない（裏向きで置くので条件を満たさない）。
+            await helpers.moveAndSync(chosen.id, dest, undefined, undefined, false, true);
+          } else {
+            await helpers.placeFromDeck(dest);
+          }
+          helpers.markPlacedLocation?.(dest);
+          置いたT++;
+        }
+        return 置いたT > 0;
+      }
+      let 置いた = 0;
+      for (const dest of 隣) {
         for (let k = 0; k < (action.count ?? 1); k++) {
-          await helpers.placeFromDeck({ zone: "cell", row, col });
+          await helpers.placeFromDeck(dest);
           置いた++;
         }
       }
@@ -3293,6 +3550,7 @@ async function runAction(action, ctx, helpers) {
         const cands = getForcedMoveCandidates(ctx.pieceLocation, action.count, {
           requireEmpty: !!action.requireEmpty,
           excludeOpponentGates: !!action.excludeOpponentGates,
+          atOnce: !!action.atOnce, // 1st EDITION（飛空艇アルヴァ）「７マス先に一気に」
           player: ctx.player,
         });
         // 無意味なループ防止（#49）。繰り返しの強制移動は、同じマスを行き来できてしまう。
@@ -3300,6 +3558,18 @@ async function runAction(action, ctx, helpers) {
         const revisitLimit = helpers.isCpuDriving?.(ctx.player) ? 1 : HUMAN_MOVE_REVISIT_LIMIT;
         const fresh = cands.filter((c) => !helpers.isLoopMoveDest?.(c, revisitLimit));
         if (fresh.length === 0) break;
+        // 🔴 1st EDITION（飛空艇アルヴァ）「…強制移動して**もよい**」。optional の時だけ聞く。
+        if (action.optional && i === 0) {
+          const 返事 = await helpers.pickChoice?.(
+            ctx.cardId,
+            [
+              { id: "yes", label: t("ce.feForcedMoveYes"), usable: true },
+              { id: "no", label: t("ce.feForcedMoveNo"), usable: true },
+            ],
+            t("ce.feForcedMoveOptional")
+          );
+          if (返事 !== "yes") break;
+        }
         const dest =
           fresh.length === 1 && !ctx.forcePrompt && action.repeat !== "any"
             ? fresh[0]
@@ -3934,6 +4204,511 @@ async function runAction(action, ctx, helpers) {
       await helpers.drawCards(ctx.player, action.count);
       return true;
     }
+    // ══════════════ ここから 1st EDITION（続き668） ══════════════
+    case VERBS.PLACE_SELF_AT_BOARD_CENTER: {
+      // 【状況】カード5種（1st）の共通の到達効果。「このカードを場の中央に表向きで置く。」
+      // ⚠ 中央に既にカードがあればその上に重なる＝新しい状況が前の状況を覆う
+      //   （効くのは１番上の表向きだけ＝getActiveSituationCardId）。
+      // 🔴 **到達は起こさない**（第6引数 true）。中央に誰かの駒が立っていると、この札が
+      //   表向きになった瞬間にその人の到達が走り、**同じ札の「中央に置く」がまた動く**
+      //   （置き直すだけの無限ループになりかねない）。盤面は変わらないので実害は無い。
+      if (!ctx.cardTokenId) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, { ...BOARD_CENTER }, undefined, undefined, false, true);
+      const 中央札 = getState().tokens.find((tk) => tk.id === ctx.cardTokenId);
+      if (中央札 && !中央札.faceUp) await helpers.flipCard(ctx.cardTokenId);
+      await helpers.announceEffectReason?.(ctx.cardId, t("ce.fePlacedAtCenter", { card: cardDisplayName(ctx.cardId) }));
+      return true;
+    }
+    case VERBS.QUALIFYING_PLAYERS_DRAW_AND_MOVE: {
+      // 貧民の行進（1st）到達。「このカードをあなたの手札に加える。財力２以下のプレイヤーは全員、
+      //   ２枚ドローし２マス移動する、移動先のカードはオープンしない。」
+      // ⚠ 「プレイヤー」＝**自分も含む**（「相手」と書かれていない）。処理順は使用者から時計回り。
+      // ⚠ 「２マス移動」は距離2のマス（ring）として扱う。「２マス先に一気に」との違いは
+      //   途中のマスに止まるかどうかだけで、ここは**オープンしない**指定なので差が出ない。
+      // 🔴 他の人の移動先は**本人に選んでもらう**（choose-cell の委任）。使用者の画面で
+      //   勝手に決めると、相手の意思が入らない（#471・#506 と同じ考え方）。
+      let 行進した = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (!meetsWealth(action.qualifyWealth, p)) continue;
+        if (action.draw) {
+          await helpers.drawCards(p, action.draw);
+          行進した = true;
+        }
+        const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
+        if (!piece || piece.location.zone !== "cell") continue;
+        const cands = getMoveCandidates(piece.location, action.move ?? 2, true);
+        if (cands.length === 0) continue;
+        let dest = null;
+        if (p === ctx.player) {
+          dest = cands.length === 1 && !ctx.forcePrompt
+            ? cands[0]
+            : await helpers.pickLocation(cands, t("ce.feMarchMove"), { purpose: "move" });
+        } else {
+          const 返事 = await helpers.delegateToPlayer?.(p, "choose-cell", {
+            candidates: cands.map((c) => ({ row: c.row, col: c.col })),
+            hintKey: "ce.feMarchMoveFor",
+            forPlayer: p,
+          });
+          if (返事 && typeof 返事.row === "number") dest = { zone: "cell", row: 返事.row, col: 返事.col };
+          if (!dest) dest = cands[0]; // 委任が届かなかった時も「移動する」は守る（善処の原則）
+        }
+        if (!dest) continue;
+        // 第4引数 true ＝到達させない（＝移動先のカードはオープンしない）。
+        await helpers.moveAndSync(piece.id, dest, undefined, true);
+        helpers.recordMoveVisited?.(dest);
+        if (p === ctx.player) ctx.pieceLocation = dest;
+        行進した = true;
+      }
+      return 行進した;
+    }
+    case VERBS.GIVE_HAND_CARDS_TO_CHOSEN_PLAYER: {
+      // 財閥の威光（到達）「財力の１番少ないプレイヤーを１人選ぶ。そのプレイヤーの手札に
+      //   あなたの手札から２枚加える。」／恋の押付け（E桃）「相手プレイヤーを１人選ぶ。
+      //   あなたの手札から任意の枚数選び、その相手の手札に加える。」
+      // 🔴 選ぶ範囲は data 側で決める: pick:"lowest_wealth" なら財力が1番少ない人（自分も含む
+      //   ——「相手」と書かれていないため）、既定は相手全員。
+      const 全員 = getState().activePlayers;
+      let 候補 = 全員.filter((p) => p !== ctx.player);
+      if (action.pick === "lowest_wealth") {
+        const 最小 = Math.min(...全員.map((p) => getWealth(p).base));
+        候補 = 全員.filter((p) => getWealth(p).base === 最小);
+      }
+      if (候補.length === 0) return false;
+      const 相手 = 候補.length === 1 && !ctx.forcePrompt
+        ? 候補[0]
+        : await helpers.pickPlayer(候補, t(action.pick === "lowest_wealth" ? "ce.fePickLowestWealth" : "ce.fePickGiveTarget"));
+      if (!相手) return false;
+      if (相手 === ctx.player) {
+        // 自分が1番少ない＝自分に渡す＝何も起きない（literal な読み）。
+        await helpers.announceEffectReason?.(ctx.cardId, t("ce.feSelfIsLowestWealth"));
+        return false;
+      }
+      // 渡せるのは自分自身（効果カード）以外の手札。
+      const 渡せる = () => getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+      const 上限 = action.count === "any" ? 渡せる().length : (action.count ?? 1);
+      let 渡した = 0;
+      for (let i = 0; i < 上限; i++) {
+        const 残り = 渡せる();
+        if (残り.length === 0) break;
+        const ids = new Set(残り.map((tk) => tk.id));
+        const hint = action.count === "any"
+          ? t("ce.feGiveAnyMore", { name: helpers.getPlayerName(相手) })
+          : t("ce.feGiveNth", { name: helpers.getPlayerName(相手), i: i + 1, n: 上限 });
+        const chosen = await helpers.pickHandCard(ctx.player, hint, ids, { optional: action.count === "any" });
+        if (!chosen) break; // 「任意の枚数」＝選ばなければそこで終わり
+        await helpers.moveAndSync(chosen.id, { zone: "hand", player: 相手 }, undefined, undefined, true);
+        helpers.onCardAcquiredToHand?.(chosen.id, chosen.cardId, false, 相手);
+        渡した++;
+      }
+      if (渡した === 0) return false;
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feGaveCards", { from: helpers.getPlayerName(ctx.player), to: helpers.getPlayerName(相手), n: 渡した })
+      );
+      return true;
+    }
+    case VERBS.PICKUP_OWN_LOCKED_TO_HAND: {
+      // ロックチェンジ（1st）「あなたのロックしているカードを１枚、あなたの手札に加える。」
+      // ⚠ ファースト／エターナルは他のカードの効果の対象外（DISCARD_ONE_LOCKED_CARD と同じ絞り込み）。
+      const side = SEAT_TO_SIDE[ctx.player];
+      const locked = getState().tokens.filter(
+        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side && isTargetableByOtherCardEffects(tk.cardId)
+      );
+      if (locked.length === 0) return false;
+      const cands = locked.map((tk) => tk.location);
+      const dest = cands.length === 1 && !ctx.forcePrompt ? cands[0] : await helpers.pickLocation(cands, t("ce.fePickOwnLocked"));
+      if (!dest) return false;
+      const chosen = locked.find((tk) => tk.location.side === dest.side && tk.location.index === dest.index);
+      if (!chosen) return false;
+      await helpers.moveAndSync(chosen.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+      helpers.onCardAcquiredToHand?.(chosen.id, chosen.cardId, true, ctx.player);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feTookOwnLocked", { name: helpers.getPlayerName(ctx.player), card: cardDisplayName(chosen.cardId) })
+      );
+      return true;
+    }
+    case VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL: {
+      // 貴族の特権（1st）手札効果の②「任意のプレイヤーを１人選ぶ。そのプレイヤーは１マス移動する。」
+      // ⚠ 「任意のプレイヤー」＝自分も含む。移動先は**その本人**が選ぶ（委任）。
+      // ⚠ 「移動」なので到達する（オープンしないとは書かれていない）。
+      const 全員 = getState().activePlayers;
+      const 相手 = 全員.length === 1 && !ctx.forcePrompt ? 全員[0] : await helpers.pickPlayer(全員, t("ce.fePickMover"));
+      if (!相手) return false;
+      const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === 相手);
+      if (!piece || piece.location.zone !== "cell") return false;
+      const cands = getMoveCandidates(piece.location, 1, false);
+      if (cands.length === 0) return false;
+      let dest = null;
+      if (相手 === ctx.player) {
+        dest = cands.length === 1 && !ctx.forcePrompt ? cands[0] : await helpers.pickLocation(cands, t("ce.feMoveOne"), { purpose: "move" });
+      } else {
+        const 返事 = await helpers.delegateToPlayer?.(相手, "choose-cell", {
+          candidates: cands.map((c) => ({ row: c.row, col: c.col })),
+          hintKey: "ce.feMoveOneFor",
+          forPlayer: 相手,
+        });
+        if (返事 && typeof 返事.row === "number") dest = { zone: "cell", row: 返事.row, col: 返事.col };
+        if (!dest) dest = cands[0];
+      }
+      if (!dest) return false;
+      await helpers.moveAndSync(piece.id, dest);
+      helpers.recordMoveVisited?.(dest);
+      if (相手 === ctx.player) {
+        ctx.pieceLocation = dest;
+        ctx.arrivedAt = dest;
+      } else {
+        // 他の人の移動先の到達は、呼び出し元の既定処理に乗らないのでここで起こす。
+        await helpers.triggerArrivalAtIfFaceUp?.(dest, 相手);
+      }
+      return true;
+    }
+    case VERBS.STACK_ADJACENT_CARDS_ON_OWN_CELL: {
+      // 食べ過ぎ（1st）到達「あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに重ねて置く。」
+      // ⚠ 「隣」＝前後左右の4マス（用語集。「周囲」＝斜めも含む8マスとは別）。
+      // ⚠ 「カードを」＝そのマスのカード**全部**（枚数の指定が無い）。重ねる順は隣のマスの順。
+      // 🔴 到達は起こさない（第6引数 true）。自分の足下へ**裏向きで**積むので、そもそも
+      //   表向きのカードは現れない＝到達の条件を満たさない。
+      const here = ctx.pieceLocation;
+      if (!here || here.zone !== "cell") return false;
+      let 積んだ = 0;
+      for (const { dr, dc } of DIRECTIONS) {
+        const row = here.row + dr;
+        const col = here.col + dc;
+        if (!inBounds(row, col)) continue;
+        const stack = getState().tokens.filter(
+          (tk) => tk.kind === "card" && tk.location.zone === "cell" && tk.location.row === row && tk.location.col === col
+        );
+        for (const tk of stack) {
+          if (tk.faceUp) await helpers.flipCard(tk.id); // 「裏向きにして」
+          await helpers.moveAndSync(tk.id, { zone: "cell", row: here.row, col: here.col }, undefined, undefined, false, true);
+          積んだ++;
+        }
+      }
+      if (積んだ === 0) return false;
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feStackedAdjacent", { name: helpers.getPlayerName(ctx.player), n: 積んだ })
+      );
+      return true;
+    }
+    case VERBS.FLIP_SELF_FACE_DOWN: {
+      // 路地裏のスラム街（1st）到達①の後半「このカードを裏向きにする。」
+      // ⚠ flipCard は表裏を**反転**するので、表向きの時だけ呼ぶ（平和への願いと同じ作法）。
+      const self = getState().tokens.find((tk) => tk.id === ctx.cardTokenId);
+      if (!self || !self.faceUp) return false;
+      await helpers.flipCard(ctx.cardTokenId);
+      return true;
+    }
+    case VERBS.PICKUP_FROM_OPPONENT_GATE: {
+      // 苦渋の強盗（1st）到達「【財力≦２】相手ゲートのカードを１枚、あなたの手札に加える。」
+      // ⚠ 「相手ゲート」＝自分以外の席のゲートのマス（isOpponentGateCell と同じ判定）。
+      //   カードが積まれていればその１番上（１番上の原則）。
+      const gates = [];
+      for (const side of Object.keys(GATE_POSITIONS)) {
+        if (SEAT_TO_SIDE[ctx.player] === side) continue;
+        const g = GATE_POSITIONS[side];
+        if (hasCardAt(g.row, g.col)) gates.push({ zone: "cell", row: g.row, col: g.col });
+      }
+      if (gates.length === 0) return false;
+      const cell = gates.length === 1 && !ctx.forcePrompt ? gates[0] : await helpers.pickLocation(gates, t("ce.fePickOpponentGate"));
+      if (!cell) return false;
+      const top = findTopCardAtCell(cell.row, cell.col);
+      if (!top) return false;
+      const 表だった = top.faceUp;
+      await helpers.moveAndSync(top.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+      helpers.onCardAcquiredToHand?.(top.id, top.cardId, 表だった, ctx.player);
+      return true;
+    }
+    case VERBS.STEAL_LOCKED_FROM_MOST_LOCKED: {
+      // 苦渋の強盗（1st）手札効果「１番多くロックしているプレイヤーを１人選び、そのプレイヤーの
+      //   ロックしているカード１枚をあなたの手札に加える。」
+      // ⚠ 「プレイヤー」＝自分も含む（リトルマウスと同じ literal な読み）。自分が単独で1番多い
+      //   時は自分しか選べず、自分から奪う＝何も起きない。
+      const 全員2 = getState().activePlayers;
+      let 最多 = -1;
+      for (const p of 全員2) 最多 = Math.max(最多, countLockedCardsFor(p));
+      const cands2 = 全員2.filter((p) => countLockedCardsFor(p) === 最多);
+      if (cands2.length === 0) return false;
+      const target2 = cands2.length === 1 && !ctx.forcePrompt ? cands2[0] : await helpers.pickPlayer(cands2, t("ce.ex0PickMostLocked"));
+      if (!target2) return false;
+      if (target2 === ctx.player) {
+        await helpers.announceEffectReason?.(ctx.cardId, t("ce.ex0SelfIsMostLocked"));
+        return false;
+      }
+      const side2 = SEAT_TO_SIDE[target2];
+      const locked2 = getState().tokens.filter(
+        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side2 && isTargetableByOtherCardEffects(tk.cardId)
+      );
+      if (locked2.length === 0) return false;
+      const cells2 = locked2.map((tk) => tk.location);
+      const dest2 = cells2.length === 1 && !ctx.forcePrompt ? cells2[0] : await helpers.pickLocation(cells2, t("ce.feStealLocked"));
+      if (!dest2) return false;
+      const chosen2 = locked2.find((tk) => tk.location.side === dest2.side && tk.location.index === dest2.index);
+      if (!chosen2) return false;
+      await helpers.moveAndSync(chosen2.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+      helpers.onCardAcquiredToHand?.(chosen2.id, chosen2.cardId, true, ctx.player);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feStoleLocked", {
+          name: helpers.getPlayerName(ctx.player),
+          from: helpers.getPlayerName(target2),
+          card: cardDisplayName(chosen2.cardId),
+        })
+      );
+      return true;
+    }
+    case VERBS.STEAL_RANDOM_AND_GIVE_SELF: {
+      // 裏貴族の賄賂（1st）到達「相手プレイヤーを１人選ぶ。その相手の手札から無作為に１枚、
+      //   あなたの手札に加える。このカードをその相手の手札に加える。」
+      const 相手候補 = getState().activePlayers.filter((p) => p !== ctx.player);
+      if (相手候補.length === 0) return false;
+      const 賄賂先 = 相手候補.length === 1 && !ctx.forcePrompt ? 相手候補[0] : await helpers.pickPlayer(相手候補, t("ce.fePickBribeTarget"));
+      if (!賄賂先) return false;
+      const tok = await helpers.pickRandomFromOpponentHand?.(賄賂先);
+      if (tok) {
+        await helpers.moveAndSync(tok.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+        helpers.onCardAcquiredToHand?.(tok.id, tok.cardId, false, ctx.player);
+      }
+      // 「このカードをその相手の手札に加える。」＝相手の手札が空でも必ず行う（句点の原則）。
+      if (ctx.cardTokenId) {
+        await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: 賄賂先 }, undefined, undefined, true);
+        helpers.onCardAcquiredToHand?.(ctx.cardTokenId, ctx.cardId, true, 賄賂先);
+      }
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feBribed", { name: helpers.getPlayerName(ctx.player), to: helpers.getPlayerName(賄賂先) })
+      );
+      return true;
+    }
+    case VERBS.BRIBE_ON_LOCK_DECLARE: {
+      // 裏貴族の賄賂（1st）手札効果「相手プレイヤーがロックを宣言した時に使える。このカードを捨てる。
+      //   相手がロックしようとしたカードをあなたの手札に加える。あなたの手札から１枚、その相手の手札に加える。」
+      // 🔴 「ロック宣言の窓」でだけ使える（やり直しのカギと同じ仕組み）。窓はどの札を
+      //   ロックしようとしているかまで覚えている（noteInterruptWindow の第3引数）。
+      const 宣言者 = getLockDeclarerInWindow(ctx.player);
+      const 対象札 = getLockDeclaredTokenInWindow(ctx.player);
+      if (!宣言者 || !対象札) return false;
+      await helpers.discardAndSync(ctx.cardTokenId); // 「このカードを捨てる。」
+      await helpers.moveAndSync(対象札.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+      helpers.onCardAcquiredToHand?.(対象札.id, 対象札.cardId, true, ctx.player);
+      // 「あなたの手札から１枚、その相手の手札に加える。」
+      // ⚠ いま奪った札も含めて選べる（印字に除外が書かれていない）。
+      const 残り2 = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+      if (残り2.length > 0) {
+        const 渡す = 残り2.length === 1 && !ctx.forcePrompt
+          ? 残り2[0]
+          : await helpers.pickHandCard(ctx.player, t("ce.feGiveNth", { name: helpers.getPlayerName(宣言者), i: 1, n: 1 }), new Set(残り2.map((tk) => tk.id)));
+        if (渡す) {
+          await helpers.moveAndSync(渡す.id, { zone: "hand", player: 宣言者 }, undefined, undefined, true);
+          helpers.onCardAcquiredToHand?.(渡す.id, 渡す.cardId, false, 宣言者);
+        }
+      }
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feBribeStoleLock", {
+          name: helpers.getPlayerName(ctx.player),
+          from: helpers.getPlayerName(宣言者),
+          card: cardDisplayName(対象札.cardId),
+        })
+      );
+      return true;
+    }
+    case VERBS.GIVE_SELF_TO_EXTREME_WEALTH: {
+      // 大富豪の気紛れ（1st）到達の後半「財力の１番多いプレイヤーを１人選び、このカードを
+      //   そのプレイヤーの手札に加える。」
+      // ⚠ 「プレイヤー」＝自分も含む。自分を選んだら、既定動作（手札に加える）と同じ結果になる。
+      const 全員3 = getState().activePlayers;
+      const 極値 = Math.max(...全員3.map((p) => getWealth(p).base));
+      const cands3 = 全員3.filter((p) => getWealth(p).base === 極値);
+      if (cands3.length === 0 || !ctx.cardTokenId) return false;
+      const 受取 = cands3.length === 1 && !ctx.forcePrompt ? cands3[0] : await helpers.pickPlayer(cands3, t("ce.fePickHighestWealth"));
+      if (!受取) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: 受取 }, undefined, undefined, true);
+      helpers.onCardAcquiredToHand?.(ctx.cardTokenId, ctx.cardId, true, 受取);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feGaveSelfTo", { card: cardDisplayName(ctx.cardId), to: helpers.getPlayerName(受取) })
+      );
+      return true;
+    }
+    case VERBS.ALL_OPPONENTS_DISCARD_LOCKED_AND_DRAW: {
+      // 大富豪の気紛れ（1st）手札効果「相手プレイヤーは全員、自分のロックしているカードを
+      //   １枚捨て、２枚ドロー。」
+      // 🔴 どのロック札を捨てるかは**その本人**に選んでもらう（ロック札は公開情報なので
+      //   使用者の画面でも選べるが、自分の札をどう手放すかは本人の判断＝#471・#506 の考え方）。
+      let 何か起きた = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (p === ctx.player) continue;
+        const sideP = SEAT_TO_SIDE[p];
+        const lockedP = getState().tokens.filter(
+          (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === sideP && isTargetableByOtherCardEffects(tk.cardId)
+        );
+        if (lockedP.length > 0) {
+          let 捨てる = lockedP[0];
+          if (lockedP.length > 1) {
+            const 返事2 = await helpers.delegateToPlayer?.(p, "choose-cell", {
+              candidates: lockedP.map((tk) => ({ ...tk.location })),
+              hintKey: "ce.fePickOwnLockedToDiscard",
+              forPlayer: p,
+            });
+            const 見つけた = 返事2 ? lockedP.find((tk) => tk.location.index === 返事2.index && tk.location.side === 返事2.side) : null;
+            if (見つけた) 捨てる = 見つけた;
+          }
+          await helpers.discardAndSync(捨てる.id);
+          何か起きた = true;
+        }
+        if (action.draw) {
+          await helpers.drawCards(p, action.draw);
+          何か起きた = true;
+        }
+      }
+      return 何か起きた;
+    }
+    case VERBS.EQUALIZE_HAND_SIZES: {
+      // ドゥエンの革命（1st）到達「手札が１番多いプレイヤーは、手札が１番少ないプレイヤーの
+      //   手札枚数になるまでカードを捨て、手札が１番少ないプレイヤーは、手札が１番多い
+      //   プレイヤーの手札枚数になるまでドロー。」
+      // 🔴 **数えるのは「手札の枚数」**（財力ではない＝印字のとおり。Eカードの＋1は入らない）。
+      // 🔴 捨てる枚数・引く枚数は**最初に1回だけ**決める（捨てた後に数え直すと、
+      //   「1番少ない人」が入れ替わって無限に続いてしまう）。
+      const 全員4 = getState().activePlayers;
+      const 枚数 = new Map(全員4.map((p) => [p, getHandTokens(p).length]));
+      const 最多4 = Math.max(...枚数.values());
+      const 最少4 = Math.min(...枚数.values());
+      if (最多4 === 最少4) return false; // 全員同じ＝何も起きない
+      let 革命した = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        const n = 枚数.get(p);
+        if (n === 最多4) {
+          // 🔴 捨てるのは本人に選ばせる（オンラインでは相手の手札の中身が見えない）。
+          if (p === ctx.player) {
+            if (await runAction({ verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, keep: 最少4 }, ctx, helpers)) 革命した = true;
+          } else if (await helpers.delegateToPlayer?.(p, "discard-down-to", { n: 最少4 })) {
+            革命した = true;
+          }
+        } else if (n === 最少4) {
+          await helpers.drawCards(p, 最多4 - 最少4);
+          革命した = true;
+        }
+      }
+      await helpers.announceEffectReason?.(ctx.cardId, t("ce.feRevolution", { most: 最多4, least: 最少4 }));
+      return 革命した;
+    }
+    case VERBS.ALL_PLAYERS_DISCARD_TO_FEWEST: {
+      // 偉大なる大号令（1st）到達の3文目「プレイヤー全員は、１番手札の少ないプレイヤーの
+      //   手札枚数になるまで手札を捨てる。」
+      const 全員5 = getState().activePlayers;
+      const 最少5 = Math.min(...全員5.map((p) => getHandTokens(p).length));
+      let 捨てた5 = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (getHandTokens(p).length <= 最少5) continue;
+        if (p === ctx.player) {
+          if (await runAction({ verb: VERBS.DISCARD_OWN_HAND_DOWN_TO, keep: 最少5 }, ctx, helpers)) 捨てた5 = true;
+        } else if (await helpers.delegateToPlayer?.(p, "discard-down-to", { n: 最少5 })) {
+          捨てた5 = true;
+        }
+      }
+      return 捨てた5;
+    }
+    case VERBS.PLACE_DECK_CARDS_AROUND_CENTER: {
+      // 偉大なる大号令（1st）到達の1文目「場の中央の周囲８マスに山札からカードを裏向きで置く。」
+      let 置いた8 = 0;
+      for (const { dr, dc } of enumerateSurroundingOffsets()) {
+        const row = BOARD_CENTER.row + dr;
+        const col = BOARD_CENTER.col + dc;
+        if (!inBounds(row, col)) continue;
+        if (getState().piles.deck.length === 0) break;
+        await helpers.placeFromDeck({ zone: "cell", row, col });
+        置いた8++;
+      }
+      if (置いた8 === 0) return false;
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.placedFromDeckN", { name: helpers.getPlayerName(ctx.player), n: 置いた8 })
+      );
+      return true;
+    }
+    case VERBS.ALL_PLAYERS_MOVE_TO_CENTER_ADJACENT: {
+      // 偉大なる大号令（1st）到達の2文目「プレイヤー全員は、場の中央の上下左右（各自ゲートの
+      //   方角）のマスに移動し、移動先のカードはオープンしない。」
+      // 🔴 「各自ゲートの方角」＝その人のゲートから中央を見た向き。ゲートの座標が分かれば
+      //   決まるので**選ぶ余地が無い**（誰にも聞かない）。
+      // ⚠ そのマスに既に誰かが居たら動かない（駒は1マスに1つ＝物理ルール）。
+      let 動いた9 = 0;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        const g = GATE_POSITIONS[SEAT_TO_SIDE[p]];
+        if (!g) continue;
+        const dr = Math.sign(g.row - BOARD_CENTER.row);
+        const dc = Math.sign(g.col - BOARD_CENTER.col);
+        const row = BOARD_CENTER.row + dr;
+        const col = BOARD_CENTER.col + dc;
+        if (!inBounds(row, col) || hasPieceAt(row, col)) continue;
+        const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
+        if (!piece) continue;
+        if (piece.location.zone === "cell" && piece.location.row === row && piece.location.col === col) continue;
+        // 第4引数 true ＝到達させない（＝移動先のカードはオープンしない）。
+        await helpers.moveAndSync(piece.id, { zone: "cell", row, col }, undefined, true);
+        helpers.recordMoveVisited?.({ zone: "cell", row, col });
+        if (p === ctx.player) ctx.pieceLocation = { zone: "cell", row, col };
+        動いた9++;
+      }
+      return 動いた9 > 0;
+    }
+    case VERBS.PICKUP_ALL_AT_CHOSEN_CELL_TO_HAND: {
+      // 愚直な欲求（E橙・1st）手札効果「任意の１マスのカードをすべてあなたの手札に加える。」
+      const cells10 = getAnyCellWithCardCandidates();
+      if (cells10.length === 0) return false;
+      const cell10 = cells10.length === 1 && !ctx.forcePrompt ? cells10[0] : await helpers.pickLocation(cells10, t("ce.fePickCellTakeAll"));
+      if (!cell10) return false;
+      const stack10 = getState().tokens.filter(
+        (tk) => tk.kind === "card" && tk.location.zone === "cell" && tk.location.row === cell10.row && tk.location.col === cell10.col
+      );
+      if (stack10.length === 0) return false;
+      // １番上から順に取る（１番上の原則）。
+      for (const tk of [...stack10].reverse()) {
+        const 表 = tk.faceUp;
+        await helpers.moveAndSync(tk.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+        helpers.onCardAcquiredToHand?.(tk.id, tk.cardId, 表, ctx.player);
+      }
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feTookWholeCell", { name: helpers.getPlayerName(ctx.player), n: stack10.length })
+      );
+      return true;
+    }
+    case VERBS.WEALTH_BONUS_FOR_ALL_UNTIL_NEXT_TURN: {
+      // 富豪の教え（E黄・1st）手札効果「次のあなたのターン開始時までプレイヤー全員は、
+      //   財力を１多く計算する。この効果は１ターンに１度のみ得られる。」
+      // ⚠ 「１ターンに１度」は効果データの usageLimit が見る（ここでは何もしない）。
+      registerWealthBonusForAll(getState().turnNumber);
+      await helpers.announceEffectReason?.(ctx.cardId, t("ce.feWealthBonusAll"));
+      return true;
+    }
+    case VERBS.SWAP_ENTIRE_HAND_WITH_CHOSEN: {
+      // カオスチェンジ（E紫・1st）手札効果「相手プレイヤーを１人選ぶ。その相手と手札を
+      //   すべて交換する。このターンを終了する。」
+      // 🔴 このカード自身（エターナル）は交換しない——ロックエリアに在るか、手札に在っても
+      //   「他のカードの効果の対象にならない」ので動かさない。
+      const 相手候補11 = getState().activePlayers.filter((p) => p !== ctx.player);
+      if (相手候補11.length === 0) return false;
+      const 相手11 = 相手候補11.length === 1 && !ctx.forcePrompt ? 相手候補11[0] : await helpers.pickPlayer(相手候補11, t("ce.fePickSwapTarget"));
+      if (!相手11) return false;
+      const 動かせる = (p) => getHandTokens(p).filter((tk) => tk.id !== ctx.cardTokenId && isTargetableByOtherCardEffects(tk.cardId));
+      const 自分の札 = 動かせる(ctx.player);
+      const 相手の札 = 動かせる(相手11);
+      if (自分の札.length === 0 && 相手の札.length === 0) return false;
+      for (const tk of 自分の札) await helpers.moveAndSync(tk.id, { zone: "hand", player: 相手11 }, undefined, undefined, true);
+      for (const tk of 相手の札) await helpers.moveAndSync(tk.id, { zone: "hand", player: ctx.player }, undefined, undefined, true);
+      for (const tk of 相手の札) helpers.onCardAcquiredToHand?.(tk.id, tk.cardId, false, ctx.player);
+      for (const tk of 自分の札) helpers.onCardAcquiredToHand?.(tk.id, tk.cardId, false, 相手11);
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        t("ce.feSwappedHands", { name: helpers.getPlayerName(ctx.player), other: helpers.getPlayerName(相手11) })
+      );
+      return true;
+    }
+    // ══════════════ ここまで 1st EDITION ══════════════
     case VERBS.INHERIT_ARRIVAL_ACTIONS: {
       // ザ・ギャンブルの手札効果専用: 到達効果と全く同じactionsをそのまま実行する
       // （続き29のeffectDef単位inheritsArrivalフラグと違い、前後に別のアクションを
@@ -3987,6 +4762,8 @@ async function runArrivalOptionsEffect(ctx, options, helpers) {
   };
   const usableOptions = options.filter((opt) => isArrivalOptionUsable(runCtx.player, runCtx.pieceLocation, opt, ctx.cardId));
   let hadEffect = false;
+  // 1st EDITION（路地裏のスラム街）: 選んだ選択肢を最後まで覚えておく（下の既定動作が見る）。
+  let 選んだ選択肢 = null;
   if (usableOptions.length > 0) {
     const optionsWithUsability = options.map((opt) => ({ ...opt, usable: usableOptions.includes(opt) }));
     const chosen = await helpers.pickArrivalOption(ctx.cardId, optionsWithUsability);
@@ -4016,6 +4793,7 @@ async function runArrivalOptionsEffect(ctx, options, helpers) {
         }
         await helpers.discardAndSync(paid.id);
       }
+      選んだ選択肢 = chosen;
       for (const action of chosen.actions) {
         if (await runActionSafely(action, runCtx, helpers)) hadEffect = true;
       }
@@ -4032,8 +4810,11 @@ async function runArrivalOptionsEffect(ctx, options, helpers) {
   // runArrivalEffectの既定動作と同じ理由（このカード自身が、選択肢の中の「場の
   // カードを手札に加える」系アクションで既に別プレイヤーの手札へ渡っている
   // 可能性がある）で、まだ盤面に残っている場合だけ動かす。
+  // 🔴 1st EDITION（路地裏のスラム街の①）だけは**盤面に残す**。「このカードを裏向きにする。」
+  //   ＝裏向きでそのマスに在り続けるのが正しく、手札へ持っていくと効果が消える。
+  //   選択肢ごとに違う（②は今までどおり手札へ入る）ので、**選んだ選択肢に書く**。
   const currentToken = getState().tokens.find((t) => t.id === ctx.cardTokenId);
-  if (currentToken && currentToken.location.zone === "cell") {
+  if (currentToken && currentToken.location.zone === "cell" && !選んだ選択肢?.keepsCardOnBoard) {
     await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: ctx.player });
   }
   return runCtx.arrivedAt;

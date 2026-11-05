@@ -20217,6 +20217,21 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-fx { display: flex; flex-direction: column; gap: 1.4cqw; }
 .card-face-effect { display: flex; gap: 0.45em; align-items: flex-start; font-family: "Noto Sans JP", "ヒラギノ角ゴ Pro W6", "Hiragino Kaku Gothic Pro", "ヒラギノ角ゴ ProN W6", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; font-weight: 900; }
 .card-face-effect-body { flex: 1; min-width: 0; }
+/* 🔴 日本語の折り返し。既定だと「効/果」のように**熟語の途中で割れる**（CJKはどの文字間でも
+   切れるのがブラウザの既定）。auto-phrase は文節の切れ目で折る（Chrome 119+。
+   対応していないブラウザでは今までどおりの折り返しに落ちるだけなので安全）。
+   line-break: strict は小書きの仮名や約物を行頭に来させない（禁則）。 */
+.card-face-textline,
+.card-face-subline,
+.card-face-flavor,
+.card-face-title,
+.card-face-subtitle { word-break: auto-phrase; line-break: strict; }
+/* 効果の本文を「絵の形」に沿わせる見えない土手（card-renderer.js が polygon を書き込む）。
+   ⚠ 本文に overflow や display:flex を付けないこと（BFC ができると float が高さを押し広げ、
+   文の下端が伸びて枠からはみ出す）。 */
+.card-face-shape { pointer-events: none; }
+.card-face-shape.is-l { float: left; }
+.card-face-shape.is-r { float: right; }
 .card-face-textline { font-size: 1em; line-height: 1.28; }
 /* 「・」選択肢行は左インデントを設けず、普通に左詰め（ユーザー要望）。 */
 .card-face-subline { font-size: 1em; line-height: 1.28; padding-left: 0; }
@@ -20292,13 +20307,13 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type="first"] .card-face-effect.is-hand-cost { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f-handcost-y, 69cqw); width: var(--cf-f-handcost-w, 64.5cqw); font-size: calc(var(--cf-f-handcost-s, 2.9cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="first"] .card-face-effect.is-hand { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f-hand-y, 82.5cqw); width: var(--cf-f-hand-w, 61.5cqw); font-size: calc(var(--cf-f-hand-s, 2.9cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="first1st"] .card-face-effect.is-basic { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-basic-y, 10cqw); width: var(--cf-f1-basic-w, 60cqw); font-size: calc(var(--cf-f1-basic-s, 2.5cqw) * var(--cf-fit, 1)); }
-.card-face[data-card-type="first1st"] .card-face-title { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-title-y, 25cqw); width: var(--cf-f1-title-w, 90cqw); font-size: calc(var(--cf-f1-title-s, 3.3cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-title { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-title-y, 29cqw); width: var(--cf-f1-title-w, 90cqw); font-size: calc(var(--cf-f1-title-s, 3.3cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="first1st"] .card-face-title rt,
 .card-face[data-card-type="first1st"] .card-face-title .card-face-title-rt { font-size: calc(var(--cf-f1-ruby-s, 1.6cqw) * var(--cf-fit, 1)); transform: translateX(-50%) translateY(var(--cf-f1-ruby-oy, 0cqw)); }
 .card-face[data-card-type="first1st"] .card-face-subtitle { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-sub-y, 56.5cqw); width: var(--cf-f1-sub-w, 90cqw); font-size: calc(var(--cf-f1-sub-s, 3.4cqw) * var(--cf-fit, 1)); }
-.card-face[data-card-type="first1st"] .card-face-hand-icon { position: absolute; left: var(--cf-f1-handicon-x, 10cqw); top: var(--cf-f1-handicon-y, 64.5cqw); width: var(--cf-f1-handicon-s, 7cqw); height: var(--cf-f1-handicon-s, 7cqw); }
-.card-face[data-card-type="first1st"] .card-face-effect.is-hand-cost { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-handcost-y, 64.5cqw); width: var(--cf-f1-handcost-w, 66cqw); font-size: calc(var(--cf-f1-handcost-s, 2.45cqw) * var(--cf-fit, 1)); }
-.card-face[data-card-type="first1st"] .card-face-effect.is-hand { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-hand-y, 76cqw); width: var(--cf-f1-hand-w, 66cqw); font-size: calc(var(--cf-f1-hand-s, 2.45cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-hand-icon { position: absolute; left: var(--cf-f1-handicon-x, 10cqw); top: var(--cf-f1-handicon-y, 62cqw); width: var(--cf-f1-handicon-s, 7cqw); height: var(--cf-f1-handicon-s, 7cqw); }
+.card-face[data-card-type="first1st"] .card-face-effect.is-hand-cost { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-handcost-y, 62cqw); width: var(--cf-f1-handcost-w, 66cqw); font-size: calc(var(--cf-f1-handcost-s, 2.45cqw) * var(--cf-fit, 1)); }
+.card-face[data-card-type="first1st"] .card-face-effect.is-hand { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f1-hand-y, 66cqw); width: var(--cf-f1-hand-w, 66cqw); font-size: calc(var(--cf-f1-hand-s, 2.45cqw) * var(--cf-fit, 1)); }
 
 /* ===== カード面エディタ（card-render-preview.js・開発用） ===== */
 #card-render-editor {

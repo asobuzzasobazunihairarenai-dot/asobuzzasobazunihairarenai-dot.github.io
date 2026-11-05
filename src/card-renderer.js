@@ -15,7 +15,7 @@
 import { getCardDefinition, getCardBlankPath } from "./cards-data.js";
 import { getCardText, getCardName } from "./card-text.js";
 import { getLang } from "./i18n.js";
-import { LAYOUT, cardTypeOf, groupOf } from "./card-layout-config.js";
+import { LAYOUT, cardTypeOf, groupOf, shapeHalfWidthAt } from "./card-layout-config.js";
 
 // 能力名《》・マーカー等の色味には単色を使う（color-mix/border-color はグラデーション不可）。
 const SOLID_ACCENT = {
@@ -56,6 +56,65 @@ function buildSection(kind, text, opts = {}) {
   body.appendChild(buildLines(text));
   row.appendChild(body);
   return row;
+}
+
+// 効果の本文を「絵の形」に沿わせる。見えない土手を左右に浮かべ、shape-outside で
+// 石の斜めの縁をなぞらせると、**行ごとに短くなって台形に流れる**。
+//
+// 🔴 なぜ枠の幅を細くするだけでは足りないか: 1つの枠は1つの幅しか持てないのに、
+//   4行ある手札効果は縦に長く、上の行と下の行で使える幅が違う。上に合わせると下がはみ出し、
+//   下に合わせると上が無駄に細くなる。
+// ⚠ 土手は**高さを多めに取る**（下の枠線までの余地）。本文（.card-face-effect-body）は
+//   flex の子＝**新しい整形文脈を作る**ので、**この高さぶん箱が押し広がる**（見えないが広がる）。
+//   それでよい——文字の位置は変わらないし、箱は絶対配置なので他の要素を押さない。
+//   🔴 ただし**自動縮小（--cf-fit）が箱で測ると必ず 95% を超えてしまう**ので、
+//     deepestTextPct は土手を持つ要素だけ**中の行**で測る。そこを外すと字が最小まで縮む。
+function appendShapeSpacers(row, shape, slot) {
+  if (!shape || !slot) return;
+  const body = row && row.querySelector(".card-face-effect-body");
+  const top = Number(slot.y), w = Number(slot.w);
+  if (!body || !Number.isFinite(top) || !Number.isFinite(w)) return;
+  const 左 = 50 - w / 2, 右 = 50 + w / 2;
+  const 高 = Math.max(6, 95 - top); // 枠の下辺（約94.9%）までの余地
+  const 刻み = 1.5;
+  const 左点 = [], 右点 = [];
+  let 左最大 = 0, 右最大 = 0;
+  for (let t = 0; t <= 高 + 0.001; t += 刻み) {
+    const hw = shapeHalfWidthAt(shape, top + t);
+    if (hw == null) return;
+    const il = Math.max(0, Math.min(w, shape.cx - hw - 左));
+    const ir = Math.max(0, Math.min(w, 右 - (shape.cx + hw)));
+    左点.push([il, t]); 右点.push([ir, t]);
+    if (il > 左最大) 左最大 = il;
+    if (ir > 右最大) 右最大 = ir;
+  }
+  const 作る = (側, 幅, 点) => {
+    const sp = document.createElement("i");
+    sp.className = "card-face-shape is-" + 側;
+    sp.setAttribute("aria-hidden", "true");
+    const 頂点 = [];
+    if (側 === "l") {
+      頂点.push("0cqw 0cqw");
+      for (const [v, t] of 点) 頂点.push(v.toFixed(2) + "cqw " + t.toFixed(2) + "cqw");
+      頂点.push("0cqw " + 高.toFixed(2) + "cqw");
+    } else {
+      頂点.push(幅.toFixed(2) + "cqw 0cqw");
+      for (const [v, t] of 点) 頂点.push((幅 - v).toFixed(2) + "cqw " + t.toFixed(2) + "cqw");
+      頂点.push(幅.toFixed(2) + "cqw " + 高.toFixed(2) + "cqw");
+    }
+    sp.style.width = 幅.toFixed(2) + "cqw";
+    sp.style.height = 高.toFixed(2) + "cqw";
+    // 🔴 下マージンを高さぶん負にして「親の高さに効かせない」ことを一度試したが、**それだと
+    //   土手そのものが効かなくなる**（続き669 の実測: 負マージン有りの行と、土手を丸ごと
+    //   取り除いた行が**1 cqw も違わなかった**）。float が行を短くするかどうかは
+    //   **マージン箱の縦の範囲**で決まるので、高さ 0 に潰すと shape-outside まで無効になる。
+    //   ⇒ マージンは触らず、押し広がった箱の方を見ないようにする（deepestTextPct）。
+    sp.style.shapeOutside = "border-box polygon(" + 頂点.join(",") + ")";
+    return sp;
+  };
+  // 食い込みがほぼ無い側には置かない（無駄な要素を作らない）。
+  if (右最大 > 0.3) body.insertBefore(作る("r", 右最大, 右点), body.firstChild);
+  if (左最大 > 0.3) body.insertBefore(作る("l", 左最大, 左点), body.firstChild);
 }
 
 // ファーストの手札効果を「【…】（…）」の部分（追色コスト）と、それ以降の効果本文に分ける。
@@ -152,12 +211,26 @@ function getFitHost() {
 }
 
 // face 内の一番下のテキストの下端が、カード高さの何%かを返す。
+// 🔴 土手（.card-face-shape＝見えない float）を持つ要素だけは、**箱ではなく中の行で測る**。
+//   土手は「枠の下辺までの余地」ぶんの高さを持つので、箱で測ると必ず 95% を超え、
+//   文字が収まっていても自動縮小が最小倍率まで走ってしまう（続き669）。
+//   土手が無い要素＝リメイク・0th拡張のカードは今までどおり箱で測る（倍率を変えない）。
 function deepestTextPct(face, hostRect) {
   let deepest = 0;
   for (const el of face.querySelectorAll(".card-face-flavor, .card-face-title, .card-face-subtitle, .card-face-effect, .card-face-fx")) {
-    const r = el.getBoundingClientRect();
-    if (r.height === 0) continue;
-    const pct = ((r.bottom - hostRect.top) / hostRect.height) * 100;
+    let bottom = null;
+    if (el.querySelector(".card-face-shape")) {
+      for (const ln of el.querySelectorAll(".card-face-textline, .card-face-subline")) {
+        const q = ln.getBoundingClientRect();
+        if (q.height === 0) continue;
+        if (bottom == null || q.bottom > bottom) bottom = q.bottom;
+      }
+    } else {
+      const r = el.getBoundingClientRect();
+      if (r.height !== 0) bottom = r.bottom;
+    }
+    if (bottom == null) continue;
+    const pct = ((bottom - hostRect.top) / hostRect.height) * 100;
     if (pct > deepest) deepest = pct;
   }
   return deepest;
@@ -252,8 +325,11 @@ export function buildCardFace(cardId, { showFlavor = true } = {}) {
     }
   } else {
     // first: 効果も個別に絶対配置。手札効果は「【追色】部分」と「効果本文」を別要素に分ける。
-    if ("basic" in slots && text.basic) face.appendChild(buildSection("basic", text.basic));
-    if ("arrival" in slots && text.arrival) face.appendChild(buildSection("arrival", text.arrival));
+    // 絵の形（slots.shape）があるグループは、本文を石の縁に沿わせる（1st EDITION のジュエル）。
+    const 形 = slots.shape || null;
+    const 形付き = (sec, slot) => { appendShapeSpacers(sec, 形, slot); return sec; };
+    if ("basic" in slots && text.basic) face.appendChild(形付き(buildSection("basic", text.basic), slots.basic));
+    if ("arrival" in slots && text.arrival) face.appendChild(形付き(buildSection("arrival", text.arrival), slots.arrival));
     if ("hand" in slots && text.hand) {
       const split = ("handcost" in slots) ? splitFirstHandCost(text.hand) : null;
       if (split) {
@@ -264,10 +340,10 @@ export function buildCardFace(cardId, { showFlavor = true } = {}) {
           ic.setAttribute("aria-hidden", "true");
           face.appendChild(ic);
         }
-        face.appendChild(buildSection("hand", split.cost, { effectClass: "is-hand-cost", markerKind: null }));
-        if (split.rest) face.appendChild(buildSection("hand", split.rest, { markerKind: null }));
+        face.appendChild(形付き(buildSection("hand", split.cost, { effectClass: "is-hand-cost", markerKind: null }), slots.handcost));
+        if (split.rest) face.appendChild(形付き(buildSection("hand", split.rest, { markerKind: null }), slots.hand));
       } else {
-        face.appendChild(buildSection("hand", text.hand));
+        face.appendChild(形付き(buildSection("hand", text.hand), slots.hand));
       }
     }
   }

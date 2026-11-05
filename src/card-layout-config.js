@@ -40,15 +40,49 @@ export const LAYOUT = {
   // 1st EDITION のファースト（◯のジュエル）。first の写しから、長い手札効果が収まるよう
   // 上へ詰めて文字を少し小さくした値。カード面エディタの「1st EDITION ファースト」で調整できる。
   first1st: {
+    // ユーザー指示（2026-11-06）「下の効果文もう少し上に／タイトルももう少し下に」。
+    // 実測した隙間に合わせた: ★基本は 10.0〜19.6% で終わり、能力名は 56.5〜61.6%、
+    // 手札効果は 76% 始まりで下に 14.4% も空いていた。題を下げ、手札を上げる。
+    // ⚠ 題を 31 以上にすると、絵に描かれた色名（R E D＝約35.8%〜）に触れる。
     basic:    { y: 10, w: 60, s: 2.5, props: ["y", "w", "s"] },
-    title:    { y: 25, w: 90, s: 3.3, props: ["y", "w", "s"] },
+    title:    { y: 29, w: 90, s: 3.3, props: ["y", "w", "s"] },
     ruby:     { s: 1.6, oy: 0, props: ["s", "oy"] },
     sub:      { y: 56.5, w: 90, s: 3.4, props: ["y", "w", "s"] },
-    handicon: { x: 10, y: 64.5, s: 7, props: ["x", "y", "s"] },
-    handcost: { y: 64.5, w: 66, s: 2.45, props: ["y", "w", "s"] },
-    hand:     { y: 76, w: 66, s: 2.45, props: ["y", "w", "s"] },
+    handicon: { x: 10, y: 62, s: 7, props: ["x", "y", "s"] },
+    handcost: { y: 62, w: 66, s: 2.45, props: ["y", "w", "s"] },
+    hand:     { y: 66, w: 66, s: 2.45, props: ["y", "w", "s"] },
+    // 🔴 文を「石の形」に沿わせる（card-renderer.js が shape-outside の土手を2つ入れる）。
+    //   絵は八角形のジュエルなので、上と下では使える幅が狭い。長方形の枠のままだと
+    //   実測で**左右に各12〜13%はみ出して台座に乗る**（続き667 で測った）。
+    //   値は scratchpad/_gemgeom.mjs で実測（斜辺の傾きが1であることも検算済み）。
+    //   ⚠ これは**絵の形**なので、絵を描き直したら測り直すこと。
+    shape: { kind: "octagon", cx: 51.62, cy: 50.81, r: 45 },
   },
 };
+
+// 八角形（頂点が 22.5°+45°k ＝ 上下左右と斜めに「辺」が来る向き）の、ある高さでの半幅。
+// 単位はすべて cqw（カード幅に対する%）。shape が無い／範囲外なら null を返す。
+//   |dy| ≦ R sin22.5  … 左右の平らな辺の区間（半幅は最大の R cos22.5）
+//   R sin22.5 < |dy| ≦ R cos22.5 … 45°の斜辺（半幅は 1 ずつ減る）
+// 🔴 LAYOUT のエントリには「配置を持つ要素」以外も混ざる（first1st の shape）。
+//   CSSの生成とエディタのつまみ作りは**要素だけ**を回すこと。ELEMENT_META に載っているかで判る。
+//   ここを通さずに Object.keys(LAYOUT[group]) を回すと、shape を要素と誤解して落ちる。
+export function elementSlotsOf(group) {
+  const slots = LAYOUT[group] || {};
+  const out = {};
+  for (const [k, v] of Object.entries(slots)) if (ELEMENT_META[k]) out[k] = v;
+  return out;
+}
+
+export function shapeHalfWidthAt(shape, y) {
+  if (!shape || shape.kind !== "octagon") return null;
+  const dy = Math.abs(y - shape.cy);
+  const K = Math.cos(Math.PI / 8) * shape.r; // 辺までの距離＝最大半幅
+  const S = Math.sin(Math.PI / 8) * shape.r;
+  if (dy <= S) return K;
+  if (dy > K) return 0;
+  return K + S - dy;
+}
 
 // カード種別 → レイアウトグループ（通常・エターナルは共通の std）。
 export const TYPE_GROUP = { normal: "std", eternal: "std", first: "first", first1st: "first1st" };

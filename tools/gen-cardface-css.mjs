@@ -2,7 +2,7 @@
 // src/style.css の該当ブロックへ差し込む。配置を変えたら `node tools/gen-cardface-css.mjs` で再生成。
 // 位置・サイズは全て cqw（カード幅比）＝カードをどのサイズで表示しても比率が崩れない。
 import { readFileSync, writeFileSync } from "node:fs";
-import { LAYOUT, TYPE_GROUP, ELEMENT_META, cfVar, propsFor } from "../src/card-layout-config.js";
+import { LAYOUT, TYPE_GROUP, ELEMENT_META, cfVar, propsFor, elementSlotsOf } from "../src/card-layout-config.js";
 
 const CSS_PATH = new URL("../src/style.css", import.meta.url);
 
@@ -57,6 +57,21 @@ const BASE = `/* ===== カード面レンダラ（card-renderer.js）＝テキ�
 .card-face-fx { display: flex; flex-direction: column; gap: 1.4cqw; }
 .card-face-effect { display: flex; gap: 0.45em; align-items: flex-start; font-family: ${FONT_EFFECT}; font-weight: 900; }
 .card-face-effect-body { flex: 1; min-width: 0; }
+/* 🔴 日本語の折り返し。既定だと「効/果」のように**熟語の途中で割れる**（CJKはどの文字間でも
+   切れるのがブラウザの既定）。auto-phrase は文節の切れ目で折る（Chrome 119+。
+   対応していないブラウザでは今までどおりの折り返しに落ちるだけなので安全）。
+   line-break: strict は小書きの仮名や約物を行頭に来させない（禁則）。 */
+.card-face-textline,
+.card-face-subline,
+.card-face-flavor,
+.card-face-title,
+.card-face-subtitle { word-break: auto-phrase; line-break: strict; }
+/* 効果の本文を「絵の形」に沿わせる見えない土手（card-renderer.js が polygon を書き込む）。
+   ⚠ 本文に overflow や display:flex を付けないこと（BFC ができると float が高さを押し広げ、
+   文の下端が伸びて枠からはみ出す）。 */
+.card-face-shape { pointer-events: none; }
+.card-face-shape.is-l { float: left; }
+.card-face-shape.is-r { float: right; }
 .card-face-textline { font-size: 1em; line-height: 1.28; }
 /* 「・」選択肢行は左インデントを設けず、普通に左詰め（ユーザー要望）。 */
 .card-face-subline { font-size: 1em; line-height: 1.28; padding-left: 0; }
@@ -112,7 +127,7 @@ const TYPES = ["normal", "eternal", "first", "first1st"];
 let gen = "\n/* --- 各テキスト要素の絶対配置（自動生成：card-layout-config.js） --- */\n";
 for (const type of TYPES) {
   const group = TYPE_GROUP[type];
-  const slots = LAYOUT[group];
+  const slots = elementSlotsOf(group); // shape のような非要素を除く
   for (const [el, d] of Object.entries(slots)) {
     const sel = ELEMENT_META[el].sel;
     if (el === "ruby") {

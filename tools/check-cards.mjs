@@ -234,23 +234,23 @@ if (firstEdSrc) {
     if (effectIds.has(id)) E効果あり++;
   }
   if (eternal1st.length !== 7) note(`1st EDITION: Eカードが7種でない: ${eternal1st.length} 種`);
-  // 🔴 Fカード7種は**暫定で印刷データ（完成カード）を当てている**ので、文字入りの
-  //   assets/cards/ と assets/cards-illust/ を持つ（cards-blank は持たない）。
+  // 🔴 Fカード7種は**ジュエル版の文字無しの絵**（tools/make-jewel-first.mjs）。文字はアプリが描くので、
+  //   assets/cards-blank/ と assets/cards-illust/ を持つ（文字入りの assets/cards は持たない）。
   //   cards-data.js の hasBakedCardFace がこの前提で分岐しているので、ここで見張る。
   const first1st = [...jaFe].filter((id) => id.startsWith("first-1st-"));
   if (first1st.length !== 7) note(`1st EDITION: Fカードが7種でない: ${first1st.length} 種`);
   for (const id of first1st) {
     if (!enFe.has(id)) note(`1st EDITION: 英語の文が無い: ${id} → node tools/gen-1st-text.mjs`);
-    for (const dir of ["assets/cards", "assets/cards-illust"]) {
-      if (!fs.existsSync(path.join(ROOT, dir, `${id}.webp`))) note(`1st EDITION: Fカードの暫定絵が無い: ${dir}/${id}.webp → node tools/make-1st-art.mjs`);
+    for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${id}.webp`))) note(`1st EDITION: Fカードの絵が無い: ${dir}/${id}.webp → node tools/make-jewel-first.mjs`);
     }
-    if (fs.existsSync(path.join(ROOT, "assets/cards-blank", `${id}.webp`)))
-      note(`1st EDITION: Fカードは文字入りの暫定絵なので cards-blank を持たないはず: ${id}`);
+    if (fs.existsSync(path.join(ROOT, "assets/cards", `${id}.webp`)))
+      note(`1st EDITION: Fカードは文字をアプリが描くので assets/cards を持たないはず: ${id}`);
   }
   firstEdLine =
     `ⓘ 1st EDITION ${fe.length} 種（＋Eカード ${eternal1st.length} 種・Fカード ${first1st.length} 種）: 文(日英)と絵は上で検査済み。` +
     `効果データ 通常 ${効果あり}/${fe.length}・E ${E効果あり}/${eternal1st.length}、テスト ${テストあり}/${fe.length}` +
-    `（Fカードは絵だけ暫定＝印刷データ。効果は別途相談で保留）`;
+    `（Fカードはジュエル版の絵。ファーストの山はエディションごとに切り替わる）`;
 
   // サーバー側の写しとのズレ（0th拡張と同じ理由。手でコピペしてデプロイする運用なので見張る）
   let edge2 = null;
@@ -296,6 +296,32 @@ if (firstEdSrc) {
     }
     if (E写し.join(",") !== E正.join(",")) {
       note("1st EDITION: Eカードの山がサーバー側とズレている（正 " + E正.join(",") + " / 写し " + E写し.join(",") + "）");
+    }
+
+    // 🔴 Fカード（◯のジュエル）の山も同じ理由で見張る（続き669 でエディションごとに配る形にした）。
+    //   ズレると「CPU戦では1stのファーストなのに、オンラインではリメイクのファースト」になる。
+    const 札F = (本文, 目印F) => {
+      const i = 本文.indexOf(目印F);
+      if (i < 0) return null;
+      const j = 本文.indexOf("];", i);
+      if (j < 0) return null;
+      return 本文
+        .slice(i, j)
+        .split("first-1st-")
+        .slice(1)
+        .map((x) => "first-1st-" + x.split(QUOTE)[0]);
+    };
+    const F写し = 札F(edge2, "const FIRST_ED_FIRST_CARDS");
+    const F正 = 札F(firstEdSrc, "export const FIRST_ED_FIRST_CARDS");
+    if (!F写し || !F正 || F写し.length !== 7 || F正.length !== 7) {
+      console.error(
+        "❌ 検査そのものが怪しい: 1st EDITION のFカードの表が 正" +
+          (F正 ? F正.length : "読めず") + " / 写し" + (F写し ? F写し.length : "読めず") + " しか取れなかった"
+      );
+      process.exit(2);
+    }
+    if (F写し.join(",") !== F正.join(",")) {
+      note("1st EDITION: Fカードの山がサーバー側とズレている（正 " + F正.join(",") + " / 写し " + F写し.join(",") + "）");
     }
   }
 }
