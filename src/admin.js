@@ -2278,6 +2278,10 @@ const TOGGLE_SECTIONS = [
         { key: "openZoom", label: "カードのオープン：寄り", min: 1, max: 3.5, step: 0.05 },
         { key: "openYaw", label: "カードのオープン：左右に振る", min: -30, max: 30, step: 1 },
         { key: "openTilt", label: "カードのオープン：傾きを足す", min: -15, max: 25, step: 1 },
+        // 【#518・#520】カード効果で駒が動く時（リーチキャンセルの到達もここ）。
+        { key: "effectMoveZoom", label: "効果での移動：寄り", min: 1, max: 3, step: 0.05 },
+        { key: "effectMoveYaw", label: "効果での移動：左右に振る", min: -30, max: 30, step: 1 },
+        { key: "effectMoveTilt", label: "効果での移動：傾きを足す", min: -15, max: 25, step: 1 },
       ];
       const inputs = new Map();
       const showValues = async () => {

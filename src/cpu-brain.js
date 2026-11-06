@@ -57,7 +57,15 @@ const ARRIVAL_VALUE = {
   //   そのうえ色は橙なので「まだ要る色」の+1 が毎回付き、前進より得に見えてしまう。
   //   ⇒ **表向きのバスストップが場にある時だけ得**（移動＋カード1枚）。無ければ
   //     「隣へ置き直されるだけ」＝**得が無いのに輪を作る**ので、はっきりマイナスにする。
-  "ex0-orange-bus": () => (hasFaceUpCardOnBoard("ex0-orange-bus-stop") ? 2 : -3),
+  //
+  //   🔴【#519・2026-11-06】**-3 では足りなかった**（報告「CPUがオレンジバスを次に進む先に
+  //     置いて、何も得ないまま進んでくる。これは勿体無い行為だと思う」。報告のビルドは
+  //     この -3 が**入った後**のもの）。原因は #458（CPUが罠のある自ゲートへ行く）と
+  //     **まったく同じ「ものさしの算数」**——橙の「まだ要る色」の +1 と前進の加点が乗ると、
+  //     -3 では合計がプラスのままで「行く」になる。選べる罠を -7 にした時と同じ値にそろえた。
+  //     ⚠ **止めるのではなく重みで決める**ままにしてある（他に良い手が無ければ行く）。
+  //     ⚠ バスストップが在る時の +2 は**変えていない**（そちらは得な手）。
+  "ex0-orange-bus": () => (hasFaceUpCardOnBoard("ex0-orange-bus-stop") ? 2 : -7),
 };
 
 // 場に**表向きで**置かれているカードがあるか（裏向きは非公開情報なので数えない
@@ -1050,6 +1058,17 @@ function isPreciousCard(cardId) {
 // 手札から1枚「手放す」時（コスト支払い・場に置く・捨てる等、requestHandCardChoiceForEffectの
 // 自動代行）に、一番手放してよいカードを選ぶ。ロック済みの色＝冗長で手放しやすい、まだ要る色・
 // 強い札＝残したい。候補は tokenId の集合（Set/配列）。
+// 「どれだけ手放してよいか」。大きいほど手放してよい。
+// 🔴 chooseHandCardToken と chooseRedundantHandCards の**両方**がこれを使う（同じ基準を
+//   2か所に書くと、片方を直してもう片方が取り残される）。
+function discardability(token, needed) {
+  const color = getCardDefinition(token.cardId)?.color;
+  let d = 0;
+  if (color && COLORS.includes(color)) d += needed.has(color) ? -2 : 2; // 要る色は残す/ロック済みは手放してよい
+  if (isPreciousCard(token.cardId)) d -= 3; // 強い/リアクション札は残す
+  return d;
+}
+
 export function chooseHandCardToken(tokenIds, driveSeat) {
   const ids = [...(tokenIds || [])];
   if (ids.length === 0) return null;
@@ -1057,15 +1076,26 @@ export function chooseHandCardToken(tokenIds, driveSeat) {
   const needed = neededColors(state, driveSeat); // まだロックしていない色
   const tokens = ids.map((id) => state.tokens.find((t) => t.id === id)).filter(Boolean);
   if (tokens.length === 0) return ids[0];
-  const discardability = (t) => {
-    const color = getCardDefinition(t.cardId)?.color;
-    let d = 0;
-    if (color && COLORS.includes(color)) d += needed.has(color) ? -2 : 2; // 要る色は残す/ロック済みは手放してよい
-    if (isPreciousCard(t.cardId)) d -= 3; // 強い/リアクション札は残す
-    return d;
-  };
-  tokens.sort((a, b) => discardability(b) - discardability(a));
+  tokens.sort((a, b) => discardability(b, needed) - discardability(a, needed));
   return tokens[0].id;
+}
+
+// 【2026-11-06・#517】「任意の枚数を捨ててよい」効果（やり直しのカギ等）で、CPUが**何枚**
+// 捨てるかを決める。返すのは「手放してよい札」だけ。
+// 🔴 **全部捨てて引き直す形にはしない**——強い札（リアクション札・虹・ファースト／エターナル）や
+//   まだ要る色まで失ってしまう。discardability が 0 より大きい札＝「ロック済みの色で、
+//   かつ強い札でもない」＝持っていても重複している札だけを手放す。
+//   ⇒ 1枚も該当しなければ 0 枚（＝この効果は不発）。それが正しい（捨てる理由が無い）。
+export function chooseRedundantHandCards(tokenIds, driveSeat) {
+  const ids = [...(tokenIds || [])];
+  if (ids.length === 0) return [];
+  const state = getState();
+  const needed = neededColors(state, driveSeat);
+  const tokens = ids.map((id) => state.tokens.find((t) => t.id === id)).filter(Boolean);
+  return tokens
+    .filter((t) => discardability(t, needed) > 0)
+    .sort((a, b) => discardability(b, needed) - discardability(a, needed))
+    .map((t) => t.id);
 }
 
 // セレナーデ/カウンターロック等の「手札を1枚ロックする」時に、どれをロックするかの選択（ユーザー

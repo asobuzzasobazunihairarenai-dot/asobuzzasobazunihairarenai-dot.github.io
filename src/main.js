@@ -343,6 +343,7 @@ import {
   chooseEmptyCellToPlace,
   chooseHandEffectCard,
   chooseHandCardToken,
+  chooseRedundantHandCards, // #517: 「任意の枚数捨ててよい」効果でCPUが何枚捨てるか
   chooseHandCardToLock,
   chooseOpponentHandCardToSteal,
   chooseSwapGiveCard,
@@ -1817,7 +1818,17 @@ async function moveAndSyncForEffect(...args) {
     token?.kind === "piece" && location?.zone === "cell" && cinematicAllows("highlight") && !!table;
   if (!useCamera) return moveAndSyncForEffect__inner(...args);
   const destEl = findLocationElement(table, location);
-  if (destEl) await focusCameraOnElement(destEl, { zoom: 1.28, ms: 360 });
+  // 【#518・#520】1.28 の決め打ちをやめ、他の決め所と同じ**管理者モードで回せるつまみ**にした
+  // （#499 でカードのオープンを直したのと同じ形）。寄り1・角度0 にすればここだけ切れる。
+  const tu = getCinematicTuning();
+  if (destEl && !cinematicShotOff(tu.effectMoveZoom, tu.effectMoveYaw, tu.effectMoveTilt)) {
+    await focusCameraOnElement(destEl, {
+      zoom: tu.effectMoveZoom,
+      ms: 360,
+      yaw: tu.effectMoveYaw,
+      tilt: tu.effectMoveTilt,
+    });
+  }
   // 【#370・2026-10-06】**戻りの予約は、効果の処理を待たずにここで入れる**。
   // 以前は finally（＝効果が全部終わってから）に置いていたが、到達効果の途中で
   // プレイヤーに選択を聞くと**答えるまで寄りっぱなし**になり、盤面がずれた位置で
@@ -7762,6 +7773,15 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     // 【2026-09-29・続き545】options.limit ＝「この枚数だけ選ぶ」。
     // これが無い時は従来どおり**全部捨てる**（選ばなかった分は並び順のまま後ろへ足す）。
     // 候補の枚数以上を指定された時は「結局全部」なので limit 無しと同じ扱いにする。
+    //
+    // 🔴【2026-11-06・#517】options.anyCount ＝「**０枚から好きな枚数**」。
+    //   やり直しのカギの「あなたの手札を任意の枚数捨てる」専用。報告「やり直しのかぎで
+    //   一部しか手札選んでないのに全部捨てさせられた」の正体がここだった——あの効果は
+    //   limit を渡せない（枚数を決めるのは本人）ので limit 無しで呼んでいたが、
+    //   **limit 無し＝「全部捨てる。あなたが決めるのは順番だけ」**という別の意味だった。
+    //   ⇒ anyCount の時は**押した札だけ**を返す（残りを後ろに足さない）。
+    //   ⚠ 「おまかせ」は出さない——何枚が正解かが無い効果なので、押す意味が決められない。
+    const anyCount = !!options.anyCount;
     const limitRaw = Number.isFinite(options.limit) ? Math.max(0, Math.floor(options.limit)) : null;
     if (limitRaw === 0) {
       resolve([]);
@@ -7777,13 +7797,20 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       resolve([]);
       return;
     }
-    if (cardEls.length === 1) {
+    // ⚠ anyCount の時は1枚でも画面を出す——「その1枚を捨てるかどうか」が本人の判断だから
+    //   （ここで勝手に返すと、1枚しか無い人は必ず捨てさせられる）。
+    if (cardEls.length === 1 && !anyCount) {
       resolve(tokensOf([cardEls[0].dataset.tokenId]));
       return;
     }
     const ids0 = cardEls.map((el) => el.dataset.tokenId);
     // CPUが選ぶ番: 画面には出さず、その場で順番を決めて返す。
     if (isCpuSelectingNow(player)) {
+      // anyCount は「何枚でもよい」ので、CPUは**重複している札だけ**を手放す（0枚もあり得る）。
+      if (anyCount) {
+        resolve(tokensOf(chooseRedundantHandCards(ids0, player)));
+        return;
+      }
       const pool = new Set(ids0);
       const order = [];
       while (order.length < want && pool.size > 0) {
@@ -7811,8 +7838,11 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     title.textContent = hint;
     const note = document.createElement("div");
     note.className = "stack-modal-note";
-    note.textContent =
-      limit != null ? t("game.pick.handDiscardNoteLimit", { n: limit }) : t("game.pick.boardDiscardNote");
+    note.textContent = anyCount
+      ? t("game.pick.handDiscardNoteAny")
+      : limit != null
+        ? t("game.pick.handDiscardNoteLimit", { n: limit })
+        : t("game.pick.boardDiscardNote");
     const list = document.createElement("div");
     list.className = "stack-modal-list";
     const els = [];
@@ -7849,7 +7879,10 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
           badgeOf.delete(id);
         }
       }
-      confirmBtn.textContent = t("game.pick.discardOrderConfirm", { n: picked.length, total: want });
+      // anyCount は「何枚が正解」が無いので分母を出さない（0/5 と出ると「5枚選べ」に見える）。
+      confirmBtn.textContent = anyCount
+        ? t("game.pick.discardOrderConfirmAny", { n: picked.length })
+        : t("game.pick.discardOrderConfirm", { n: picked.length, total: want });
       // limit があるうちは「まだ足りない」間だけ薄くする。実際に弾くのは confirmOrder の中
       // （見た目だけで止めてはいけない＝教訓4）。
       confirmBtn.style.opacity = limit != null && picked.length !== limit ? "0.45" : "1";
@@ -7883,6 +7916,12 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       return ids;
     };
     const confirmOrder = () => {
+      // 🔴【#517】anyCount は**押した札だけ**。押していない札は捨てない（0枚も正しい答え）。
+      if (anyCount) {
+        activeEffectPicker = null;
+        finish([...picked]);
+        return;
+      }
       // limit がある時は**枚数が揃うまで確定させない**。
       if (limit != null) {
         if (picked.length !== limit) return;
@@ -7911,7 +7950,9 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     modal.appendChild(note);
     modal.appendChild(list);
     modal.appendChild(confirmBtn);
-    modal.appendChild(autoBtn);
+    // ⚠ anyCount では「おまかせ」を出さない。何枚が正解かが無いので、押した時に何をすれば
+    //   よいかが決められない（0枚とも全部とも言えない）。
+    if (!anyCount) modal.appendChild(autoBtn);
     modal.appendChild(peek.button);
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
@@ -7924,6 +7965,12 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
       toggle,
       confirmOrder,
       resolve: () => {
+        // 🔴【#517】anyCount は持ち時間切れでも**押した分だけ**（押していなければ0枚）。
+        //   autoOrder は「残りを足して全部にする」ので、ここで通すと報告と同じ事故になる。
+        if (anyCount) {
+          finish([...picked]);
+          return;
+        }
         finish(autoOrder());
       },
     };

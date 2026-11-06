@@ -1100,8 +1100,13 @@ export const CASES = [
     picks: { discardCost: ["cost"], handCardsOrdered: [["keep2", "keep1"]] },
     expect: [
       { kind: "tokenGone", id: "cost" },
-      // 順番付きで1回だけ呼ばれ、選んだ順がそのまま返ること。
-      { kind: "called", name: "pickHandCardsOrdered", arg: "keep2,keep1" },
+      // 順番付きで**1回だけ**呼ばれること（#344: 1枚ずつ聞かない）。
+      // ⚠【2026-11-06・#517】以前は arg: "keep2,keep1" と書いていたが、それは**スタブが
+      //   本物より優しかった時の文字列**だった。本物のモーダルは limit も anyCount も無い時
+      //   「全部捨てる。選ぶのは順番だけ」なので、選ばなかった札（ここでは公開ドローした分）
+      //   を後ろに足して返す。スタブを本物に合わせたので、捨てる順の検査は下の
+      //   tokenGone / pileOrder に任せ、ここは「1回だけ」を見る。
+      { kind: "called", name: "pickHandCardsOrdered", n: 1 },
       { kind: "tokenGone", id: "keep1" },
       { kind: "tokenGone", id: "keep2" },
     ],
@@ -1198,7 +1203,10 @@ export const CASES = [
       // 捨て場は「先に捨てたものが下」。選んだ順（h3=プレゼント → h1=収穫と種まき）で積まれる。
       { kind: "pileOrder", pile: "discard", cards: ["pink-present", "orange-harvest-sow", "green-growing-trees", "blue-choosable-trap", "red-jump-pad"] },
       // #344: 1枚ずつ聞くのではなく、順番付きで**1回だけ**呼ばれること（確認も1回で済む）。
-      { kind: "called", name: "pickHandCardsOrdered", arg: "h3,h1,h2" },
+      // ⚠【#517】捨てる順そのものは上の pileOrder が1枚ずつ固定している。ここで引数の文字列を
+      //   見ないのは、本物が「選ばなかった札（公開ドローした2枚）を後ろに足す」ためで、
+      //   その分までテストに書くと筋書きではなく実装の写しになる。
+      { kind: "called", name: "pickHandCardsOrdered", n: 1 },
     ],
   },
   {
@@ -2202,6 +2210,9 @@ export const CASES = [
     // 3枚のうち2枚だけ捨てる（「任意の枚数」なので全部でなくてよい）。
     picks: { handCardsOrdered: [["h1", "h2"]] },
     expect: [
+      // 🔴【#517】「押した分だけ」で呼んでいること自体を見る。これが無いと、モーダルは
+      //   「全部捨てる。選ぶのは順番だけ」の意味になり、h3 まで捨てられる（報告の事故）。
+      { kind: "called", name: "pickHandCardsOrderedAnyCount" },
       { kind: "pileContains", pile: "discard", cardId: "purple-sorry" },
       { kind: "pileContains", pile: "discard", cardId: "pink-present" },
       { kind: "tokenZone", id: "h3", zone: "hand", player: "A" }, // 捨てなかった分は残る
@@ -4325,6 +4336,196 @@ export const CASES = [
       { kind: "handCount", player: "B", n: 2 },
     ],
   },
+
+  // ───────── 1st EDITION ファーストカード（◯のジュエル）7種 ─────────
+  // 🔴 7種とも**ロックエリアに在るまま**手札効果を使う（基本効果「この手札効果はロック
+  //   エリアにロックされていても使える」）。コストは【財力＝１】＝**手札がちょうど１枚**。
+  //   だから筋書きはどれも「self はロック・手札は1枚だけ」。
+  {
+    name: "赤のジュエル ルビナグナ(手札): 【財力＝１】捨て場の1番上を手札へ",
+    kind: "hand",
+    cardId: "first-1st-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-red", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: ["blue-choosable-trap", "green-growing-trees"] },
+    },
+    ctx: { player: "A", cardId: "first-1st-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true }, // 手札ちょうど1枚
+      // 🔴 **1番上**（配列の末尾）。リメイクのフェニックスは「2番目」なので、
+      //    2番目（blue-choosable-trap）を拾っていたら取り違え。
+      { kind: "handHasCard", player: "A", cardId: "green-growing-trees", n: 1 },
+      { kind: "handHasCard", player: "A", cardId: "blue-choosable-trap", n: 0 },
+      { kind: "tokenZone", id: "self", zone: "lock" }, // ファーストは消費されない
+    ],
+  },
+  {
+    name: "赤のジュエル ルビナグナ(手札): 手札が2枚なら【財力＝１】を満たさず使えない",
+    kind: "hand",
+    cardId: "first-1st-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-red", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: ["green-growing-trees"] },
+    },
+    ctx: { player: "A", cardId: "first-1st-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      // ロックエリアに 1st のEカードが無いので bonusMax 0 ⇒ 幅は 2〜2 で 1 を含まない。
+      { kind: "handUsable", value: false },
+      { kind: "wealth", player: "A", bonusMax: 0 },
+      { kind: "handHasCard", player: "A", cardId: "green-growing-trees", n: 0 },
+    ],
+  },
+  {
+    name: "橙のジュエル カリブランス(手札): 【財力＝１】2マス以内の1枚を手札へ",
+    kind: "hand",
+    cardId: "first-1st-orange",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-orange", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "target", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-orange", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 4 }] },
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenZone", id: "target", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "self", zone: "lock" },
+    ],
+  },
+  {
+    name: "黄のジュエル ルミナジア(手札): 【財力＝１】2マス以内を4枚までオープン",
+    kind: "hand",
+    cardId: "first-1st-yellow",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-yellow", faceUp: true, location: { zone: "lock", side: "bottom", index: 2 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "d1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 3, col: 4 } },
+        { id: "d2", kind: "card", cardId: "blue-choosable-trap", faceUp: false, location: { zone: "cell", row: 3, col: 2 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-yellow", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 4 }, { row: 3, col: 2 }] },
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenFaceUp", id: "d1" },
+      { kind: "tokenFaceUp", id: "d2" },
+    ],
+  },
+  {
+    name: "緑のジュエル ネオリーフィア(手札): 【財力＝１】2枚公開ドロー（ターン終了時に捨てる予定）",
+    kind: "hand",
+    cardId: "first-1st-green",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-green", faceUp: true, location: { zone: "lock", side: "bottom", index: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "blue-choosable-trap"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-green", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "publicDrawCount", player: "A", n: 2 },
+      { kind: "deckLen", n: 0 },
+      { kind: "called", name: "markDiscardAtTurnEnd" },
+    ],
+  },
+  {
+    name: "青のジュエル ラピスティア(手札): 【財力＝１】手札3枚以上の相手だけが1枚捨てる",
+    kind: "hand",
+    cardId: "first-1st-blue",
+    state: {
+      activePlayers: ["A", "B", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-blue", faceUp: true, location: { zone: "lock", side: "bottom", index: 4 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "bh1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "bh2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "bh3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "ch1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "C" } },
+        { id: "ch2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "C" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-blue", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenGone", id: "bh1" }, // B は3枚 → 対象（無作為＝先頭）
+      { kind: "handCount", player: "B", n: 2 },
+      // 🔴 C は2枚 → **対象外**。リメイクのセレスティア（2枚以上）と取り違えたらここで落ちる。
+      { kind: "handCount", player: "C", n: 2 },
+    ],
+  },
+  {
+    name: "桃のジュエル モルガライト(手札): 【財力＝１】手札1枚をロック（最後のロック不可）",
+    kind: "hand",
+    cardId: "first-1st-pink",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-pink", faceUp: true, location: { zone: "lock", side: "bottom", index: 5 } },
+        { id: "lk", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-pink", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { handCard: ["lk"] },
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenZone", id: "lk", zone: "lock" },
+      { kind: "tokenZone", id: "self", zone: "lock" },
+    ],
+  },
+  {
+    name: "紫のジュエル ラヴェルナイト(手札): 【財力＝１】このターンの通常の移動を2マスに",
+    kind: "hand",
+    cardId: "first-1st-purple",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-purple", faceUp: true, location: { zone: "lock", side: "bottom", index: 6 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-purple", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenZone", id: "self", zone: "lock" }, // 案内だけ。自身は残る
+      { kind: "handCount", player: "A", n: 1 }, // 手札も減らない
+    ],
+  },
+
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------

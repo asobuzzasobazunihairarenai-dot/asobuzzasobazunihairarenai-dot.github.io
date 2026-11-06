@@ -286,6 +286,30 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "直しました。手札から表向きで置くカードは、飛んでいる間も着地した時も表向きのままになります。これまでは表で飛んできたのに、置かれる瞬間だけ裏になり、そのあとめくれる、という3段の見え方になっていました。",
     en: "Fixed. A card placed face up from your hand now stays face up the whole way - while it flies and when it lands. Before, it flew in face up, turned face down for the moment it was placed, and then flipped over again.",
   },
+  517: {
+    ja: "直しました。やり直しのカギの「任意の枚数を捨てる」画面が、他のカードと同じ『全部捨てる（選ぶのは順番だけ）』の画面を使っていたため、押さなかった札まで捨てられていました。押した札だけを捨てるようにし、１枚も押さずに確定すれば何も捨てません。",
+    en: "Fixed. The Redo Key discard screen was reusing the \"discard everything, you only choose the order\" screen, so cards you did not tap were discarded too. Only the cards you tap are discarded now, and confirming without tapping any discards nothing.",
+  },
+  518: {
+    ja: "もっと寄るようにしました（1.28倍 → 1.7倍。少し角度も付けました）。カードのオープンほど強く寄せていないのは、駒が動く演出なので寄せすぎると「どこから動いたか」が画面の外に出てしまうためです。",
+    en: "The camera now moves in closer (1.28x to 1.7x, with a slight angle). It is deliberately less than the card-reveal shot, because the piece is moving and too much zoom would push the starting square off screen.",
+  },
+  519: {
+    ja: "直しました。オレンジバスに乗っても得が無い時（表向きのバスストップが場に無い時）の減点が小さすぎて、橙の色や前進の加点に負けていました。はっきり嫌がるようにしたので、他に良い手があればそちらを選びます。",
+    en: "Fixed. The penalty for riding an Orange Bus that gains nothing (no face-up Bus Stop on the board) was too small and was outweighed by the bonus for the colour and for moving forward. It is now a clear penalty, so the CPU will prefer any better move.",
+  },
+  520: {
+    ja: "もっと寄るようにしました（#518 と同じ直しです）。リーチキャンセルの到達効果も「移動前のマスへ強制移動」なので、同じつまみで一緒に寄るようになります。",
+    en: "The camera now moves in closer - the same change as #518. Reach Cancel's arrival effect is also a forced move, so it is covered by the same setting.",
+  },
+  522: {
+    ja: "いまのバージョンでは動きます。報告をいただいた時のアプリには、まだ 1st EDITION の効果が入っていませんでした（19種のうち7種だけの状態でした）。",
+    en: "This works in the current version. The build you reported from did not yet contain the 1st EDITION effects - only 7 of the 19 were implemented at that point.",
+  },
+  524: {
+    ja: "いまのバージョンでは動きます（#522 と同じで、報告をいただいた時のアプリにはまだ入っていませんでした）。",
+    en: "This works in the current version - the same as #522; it was not yet in the build you reported from.",
+  },
   506: {
     ja: "直しました（#496 と同じ原因です）。ヤエザのように「相手に選ばせる」カードで、選ぶ権利がその相手に移っていませんでした。委任している間は選ぶ権利もその人のものになるようにしました。",
     en: "Fixed - the same cause as #496. For cards like Yaeza that ask an opponent to choose, the right to choose was not handed over. It now moves with the delegation.",

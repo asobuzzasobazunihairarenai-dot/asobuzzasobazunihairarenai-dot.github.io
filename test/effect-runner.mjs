@@ -205,6 +205,20 @@ export async function runOneCase(spec) {
           throw new Error("pickHandCardsOrdered: limit=" + options.limit + " なのに " + order.length + " 枚指定された");
         order = order.slice(0, options.limit);
         callLog.push(["pickHandCardsOrderedLimit", String(options.limit)]);
+      } else if (options?.anyCount) {
+        // 🔴【2026-11-06・#517】anyCount ＝「０枚から好きな枚数」。押した札だけが返る。
+        callLog.push(["pickHandCardsOrderedAnyCount", "1"]);
+      } else {
+        // 🔴 limit も anyCount も無い＝本物は「**全部捨てる。選ぶのは順番だけ**」。
+        //   選ばなかった札を並び順のまま後ろへ足すのが本物の振る舞いなので、スタブも同じにする。
+        //   ⚠ ここを「指定された分だけ返す」ままにしていたせいで #517 を取り逃がした
+        //     （スタブが本物より優しいと、本番だけ壊れる＝続き479・657 の教訓）。
+        const みた = new Set(order.map((tk) => tk.id));
+        for (const id of ids) {
+          if (みた.has(id)) continue;
+          const tok = findToken(id);
+          if (tok) order.push(tok);
+        }
       }
       callLog.push(["pickHandCardsOrdered", order.map((tk) => tk.id).join(",")]);
       if (options?.purpose) callLog.push(["pickHandCardsOrderedPurpose", options.purpose]);

@@ -239,6 +239,15 @@ if (firstEdSrc) {
   //   cards-data.js の hasBakedCardFace がこの前提で分岐しているので、ここで見張る。
   const first1st = [...jaFe].filter((id) => id.startsWith("first-1st-"));
   if (first1st.length !== 7) note(`1st EDITION: Fカードが7種でない: ${first1st.length} 種`);
+  // 🔴【#517 の回・続き670】Fカードの効果データとテストも数える。ここを数えていなかったので
+  //   「1st は全部実装済み」と読めてしまい、**Fカード7種の手札効果だけ抜けている**ことに
+  //   ユーザーの指摘まで気づけなかった（Eカードと同じ扱いにして、抜けたら数字で見えるようにする）。
+  let F効果あり = 0;
+  let Fテストあり = 0;
+  for (const id of first1st) {
+    if (effectIds.has(id)) F効果あり++;
+    if (casesSrc.includes(`"${id}"`)) Fテストあり++;
+  }
   for (const id of first1st) {
     if (!enFe.has(id)) note(`1st EDITION: 英語の文が無い: ${id} → node tools/gen-1st-text.mjs`);
     for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
@@ -249,7 +258,8 @@ if (firstEdSrc) {
   }
   firstEdLine =
     `ⓘ 1st EDITION ${fe.length} 種（＋Eカード ${eternal1st.length} 種・Fカード ${first1st.length} 種）: 文(日英)と絵は上で検査済み。` +
-    `効果データ 通常 ${効果あり}/${fe.length}・E ${E効果あり}/${eternal1st.length}、テスト ${テストあり}/${fe.length}` +
+    `効果データ 通常 ${効果あり}/${fe.length}・E ${E効果あり}/${eternal1st.length}・F ${F効果あり}/${first1st.length}、` +
+    `テスト 通常 ${テストあり}/${fe.length}・F ${Fテストあり}/${first1st.length}` +
     `（Fカードはジュエル版の絵。ファーストの山はエディションごとに切り替わる）`;
 
   // サーバー側の写しとのズレ（0th拡張と同じ理由。手でコピペしてデプロイする運用なので見張る）

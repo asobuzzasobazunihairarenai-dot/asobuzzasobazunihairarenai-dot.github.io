@@ -3666,7 +3666,10 @@ async function runAction(action, ctx, helpers) {
           ctx.player,
           t("ce.pickDiscardAnyOptional"),
           new Set(handNow.map((tk) => tk.id)),
-          {}
+          // 🔴【2026-11-06・#517】anyCount が無いと、このモーダルは**全部捨てる**意味になる
+          //   （選ばなかった分を後ろに足す）。報告「一部しか手札選んでないのに全部捨てさせ
+          //   られた」の正体。この効果は枚数を本人が決めるので anyCount で呼ぶ。
+          { anyCount: true }
         );
         if (Array.isArray(chosen)) {
           for (const tk of chosen) {

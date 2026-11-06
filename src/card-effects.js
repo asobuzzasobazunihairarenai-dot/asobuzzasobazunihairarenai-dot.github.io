@@ -2145,6 +2145,103 @@ export const CARD_EFFECTS = {
     },
   },
 
+  // ===== 1st EDITION ファーストカード（◯のジュエル）7種 =====
+  // 🔴 コストは【財力＝１】（あなたの手札の枚数がちょうど１枚）。リメイクの【追色１】とは
+  //   別の仕組みで**何も捨てない**ので cost ではなく wealth で書く（src/wealth.js 参照）。
+  //   7種とも印字の末尾が「この効果は１ターンに１度のみ得られる。」なので usageLimit を付ける。
+  // ⚠ 中身はリメイクのファーストカードとほぼ同じ動詞で足りた。違うのは**赤（１番上／リメイクは
+  //   ２番目）**と**青（３枚以上／リメイクは２枚以上）**の2つだけ。
+  // ⚠ 到達効果は無い（ファーストカードは山札に入らず、開始時からロックエリアに在る）。
+
+  // 赤のジュエル　ルビナグナ（赤）
+  //   手札: 「【財力＝１】捨て場の１番上のカードをあなたの手札に加える。
+  //         この効果は１ターンに１度のみ得られる。」
+  "first-1st-red": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [{ verb: VERBS.PICKUP_DISCARD_TOP }],
+    },
+  },
+
+  // 橙のジュエル　カリブランス（橙）
+  //   手札: 「【財力＝１】あなたから２マス以内のマスのカードを１枚、あなたの手札に加える。
+  //         この効果は１ターンに１度のみ得られる。」
+  "first-1st-orange": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [
+        {
+          verb: VERBS.PICKUP_TO_HAND,
+          count: 1,
+          withinCells: 2,
+          target: { zone: "cell", selection: TARGET_SELECTIONS.CHOOSE, count: 1 },
+        },
+      ],
+    },
+  },
+
+  // 黄のジュエル　ルミナジア（黄）
+  //   手札: 「【財力＝１】あなたから２マス以内のマスのカードを４枚までオープンしてもよい。
+  //         この効果は１ターンに１度のみ得られる。」
+  "first-1st-yellow": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [{ verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, withinCells: 2, maxCount: 4 }],
+    },
+  },
+
+  // 緑のジュエル　ネオリーフィア（緑）
+  //   手札: 「【財力＝１】２枚ドローして、それらをすべて公開する。ターン終了時、手札の
+  //         それらのカードを捨てる。この効果は１ターンに１度のみ得られる。」
+  "first-1st-green": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [{ verb: VERBS.PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END, count: 2 }],
+    },
+  },
+
+  // 青のジュエル　ラピスティア（青）
+  //   手札: 「【財力＝１】手札が３枚以上ある相手プレイヤー全員の手札から、カードを無作為に
+  //         １枚ずつ選び、それらを捨てる。この効果は１ターンに１度のみ得られる。」
+  //   ⚠ リメイクのセレスティアは「２枚以上」。こちらは**３枚以上**（印字どおり）。
+  "first-1st-blue": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [{ verb: VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS, minHandSize: 3 }],
+    },
+  },
+
+  // 桃のジュエル　モルガライト（桃）
+  //   手札: 「【財力＝１】あなたのロックエリアにカードを１枚ロックする、ただし最後のロックは
+  //         できない。この効果は１ターンに１度のみ得られる。」
+  //   ⚠ 印字が「あなたのロックエリアに」なので lockArea: true（1st の貴族の特権と同じ語）。
+  //   requiresLockableCardAvailable は善処の原則（最後のロックしか候補が無いなら発動宣言
+  //   自体ができない）。リメイクのセレナーデと同じ理由で付けてある。
+  "first-1st-pink": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      requiresLockableCardAvailable: true,
+      actions: [{ verb: VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL, lockArea: true }],
+    },
+  },
+
+  // 紫のジュエル　ラヴェルナイト（紫）
+  //   手札: 「【財力＝１】このターンの通常の移動は２マス先に一気に移動する。
+  //         この効果は１ターンに１度のみ得られる。」
+  "first-1st-purple": {
+    handEffect: {
+      wealth: { eq: 1 },
+      usageLimit: { per: "turn", count: 1 },
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN }],
+    },
+  },
+
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------
