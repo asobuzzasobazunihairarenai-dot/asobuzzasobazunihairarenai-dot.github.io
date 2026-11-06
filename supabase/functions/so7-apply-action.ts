@@ -147,6 +147,67 @@ const FIRST_ED_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
 ];
 
 // どのカードセットで山札を組むか。クライアント（src/card-set.js）と同じ文字列。
+// 「まぜる」の山札を、通常のエディションと同じ内訳（7色×14枚・虹7・白4・黒3＝112枚）で組む。
+// 🔴 これは src/mixed-deck.js の**写し**。考え方の全文はあちらの冒頭に書いてある。
+//   ズレると「CPU戦とフレンドリーマッチで山札の中身が違う」という分かりにくい形で出るので、
+//   tools/check-cards.mjs が毎回照合する。
+const MIXED_PER_COLOR = 14;
+const MIXED_WHITE = 4;
+const MIXED_BLACK = 3;
+const MIXED_COLORS = ["red", "orange", "yellow", "green", "blue", "pink", "purple"];
+
+function mixedInterleave<T>(lists: T[][]): T[] {
+  const out: T[] = [];
+  const max = Math.max(0, ...lists.map((l) => l.length));
+  for (let i = 0; i < max; i++) {
+    for (const l of lists) {
+      if (i < l.length) out.push(l[i]);
+    }
+  }
+  return out;
+}
+
+function mixedPickRandom<T>(list: T[], n: number): T[] {
+  const pool = [...list];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, n);
+}
+
+function buildMixedNormalCards(
+  remake: { id: string; color: string; count: number }[],
+  ex0: { id: string; color: string; count: number }[],
+  firstEd: { id: string; color: string; count: number }[]
+): { id: string; color: string; count: number }[] {
+  const sets = [remake || [], ex0 || [], firstEd || []];
+  const out: { id: string; color: string; count: number }[] = [];
+  for (const color of MIXED_COLORS) {
+    const perSet = sets.map((s) => s.filter((c) => c.color === color));
+    const all = mixedInterleave(perSet);
+    if (all.length === 0) continue;
+    const only = all.filter((c) => (c.count ?? 1) === 1);
+    const rest = all.filter((c) => (c.count ?? 1) !== 1);
+    const nokori = MIXED_PER_COLOR - only.length;
+    for (const c of only) out.push({ id: c.id, color: c.color, count: 1 });
+    if (rest.length === 0) continue;
+    const base = Math.floor(nokori / rest.length);
+    let amari = nokori - base * rest.length;
+    for (const c of rest) {
+      const n = base + (amari > 0 ? 1 : 0);
+      if (amari > 0) amari--;
+      if (n > 0) out.push({ id: c.id, color: c.color, count: n });
+    }
+  }
+  const rainbow = sets.flat().find((c) => c.color === "rainbow");
+  if (rainbow) out.push({ id: rainbow.id, color: "rainbow", count: rainbow.count ?? 7 });
+  for (const [color, want] of [["white", MIXED_WHITE], ["black", MIXED_BLACK]] as [string, number][]) {
+    const all = mixedInterleave(sets.map((s) => s.filter((c) => c.color === color)));
+    for (const c of mixedPickRandom(all, want)) out.push({ id: c.id, color, count: 1 });
+  }
+  return out;
+}
 function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; count: number }[] {
   if (cardSet === "ex0") {
     // 0th拡張のみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
@@ -156,7 +217,7 @@ function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; coun
     // 1st EDITION のみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
     return [...FIRST_ED_NORMAL_CARDS, ...NORMAL_CARDS.filter((c) => c.id === "rainbow-shard")];
   }
-  if (cardSet === "mixed") return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS];
+  if (cardSet === "mixed") return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS);
   return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
 }
 

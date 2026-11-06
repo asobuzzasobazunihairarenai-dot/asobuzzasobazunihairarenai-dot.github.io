@@ -52,6 +52,31 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-07",
+    fixes: [
+      "接触の演出で駒が走り出す間、自分の駒が平たく見えることがあった原因を取り除きました。",
+      "CPU対戦の「詳細を設定する」を開いた時、画面の上下にはみ出て読めなくなることがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Removed the cause of the piece looking flat while it runs up and charges during a contact.",
+      "The CPU match detail settings could overflow the top and bottom of the screen when opened; it now fits and scrolls.",
+    ],
+    devItems: [
+      "🔴 **#523「接触演出時、自分の駒がひらぺったくなります」。ユーザーに確かめたら『助走・突進で動いている間だけ』**——これで場所が決まった。その1.5秒だけ**WebGLではなくDOMが駒を描いている**（handLungeToDom が board3d-skip を付けてWebGLの板を取り下げる＝#381/続き558）。そしてDOMの壁は **filter: brightness() で陰影を付けている**＝CLAUDE.md の教訓1（preserve-3d の中で filter を使うと平坦化されて**壁が高さ0に潰れる**）にそのまま当てはまる形で、**このプロジェクトで過去2回踏んでいる**。⚠ ただし filter をただ外すことはできない——**board-3d.js がこの値をWebGLの板の陰影の係数として読んでいる**（cssBrightness）ので、外すと全機種で駒の陰影が消える。⇒ **DOMが描いている間だけ** filter をやめ、同じ見た目を**黒の重ね（::after）**で作った。brightness(b) は「色×b」、黒を alpha=1−b で重ねるのも「色×b」なので**計算上まったく同じ色**になる。🔴 **駒の絵が本当に不透明かを113枚とも確かめた**（webp は ALPH チャンク無し・png は colorType 3 で tRNS 無し）＝透明が1画素も無いので、置き換えで色が変わる余地が無い。⚠ **ヘッドレスのChromiumでは一度も平らにならなかった**（120msごとに100回測って0件）ので、**直ったことは実機でしか確かめられない**。⇒ 次に同じ報告が来た時に1行で分かるよう、行動ログの diag-contact-lunge に**上面の持ち上がり・手前の壁の投影高さ・駒の高さ**を足した（潰れていれば両方0に近づく）。",
+      "**#521「このとき、詳細モーダルが上下にはみ出てます」（CPU対戦の詳細設定）。** 「⚙ 詳細を設定する」を開くと中身がほぼ倍に伸びるのに、パネルに高さの上限が無く、親も中央に置くだけだったので上下どちらにもはみ出し、スクロールする口も無かった。⇒ 高さの上限と内側のスクロールを付けた。🔴 **`vh` は使えない**——このアプリは 1600x900 のステージを縮めて描くので body の中の 1vh は画面の高さではない（tools/check-css.mjs が `max-height` の `vh` を見張っているのはこのため＝続き613）。親が `inset: 0` ＝ステージいっぱいなので **`%` で取る**のが正しい。",
+      "🔴 **「まぜる」の山札を、通常のエディションと同じ内訳で組み直した**（ユーザー指示「混ぜるときは山札の総枚数は通常エディションの枚数にしてください。たとえば赤は全部で１４枚に…その中で混ぜるカードのバランスがなるべく均等になるように」）。それまでは3セットを**そのまま繋げていた**ので赤だけで42枚・合計322枚という別物の山になっていた。⇒ **7色×14枚・虹7・白4・黒3＝112枚**（リメイク・0th拡張・1st とぴったり同じ）。色ごとの配り方は、3セットの同じ色の種類（8種類）を**エディション交互**に並べ、**ONLYカードは1枚のまま**にしてから残りを均等に分ける＝**6種類が2枚・1種類が1枚**。⇒ **どの色の札も最低1枚は入る**（まぜても消える札が無い）。⚠ 白黒だけは種類が14もあって枠が7しかないので全種類は入らない——**毎回無作為に選ぶ**ようにした（決め打ちにすると半分の札が永久に出てこない。30回まわして14種とも出ることを確認）。",
+      "🔴 **その組み立てが、サーバー側の写しとズレないよう tools/check-mixed-deck.mjs を新設した**（npm run check に組み込み）。続き650 で入れた照合は**表（id・色・枚数）を見るだけ**で、今回ズレ得るのは**処理の方**。⇒ **Edge Function の本文から「まぜる」の処理をそのまま切り出し、型注釈だけ外して実際に動かし**、クライアント（src/mixed-deck.js）と同じ結果になるかを毎回見る。白黒は無作為なので枚数だけ突き合わせる。**わざと8通り壊して試した**: 1色の枚数を13に（サーバー／クライアント両方）・白の枚数を5に・ONLYの扱いを壊す・エディション交互をやめる→**どれも終了1**、処理を見つけられなくする・型注釈の形を変える→**終了2（空振りを合格にしない）**、壊さない→合格。後片付けで元と違うファイル0件。",
+      "⚠ **Edge Function の手動再デプロイが要る**（まぜるの組み立ての写し）。貼るまでは**フレンドリーマッチで「まぜる」を選んだ時だけ**今までどおり322枚の山になる（壊れはしない）。CPU戦・ローカル戦は手元だけで効く。**SQLの変更は無い。**",
+    ],
+    devItemsEn: [
+      "#523: the user confirmed the piece only looks flat while it runs up and charges - exactly the window where the DOM, not WebGL, draws the piece. The DOM walls are shaded with filter: brightness(), which is the construct that has twice flattened this cube before. The filter cannot simply be removed because the WebGL renderer reads it as its shading factor, so it is now switched off only while the DOM is drawing and replaced by a black overlay of the matching alpha, which is the identical colour for opaque artwork - and all 113 piece skins were verified to have no transparency at all. This could not be reproduced headlessly, so the contact diagnostic now also records the cube geometry for the next report.",
+      "#521: the CPU match detail panel had no height limit and no way to scroll, so opening it pushed the content off the top and bottom of the screen. It now has a height cap and scrolls internally. The cap uses a percentage, not vh - in this app the stage is scaled, so vh is not the screen height.",
+      "The Mixed card set now builds a deck with the same breakdown as a single edition - 14 per colour, 7 rainbow, 4 white and 3 black, 112 in total - instead of simply concatenating all three sets, which gave 42 red cards and 322 in total. Within a colour the eight types are interleaved by edition, ONLY cards stay at one copy, and the rest are split as evenly as possible, so every card still appears at least once. The colourless cards have more types than slots, so they are drawn at random each game.",
+      "A new check runs the server copy of that deck builder and compares it with the client, and was verified by deliberately breaking it eight ways.",
+      "The edge function needs a manual redeploy before the new Mixed deck reaches online matches; until then only Friendly matches on Mixed keep the old 322-card pile. No SQL change.",
+    ],
+  },
+  {
     date: "2026-11-06",
     summary: [
       "カードの文章が、単語の途中で折り返されなくなりました",

@@ -11624,6 +11624,29 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
   //    （続き558 でそれを避けるために入れた仕組みが働いていない、ということ）。
   //    attackerEl が render() で作り直されて外れていた場合もここで分かる。
   try {
+    // 🔴【#523・2026-11-06】「接触演出時、自分の駒がひらぺったくなります」。ユーザーに
+    //   確かめたところ**助走・突進で動いている間だけ**＝ちょうどここ（DOMが駒を描く間）。
+    //   私の手元（ヘッドレスChromium）では一度も平らにならなかったので、**実機の数字を残す**。
+    //   立体かどうかは「上面がどれだけ持ち上がって見えるか」と「手前の壁の投影高さ」で分かる
+    //   （潰れていれば両方0に近づく）。0しか出ない計器にしないよう、駒の大きさも一緒に残す。
+    const 立体 = (() => {
+      try {
+        const el = movingEl;
+        const top = el?.querySelector(".piece-top");
+        const front = el?.querySelector(".piece-wall-front");
+        if (!el || !top || !front) return null;
+        const r = el.getBoundingClientRect();
+        const rt = top.getBoundingClientRect();
+        const rf = front.getBoundingClientRect();
+        return {
+          topLift: Math.round((r.top - rt.top) * 10) / 10,
+          wallH: Math.round(rf.height * 10) / 10,
+          pieceH: Math.round(r.height * 10) / 10,
+        };
+      } catch (e) {
+        return null;
+      }
+    })();
     logAction("diag-contact-lunge", {
       phase: "dom-handover",
       handedOver: lunge.handedOver,
@@ -11631,6 +11654,7 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
       staleAlive: !!attackerEl && attackerEl.isConnected,
       movingIsLive: !!movingEl && movingEl.isConnected,
       tokenId: attackerTokenId,
+      ...(立体 || {}),
     });
   } catch (e) {
     /* ignore */

@@ -3,6 +3,7 @@ import { getLang } from "./i18n.js"; // UI英語化フェーズ12: ブースト�
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_ETERNAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js"; // 1st EDITION の19種＋E7種＋F7種
 import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
+import { buildMixedNormalCards } from "./mixed-deck.js"; // 「まぜる」を通常のエディションと同じ枚数で組む
 
 // 実際のカードデータ（docs/cards.md, docs/rulebook.mdより）。
 // 「カード効果・カードデータはコードに埋め込まず、外部データとして持つ」という方針(CLAUDE.md)
@@ -202,7 +203,11 @@ export function getDeckNormalCards() {
   if (set === CARD_SETS.FIRST_ED) {
     return rainbow ? [...FIRST_ED_NORMAL_CARDS, rainbow] : [...FIRST_ED_NORMAL_CARDS];
   }
-  if (set === CARD_SETS.MIXED) return [...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS];
+  // 🔴【2026-11-06・続き671】ユーザー指示「混ぜるときは山札の総枚数は通常エディションの
+  //   枚数にしてください。たとえば赤は全部で１４枚に…その中で混ぜるカードのバランスが
+  //   なるべく均等になるように」。以前は3セットを**そのまま繋げていた**ので赤だけで42枚・
+  //   合計322枚になっていた。組み方は src/mixed-deck.js の冒頭に書いてある。
+  if (set === CARD_SETS.MIXED) return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS);
   return NORMAL_CARDS;
 }
 

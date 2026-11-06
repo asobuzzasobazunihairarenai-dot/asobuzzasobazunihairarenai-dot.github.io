@@ -4724,6 +4724,48 @@ body.is-phone-device .priority-transfer-label .phase-guide-tooltip {
   filter: brightness(0.8);
 }
 
+/* 【#523・2026-11-06】「接触演出時、自分の駒がひらぺったくなります」。
+   🔴 ユーザーに確かめたところ **助走・突進で動いている間だけ**。そこだけ条件が違うのは、
+   その間だけ **WebGLではなくDOMが駒を描いている**こと（main.js の handLungeToDom が
+   `board3d-skip` を付けてWebGLの板を取り下げ、DOM側の絵を復活させる＝#381/続き558）。
+   ⇒ ふだんは見えないDOMの立方体が、この1.5秒だけ見える。
+
+   そしてDOMの壁は **filter: brightness() で陰影を付けている**。これは CLAUDE.md の
+   教訓1（`transform-style: preserve-3d` の中で `filter` を使うと、その要素が2Dへ
+   平坦化されて**壁が高さ0に潰れる**）にそのまま当てはまる形で、**過去に2回踏んでいる**。
+
+   ⚠ だからといって filter を外すことはできない——**board-3d.js が この filter の値を
+   WebGLの板の陰影の係数として読んでいる**（cssBrightness）。外すと全機種で駒の陰影が消える。
+   ⇒ **DOMが描いている間（board3d-skip が付いている間）だけ** filter をやめ、
+   まったく同じ見た目を **黒の重ね（::after）** で作る。
+   　 brightness(b) は「色×b」、黒を alpha=1−b で重ねるのも「色×b」なので、
+   　 **不透明な絵に対しては計算上まったく同じ色**になる。
+   　 🔴 駒の絵が本当に不透明かは確かめた——assets/pieces の **113枚すべて**（webp は ALPH
+   　 チャンク無し／png は colorType 3・tRNS 無し）＝透明を1画素も持たない。
+   ⓘ この間その面はWebGLの対象から外れている（board-3d.js が board3d-skip を skip する）ので、
+   　 陰影の係数（cssBrightness）を読まれることも無い＝**WebGL側には1ミリも影響しない**。
+   ⚠ 手前の壁と上面はもともと filter を持たないので、重ねも作らない（無駄な要素を増やさない）。 */
+.piece-face.board3d-skip {
+  filter: none !important;
+}
+.piece-wall-back.board3d-skip::after,
+.piece-wall-left.board3d-skip::after,
+.piece-wall-right.board3d-skip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.piece-wall-back.board3d-skip::after {
+  background: rgba(0, 0, 0, 0.65); /* = brightness(0.35) */
+}
+.piece-wall-left.board3d-skip::after {
+  background: rgba(0, 0, 0, 0.45); /* = brightness(0.55) */
+}
+.piece-wall-right.board3d-skip::after {
+  background: rgba(0, 0, 0, 0.2); /* = brightness(0.8) */
+}
+
 .pile-zone {
   display: flex;
   flex-direction: column;
@@ -16399,6 +16441,16 @@ body.reduce-glow .cell.card-effect-placement-target {
 .home-match-choice-panel {
   width: min(46rem, 94vw);
   box-sizing: border-box;
+  /* 【#521・2026-11-06】「このとき、詳細モーダルが上下にはみ出てます」（CPU対戦の詳細設定）。
+     「⚙ 詳細を設定する」を開くと中身が倍近くに伸びるのに、高さの上限が無く、親も
+     `align-items: center` で中央に置くだけだったので、**上下どちらにもはみ出して
+     読めなくなっていた**（スクロールする口も無い）。
+     🔴 **`vh` は使えない**——このアプリは 1600x900 のステージを縮めて描くので、
+     body の中の `1vh` は画面の高さではない（tools/check-css.mjs が見張っている理由）。
+     親（`#home-match-choice`）が `inset: 0` ＝ステージいっぱいなので、**`%` で取る**のが正しい。 */
+  max-height: calc(100% - 3rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 2rem 1.6rem 1.6rem;
   background: radial-gradient(1000px 300px at 50% -10%, rgba(56, 189, 248, 0.12), transparent 60%),
     linear-gradient(160deg, rgba(20, 28, 40, 0.98), rgba(8, 12, 20, 0.99));
