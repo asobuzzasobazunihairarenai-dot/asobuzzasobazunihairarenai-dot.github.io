@@ -4829,13 +4829,13 @@ async function resolveSituationAtTurnStart(player) {
         { id: "yes", label: t("ce.feSituationYes"), usable: true },
         { id: "no", label: t("ce.feSituationNo"), usable: true },
       ],
-      t("ce.feSituationAsk", { card: getCardName(cardId) })
+      t("ce.feSituationAsk", { card: cardDisplayName(cardId) })
     );
       受ける = 返事 === "yes";
   }
   if (!受ける) return;
   try {
-    await announceEffectNoticeForEffect(cardId, t("ce.feSituationApplied", { card: getCardName(cardId), name: getPlayerName(player) }));
+    await announceEffectNoticeForEffect(cardId, t("ce.feSituationApplied", { card: cardDisplayName(cardId), name: getPlayerName(player) }));
     await runSituationEffect(cardId, player, buildArrivalEffectHelpers(player));
   } catch (err) {
     console.error("resolveSituationAtTurnStart failed", err);

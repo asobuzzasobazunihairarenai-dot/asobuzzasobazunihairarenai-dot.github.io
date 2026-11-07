@@ -528,6 +528,11 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   // リーチキャンセル（0th拡張）。実行は main.js の専用の窓が行うので、ふだんの経路では
   // 使えないままにする（handEffectReactiveOnly と二重の守り）。
   if (option.requiresArrivalEffectWindow) return false;
+  // 🔴【#526・2026-11-07】捨て場から取る効果は、捨て場が足りなければ何も起きない。
+  //   善処の原則なので**発動宣言そのものができない**のが正しい（報告「捨て場にカードが
+  //   ないのにルビナグナをつかえることになっていてた。スキップされなかった」）。
+  //   動詞の中にも同じ判定はあるが、あれは**実行時**なので「使ったのに何も起きない」になる。
+  if (getState().piles.discard.length < requiredDiscardPileSize(option, cardId)) return false;
   if (option.requiresOtherHandCard) {
     // これ自身は発動時に先に捨てられるので、置けるのは**これ以外の手札**だけ。
     if (getHandTokens(player).filter((tk) => tk.id !== cardTokenId).length === 0) return false;
@@ -634,6 +639,36 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
 // 「まだセレナーデを一度も使っていないのに『使用済みの可能性がある』と出て使えない」への対応
 // ——実際の不許可理由（追色コスト不足／ロックできる手札が無い／このカードでは勝利になる
 // 最後のロックはできない、等）を正確に伝え、誤解を招く定型文を出さないようにするため。
+// その手札効果が成り立つために、捨て場に最低何枚必要か。
+// 🔴【#526】**カードごとに requires… を書くと必ず書き忘れる**ので、動詞から出す
+//   （新しく捨て場を使うカードが増えても自動で効く）。
+// ⚠ 発動の最初に**このカード自身を捨てる**カードは、その1枚が積まれてから動詞が走るので
+//   1枚ぶん差し引く（赤のはじまりの手札効果がこれ＝捨て場が1枚あれば「２番目」が成立する）。
+//   ファースト／エターナルと keepsCardOnUse のカードは自分を捨てないので差し引かない。
+function requiredDiscardPileSize(option, cardId) {
+  const actions = option?.actions || [];
+  let need = 0;
+  for (const a of actions) {
+    if (a.verb === VERBS.PICKUP_DISCARD_TOP) need = Math.max(need, 1);
+    else if (a.verb === VERBS.PICKUP_DISCARD_SECOND_FROM_TOP) need = Math.max(need, 2);
+  }
+  if (need === 0) return 0;
+  // 🔴 **捨て場から取る以外にも起きることがあるなら止めない。**
+  //   赤のはじまりの手札効果は「…手札に加える。**このフェイズを終了する。**」なので、
+  //   取れなくてもフェイズ終了は起きる＝発動する値打ちがある（既存のテストがこれを固定している）。
+  //   ⚠ DISCARD_SELF は「このカードの始末」で、プレイヤーの得にはならないので数えない。
+  const 他にも起きる = actions.some(
+    (a) =>
+      a.verb !== VERBS.PICKUP_DISCARD_TOP &&
+      a.verb !== VERBS.PICKUP_DISCARD_SECOND_FROM_TOP &&
+      a.verb !== VERBS.DISCARD_SELF
+  );
+  if (他にも起きる) return 0;
+  const 自分も捨てる =
+    !option?.keepsCardOnUse && !cardId?.startsWith("eternal-") && !cardId?.startsWith("first-");
+  return 自分も捨てる ? Math.max(0, need - 1) : need;
+}
+
 function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   if (!autoProcessingEnabled) return t("ce.L291");
   if (isHandEffectDisabledThisTurn(cardTokenId)) return t("ce.L292");
@@ -674,6 +709,11 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
     if (option.requiresLockDeclaredToken && !getLockDeclaredTokenInWindow(player)) return t("ce.ex0NeedLockDeclaration");
   }
   if (option.requiresArrivalEffectWindow) return t("ce.ex0NeedArrivalWindow");
+  // 🔴【#526】ここに書かないと「押せないのに理由が出ない」になる（続き651 と同じ形）。
+  {
+    const 必要 = requiredDiscardPileSize(option, cardId);
+    if (必要 > 0 && getState().piles.discard.length < 必要) return t("ce.needDiscardPile", { n: 必要 });
+  }
   if (option.requiresOtherHandCard) {
     if (getHandTokens(player).filter((tk) => tk.id !== cardTokenId).length === 0) return t("ce.L317");
   }
@@ -4216,7 +4256,17 @@ async function runAction(action, ctx, helpers) {
       //   表向きになった瞬間にその人の到達が走り、**同じ札の「中央に置く」がまた動く**
       //   （置き直すだけの無限ループになりかねない）。盤面は変わらないので実害は無い。
       if (!ctx.cardTokenId) return false;
-      await helpers.moveAndSync(ctx.cardTokenId, { ...BOARD_CENTER }, undefined, undefined, false, true);
+      // 🔴【#525・2026-11-07】**飛んでいる間から表の面**を見せる（landFaceUp）。
+      //   報告「場に表向きで置く系のカードは、手札から飛翔する時から表向きがいい！
+      //   裏向きで飛んでって場で表向きだと効果文にはない『オープン』するという行為を、
+      //   挟んだことになっちゃう。例えば経済成長のカードとか。総点検して。」
+      //   ⇒ 総点検した結果、**マスへ置いた後にめくるのはここだけ**だった。
+      //   他の「置く」は、カードの文に「オープンする」（大地創造・誰かの白きカゲ）か
+      //   「裏向きで」（大盤振舞・建設バブル・偉大なる大号令ほか）と書いてあるので、
+      //   裏で飛んでから開く／裏のままで正しい。
+      await helpers.moveAndSync(ctx.cardTokenId, { ...BOARD_CENTER }, undefined, undefined, false, true, {
+        landFaceUp: true,
+      });
       const 中央札 = getState().tokens.find((tk) => tk.id === ctx.cardTokenId);
       if (中央札 && !中央札.faceUp) await helpers.flipCard(ctx.cardTokenId);
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.fePlacedAtCenter", { card: cardDisplayName(ctx.cardId) }));

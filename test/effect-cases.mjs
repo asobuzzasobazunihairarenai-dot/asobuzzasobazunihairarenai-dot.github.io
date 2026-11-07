@@ -4366,6 +4366,52 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#526・2026-11-07】「捨て場にカードがないのにルビナグナをつかえることになっていてた。
+    //   スキップされなかった」。動詞の中には判定があったが**実行時**だったので、
+    //   「使ったのに何も起きない」になっていた。善処の原則＝発動宣言そのものができない。
+    name: "赤のジュエル ルビナグナ(手札): 捨て場が空なら使えない（善処の原則）",
+    kind: "hand",
+    cardId: "first-1st-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-1st-red", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-1st-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [
+      // 財力はちょうど1で満たしているのに、捨て場が空なので使えない。
+      { kind: "handUsable", value: false },
+      { kind: "handCount", player: "A", n: 1 },
+    ],
+  },
+  {
+    // 🔴 こちらはリメイクのフェニックス（捨て場の「1番上から2番目」）。1枚では2番目が無いので使えない。
+    //   #526 の直しを「どのカードでも効く」形（動詞から必要枚数を出す）にしたことの検査。
+    name: "赤のキューブ フェニックス/first-red(手札): 捨て場が1枚なら「2番目」が無いので使えない",
+    kind: "hand",
+    cardId: "first-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-red", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "cost", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: ["green-growing-trees"] },
+    },
+    ctx: { player: "A", cardId: "first-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: false },
+      { kind: "tokenZone", id: "cost", zone: "hand", player: "A" }, // コストも払われない
+    ],
+  },
+  {
     name: "赤のジュエル ルビナグナ(手札): 手札が2枚なら【財力＝１】を満たさず使えない",
     kind: "hand",
     cardId: "first-1st-red",

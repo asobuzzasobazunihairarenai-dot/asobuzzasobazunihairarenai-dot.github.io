@@ -336,6 +336,38 @@ if (firstEdSrc) {
   }
 }
 
+// --- 8. getCardName() を、日本語のフォールバック無しで画面に出していないか -------------
+// 🔴【#530・2026-11-07】`getCardName()` は **card-text.js の「翻訳の引き当て」** で、
+//   **日本語では設計上 null を返す**（呼び出し側が cards-data.js の日本語名へ落とす前提）。
+//   これをそのままモーダルに入れて「【状況】「null」の効果が…」と出た。
+//   ⇒ 素で使うのは禁止。`cardDisplayName()` か `getCardName(x) || def.name` の形にする。
+{
+  const 除外 = new Set(["src/card-text.js"]); // 定義そのもの
+  const 悪い = [];
+  for (const f of ["src/main.js", "src/card-effect-engine.js", "src/gate-invasion.js", "src/gate-invasion-modal.js",
+                   "src/deck-viewer.js", "src/codex-page.js", "src/card-dev-mode.js", "src/online.js"]) {
+    let 本文 = null;
+    try {
+      本文 = read(f);
+    } catch (e) {
+      continue; // 無いファイルは飛ばす（将来名前が変わっても検査が空振りで落ちないように）
+    }
+    if (除外.has(f)) continue;
+    本文.split("\n").forEach((行, i) => {
+      if (!行.includes("getCardName(")) return;
+      if (行.includes("||")) return; // フォールバックがある
+      if (行.includes("import ")) return; // import 文
+      if (行.includes("function cardDisplayName")) return;
+      悪い.push(`${f}:${i + 1} ${行.trim().slice(0, 70)}`);
+    });
+  }
+  if (悪い.length > 0) {
+    for (const b of 悪い) {
+      note("getCardName() を日本語のフォールバック無しで使っている（日本語では null になる）: " + b);
+    }
+  }
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
