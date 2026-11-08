@@ -170,6 +170,31 @@ const TILES = [
   { icon: "📰", image: "assets/home-icons/news.webp", labelKey: "home.tile.news", status: "ready", onOpen: () => void openChangelogLazily(), showNewIfUnread: () => hasUnreadChangelog() },
 ];
 
+// クラウドファンディングの帯。期限を過ぎたら null を返す（＝出さない）。
+// URL は CAMPFIRE の正式なもの。/preview?token=… の限定公開URLは絶対に使わない。
+const CF_URL = "https://camp-fire.jp/projects/967235/view";
+const CF_END = new Date("2026-11-15T23:59:59+09:00").getTime(); // 日本時間の締切
+function buildCrowdfundingBanner() {
+  if (Date.now() > CF_END) return null;
+  const box = document.createElement("button");
+  box.type = "button";
+  box.id = "home-screen-cf";
+  const main = document.createElement("span");
+  main.className = "home-screen-cf-main";
+  main.textContent = t("home.cf.title");
+  const cta = document.createElement("span");
+  cta.className = "home-screen-cf-cta";
+  cta.textContent = t("home.cf.cta");
+  box.appendChild(main);
+  box.appendChild(cta);
+  // 🔴 別のタブで開く（アプリを離れさせない）。ホーム画面に追加したアプリからでも
+  //   ブラウザ側で開く。noopener は必ず付ける。
+  box.addEventListener("click", () => {
+    try { window.open(CF_URL, "_blank", "noopener"); } catch (e) { location.href = CF_URL; }
+  });
+  return box;
+}
+
 // 「近日公開」タイルを押した時の軽いトースト。モーダルを挟むほどの重さは不要
 // なため、数秒で自動的に消える控えめな通知にする。
 function showHomeToast(text) {
@@ -617,6 +642,16 @@ export function openHomeScreen() {
   subtitle.id = "home-screen-subtitle";
   subtitle.textContent = t("home.subtitle");
   overlayEl.appendChild(subtitle);
+
+  // ═══ クラウドファンディングの帯（2026-11-08・ユーザー要望「アプリのホーム画面に
+  //     クラファンのリンク載せれる？」→「上に帯で出す」）═══
+  // 🔴 **終わったら自動で消える。** 期限を過ぎた告知が出たままになるのがいちばん格好悪い。
+  //   日付は端末の時計で見る（サーバーに聞かない＝ホームの表示を1本の問い合わせにも
+  //   依存させないため）。時計がずれている端末では多少前後するが、害は無い。
+  // ⚠ 終わったらこのブロックごと消してよい（ui-text の home.cf.* と style.css の
+  //   #home-screen-cf も一緒に）。
+  const cf = buildCrowdfundingBanner();
+  if (cf) overlayEl.appendChild(cf);
 
   // 現ランク表示（ログイン済みかつランクデータがある時だけ非同期で出す）。押すとランキングへ。
   const rankArea = document.createElement("div");

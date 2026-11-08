@@ -23,7 +23,7 @@ import { getState } from "./state.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ10
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getSelfSeat, isOnlineMode, getSyncedIdentity, updateMyIdentity, isItemUnlocked, openShop } from "./online.js";
-import { COLORS } from "./board-layout.js";
+import { COLORS, SEAT_TO_SIDE } from "./board-layout.js";
 import { getSeatLoadout } from "./cpu-battle-state.js";
 
 // セットアップ前（自分の駒の色がまだファーストカードで決まっていない間）でも、左下の
@@ -125,7 +125,43 @@ export function registerPieceSkinHelpers(h) {
 // （リロード直後でまだ復元が終わっていない一瞬など）同期ロスターへフォールバックする。
 // 他の座席は常に同期ロスターのみを見る（自分の好みのバリエーション番号を他人に押し付け
 // ないため）。
+// 1st EDITION のファーストカードは「◯のジュエル ○○○」という宝石そのものなので、
+// その席の駒は七色の宝石（assets/pieces/<色>-jewel.webp）にする
+// （ユーザー要望「1stのファーストカードの場合は駒をジュエルにすることはできる？」→
+//  「①でしっかりジュエルの立体を作ろう！」）。
+//
+// 🔴 **選んだスキンより優先する。** ファーストカードがジュエルそのものなので、
+//    駒がジュエルで在ることがこのエディションの見た目の決まりごと——黒(noir)の駒を
+//    applySeatNoir が差し替えるのと同じ考え方。
+// 🔴 **色ではなくカードで決める。** 1st の7色はリメイクと同じ色名なので、色を見ても
+//    どちらのエディションか分からない。ロックエリアに置かれたファーストカードの id
+//    （first-1st-*）だけが正しい手がかり。
+// ⚠ ショップの一覧・スキンのピッカーは今までどおり普通のスキンを見せる（買ったものが
+//    消えるわけではなく、この対局の間だけ宝石になる）。
+function seatUsesJewelPiece(seat) {
+  try {
+    const side = SEAT_TO_SIDE[seat || getSelfSeat()];
+    if (!side) return false;
+    return getState().tokens.some(
+      (tok) =>
+        tok.kind === "card" &&
+        tok.location?.zone === "lock" &&
+        tok.location.side === side &&
+        typeof tok.cardId === "string" &&
+        tok.cardId.startsWith("first-1st-")
+    );
+  } catch (e) {
+    return false;
+  }
+}
+export function isJewelPieceSeat(seat) {
+  return seatUsesJewelPiece(seat);
+}
+
 export function getSkinImagePath(color, seat) {
+  // 1st EDITION のファーストカードを持っている席は宝石の駒（上の seatUsesJewelPiece 参照）。
+  // 黒(noir)は 1st にファーストカードが無いのでここには来ない。
+  if (COLORS.includes(color) && seatUsesJewelPiece(seat)) return `assets/pieces/${color}-jewel.webp`;
   // 本気エイドス戦（マイデッキ）: 選んだデッキの駒スキンを座席ごとに一時上書き（グローバル設定を
   // 汚さない）。自分/同期ロスターより優先（cpu-battle.jsがsetSeatLoadoutで設定、teardownで消す）。
   const loadout = seat ? getSeatLoadout(seat) : null;
@@ -177,6 +213,12 @@ export function openPieceSkinPicker(options = {}) {
     note = document.createElement("div");
     note.style.cssText = "font-size: 0.75rem; color: #94a3b8; margin: -0.4rem 0 0.8rem;";
     note.textContent = t("skin.pickerNote");
+  } else if (!options.onSelect && seatUsesJewelPiece(null)) {
+    // 1st EDITION の対局中は選んだスキンではなく宝石の駒になる。黙って効かないと
+    // 「選んだのに変わらない」という報告になるので、その場で理由を出す。
+    note = document.createElement("div");
+    note.style.cssText = "font-size: 0.75rem; color: #94a3b8; margin: -0.4rem 0 0.8rem;";
+    note.textContent = t("skin.pickerJewelNote");
   }
 
   const grid = document.createElement("div");

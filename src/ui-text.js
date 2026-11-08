@@ -10,6 +10,8 @@ import { getLang } from "./i18n.js";
 const UI = {
   ja: {
     // --- ホーム画面（home-screen.js） ---
+    "home.cf.title": "クラウドファンディング実施中 ― 原点の「0th EDITION」を作り直します（11/15まで）",
+    "home.cf.cta": "CAMPFIRE で見る →",
     "home.subtitle": "ホーム",
     "firstSteps.label": "次にやること",
     "firstSteps.dismiss": "この案内をもう表示しない",
@@ -636,6 +638,7 @@ const UI = {
     "skin.extra": "追加{n}",
     "skin.pickerTitle": "駒スキンを選択",
     "skin.pickerNote": "まだ駒の色が決まっていないため仮の色で表示しています。バリエーションの選択自体は実際の色になっても引き継がれます。",
+    "skin.pickerJewelNote": "この対局はあなたのファーストカードが「ジュエル」なので、駒は宝石の見た目になります。ここで選んだスキンは次の対局から使われます。",
     "cardback.0": "標準",
     "cardback.1": "旧",
     "cardback.2": "赤",
@@ -2147,6 +2150,8 @@ const UI = {
   },
   en: {
     // --- Home screen ---
+    "home.cf.title": "Crowdfunding live - remaking the original 0th EDITION (until Nov 15)",
+    "home.cf.cta": "View on CAMPFIRE →",
     "home.subtitle": "Home",
     "firstSteps.label": "Next up",
     "firstSteps.dismiss": "Don't show this again",
@@ -2763,6 +2768,7 @@ const UI = {
     "skin.extra": "Extra {n}",
     "skin.pickerTitle": "Choose a piece skin",
     "skin.pickerNote": "Your piece color isn't decided yet, so these are shown in a placeholder color. Your choice carries over once the real color is set.",
+    "skin.pickerJewelNote": "Your first card in this match is a Jewel, so your piece takes the gemstone look. The skin you pick here applies from your next match.",
     "cardback.0": "Standard",
     "cardback.1": "Classic",
     "cardback.2": "Red",

@@ -256,6 +256,14 @@ if (firstEdSrc) {
     if (fs.existsSync(path.join(ROOT, "assets/cards", `${id}.webp`)))
       note(`1st EDITION: Fカードは文字をアプリが描くので assets/cards を持たないはず: ${id}`);
   }
+  // 🔴 1st EDITION のファーストカードを持っている席は、駒が宝石になる
+  //   （src/piece-skins.js の seatUsesJewelPiece）。絵が無いと **駒が丸ごと見えなくなる**
+  //   （404。0th拡張で同じ形の穴を踏んでいる＝続き652）。7色そろっているかを毎回見る。
+  for (const id of first1st) {
+    const 色 = id.replace("first-1st-", "");
+    const rel = `assets/pieces/${色}-jewel.webp`;
+    if (!fs.existsSync(path.join(ROOT, rel))) note(`1st EDITION: 宝石の駒の絵が無い: ${rel} → node tools/make-jewel-pieces.mjs`);
+  }
   firstEdLine =
     `ⓘ 1st EDITION ${fe.length} 種（＋Eカード ${eternal1st.length} 種・Fカード ${first1st.length} 種）: 文(日英)と絵は上で検査済み。` +
     `効果データ 通常 ${効果あり}/${fe.length}・E ${E効果あり}/${eternal1st.length}・F ${F効果あり}/${first1st.length}、` +

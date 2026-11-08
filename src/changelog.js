@@ -54,6 +54,33 @@ export const CHANGELOG = [
   {
     date: "2026-11-08",
     summary: [
+      "ホーム画面にクラウドファンディングのお知らせを出しました",
+    ],
+    summaryEn: [
+      "The home screen now shows the crowdfunding announcement",
+    ],
+    items: [
+      "ホーム画面の上に、実施中のクラウドファンディング（原点の「0th EDITION」を作り直す企画）への帯を出しました。押すと別のタブで CAMPFIRE のページが開きます。⚠ **11月15日（日）を過ぎると自動で消えます**ので、終わった告知が出たままになることはありません。",
+    ],
+    itemsEn: [
+      "A banner at the top of the home screen now links to the live crowdfunding campaign to remake the original 0th EDITION. It opens CAMPFIRE in a new tab, and it disappears by itself once the campaign closes on 15 November.",
+    ],
+    fixes: [],
+    fixesEn: [],
+    devItems: [
+      "**ホーム画面にクラウドファンディングの帯を足した**（ユーザー要望「アプリのホーム画面にクラファンのリンク載せれる？」→「上に帯で出す」）。URL は CAMPFIRE の正式なもの（/preview?token=… の限定公開URLは絶対に使わない）。🔴 **期限（2026-11-15 23:59 JST）を過ぎたら buildCrowdfundingBanner が null を返す＝出さない**——終わった告知が出たままになるのがいちばん格好悪いので、消し忘れが起きない形にした。日付は端末の時計で見る（サーバーに聞かない＝ホームの表示を問い合わせに依存させない）。別タブで開く（window.open + noopener）のでアプリを離れない。🔴 帯は**自分の色を全部持つ**（地も文字も）——このアプリは明暗2テーマあるので継承に任せると片方で読めなくなる（教訓15）。**実測**: 3機種（iPhone 932x430 / 932x320 / PC 1280x800）× 日英の6通りで**折り返し0・例外0**、文字色 rgb(242,247,251)。⚠ ホーム画面はもともと縦に収まっておらず（2026-08-16 の報告）、**はみ出しが 42→65px（日）/ 20→44px（英）に増える**（帯のぶん23px）。既にスクロールする画面なので新しくスクロールが生まれたわけではない。⚠ クラファンが終わったら home-screen.js の帯のブロック・ui-text の home.cf.*・style.css の #home-screen-cf をまとめて消してよい（3か所ともその旨をコメントに書いた）。",
+      "🔴 **#540「カードタイトルの色が黒になっちゃってて見にくいです！」は、文字の色ではなく地の色が原因だった。** 1st EDITION のカードだけ、文字の載る帯が**そのカードの濃い地色のまま**になっていた——1st のイラストはまだ横長で、正方形にする時に下半分を透明で埋めている（tools/squarify-illust.mjs）ため。リメイク・0th拡張は絵が下まで続いていて淡いので、同じ黒い文字でも読める。⇒ **1st のカードにだけ、文字の帯へ白い下敷きを敷いた**（.card-face[data-card-id^=\"1st-\"]::before）。⚠ **白い文字にする手は採らなかった**——黄色のカードで今度は読めなくなる。下敷きなら7色とも同じ読み味になり、他のカードとも揃う。⚠ 下の「illustration : …／年月」は絵の一部なので覆わない（bottom: 11cqw）。ⓘ ::before は位置指定の子より先に塗られるので、文字の下に入る（z-index は要らない）。**実測**: 6枚（リメイク／0th拡張／1st 通常2枚／1st E／1st F）で文字の色は**1つも変わっていない**（変えたのは地だけ）、例外0。⚠ 正方形版のイラストが届いたらこの規則は要らなくなる（1ブロック消すだけ）。",
+      "**1st EDITION の駒を「ジュエル」にした**（ユーザーの問い「1stのファーストカードの場合は駒をジュエルにすることはできる？」）。ロックエリアに first-1st-* のファーストカードが在る席だけ、駒の絵を assets/pieces/<色>-jewel.webp に差し替える（src/piece-skins.js の seatUsesJewelPiece）。🔴 **色ではなくカードで決める**——1st の7色はリメイクと同じ色名なので、色では見分けられない。🔴 **選んだスキンより優先する**（ファーストカードがジュエルそのものなので、駒がジュエルで在ることがこのエディションの見た目の決まりごと＝黒(noir)を applySeatNoir が差し替えるのと同じ）。⚠ 買ったスキンが消えるわけではないので、スキンの選択画面に**その場で理由を出す**（黙って効かないと「選んだのに変わらない」という報告になる）。絵は tools/make-jewel-pieces.mjs が7色ぶん作る: **PV・説明書（1st）で使っているジュエルの素材そのもの**（ユーザー指示「1stのPVで使用した感じのジュエルがいいです」）を、カードの絵から測った地色の上へ中央に置く。🔴 **完全に不透明にする**——既存の駒スキン113枚は透明画素が1つも無く、接触演出の「filter を使わずに黒を重ねて陰影を作る」直し（続き671・#523）は「brightness(b)＝色×b＝黒を 1-b で重ねる」が成り立つことに依っている。書き出した7枚のチャンク構成が既存スキンと同一（VP8X,ICCP,VP8・透明ビット false）であることも確かめた。tools/check-cards.mjs が7色そろっているかを毎回見る（わざと1枚退かすと名指しで落ちることを確認）。⚠ **次は駒の形そのものを宝石にする**（ユーザー判断「WebGLで本物の立体にする」）。",
+    ],
+    devItemsEn: [
+      "Added a crowdfunding banner to the home screen. It links to the official CAMPFIRE page in a new tab and removes itself automatically once the campaign closes, so a stale announcement cannot be left behind. The banner carries its own colours because the app has light and dark themes.",
+      "#540 turned out to be about the background, not the text colour: on 1st EDITION cards the text band is left as the card's saturated base colour, because those illustrations are still letterboxed and the lower half is filled with transparency. A translucent white plate is now drawn behind the text on 1st cards only, which keeps black text readable on all seven colours.",
+      "Pieces now take a jewel look for seats holding a 1st EDITION first card, using the jewel artwork from the 1st rulebook and PV. The textures are fully opaque, matching the existing piece skins, and a check verifies all seven colours are present.",
+    ],
+  },
+  {
+    date: "2026-11-08",
+    summary: [
       "ゲート侵攻に成功した瞬間の演出を作りました",
     ],
     summaryEn: [

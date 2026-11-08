@@ -16246,6 +16246,36 @@ body.reduce-glow .cell.card-effect-placement-target {
   letter-spacing: 0.2em;
   text-shadow: 0 1px 5px rgba(255, 255, 255, 0.85);
 }
+/* ═══ クラウドファンディングの帯（2026-11-08・#CF）═══
+   ユーザー要望「アプリのホーム画面にクラファンのリンク載せれる？」→「上に帯で出す」。
+   🔴 **自分の色を全部持つ**（地も文字も）。ホームは明るい背景だが、このアプリは明暗2テーマ
+     あるので、継承に任せると片方で読めなくなる（教訓15）。
+   ⚠ クラファンが終わったら home-screen.js の帯ごと消してよい（この規則も一緒に）。 */
+#home-screen-cf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem 0.8rem;
+  max-width: min(46rem, 92%);
+  margin: -1.1rem 0 1.3rem;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0.7rem;
+  background: linear-gradient(100deg, #16304f 0%, #1f4a73 55%, #2f6d93 100%);
+  box-shadow: 0 2px 10px rgba(16, 32, 52, 0.28);
+  color: #f2f7fb;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+#home-screen-cf:hover { filter: brightness(1.1); }
+#home-screen-cf:active { transform: translateY(1px); }
+.home-screen-cf-main { font-size: 0.82rem; letter-spacing: 0.02em; color: #f2f7fb; }
+.home-screen-cf-cta { font-size: 0.78rem; font-weight: 700; white-space: nowrap; color: #ffd98a; }
+body.is-phone-device #home-screen-cf { padding: 0.42rem 0.8rem; margin: -0.8rem 0 1rem; }
+body.is-phone-device .home-screen-cf-main { font-size: 0.74rem; }
+body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
 /* ホームの現ランク表示（rank-badge.js、フェーズ4/6）。ホームは常にクリーム色のライト背景なので
    枠は付けず（ユーザー要望「枠はいらないかも」）、文字はタイトルと同じ濃色＋白いにじみ影で読ませる。
    位置・サイズは管理者モードで調整（--home-rank-pos-x/y/scale）。 */
@@ -20515,6 +20545,29 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type^="first"] .card-face-subtitle,
 .card-face[data-card-type^="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
 .card-face[data-card-type^="first"] .card-face-effect-body { text-align: center; }
+/* ═══ 1st EDITION のカードだけ、文字の帯に白い下敷きを敷く（#540・2026-11-08）═══
+   ユーザー報告「カードタイトルの色が黒になっちゃってて見にくいです！」。
+   🔴 原因は文字の色ではなく**地の色**。1st のイラストはまだ横長で、正方形にする時に
+     下半分を透明で埋めている（tools/squarify-illust.mjs）ので、**文字が載る帯が
+     そのカードの濃い地色のまま**になる。リメイク・0th拡張は絵が下まで続いていて
+     淡いので、同じ黒い文字でも読める。
+   ⚠ 白い文字にする手もあるが、**黄色のカードで今度は読めなくなる**ので採らない。
+     下敷きなら7色とも同じ読み味になり、他のカードとも揃う。
+   ⚠ 正方形版のイラストが届いたらこの規則は要らなくなる（その時は1ブロック消すだけ）。
+   ⓘ ::before は位置指定の子より先に塗られるので、文字の下に入る（z-index は要らない）。 */
+.card-face[data-card-id^="1st-"]::before,
+.card-face[data-card-id^="eternal-1st-"]::before {
+  content: "";
+  position: absolute;
+  left: 4cqw;
+  right: 4cqw;
+  top: 50.5cqw;
+  bottom: 11cqw; /* 下の「illustration : …／年月」は絵の一部なので覆わない */
+  border-radius: 1.4cqw;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0.88) 10%, rgba(255, 255, 255, 0.90));
+  pointer-events: none;
+}
+
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,
 .card-face.cf-outline .card-face-flavor,
