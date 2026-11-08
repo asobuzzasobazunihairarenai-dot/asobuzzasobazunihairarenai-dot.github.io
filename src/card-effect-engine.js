@@ -165,6 +165,10 @@ export function noteInterruptWindow(kind, player, tokenId = null) {
 export function clearInterruptWindow() {
   interruptWindow = null;
 }
+// 行動ログ用（#527・#529）。「いまどの宣言の窓が開いているか」を残すためだけのもの。
+export function getInterruptWindowKind() {
+  return interruptWindow ? interruptWindow.kind : null;
+}
 function getLockDeclarerInWindow(viewer) {
   if (!interruptWindow || interruptWindow.kind !== "lock-declare") return null;
   if (!interruptWindow.player || interruptWindow.player === viewer) return null; // 「相手が」
@@ -1681,9 +1685,18 @@ async function runAction(action, ctx, helpers) {
       // 🔴 1st EDITION（大盤振舞）: count: "wealth" ＝【財力＝S】。
       const 欲しい枚数 = await amountOf(action, ctx, helpers);
       const 置ける枚数 = Math.min(欲しい枚数, getState().piles.deck.length);
-      const まとめ確認 = 置ける枚数 >= 2;
+      // 🔴【#528・2026-11-07】ユーザー判断「**山札からか手札からか選ぶときで複数マスの時は
+      //   １マスずつ確認がいい**と思います」（「1マスは手札から1マスは山札から」）。
+      //   ⇒ allowHand（建設バブル）で2マス以上の時だけ、**まとめ確認をやめて1マスずつ**
+      //     「マスを選ぶ → このマスでいいですか → そのマスの出どころを選ぶ → 置く」を繰り返す。
+      //   ⚠ 山札だけから置くカード（大地創造・迷いの森・大盤振舞）は**今までどおり**
+      //     まとめて1回確認する（#481・#514 でユーザーが指定した流れ）——あちらは
+      //     マスごとに決めることが無いので、確認が増えるだけになる。
+      const 一マスずつ = !!action.allowHand && 置ける枚数 >= 2;
+      const まとめ確認 = 置ける枚数 >= 2 && !一マスずつ;
       let 選んだマス = [];
-      for (;;) {
+      // ⚠ 1マスずつの時はここで選ばない（下で「選ぶ→置く」を繰り返すため）。
+      for (; !一マスずつ; ) {
         選んだマス = [];
         const 済 = new Set();
         for (let i = 0; i < 置ける枚数; i++) {
@@ -1711,45 +1724,68 @@ async function runAction(action, ctx, helpers) {
       }
       if (まとめ確認) helpers.clearPlacementTargets?.();
       // 🔴 1st EDITION（建設バブルの【状況】）「自分の**手札または山札から**１枚ずつ置く」。
-      //   allowHand の時だけ、置く前に1回「どちらから出すか」を聞く（足下の隠し財産と同じ形）。
+      //   allowHand の時だけ「どちらから出すか」を聞く（足下の隠し財産と同じ形）。
       //   ⚠ 片方しか無い時は聞かない（選ぶ余地が無い）。
-      let 出どころ = "deck";
-      if (action.allowHand) {
+      const 出どころを決める = async () => {
+        if (!action.allowHand) return "deck";
         const 手 = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
         const 山 = getState().piles.deck.length > 0;
-        出どころ = 山 ? "deck" : "hand";
-        if (山 && 手.length > 0) {
-          出どころ =
-            (await helpers.pickChoice?.(
-              ctx.cardId,
-              [
-                { id: "deck", label: t("ce.ex0FromDeck"), usable: true },
-                { id: "hand", label: t("ce.ex0FromHand"), usable: true },
-              ],
-              t("ce.ex0PickDeckOrHand")
-            )) ?? "deck";
-        }
-      }
+        if (!(山 && 手.length > 0)) return 山 ? "deck" : "hand";
+        return (
+          (await helpers.pickChoice?.(
+            ctx.cardId,
+            [
+              { id: "deck", label: t("ce.ex0FromDeck"), usable: true },
+              { id: "hand", label: t("ce.ex0FromHand"), usable: true },
+            ],
+            t("ce.ex0PickDeckOrHand")
+          )) ?? "deck"
+        );
+      };
       const 置いた = [];
-      for (const dest of 選んだマス) {
+      // 1マス置く。置けたら true。
+      const 置く = async (dest, 出どころ) => {
         if (出どころ === "hand") {
           const 残り = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
-          if (残り.length === 0) break;
+          if (残り.length === 0) return false;
           const chosen =
             残り.length === 1 && !ctx.forcePrompt
               ? 残り[0]
               : await helpers.pickHandCard(ctx.player, t("ce.ex0PickHandForBottom"), new Set(残り.map((tk) => tk.id)));
-          if (!chosen) break;
+          if (!chosen) return false;
           // 第6引数 true ＝到達を起こさない（裏向きで置くので、そもそも到達の条件を満たさない）。
           await helpers.moveAndSync(chosen.id, dest, undefined, undefined, false, true);
-          helpers.markPlacedLocation?.(dest);
-          置いた.push(dest);
-          continue;
+        } else {
+          if (getState().piles.deck.length === 0) return false; // 山札が尽きたらそこまで
+          await helpers.placeFromDeck(dest); // マスへ置くと既定で裏向き（カードの文どおり）
         }
-        if (getState().piles.deck.length === 0) break; // 山札が尽きたらそこまで
-        await helpers.placeFromDeck(dest); // マスへ置くと既定で裏向き（カードの文どおり）。本物の placeFromDeck は引数1つ
         helpers.markPlacedLocation?.(dest);
         置いた.push(dest);
+        return true;
+      };
+      if (一マスずつ) {
+        // 🔴【#528】マスごとに「選ぶ → このマスでいいですか → そのマスの出どころ → 置く」。
+        //   ⚠ **置いてから次のマスを選ぶ**ので、「どのマスの話か」が常にはっきりする
+        //     （先に全部選んでから出どころを聞くと、どちらのマスの質問か分からない）。
+        //   ⓘ 置いた先は空きマスでなくなるので、次の候補から自然に外れる。
+        for (let i = 0; i < 置ける枚数; i++) {
+          const candidates = getEmptyCellCandidates(!!action.requireNoPiece);
+          if (candidates.length === 0) break;
+          const dest =
+            candidates.length === 1 && !ctx.forcePrompt
+              ? candidates[0]
+              : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: 欲しい枚数 }), {
+                  purpose: "place",
+                });
+          if (!dest) break;
+          if (!(await 置く(dest, await 出どころを決める()))) break;
+        }
+      } else {
+        // まとめて置く時は**1回だけ**聞いて全部に使う（山札だけのカードは選ぶ余地が無い）。
+        const 出どころ = await 出どころを決める();
+        for (const dest of 選んだマス) {
+          if (!(await 置く(dest, 出どころ))) break;
+        }
       }
       if (置いた.length === 0) return false;
       if (action.reveal) {

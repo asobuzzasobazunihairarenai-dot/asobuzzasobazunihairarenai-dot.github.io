@@ -3864,6 +3864,40 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#528・2026-11-07】ユーザー判断「山札からか手札からか選ぶときで複数マスの時は
+    //   １マスずつ確認がいい（1マスは手札から1マスは山札から、みたいな）」。
+    //   ⇒ **マスごとに**出どころを聞く＝pickChoice が2回呼ばれ、1マス目は手札・2マス目は山札、
+    //     という置き分けができる。
+    name: "建設バブル(状況): 山札と手札の両方がある時は、マスごとに出どころを聞く（#528）",
+    kind: "situation",
+    cardId: "1st-green-bubble",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-green-bubble", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        // ⚠ 2枚持たせる。1枚だと1マス目で手札が尽き、2マス目は**聞かずに山札**になるのが正しい
+        //   （選ぶ余地が無いから）。それだと「マスごとに聞く」の検査にならない。
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-green-bubble" },
+    picks: {
+      location: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+      choice: ["hand", "deck"], // 1マス目は手札から・2マス目は山札から
+      handCard: ["hA0"],
+    },
+    expect: [
+      { kind: "called", name: "pickChoice", n: 2 }, // 🔴 マスごとに1回ずつ
+      { kind: "tokenAtCell", id: "hA0", row: 0, col: 0 }, // 1マス目は手札の札
+      { kind: "cardAtCell", row: 0, col: 1, n: 1 },
+      { kind: "deckLen", n: 1 }, // 2マス目だけ山札を使った
+      { kind: "handCount", player: "A", n: 1 }, // hA1 は残る
+    ],
+  },
+  {
     name: "苦渋の強盗(到達): 【財力≦２】なら相手ゲートのカードを１枚手札へ",
     kind: "arrival",
     cardId: "1st-blue-robbery",

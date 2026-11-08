@@ -52,6 +52,39 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-08",
+    summary: [
+      "ゲート侵攻に成功した瞬間の演出を作りました",
+    ],
+    summaryEn: [
+      "A new effect plays the moment a gate invasion succeeds",
+    ],
+    items: [
+      "相手のゲートに乗り込んでターンを終えた瞬間、「GATE BREAK」の演出が入るようになりました。破ったゲートから**攻めた側の色の衝撃波**が盤面を洗い、光のひびが走り、光の柱が立ち上がります。飛び散る破片は**守っていた側の色**です（壊れたのはそちらのゲートなので）。画面には誰が誰のゲートを破ったかの横断幕が出て、カメラもその場所へ寄ります。⚠ 動きを減らす設定（到達演出を切る／ずっと光り続ける演出をやめる）を入れている方には、今までどおり控えめなままです。",
+    ],
+    itemsEn: [
+      "When you end your turn standing on an opponent's gate, a new GATE BREAK sequence plays: shockwaves in your colour wash across the board from the broken gate, cracks of light race outward and a pillar of light rises, while the shards that scatter are in the defender's colour. A banner names who broke whose gate, and the camera moves in. If you have motion or glow turned down in the settings, it stays as restrained as before.",
+    ],
+    fixes: [
+      "ゲート侵攻の割り込み（賄賂・やり直しのカギ）が、使えるはずの時に使えず、逆に関係ない時に使えてしまうことがあったのを直しました。",
+      "建設バブルで２マスに置く時、マスごとに山札か手札かを選べるようになりました。",
+    ],
+    fixesEn: [
+      "Interrupt cards such as Bribe and Redo Key could fail at the moment they should work and then become usable later when they should not. Fixed.",
+      "Construction Bubble now asks, for each square, whether the card comes from the deck or your hand.",
+    ],
+    devItems: [
+      "**ゲート侵攻成功の演出「GATE BREAK」を作った**（ユーザー要望「ゲート侵攻成功直後の演出があの効果音はさみしいですね。あなたが思う最高にド派手なゲート侵攻成功演出を実装してみてほしい」）。🔴 **canvas は1枚も使っていない**——全画面の canvas は1枚で約23MBで、#441・#505・#516 の「勝利演出の後に落ちる」の山そのもの。勝利演出と同じく DOM＋CSS だけで組んだ。中身は衝撃波3枚・亀裂6本・光柱1本・破片12個・画面のふちの閃光・横断幕・カメラの寄り（1.75倍）。🔴 **色を2つ使い分ける**: 輪・ひび・柱・文字は**攻めた側**、破片は**守る側**（壊れたのはそちらのゲートなので飛び散るのはそちらの色）。🔴 **ひびの角度は不均等**（均等だと「星」に見えて割れ目に見えない＝勝利演出の⑧で学んだこと）。光柱は既存の到達演出（.arrival-effect-flame）と同じ立て方にそろえた（盤面の傾きの中で立って見えることに実績がある形）。ローカル（CPU戦・1画面）とオンライン（侵攻モーダルの1段目）の**両方から同じ実体を呼ぶ**＝演出を二重に持たない。強さは CSS 変数（--gb-shock / --gb-cracks / --gb-pillar / --gb-shards / --gb-banner / --gb-flash / --gb-zoom）で、0 にすればその層だけ切れる。⚠ **動きを減らす設定では出さない**（到達演出オフ）／カメラは「決め所」の設定が入っている時だけ。**⚙オプションに見本のボタン（▶ ゲート侵攻）**を足した——滅多に起きない場面なので、接触・最後の1色と同じようにその場で見られるようにした。**実測**: 全層が出る（衝撃波3・亀裂6・柱1・破片12・覆い1・閃光1・横断幕1）／色は攻め rgb(199,0,37)・守り rgb(27,184,206) と**別々**／カメラ 1.205→2.098→1.205（寄って戻る）／**後片付け後はすべて0**／例外0。ゲートのマス 46x36px に対し**衝撃波は 252x185px・不透明度0.84**（＝小さすぎない）。",
+      "🔴 **#527「相手のロック宣言時に賄賂を発動しようとしたが使えなかった」と #529「賄賂の手札効果使えた！」は、同じ穴の表と裏だった。** 割り込みの窓を開けた後、`triggerAnytimeInterruptCheckpoint` が「設定で切っている／効果の処理中」で**早く帰る時、窓を開けっぱなしにしていた**。⇒ ①その瞬間は誰にも聞かれない＝宣言に合わせて割り込めない（#527） ②窓が残り続けるので**後になってから使えてしまう**（#529。相手がロックを宣言していないのに「相手がロックを宣言した時に使える」が通る）。⇒ 早く帰るなら**窓も閉じてから**帰る（待っている人にも知らせる）。⚠ **既にモーダルが出ている時は閉じない**——いま出ているモーダルがその窓を使っているため。行動ログに「どの宣言の窓か」も残すようにした（これが無いと後から追えない）。⚠ ブラウザが3回とも応答せず**#527 の行動ログは読めていない**ので、これはコードから辿った筋。",
+      "**#528「建設バブルは、山札または手札から置くので1マスずつ確認した方がいいと思う！1マスは手札から1マスは山札からみたいな！」。** それまでは #514 の流れ（全部選んでから1回確認）で、**出どころも1回だけ聞いて全マスに使っていた**。⇒ allowHand で2マス以上の時だけ、**「マスを選ぶ → このマスでいいですか → そのマスの出どころ → 置く」を1マスずつ繰り返す**形にした。🔴 **置いてから次のマスを選ぶ**ので「どのマスの話か」が常にはっきりする（先に全部選んでから聞くと、どちらのマスの質問か分からない）。⚠ 山札だけから置くカード（大地創造・迷いの森・大盤振舞）は**今までどおり**まとめて1回確認（マスごとに決めることが無いので、確認が増えるだけになる）。テストで「pickChoice が2回呼ばれ、1マス目は手札・2マス目は山札」を固定した。⚠ **最初に書いた期待値は私の間違い**だった（手札1枚だと1マス目で尽きて2マス目は聞かないのが正しい）。",
+    ],
+    devItemsEn: [
+      "Added the GATE BREAK sequence for a successful gate invasion, built entirely from DOM and CSS - no canvas, since full-screen canvases are the 23MB spikes behind the crash reports. Shockwaves, cracks, a pillar of light and a banner, in the attacker's colour, with shards in the defender's. Crack angles are deliberately uneven so it reads as a break rather than a star. Local and online paths call the same implementation, each layer has its own CSS variable so it can be dialled down or off, and a preview button was added to the options menu.",
+      "#527 and #529 were two sides of one bug: when the interrupt checkpoint returned early the window was left open, so nobody was asked at the moment of the declaration and the card became usable later, when it should not have been. The window is now closed on those paths, and the action log records which kind of window was open.",
+      "#528: when a card places into several squares from either the deck or your hand, it now asks per square, placing each card before choosing the next square so it is always clear which square the question is about. Cards that only place from the deck keep the single confirmation.",
+    ],
+  },
+  {
     date: "2026-11-07",
     fixes: [
       "接触の演出で駒が走り出す間、自分の駒が平たく見えることがあった原因を取り除きました。",

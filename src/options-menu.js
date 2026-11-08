@@ -690,6 +690,21 @@ function buildCinematicRow(onClose) {
     window.dispatchEvent(new CustomEvent("so7:preview-final-lock"));
   });
   row.appendChild(demoFinal);
+  // 【続き674】ゲート侵攻成功の見本。滅多に起きない場面なので、その場で見られるようにする。
+  const demoGate = document.createElement("button");
+  demoGate.type = "button";
+  demoGate.className = "options-menu-segment-btn options-menu-demo-btn";
+  demoGate.textContent = t("opt.cinematic.demoGateBreak");
+  if (demo.disabled) {
+    demoGate.disabled = true;
+    demoGate.title = demo.title;
+  }
+  demoGate.addEventListener("click", () => {
+    if (demoGate.disabled) return;
+    onClose?.();
+    window.dispatchEvent(new CustomEvent("so7:preview-gate-break"));
+  });
+  row.appendChild(demoGate);
   refresh();
   return row;
 }

@@ -23,6 +23,12 @@ import { playSound } from "./sound.js"; // 【#440】ゲート侵攻成功の音
 // main.jsの純演出関数(playEternalAcquisitionAnim)をここに注入し、エターナル獲得ステップで
 // モーダルの代わりに再生する（他の演出helperと同じregister注入パターン）。
 let eternalAnimHelper = null; // (attacker, cardId, cardDef, onDone) => void
+// 【2026-11-08・続き674】ゲート侵攻成功の演出「GATE BREAK」。中身は main.js。
+let gateBreakEffect = null; // (attacker, defender) => void
+export function registerGateInvasionModalGateBreak(fn) {
+  gateBreakEffect = fn;
+}
+
 export function registerGateInvasionModalEternalAnim(fn) {
   eternalAnimHelper = fn;
 }
@@ -103,7 +109,12 @@ function buildSteps(events) {
   for (const ev of events) {
     // 【#440・2026-11-03】侵攻の1段目で音を鳴らす（ローカル版 gate-invasion.js の
     // runBonusFor の頭と同じ位置。あちらと同じ音を同じ回数＝1人ぶん1回）。
-    steps.push({ text: t("game.gate.step.invade", { attacker: getPlayerNameOrYou(ev.attacker), defender: getPlayerNameOrYou(ev.defender) }), sound: "gateInvasion" });
+    steps.push({
+      text: t("game.gate.step.invade", { attacker: getPlayerNameOrYou(ev.attacker), defender: getPlayerNameOrYou(ev.defender) }),
+      sound: "gateInvasion",
+      // 【続き674】音だけだと寂しいので、同じ段で「GATE BREAK」の演出も出す。
+      gateBreak: { attacker: ev.attacker, defender: ev.defender },
+    });
 
     if (ev.stolenCount > 0) {
       // buildStepsは各クライアントで動く（getSelfSeatは自分の視点）。奪われた本人には、
@@ -245,6 +256,9 @@ function showStep(step) {
   // 【#440・2026-11-03】段に音が指定されていれば鳴らす（いまはゲート侵攻の告知だけ）。
   if (step.sound) {
     try { playSound(step.sound); } catch (err) { console.error("step sound failed", err); }
+  }
+  if (step.gateBreak) {
+    try { gateBreakEffect?.(step.gateBreak.attacker, step.gateBreak.defender); } catch (err) { console.error("gate break effect failed", err); }
   }
   // 帰還の演出は「盤面で起きたこと」を見せるだけなので、モーダルは止めずに同時に出す。
   if (step.returnHomeAnim && returnHomeAnimHelper && !isArrivalEffectDisabled()) {

@@ -127,6 +127,13 @@ function shuffled(array) {
 // 保証されるため、無作為性はこれまで通り保たれる。main.jsのDOM操作に依存する
 // ため、他の演出（registerEternalAnimHelpers等）と同じ「register helper」注入
 // パターンで main.js から渡してもらう。
+// 【2026-11-08・続き674】ゲート侵攻成功の演出「GATE BREAK」。中身は main.js
+// （盤面のDOM・カメラ・画面全体の覆いを触るため）。ここは登録口だけ持つ。
+let gateBreakEffect = null; // (attacker, defender) => void
+export function registerGateBreakEffect(fn) {
+  gateBreakEffect = fn;
+}
+
 let stealHandRitualHelper = null; // async (defender, count) => Array<token>
 export function registerGateInvasionStealHelper(fn) {
   stealHandRitualHelper = fn;
@@ -294,6 +301,9 @@ function runBonusFor(attacker, defender, done) {
   // 付いているので、ここで重ねない）。複数人が同時に侵攻した場合は人数ぶん鳴る＝
   // 1件ずつ順に処理するので重ならない（続き626 で処理順をターンプレイヤーからに直した）。
   try { playSound("gateInvasion"); } catch (err) { console.error("gateInvasion sound failed", err); }
+  // 【続き674】音だけだと寂しいので、同じ瞬間に「GATE BREAK」の演出を出す。
+  // ⚠ 失敗しても侵攻の処理は止めない（演出は進行の前提ではない）。
+  try { gateBreakEffect?.(attacker, defender); } catch (err) { console.error("gate break effect failed", err); }
   runStealHand(attacker, defender, () => {
     runEternal(attacker, () => {
       runReturnHome(attacker, done);

@@ -5151,6 +5151,196 @@ body.reduce-glow .piece.is-effect-target-piece .piece-face {
     opacity: 0;
   }
 }
+
+/* ═══════════ ゲート侵攻成功の演出「GATE BREAK」（2026-11-08・続き674）═══════════
+   ユーザー要望「ゲート侵攻成功直後の演出があの効果音はさみしいですね。あなたが思う
+   最高にド派手なゲート侵攻成功演出を実装してみてほしい」。
+   🔴 **canvas は1枚も使わない**（全画面の canvas は1枚で約23MB＝#441/#505/#516 で
+     iPhone が落ちた原因）。勝利演出と同じく DOM＋CSS だけで組む。
+   強さはこの変数で決める（0 にするとその層だけ切れる）。既定は :root（末尾）。
+   ・--gb-shock  衝撃波（攻めた色の輪が盤面を洗う）
+   ・--gb-cracks 亀裂（ゲートから走る光のひび。**角度は不均等**＝均等だと「星」に見えて
+                 割れ目に見えない。勝利演出の⑧で学んだこと）
+   ・--gb-pillar 光柱（既存の到達演出の柱と同じ作りに揃えた＝盤面の傾きの中で立って見える）
+   ・--gb-shards 破片（**守る側の色**。壊されたのはそちらのゲートなので色を分ける）
+   ・--gb-banner 横断幕（GATE BREAK の文字）
+   ・--gb-flash  画面のふちの閃光（**白は使わない**。白は勝利演出のもの） */
+.gate-break-shock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  border: 0.34rem solid var(--gb-color, #f6c945);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  box-shadow:
+    0 0 1.4rem var(--gb-color, #f6c945),
+    inset 0 0 1rem var(--gb-color, #f6c945);
+  transform: translate(-50%, -50%) scale(0.15);
+  animation: gate-break-shock 1.5s cubic-bezier(0.12, 0.78, 0.22, 1) forwards;
+  animation-delay: var(--d, 0s);
+}
+@keyframes gate-break-shock {
+  0% { transform: translate(-50%, -50%) scale(0.15); opacity: 0; }
+  8% { opacity: calc(0.95 * var(--gb-shock, 1)); }
+  62% { opacity: calc(0.8 * var(--gb-shock, 1)); }
+  100% { transform: translate(-50%, -50%) scale(7.2); opacity: 0; }
+}
+.gate-break-crack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.26rem;
+  height: 0;
+  pointer-events: none;
+  z-index: 5;
+  transform-origin: 50% 0;
+  transform: translateX(-50%) rotate(var(--a, 0deg));
+  background: linear-gradient(to bottom, var(--gb-color, #f6c945), transparent);
+  box-shadow: 0 0 0.6rem var(--gb-color, #f6c945);
+  animation: gate-break-crack 1.15s cubic-bezier(0.08, 0.9, 0.2, 1) forwards;
+  animation-delay: var(--d, 0s);
+}
+@keyframes gate-break-crack {
+  0% { height: 0; opacity: 0; }
+  12% { opacity: calc(1 * var(--gb-cracks, 1)); }
+  68% { opacity: calc(0.85 * var(--gb-cracks, 1)); }
+  100% { height: var(--len, 260%); opacity: 0; }
+}
+/* 光柱。既存の到達演出（.arrival-effect-flame）と同じ立て方にそろえてある
+   ——盤面の傾きの中でこの形が「立っている」ように見えることは実績がある。 */
+.gate-break-pillar {
+  position: absolute;
+  left: 50%;
+  bottom: 45%;
+  width: 120%;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+  background: linear-gradient(
+    to top,
+    var(--gb-color, #f6c945) 0%,
+    color-mix(in srgb, var(--gb-color, #f6c945) 70%, transparent) 36%,
+    transparent 100%
+  );
+  border-radius: 50% 50% 0 0 / 10% 10% 0 0;
+  opacity: 0;
+  animation: gate-break-pillar 1.7s cubic-bezier(0.12, 0.72, 0.2, 1) forwards;
+}
+@keyframes gate-break-pillar {
+  0% { height: 0; opacity: 0; }
+  22% { opacity: calc(0.9 * var(--gb-pillar, 1)); }
+  100% { height: 620%; opacity: 0; }
+}
+.gate-break-shard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  pointer-events: none;
+  z-index: 6;
+  background: var(--gb-enemy, #ffffff);
+  box-shadow: 0 0 0.6rem var(--gb-enemy, #ffffff);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: gate-break-shard 1.25s cubic-bezier(0.18, 0.72, 0.28, 1) forwards;
+  animation-delay: var(--d, 0s);
+}
+@keyframes gate-break-shard {
+  0% { transform: translate(-50%, -50%) scale(1.1) rotate(0deg); opacity: 0; }
+  12% { opacity: calc(1 * var(--gb-shards, 1)); }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.25) rotate(var(--rot, 180deg));
+    opacity: 0;
+  }
+}
+/* 画面のふちの閃光と横断幕。盤面の 3D の外（body 直下）に置くので、傾きの影響を受けない。 */
+#gate-break-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9400;
+  pointer-events: none;
+  overflow: hidden;
+}
+.gate-break-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(
+    120% 90% at 50% 50%,
+    transparent 48%,
+    color-mix(in srgb, var(--gb-color, #f6c945) 55%, transparent) 86%,
+    color-mix(in srgb, var(--gb-color, #f6c945) 85%, transparent) 100%
+  );
+  animation: gate-break-flash 0.95s ease-out forwards;
+}
+@keyframes gate-break-flash {
+  0% { opacity: 0; }
+  14% { opacity: calc(0.9 * var(--gb-flash, 1)); }
+  100% { opacity: 0; }
+}
+/* 🔴 地の色も字の色も**自分で持つ**（明暗どちらのテーマでも読めるように＝教訓15）。 */
+.gate-break-banner {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 150%;
+  padding: 1.1rem 0;
+  transform: translate(-50%, -50%) skewY(-4deg) scaleX(0);
+  transform-origin: 50% 50%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--gb-color, #f6c945) 26%, #06080d) 12%,
+    #06080d 50%,
+    color-mix(in srgb, var(--gb-color, #f6c945) 26%, #06080d) 88%,
+    transparent 100%
+  );
+  border-top: 0.12rem solid var(--gb-color, #f6c945);
+  border-bottom: 0.12rem solid var(--gb-color, #f6c945);
+  box-shadow: 0 0 2rem color-mix(in srgb, var(--gb-color, #f6c945) 60%, transparent);
+  text-align: center;
+  opacity: 0;
+  animation: gate-break-banner 1.9s cubic-bezier(0.16, 0.9, 0.2, 1) forwards;
+  animation-delay: 0.26s;
+}
+@keyframes gate-break-banner {
+  0% { transform: translate(-50%, -50%) skewY(-4deg) scaleX(0); opacity: 0; }
+  16% { transform: translate(-50%, -50%) skewY(-4deg) scaleX(1.04); opacity: calc(1 * var(--gb-banner, 1)); }
+  22% { transform: translate(-50%, -50%) skewY(-4deg) scaleX(1); }
+  78% { opacity: calc(1 * var(--gb-banner, 1)); }
+  100% { transform: translate(-50%, -50%) skewY(-4deg) scaleX(1); opacity: 0; }
+}
+.gate-break-banner-main {
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: 0.34em;
+  color: #ffffff;
+  text-shadow:
+    0 0 1.2rem var(--gb-color, #f6c945),
+    0 0 2.4rem var(--gb-color, #f6c945);
+}
+.gate-break-banner-sub {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  color: #e6edf6;
+}
+/* 「ずっと光り続ける演出をやめる」設定では、動きを短くして光を落とす。 */
+body.reduce-glow .gate-break-shock,
+body.reduce-glow .gate-break-crack,
+body.reduce-glow .gate-break-pillar,
+body.reduce-glow .gate-break-shard,
+body.reduce-glow .gate-break-flash {
+  animation-duration: 0.55s;
+  box-shadow: none;
+}
 /* 【ユーザー要望2026-09-05】自分の持ち時間が残りわずかな時、画面のふちを自分の色で脈打たせる。
    盤面の一番外側に薄い内向きの光を敷くだけなので、操作は一切邪魔しない。 */
 body.time-critical::after {
@@ -24418,4 +24608,18 @@ body.is-tablet-device #options-menu-back {
   font-size: 1.7rem;
   padding: 0.8rem 1.5rem;
   border-radius: 0.7rem;
+}
+
+/* 【2026-11-08・続き674】ゲート侵攻成功の演出「GATE BREAK」の既定値。
+   0 にするとその層だけ切れる（全部 0 にすれば演出そのものが無くなる）。
+   ⚠ ここが実際の見た目を決める唯一の場所。管理者モードのつまみを足す時は、
+     既定値をこちらと必ず同じ値にする（ズレると「戻す」で別の値に戻る＝続き608・627 の事故）。 */
+:root {
+  --gb-shock: 1;
+  --gb-cracks: 1;
+  --gb-pillar: 1;
+  --gb-shards: 1;
+  --gb-banner: 1;
+  --gb-flash: 1;
+  --gb-zoom: 1.75; /* 演出中にゲートへ寄る倍率（1 で寄らない） */
 }

@@ -67,6 +67,7 @@ import {
   // 0th拡張（やり直しのカギ）: 「相手がロックを宣言した時」の割り込みの窓。
   noteInterruptWindow,
   clearInterruptWindow,
+  getInterruptWindowKind, // #527/#529: 行動ログに「どの宣言の窓か」を残す
   // 0th拡張（我忘れの白き龍の【色者】）: カードの向き（誰が表向きにしたか）。
   getCardOrientationSeat,
 } from "./card-effect-engine.js";
@@ -133,6 +134,7 @@ import {
   runGateInvasionsIfNeeded,
   registerEternalAnimHelpers,
   registerGateInvasionStealHelper,
+  registerGateBreakEffect, // 続き674: ゲート侵攻成功の演出
   registerReturnHomeAnimHelper,
   registerReturnHomeRevealHelper,
   registerGateInvasionCpuChecker,
@@ -173,7 +175,7 @@ import {
   getStagedPiece,
   isEternalStagedHidden,
 } from "./gate-invasion-stage.js";
-import { enqueueGateInvasionSteps, isGateInvasionQueueActive, registerOnGateInvasionQueueDrained, reapplyGateInvasionModal, registerGateInvasionModalEternalAnim, registerGateInvasionModalStealAnim, registerGateInvasionModalEternalPreHide, forceCloseGateInvasionModal } from "./gate-invasion-modal.js";
+import { enqueueGateInvasionSteps, isGateInvasionQueueActive, registerOnGateInvasionQueueDrained, reapplyGateInvasionModal, registerGateInvasionModalEternalAnim, registerGateInvasionModalStealAnim, registerGateInvasionModalEternalPreHide, registerGateInvasionModalGateBreak, forceCloseGateInvasionModal } from "./gate-invasion-modal.js";
 import { checkForVictory, wouldCompleteLockWithNewIndex, getLockedCount, resetVictoryTracking, hasAnyoneWon } from "./victory.js";
 // 【2026-10-29・ユーザー案】勝利演出の脈動の間だけキューブへ寄る。寄せる計算は下の
 // focusCameraOnElement（画角・手動ズーム・2D表示と合流する所）にしか無いので、登録で渡す。
@@ -5858,6 +5860,128 @@ function spawnGateIntrusionEffect(hostEl, defender) {
   appendEffectHost(hostEl, ring2, 1400);
 }
 
+// ═══════════ 【2026-11-08・続き674】ゲート侵攻成功の演出「GATE BREAK」 ═══════════
+// ユーザー要望「ゲート侵攻成功直後の演出があの効果音はさみしいですね。あなたが思う
+// 最高にド派手なゲート侵攻成功演出を実装してみてほしい」。
+//
+// 🔴 **canvas は1枚も使わない。** 全画面の canvas は1枚で約23MB で、#441・#505・#516 の
+//   「勝利演出の後に落ちる」の山そのもの。勝利演出と同じく DOM＋CSS だけで組む。
+// 🔴 **色を2つ使い分ける。** 輪・ひび・柱・文字は**攻めた側の色**、破片は**守る側の色**
+//   （壊れたのは守る側のゲートなので、飛び散るのはそちらの色であるべき）。
+// 🔴 **ひびの角度は不均等。** 均等に割ると「星」に見えて割れ目に見えない（勝利演出の⑧で
+//   同じことを学んだ）。
+// ⚠ 動きを嫌う人の設定（到達演出オフ）では**何も出さない**。
+// ⚠ 寄りは「決め所」なので cinematicAllows("highlight") の時だけ。
+//   倍率は CSS 変数 --gb-zoom（1 で寄らない）。
+const GATE_BREAK_CRACK_ANGLES = [8, 63, 119, 171, 226, 302]; // わざと不均等
+const GATE_BREAK_CRACK_LENS = [300, 215, 265, 190, 320, 240]; // %（長さもばらす）
+function gateBreakVar(name, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+function playGateBreakEffect(attacker, defender) {
+  if (isArrivalEffectDisabled()) return;
+  const table = document.getElementById("game-table");
+  const side = SEAT_TO_SIDE[defender];
+  const gate = side ? GATE_POSITIONS[side] : null;
+  if (!table || !gate) return;
+  const hostEl = findLocationElement(table, { zone: "cell", row: gate.row, col: gate.col });
+  if (!hostEl) return;
+  const colorOf = (seat) => {
+    const c = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === seat)?.color ?? null;
+    return c && c !== "rainbow" ? `var(--color-${c})` : "#f6c945";
+  };
+  const attackCss = colorOf(attacker);
+  const enemyCss = colorOf(defender);
+  const put = (el, ttl) => {
+    el.style.setProperty("--gb-color", attackCss);
+    el.style.setProperty("--gb-enemy", enemyCss);
+    appendEffectHost(hostEl, el, ttl);
+  };
+
+  // ① 衝撃波（3枚・時間差）
+  if (gateBreakVar("--gb-shock", 1) > 0) {
+    for (const d of [0, 0.13, 0.27]) {
+      const ring = document.createElement("div");
+      ring.className = "gate-break-shock";
+      ring.style.setProperty("--d", d + "s");
+      put(ring, 2000);
+    }
+  }
+  // ② 亀裂
+  if (gateBreakVar("--gb-cracks", 1) > 0) {
+    GATE_BREAK_CRACK_ANGLES.forEach((a, i) => {
+      const c = document.createElement("div");
+      c.className = "gate-break-crack";
+      c.style.setProperty("--a", a + "deg");
+      c.style.setProperty("--len", GATE_BREAK_CRACK_LENS[i] + "%");
+      c.style.setProperty("--d", (0.18 + i * 0.035).toFixed(3) + "s");
+      put(c, 1900);
+    });
+  }
+  // ③ 光柱
+  if (gateBreakVar("--gb-pillar", 1) > 0) {
+    const p = document.createElement("div");
+    p.className = "gate-break-pillar";
+    put(p, 2100);
+  }
+  // ④ 破片（守る側の色）
+  if (gateBreakVar("--gb-shards", 1) > 0) {
+    for (let i = 0; i < 12; i++) {
+      const s = document.createElement("div");
+      s.className = "gate-break-shard";
+      const ang = (i / 12) * Math.PI * 2 + Math.random() * 0.35;
+      const dist = 90 + Math.random() * 110;
+      s.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+      s.style.setProperty("--dy", Math.sin(ang) * dist * 0.6 + "px"); // 盤面に沿って平たく飛ばす
+      s.style.setProperty("--rot", Math.round(180 + Math.random() * 540) + "deg");
+      s.style.setProperty("--d", (0.1 + Math.random() * 0.25).toFixed(3) + "s");
+      put(s, 1900);
+    }
+  }
+  // ⑤ 画面のふちの閃光と横断幕（盤面の 3D の外）
+  const overlay = document.createElement("div");
+  overlay.id = "gate-break-overlay";
+  overlay.style.setProperty("--gb-color", attackCss);
+  if (gateBreakVar("--gb-flash", 1) > 0) {
+    const f = document.createElement("div");
+    f.className = "gate-break-flash";
+    overlay.appendChild(f);
+  }
+  if (gateBreakVar("--gb-banner", 1) > 0) {
+    const b = document.createElement("div");
+    b.className = "gate-break-banner";
+    const main = document.createElement("div");
+    main.className = "gate-break-banner-main";
+    main.textContent = t("game.gate.breakTitle");
+    const sub = document.createElement("div");
+    sub.className = "gate-break-banner-sub";
+    sub.textContent = t("game.gate.breakSub", {
+      attacker: getPlayerName(attacker),
+      defender: getPlayerName(defender),
+    });
+    b.appendChild(main);
+    b.appendChild(sub);
+    overlay.appendChild(b);
+  }
+  if (overlay.childElementCount > 0) {
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.remove(), 2400);
+  }
+  // ⑥ カメラ。壊れたゲートへ寄る（決め所なので、その設定が入っている時だけ）。
+  const zoom = gateBreakVar("--gb-zoom", 1.75);
+  if (zoom > 1.001 && cinematicAllows("highlight")) {
+    void focusCameraOnElement(hostEl, { zoom, ms: 420, yaw: 6, tilt: 5 });
+    scheduleCameraHome(1900);
+  }
+  try {
+    logAction("diag-gate-break", { attacker, defender, zoom });
+  } catch (e) {
+    /* ログが書けなくても演出は進む */
+  }
+}
+
 // 【2026-09-07】ゲート侵攻③「自ゲートへ帰還」の演出。①手札を半分奪う（光の筋）・
 // ②エターナル獲得（3Dフリップ）は派手なのに、**締めくくりだけ無音で瞬間移動**していた。
 // 数ターンかけて敵陣へ乗り込んだ計画が実った瞬間なので、自分のゲートが自分の色で
@@ -9406,9 +9530,24 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
     handEffectBusy: isHandEffectBusy(),
     pickerActive: activeEffectPicker !== null,
     modalAlreadyShowing: !!anytimeInterruptModalEl,
+    // 🔴【#527・#529】何の宣言の窓かも残す。これが無いと、後から「あの時どの窓だったか」が
+    //   分からない（裏貴族の賄賂・やり直しのカギは窓の種類で使える／使えないが決まる）。
+    windowKind: getInterruptWindowKind(),
   });
-  if (anytimeInterruptOptedOut) return;
-  if (isAnyEffectProcessingBusy()) return;
+  // 🔴【#527「相手のロック宣言時に賄賂を発動しようとしたが使えなかった」／#529「使えた！」】
+  //   **この2つは同じ穴の表と裏だった。**
+  //   ここで早く帰る時、**窓（interruptWindow）は開けっぱなしのまま**だった。すると:
+  //     ① その瞬間は誰にも聞かれない ＝ 宣言に合わせて割り込めない（#527）
+  //     ② 窓が残り続けるので、**後になってから使えてしまう**（#529。相手がロックを
+  //        宣言していないのに「相手がロックを宣言した時に使える」が通る）
+  //   ⇒ 早く帰るなら**窓も閉じてから**帰る。待っている人（ロック宣言）にも知らせる。
+  //   ⚠ modalAlreadyShowing の時は閉じない——**いま出ているモーダルがその窓を使っている**
+  //     ので、閉じるとその場で押せなくなる。
+  if (anytimeInterruptOptedOut || isAnyEffectProcessingBusy()) {
+    clearInterruptWindow();
+    settleAnytimeWindowWaiters(false);
+    return;
+  }
   if (anytimeInterruptModalEl) return; // 既に1件表示中なら重ねない
   const order = isOnlineMode() ? [getSelfSeat()] : rotatedActivePlayersFrom(afterPlayer);
   anytimeInterruptQueue = order;
@@ -20489,6 +20628,22 @@ registerCounterLockHelpers({
 });
 registerEternalAnimHelpers(playEternalAcquisitionAnim);
 registerGateInvasionStealHelper(stealHandCardsRitualForGateInvasion);
+// 【続き674】ゲート侵攻成功の演出「GATE BREAK」。ローカル（CPU戦・1画面）はここから呼ばれる。
+registerGateBreakEffect(playGateBreakEffect);
+// オンライン（ゲート侵攻モーダル）からも同じ実体を呼ぶ＝演出を二重に持たない。
+registerGateInvasionModalGateBreak(playGateBreakEffect);
+
+// 【続き674】管理者モード／オプションの見本。ゲート侵攻は遊んでいても滅多に起きないので、
+//   その場で見られるようにする（接触・最後の1色の見本と同じ形）。
+//   ⚠ **state は一切変えない**——盤面にいる駒から攻守を決めて演出だけ再生する。
+window.addEventListener("so7:preview-gate-break", () => {
+  const seats = getState().activePlayers || [];
+  const self = getSelfSeat();
+  const attacker = seats.includes(self) ? self : seats[0];
+  const defender = seats.find((p) => p !== attacker) ?? null;
+  if (!attacker || !defender) return;
+  playGateBreakEffect(attacker, defender);
+});
 // CPU戦・スモークテスト（疑似CPU自己対戦）で、ゲート侵攻ボーナスの各ステップ告知モーダル
 // （OKクリック待ち）を攻撃側がCPUなら自動で進める（ユーザー報告2026-08-17「ゲート侵攻処理を
 // CPUは自動で進めれない」。isCpuSelectingNow=CPU戦中かつその席が疑似CPU対象）。
