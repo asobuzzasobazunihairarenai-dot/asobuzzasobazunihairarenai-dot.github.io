@@ -19686,11 +19686,18 @@ body.opening-screen-active.is-admin-user #smoke-test-launch-btn {
 .ranked-waiting-practice:hover { background: rgba(255, 215, 120, 0.2); }
 
 /* 練習中に画面上部に出す小さな「探し中」バナー（盤面は下で見える） */
+/* 🔴【#450・2026-11-10】**右上に寄せる。** 報告「練習をやめて待機に戻るモーダルが
+   邪魔です。右上に表示するのはどうですか？」。それまでは画面の**上辺の中央**に出て
+   いたので、盤面の奥（相手のロックエリア側）に重なっていた。
+   ⚠ 右上には**アイコン列**（不具合報告・2D切替・残金…）が既に並んでいるので、
+     **その下へ**出す（#436 で同じ理由からスマホのバナーを 4.7rem へ下げてある）。
+   ⚠ 右端に寄せるので left/transform は使わない（中央寄せの transform を打ち消す）。 */
 #ranked-practice-banner {
   position: fixed;
-  top: 0.6rem;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 3.4rem;
+  right: 0.6rem;
+  left: auto;
+  transform: none;
   z-index: 40000;
   display: flex;
   align-items: center;
@@ -22244,6 +22251,27 @@ body.theme-light .victory-preview-row > span { color: #6b6152; }
   padding: 0.1rem 0.3rem;
 }
 .cell-confirm-dontshow:hover { color: #e2e8f0; }
+/* 🔴【#453・2026-11-10】**スマホでは小さすぎた。** 報告「このマスでいいですかモーダルが
+   小さい気がします！もう少し大きい方が見やすくないですか？」（iPhone 932x430・
+   ステージ倍率 0.473 からの報告）。ステージを縮めて描くので、1.05rem の見出しは
+   実画面では約8pxしかない。⇒ **#436（練習バナー）と同じ方針**で、スマホ・タブレットだけ
+   大きくする。**PC の値は一字も変えない**（続き585「する前のがよかった」）。
+   ⚠ 箱が大きくなっても画面からはみ出さない——placeNextToCell が画面内へ押し込む
+     （cell-confirm.js。4つの候補位置が収まらなければ右上基準で clamp する）。 */
+body.is-phone-device #cell-confirm-modal,
+body.is-tablet-device #cell-confirm-modal {
+  gap: 0.9rem;
+  padding: 1.2rem 1.8rem;
+  border-radius: 1.1rem;
+  /* ⚠ vw はステージ基準では小さく評価される（続き613 の罠）。% はステージ基準。 */
+  max-width: min(52rem, 92%);
+}
+body.is-phone-device .cell-confirm-title,
+body.is-tablet-device .cell-confirm-title { font-size: 2rem; }
+body.is-phone-device .cell-confirm-hint,
+body.is-tablet-device .cell-confirm-hint { font-size: 1.5rem; }
+body.is-phone-device .cell-confirm-dontshow,
+body.is-tablet-device .cell-confirm-dontshow { font-size: 1.3rem; padding: 0.3rem 0.6rem; }
 /* 確認中のマスを強く光らせる（どのマスの話か一目で分かるように）。 */
 .cell-confirm-target {
   outline: 0.22rem solid #fbbf24 !important;
