@@ -1823,8 +1823,24 @@ async function runAction(action, ctx, helpers) {
         }
       }
       if (対象.length === 0) return false;
+      // 🔴【#535・2026-11-09】**捨てる順を選べるようにする**（報告「迷いの森で捨てる順を
+      //   選べなかった。」）。捨て場は積み重なるので、どれが1番上になるかは後で効く
+      //   （赤のはじまり＝1番上／フェニックス＝上から2番目）。同じ形は #488（ヤエザ）と
+      //   白の意志の覚醒で既にやっているので、**同じモーダル**（pickBoardCardsOrdered）に寄せる。
+      //   ⚠ 1枚だけの時は聞かない（選ぶ余地が無い）。
+      let 並び = 対象;
+      if (対象.length >= 2 && helpers.pickBoardCardsOrdered) {
+        const 札 = 対象.map((id) => getState().tokens.find((tk) => tk.id === id)).filter(Boolean);
+        const ordered = await helpers.pickBoardCardsOrdered(ctx.player, t("ce.pickDiscardOrder", { n: 1 }), 札, {
+          purpose: "discard",
+        });
+        if (Array.isArray(ordered) && ordered.length > 0) {
+          const 済 = new Set(ordered.map((tk) => tk.id));
+          並び = [...ordered.map((tk) => tk.id), ...対象.filter((id) => !済.has(id))];
+        }
+      }
       // #463: 直後に「n枚捨てた」の要約を出すので、1枚ごとのお知らせは出さない。
-      for (const id of 対象) await helpers.discardAndSync(id, { batchNotice: true });
+      for (const id of 並び) await helpers.discardAndSync(id, { batchNotice: true });
       await helpers.announceEffectReason?.(
         ctx.cardId,
         t("ce.discardedAdjacentN", { name: helpers.getPlayerName(ctx.player), n: 対象.length })
@@ -4334,7 +4350,9 @@ async function runAction(action, ctx, helpers) {
             : await helpers.pickLocation(cands, t("ce.feMarchMove"), { purpose: "move" });
         } else {
           const 返事 = await helpers.delegateToPlayer?.(p, "choose-cell", {
-            candidates: cands.map((c) => ({ row: c.row, col: c.col })),
+            // ⚠ zone を落とさない。落とすと委任先の画面で候補のマスが1つも見つからず、
+            //   選ぶ画面が出ないまま既定の候補に決まってしまう（#534）。
+            candidates: cands.map((c) => ({ ...c })),
             hintKey: "ce.feMarchMoveFor",
             forPlayer: p,
           });
@@ -4433,7 +4451,8 @@ async function runAction(action, ctx, helpers) {
         dest = cands.length === 1 && !ctx.forcePrompt ? cands[0] : await helpers.pickLocation(cands, t("ce.feMoveOne"), { purpose: "move" });
       } else {
         const 返事 = await helpers.delegateToPlayer?.(相手, "choose-cell", {
-          candidates: cands.map((c) => ({ row: c.row, col: c.col })),
+          // ⚠ zone を落とさない（#534 と同じ理由）。
+          candidates: cands.map((c) => ({ ...c })),
           hintKey: "ce.feMoveOneFor",
           forPlayer: 相手,
         });
@@ -4447,8 +4466,16 @@ async function runAction(action, ctx, helpers) {
         ctx.pieceLocation = dest;
         ctx.arrivedAt = dest;
       } else {
-        // 他の人の移動先の到達は、呼び出し元の既定処理に乗らないのでここで起こす。
-        await helpers.triggerArrivalAtIfFaceUp?.(dest, 相手);
+        // 🔴【#532・2026-11-09】他の人の移動先も**裏向きならオープンしてから**到達させる。
+        //   報告「貴族の特権の移動させる効果について、『移動』にオープンと到達が伴うけど、
+        //   オープンしませんでした」。triggerArrivalAtIfFaceUp は名前のとおり
+        //   **表向きの時しか到達させない**＝裏向きのカードは開かないまま素通りしていた。
+        //   handleArrivalDestination は「裏なら開けてから到達」まで面倒を見る
+        //   （自分が動いた時に呼び出し元がやっているのと同じ処理＝#515 で切り出した関数）。
+        //   ⓘ 到達するのは**そのマスに立っている駒の持ち主**（triggerCardArrival が
+        //     getPieceOwnerAt で決める）ので、動かされた本人の到達になる。
+        if (helpers.handleArrivalDestination) await helpers.handleArrivalDestination(dest);
+        else await helpers.triggerArrivalAtIfFaceUp?.(dest, 相手);
       }
       return true;
     }
@@ -4493,9 +4520,15 @@ async function runAction(action, ctx, helpers) {
       // 苦渋の強盗（1st）到達「【財力≦２】相手ゲートのカードを１枚、あなたの手札に加える。」
       // ⚠ 「相手ゲート」＝自分以外の席のゲートのマス（isOpponentGateCell と同じ判定）。
       //   カードが積まれていればその１番上（１番上の原則）。
+      // 🔴【#539・2026-11-09】**座っている相手のゲートだけ**を候補にする。
+      //   報告「2人対戦なのに、いないプレイヤーのゲートを選択できてしまう」。
+      //   盤面には4辺ぶんのゲートが常に在るので、席に誰も居ない辺を外さないと候補に出る。
+      const 相手の辺 = new Set(
+        (getState().activePlayers || []).filter((p) => p !== ctx.player).map((p) => SEAT_TO_SIDE[p])
+      );
       const gates = [];
       for (const side of Object.keys(GATE_POSITIONS)) {
-        if (SEAT_TO_SIDE[ctx.player] === side) continue;
+        if (!相手の辺.has(side)) continue;
         const g = GATE_POSITIONS[side];
         if (hasCardAt(g.row, g.col)) gates.push({ zone: "cell", row: g.row, col: g.col });
       }

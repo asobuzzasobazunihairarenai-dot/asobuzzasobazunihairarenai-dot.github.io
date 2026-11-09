@@ -1614,8 +1614,12 @@ export const CARD_EFFECTS = {
   // 食べ過ぎ（桃・7枚）
   //   到達: 「２枚ドロー。あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに
   //         重ねて置く。」
-  //   手札: 「【財力≧３】２枚ドロー。このカードを捨てる。このターンを終了する。」
-  // ⚠ 印字どおりの順（引く→捨てる→ターン終了）にしてある（貧しき心と同じ理由）。
+  //   手札: 「【財力≧３】２枚ドロー。このターンを終了する。」
+  // 🔴【#533・2026-11-09】ユーザー指示「文中の『このカードを捨てる』はさくじょで！」。
+  //   ⇒ 文から消し、データ側も **keepsCardOnUse / DISCARD_SELF をやめて既定に戻した**
+  //   （手札効果は既定で「発動時にまず自分を捨てる」）。文だけ消すと、文に無い動きが
+  //   残って食い違う。動きの差は捨て場の1番上が一瞬変わるだけで、何にも影響しない
+  //   （この札は捨て場から取らない）。
   // ⚠ 到達の「隣」＝前後左右の4マス（用語集）。裏向きで足下へ積むので到達は起きない。
   "1st-pink-overeating": {
     arrival: {
@@ -1623,8 +1627,7 @@ export const CARD_EFFECTS = {
     },
     handEffect: {
       wealth: { min: 3 },
-      keepsCardOnUse: true,
-      actions: [{ verb: VERBS.DRAW, count: 2 }, { verb: VERBS.DISCARD_SELF }, { verb: VERBS.END_TURN }],
+      actions: [{ verb: VERBS.DRAW, count: 2 }, { verb: VERBS.END_TURN }],
     },
   },
 

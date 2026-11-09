@@ -4624,7 +4624,17 @@ async function runPlaceHandCardAtCellTask(player, taskArg) {
 // 候補は頼む側（エンジン）が計算して渡すので、ここは**どこにするかを聞いて返すだけ**。
 // 🔴 返すのはマス（{row,col}）。委任の戻り値はそのまま broadcast で運ばれる。
 async function runChooseCellTask(player, taskArg) {
-  const cands = Array.isArray(taskArg?.candidates) ? taskArg.candidates : [];
+  // 🔴【#534・2026-11-09】**zone が無い候補が来たら "cell" を補う。**
+  //   報告「相手の貧民の行進の効果で、自分の移動先が選べなかった。」の原因がこれだった。
+  //   engine 側の2か所（貧民の行進・貴族の特権）が `{ row, col }` だけを渡していて、
+  //   findLocationElement は **zone を見て要素を探す**ので全部 null になり、
+  //   requestCellChoiceForEffectOnce が「候補が1つも無い」として**即 null を返していた**
+  //   （行動ログで priority が A へ移った **23ミリ秒後**に C へ戻っていた＝人が選ぶ間が無い）。
+  //   engine 側も直したが、**ここでも補う**——委任の入口は1つなので、次に同じ書き方を
+  //   した人がまた1枚ぶん静かに壊すのを防ぐ。
+  const cands = (Array.isArray(taskArg?.candidates) ? taskArg.candidates : []).map((c) =>
+    c && c.zone ? c : { zone: "cell", ...c }
+  );
   if (cands.length === 0) return false;
   const hint = taskArg?.hintKey
     ? t(taskArg.hintKey, { name: taskArg.forPlayer ? getPlayerName(taskArg.forPlayer) : "" })
@@ -8536,6 +8546,20 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
       (e) => e.el
     );
     if (entries.length === 0) {
+      // 🔴【#534・2026-11-09】ここは**静かな失敗**になりやすい。候補はあるのに盤面の要素が
+      //   1つも見つからない（zone の付け忘れ等）と、選ぶ画面が出ないまま呼び出し側が
+      //   既定の候補に決めてしまう。見た目には「選ばせてもらえなかった」としか出ないので、
+      //   **行動ログに残して次の報告で1行で分かる**ようにする（普段は候補が見つかるので
+      //   通らない＝0しか出ない計器ではない）。
+      if (candidates.length > 0) {
+        try {
+          logAction("diag-cell-pick-empty", {
+            candidates: candidates.length,
+            sample: JSON.stringify(candidates[0] || null).slice(0, 80),
+            hasTable: !!table,
+          });
+        } catch (err) { /* ログは出せなくても選択の失敗そのものは返す */ }
+      }
       resolve(null);
       return;
     }
@@ -14735,6 +14759,27 @@ let lastStageViewport = { w: 0, h: 0 };
 // `visualViewport` を使わない場合を2つ除いてある。①文字入力中（スマホのキーボードが
 // 出ると visualViewport が縮むので、盤面まで小さくしてしまう）②拡大表示中
 // （`user-scalable=no` を入れてあるがiOSは指で広げられる）。
+// 🔴【#452・#531・2026-11-09】**ホーム画面から開いたアプリで、縦だけ短い値が返り続ける。**
+//   報告「下に黒の余白が出たまま直りません。縦にして横にするとちゃんと通常になります」。
+//   #378 の時と違い、今回は **inner も visualViewport も clientHeight も 371** で揃っていて、
+//   **`outerHeight` だけが 430**（＝本当の高さ）。つまりブラウザが短い値を返したままで、
+//   こちらから「本当はもっと在る」と知る手がかりは outerHeight しか無い。
+//   ⇒ **ホーム画面から開いたアプリの時だけ**、outerHeight が少しだけ大きいなら、そちらを採る。
+//   ⚠ ホーム画面から開いたアプリにはブラウザの枠（上下のバー）が無いので、
+//     「窓の高さ＝見えている高さ」でよい。Safari で開いている時は下のバーのぶん
+//     短いのが**正しい**ので、絶対に当ててはいけない（だから standalone 限定）。
+//   ⚠ 差が大きい時も当てない（1.35倍まで）。iPad の分割表示のように**本当に小さい**場合に
+//     当てると、盤面が画面からはみ出す。今回の実測は 430/371 ＝ 1.16倍。
+//   ⚠ 幅は触らない（分割表示で変わるのは主に幅なので、危ないのは幅の方）。
+function isHomeScreenApp() {
+  try {
+    if (window.navigator && window.navigator.standalone === true) return true;
+    return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  } catch (err) {
+    return false;
+  }
+}
+let 高さを補った = false;
 function viewportSize() {
   let w = window.innerWidth;
   let h = window.innerHeight;
@@ -14746,6 +14791,15 @@ function viewportSize() {
       w = Math.round(vv.width);
       h = Math.round(vv.height);
     }
+  }
+  const oh = Math.round(window.outerHeight || 0);
+  if (isHomeScreenApp() && oh > h && oh <= h * 1.35) {
+    if (!高さを補った) {
+      高さを補った = true;
+      // 当たったことを1回だけ残す（次の報告で「効いたのか」が1行で分かる）。
+      try { logAction("diag-standalone-height", { inner: h, outer: oh, w }); } catch (err) {}
+    }
+    h = oh;
   }
   return { w, h };
 }

@@ -20551,7 +20551,13 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type^="first"] .card-face-subtitle,
 .card-face[data-card-type^="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
 .card-face[data-card-type^="first"] .card-face-effect-body { text-align: center; }
-/* ═══ 1st EDITION のカードだけ、文字の帯に白い下敷きを敷く（#540・2026-11-08）═══
+/* ═══ 1st EDITION と 0th拡張のカードだけ、文字の帯に白い下敷きを敷く（#540 / #541）═══
+   🔴【#541・2026-11-09】**0th拡張も同じだった。** #540 で 1st だけ直したら、翌日
+     「カードタイトルが黒くて見にくいです！」と**同じ報告がもう一度**来た。実際に
+     カード面を組み立てて見比べたら、0th拡張の題字は**カードの色そのものの上**に
+     乗っていた（赤の札なら赤地に黒文字）。リメイクは題字の帯が灰色の板なので読める。
+   ⚠ **「直した」と思ったら、同じ形の他のセットも必ず見る**（続き640 の「戻る」8つと同じ形）。
+     私は 1st の報告だったので 1st しか見ていなかった。
    ユーザー報告「カードタイトルの色が黒になっちゃってて見にくいです！」。
    🔴 原因は文字の色ではなく**地の色**。1st のイラストはまだ横長で、正方形にする時に
      下半分を透明で埋めている（tools/squarify-illust.mjs）ので、**文字が載る帯が
@@ -20562,7 +20568,8 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
    ⚠ 正方形版のイラストが届いたらこの規則は要らなくなる（その時は1ブロック消すだけ）。
    ⓘ ::before は位置指定の子より先に塗られるので、文字の下に入る（z-index は要らない）。 */
 .card-face[data-card-id^="1st-"]::before,
-.card-face[data-card-id^="eternal-1st-"]::before {
+.card-face[data-card-id^="eternal-1st-"]::before,
+.card-face[data-card-id^="ex0-"]::before {
   content: "";
   position: absolute;
   left: 4cqw;

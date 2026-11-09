@@ -4606,6 +4606,60 @@ export const CASES = [
     ],
   },
 
+  // ───────── 2026-11-09（続き678）に直した分 ─────────
+  {
+    name: '苦渋の強盗(到達): 2人対戦では、居ないプレイヤーのゲートは候補に出ない（#539）',
+    kind: 'arrival',
+    cardId: '1st-blue-robbery',
+    state: {
+      // 3人戦（A・B・C）。D(東) の席には**誰も居ない**。
+      activePlayers: ['A', 'B', 'C'], turnPlayer: 'A',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 5, col: 3 } },
+        { id: 'self', kind: 'card', cardId: '1st-blue-robbery', faceUp: true, location: { zone: 'cell', row: 5, col: 3 } },
+        { id: 'gC', kind: 'card', cardId: 'green-growing-trees', location: { zone: 'cell', row: 0, col: 3 } },
+        { id: 'gB', kind: 'card', cardId: 'red-counter-lock', location: { zone: 'cell', row: 3, col: 0 } },
+        { id: 'gD', kind: 'card', cardId: 'red-jump-pad', location: { zone: 'cell', row: 3, col: 6 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: '1st-blue-robbery', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 5, col: 3 } },
+    picks: {},
+    picks: { location: [{ row: 0, col: 3 }] },
+    expect: [
+      // 🔴 **候補の数で見る**。B と C のゲートだけ＝2。居ない D(3,6) が混ざると3になる。
+      //   （先頭が偶然あたりでも通ってしまうので、取ったカードだけ見ても検査にならない）
+      { kind: 'called', name: 'pickLocationCandidates', arg: '2' },
+      { kind: 'tokenZone', id: 'gC', zone: 'hand' },
+      { kind: 'tokenAtCell', id: 'gD', row: 3, col: 6 },
+    ],
+  },
+  {
+    name: '迷いの森(到達): 隣のカードを捨てる順を選べる（#535）',
+    kind: 'arrival',
+    cardId: 'ex0-green-lost-forest',
+    state: {
+      activePlayers: ['A', 'C'], turnPlayer: 'A',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 3, col: 3 } },
+        { id: 'self', kind: 'card', cardId: 'ex0-green-lost-forest', faceUp: true, location: { zone: 'cell', row: 3, col: 3 } },
+        // 隣4マスのうち2マスにカード（上と下）。斜めは対象外。
+        { id: 'nU', kind: 'card', cardId: 'red-jump-pad', location: { zone: 'cell', row: 2, col: 3 } },
+        { id: 'nD', kind: 'card', cardId: 'green-growing-trees', location: { zone: 'cell', row: 4, col: 3 } },
+        { id: 'diag', kind: 'card', cardId: 'red-counter-lock', location: { zone: 'cell', row: 2, col: 2 } },
+      ],
+      piles: { deck: ['red-jump-pad', 'red-counter-lock', 'orange-mass-change', 'green-growing-trees', 'red-jump-pad'], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: 'ex0-green-lost-forest', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 3, col: 3 } },
+    picks: { boardCardsOrdered: [['nD', 'nU']] },
+    expect: [
+      // 2枚以上あるので順番を聞く。選んだ順（nD→nU）に捨てる＝捨て場の1番上は nU。
+      { kind: 'called', name: 'pickBoardCardsOrdered' },
+      { kind: 'pileOrder', pile: 'discard', cards: ['green-growing-trees', 'red-jump-pad'] },
+      { kind: 'called', name: 'pickBoardCardsOrdered', arg: 'nD,nU' },
+      { kind: 'tokenAtCell', id: 'diag', row: 2, col: 2 },
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------
