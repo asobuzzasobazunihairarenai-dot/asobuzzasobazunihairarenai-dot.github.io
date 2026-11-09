@@ -3170,12 +3170,31 @@ async function runAction(action, ctx, helpers) {
         }
         return 置いたT > 0;
       }
+      // 🔴【#538・2026-11-10】**置くマスの順番を選べるようにする**（報告「ピーターフッドの
+      //   到達効果で置くマスの順番を選べるといいです！」→ ユーザー判断「お願いします」）。
+      //   山札は上から順に出るので、**どのマスにどの札が行くかは順番で決まる**＝選ぶ意味がある。
+      //   ⚠ 隣が1マスだけなら聞かない（選ぶ余地が無い）。
+      //   ⚠ 山札が尽きたら途中で止める（善処の原則）。placeFromDeck は空だと何もしないので、
+      //     **置く前に残りを見て**から進める。
       let 置いた = 0;
-      for (const dest of 隣) {
+      const 残りマス = [...隣];
+      const 全部 = 残りマス.length;
+      for (let i = 0; i < 全部; i++) {
+        if (getState().piles.deck.length === 0) break;
+        const dest =
+          残りマス.length === 1 && !ctx.forcePrompt
+            ? 残りマス[0]
+            : await helpers.pickLocation(残りマス, t("ce.placeNth", { i: i + 1, n: 全部 }), { purpose: "place" });
+        if (!dest) break;
+        const j = 残りマス.findIndex((c) => c.row === dest.row && c.col === dest.col);
+        if (j >= 0) 残りマス.splice(j, 1);
+        else 残りマス.shift(); // 念のため（候補外が返ってきても無限ループにしない）
         for (let k = 0; k < (action.count ?? 1); k++) {
+          if (getState().piles.deck.length === 0) break;
           await helpers.placeFromDeck(dest);
           置いた++;
         }
+        helpers.markPlacedLocation?.(dest);
       }
       return 置いた > 0;
     }
@@ -4308,6 +4327,20 @@ async function runAction(action, ctx, helpers) {
       //   表向きになった瞬間にその人の到達が走り、**同じ札の「中央に置く」がまた動く**
       //   （置き直すだけの無限ループになりかねない）。盤面は変わらないので実害は無い。
       if (!ctx.cardTokenId) return false;
+      // 🔴【#537・2026-11-10】**既に場の中央に在るなら、置き直さず不発にする。**
+      //   報告「例えば場の中央に経済成長があってそこに駒が到達した時、経済成長は場の中央に
+      //   置き直しません。なので不発です！」。ユーザー判断「現状置きなおす演出が入って
+      //   いますが、不発モーダルでいいです」。
+      //   ⓘ false を返すと呼び出し元が「不発」のモーダルを出す。この札は
+      //     addsCardToHandAfter: false なので**盤面にそのまま残る**（手札には行かない）。
+      {
+        const いま = getState().tokens.find((tk) => tk.id === ctx.cardTokenId);
+        const 中央に在る =
+          いま?.location?.zone === "cell" &&
+          いま.location.row === BOARD_CENTER.row &&
+          いま.location.col === BOARD_CENTER.col;
+        if (中央に在る) return false;
+      }
       // 🔴【#525・2026-11-07】**飛んでいる間から表の面**を見せる（landFaceUp）。
       //   報告「場に表向きで置く系のカードは、手札から飛翔する時から表向きがいい！
       //   裏向きで飛んでって場で表向きだと効果文にはない『オープン』するという行為を、

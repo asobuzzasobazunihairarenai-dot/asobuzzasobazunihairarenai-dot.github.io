@@ -45,6 +45,9 @@ import { isFlatten2dMode, onFlatten2dModeChange } from "./tablet-2d-mode.js";
 // 【続き677】1st EDITION の駒は立方体ではなく**宝石の立体**で描く。
 // jewel-piece-shape.js は three.js 以外を import しない葉なので循環しない（続き573）。
 import { getJewelGeometry, getJewelFacetCount, JEWEL_TOP_Z } from "./jewel-piece-shape.js";
+// 【#543・2026-11-10】WebGL が抱えている量を墜落の控えへ（crash-blackbox は import を
+// 1つも持たない葉なので循環しない）。
+import { registerBlackboxProbe } from "./crash-blackbox.js";
 
 let renderer = null;
 let scene = null;
@@ -1560,6 +1563,33 @@ function reconcileBoard3dActive() {
 }
 
 // 描画中の枚数など（管理者モードの表示・不具合報告用）。
+// 🔴【#543・2026-11-10】**WebGL が抱えている量**を墜落の控えへ。
+//   勝利演出の後に落ちる報告が6回目で、数えている量（画像・canvas）は下がり続けている
+//   のに落ちる。**GPU 側のテクスチャは `<img>` にも `<canvas>` にも写らない**ので、
+//   まだ一度も数えていない。three.js の info から枚数を、キャッシュしている絵から
+//   「幅×高さ×4」を見積もる（#223 と同じ数え方）。
+export function getBoard3dMemoryInfo() {
+  if (!renderer) return { active: 0 };
+  let texPx = 0;
+  const 見る = (t) => {
+    const im = t?.image;
+    const w = im?.width || im?.naturalWidth || 0;
+    const h = im?.height || im?.naturalHeight || 0;
+    if (w && h) texPx += w * h * 4;
+  };
+  for (const t of textureCache.values()) 見る(t);
+  for (const t of shapeTextures.values()) 見る(t);
+  const info = renderer.info || {};
+  return {
+    active: 1,
+    tex: info.memory?.textures ?? 0,
+    geo: info.memory?.geometries ?? 0,
+    prog: info.programs?.length ?? 0,
+    texMB: Math.round(texPx / 1048576),
+    bufMB: Math.round(((renderer.domElement?.width || 0) * (renderer.domElement?.height || 0) * 4) / 1048576),
+  };
+}
+
 export function getBoard3dStats() {
   return {
     active,
@@ -1676,4 +1706,11 @@ export function debugJewelMeshInfo(pieceEl) {
     faces: mesh.geometry.getAttribute("position").count / 3,
     tracking: trackedEls.has(pieceEl),
   };
+}
+
+// 【#543】このファイルが読み込まれた時点で計器を登録しておく（描画がOFFでも active:0 を返す）。
+try {
+  registerBlackboxProbe("gl", getBoard3dMemoryInfo);
+} catch (err) {
+  /* 計器が登録できなくても描画は続ける */
 }

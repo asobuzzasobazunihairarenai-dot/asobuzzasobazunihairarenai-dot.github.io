@@ -718,6 +718,24 @@ export function previewBgmVolume(cssVar) {
 // 外からでも鳴らせる（Howler.js等と同じ方式）。バッファは初回操作時（initSoundUnlock）に一括
 // デコードしてキャッシュする。未対応/未ロード時は従来の new Audio() にフォールバックする。
 const soundBufferCache = new Map(); // name -> AudioBuffer | "loading" | null(失敗)
+
+// 🔴【#543・2026-11-10】**デコード済みの音が端末のメモリをどれだけ食っているか**を
+//   墜落の控えに載せる。AudioBuffer は非圧縮（1秒あたり 44100×4バイト×チャンネル数）なので、
+//   mp3 のファイル容量からは想像できない大きさになる——勝利演出で7本増えたばかりで、
+//   画像・canvas を減らしても落ちる原因として**まだ一度も数えていない**量。
+//   ⚠ どの計器にも写らない量を数えるのが目的なので、**長さとチャンネル数から素直に計算**する。
+export function getDecodedSoundInfo() {
+  let 本数 = 0;
+  let バイト = 0;
+  let 秒 = 0;
+  for (const v of soundBufferCache.values()) {
+    if (!v || typeof v !== "object" || typeof v.length !== "number") continue;
+    本数++;
+    秒 += v.duration || 0;
+    バイト += (v.length || 0) * (v.numberOfChannels || 1) * 4;
+  }
+  return { count: 本数, MB: Math.round(バイト / 1048576), sec: Math.round(秒) };
+}
 function loadSoundBuffer(name) {
   const def = SOUND_DEFS[name];
   const ctx = getAudioContext();

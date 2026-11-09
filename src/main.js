@@ -111,7 +111,7 @@ import { getOptionArea } from "./option-area.js";
 import { openBugReportModal } from "./bug-report.js";
 // リロードを跨ぐ“ブラックボックス”（「スマホでたまに落ちてタイトルに戻る」原因追跡用）。
 // import した時点で自己初期化（心拍・エラー捕捉開始＋前回セッションの不審終了判定）される。
-import { getBlackboxBootReport, setBlackboxContext } from "./crash-blackbox.js";
+import { getBlackboxBootReport, setBlackboxContext, registerBlackboxProbe } from "./crash-blackbox.js";
 // 【#377・2026-10-06】対戦中の「戻る」でアプリを抜けてしまうのを防ぐ。
 import { setBackGuardActive, setBackGuardNotice } from "./back-guard.js";
 // アプリ内スモークテスト（タイトル右下・管理者のみ。ユーザー要望2026-08-14）。
@@ -452,6 +452,7 @@ import {
   stopHeartbeat,
   playVictoryChime,
   playPulseThump,
+  getDecodedSoundInfo,
 } from "./sound.js";
 import { initScreenWakeLock } from "./wake-lock.js";
 import { getCardDefinition, getCardImagePath, getCardBackImagePath, getCardIllustPath } from "./cards-data.js";
@@ -20445,6 +20446,14 @@ initActionLogPanel();
 // ブラックボックス: 前回セッションが不審に終わっていた（＝落ちてタイトルに戻った疑い）場合、
 // その内訳（メモリのピーク・CPU戦/オンライン・遷移種別・直前エラー）をアクションログへ残す。
 // こうしておくと、次に落ちた後に送られる不具合報告のログでその1行を見れば原因を絞り込める。
+// 🔴【#543・2026-11-10】**デコード済みの音の量**を墜落の控えに載せる。AudioBuffer は
+//   非圧縮なので mp3 の容量からは想像できない大きさになり、**画像にも canvas にも写らない**。
+//   勝利演出で7本増えたばかりで、まだ一度も数えていない量。
+try {
+  registerBlackboxProbe("snd", getDecodedSoundInfo);
+} catch {
+  /* 計器が登録できなくても起動は続ける */
+}
 try {
   const bb = getBlackboxBootReport();
   if (bb) logAction("diag-crash-recovery", bb);

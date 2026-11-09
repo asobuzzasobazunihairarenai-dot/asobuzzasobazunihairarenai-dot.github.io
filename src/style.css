@@ -20524,7 +20524,13 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-divider { display: flex; align-items: center; height: 1.2cqw; }
 .card-face-divider::before { content: ""; height: 0.22cqw; flex: 1; background: rgba(20, 20, 20, 0.8); }
 /* タイトルは全て黒文字（ユーザー指定）。ファーストのみ中央寄せ。フォント＝FOT-マティス。 */
-.card-face-title { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 800; line-height: 1.08; letter-spacing: 0.2cqw; color: #141414; text-align: left; }
+/* 🔴【#541・2026-11-10】**題字は白。** ユーザー指示「リメイクの製品版のカードの
+   テキストカラーに合わせてください。カードタイトルは白色のはずです」。
+   印刷されたカードを切り出して確かめた（scratchpad/_titlecrop.mjs）——
+   **濃い帯の上に白い題字・白いルビ**で、アプリの #141414（黒に近い）とは逆だった。
+   ⚠ 効果の本文は今までどおり黒（印刷も淡い面の上の黒文字）。変えるのは題字とルビだけ。
+   ⚠ 影を付けるのは、絵によっては帯が明るい所があるため（白1色だと飛ぶ）。 */
+.card-face-title { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 800; line-height: 1.08; letter-spacing: 0.2cqw; color: #fff; text-shadow: 0 0.25cqw 0.7cqw rgba(0, 0, 0, 0.85), 0 0 0.35cqw rgba(0, 0, 0, 0.65); text-align: left; }
 /* ⚠ ここから下の「ファーストの見た目」は ^= で first と first1st の両方に効かせる。
    = にすると 1st EDITION のファーストだけ中央寄せも白文字も外れる。 */
 .card-face[data-card-type^="first"] .card-face-title { text-align: center; }
@@ -20539,7 +20545,7 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-title ruby,
 .card-face-title .card-face-title-run { position: relative; display: inline-block; }
 .card-face-title rt,
-.card-face-title .card-face-title-rt { position: absolute; left: 50%; bottom: 100%; white-space: nowrap; font-weight: 700; line-height: 1; color: #141414; font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; }
+.card-face-title .card-face-title-rt { position: absolute; left: 50%; bottom: 100%; white-space: nowrap; font-weight: 700; line-height: 1; color: #fff; text-shadow: 0 0.2cqw 0.5cqw rgba(0, 0, 0, 0.85), 0 0 0.3cqw rgba(0, 0, 0, 0.6); font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; }
 /* 能力名《》はタイトルと同じフォント。 */
 .card-face-subtitle { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 800; text-align: center; color: color-mix(in srgb, var(--card-accent, #555) 55%, #201a16); }
 /* フレーバーは斜体にしない（ユーザー指摘）。フォント＝FOT-マティス。 */
@@ -20551,35 +20557,16 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type^="first"] .card-face-subtitle,
 .card-face[data-card-type^="first"] .card-face-effect { color: #fff; text-shadow: 0 0.3cqw 0.8cqw rgba(0, 0, 0, 0.7), 0 0 0.4cqw rgba(0, 0, 0, 0.5); }
 .card-face[data-card-type^="first"] .card-face-effect-body { text-align: center; }
-/* ═══ 1st EDITION と 0th拡張のカードだけ、文字の帯に白い下敷きを敷く（#540 / #541）═══
-   🔴【#541・2026-11-09】**0th拡張も同じだった。** #540 で 1st だけ直したら、翌日
-     「カードタイトルが黒くて見にくいです！」と**同じ報告がもう一度**来た。実際に
-     カード面を組み立てて見比べたら、0th拡張の題字は**カードの色そのものの上**に
-     乗っていた（赤の札なら赤地に黒文字）。リメイクは題字の帯が灰色の板なので読める。
-   ⚠ **「直した」と思ったら、同じ形の他のセットも必ず見る**（続き640 の「戻る」8つと同じ形）。
-     私は 1st の報告だったので 1st しか見ていなかった。
-   ユーザー報告「カードタイトルの色が黒になっちゃってて見にくいです！」。
-   🔴 原因は文字の色ではなく**地の色**。1st のイラストはまだ横長で、正方形にする時に
-     下半分を透明で埋めている（tools/squarify-illust.mjs）ので、**文字が載る帯が
-     そのカードの濃い地色のまま**になる。リメイク・0th拡張は絵が下まで続いていて
-     淡いので、同じ黒い文字でも読める。
-   ⚠ 白い文字にする手もあるが、**黄色のカードで今度は読めなくなる**ので採らない。
-     下敷きなら7色とも同じ読み味になり、他のカードとも揃う。
-   ⚠ 正方形版のイラストが届いたらこの規則は要らなくなる（その時は1ブロック消すだけ）。
-   ⓘ ::before は位置指定の子より先に塗られるので、文字の下に入る（z-index は要らない）。 */
-.card-face[data-card-id^="1st-"]::before,
-.card-face[data-card-id^="eternal-1st-"]::before,
-.card-face[data-card-id^="ex0-"]::before {
-  content: "";
-  position: absolute;
-  left: 4cqw;
-  right: 4cqw;
-  top: 50.5cqw;
-  bottom: 11cqw; /* 下の「illustration : …／年月」は絵の一部なので覆わない */
-  border-radius: 1.4cqw;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0.88) 10%, rgba(255, 255, 255, 0.90));
-  pointer-events: none;
-}
+/* ═══ 題字の帯について（#540 / #541 の記録・2026-11-10）═══
+   ここには一時期、1st EDITION と 0th拡張のカードにだけ**白い下敷き**を敷く規則があった。
+   報告「カードタイトルの色が黒になっちゃってて見にくいです！」への対処だったが、
+   🔴 **原因の取り違えだった。** 印刷されたカードを切り出して確かめたら
+   （scratchpad/_titlecrop.mjs）、製品版は**濃い帯の上に白い題字**で、
+   アプリが題字を #141414（黒に近い）で描いていたことが本当の原因だった。
+   ⇒ 題字とルビを白にして（上の .card-face-title）、この下敷きは外した。
+   ⚠ **同じ報告が2日続けて来たのは、症状の方を消しにいったから**
+     （1日目は 1st だけ、2日目は 0th拡張だけ、と対象を広げても直らない形だった）。
+     **見本（この場合は印刷されたカード）と突き合わせる**のが先だった。 */
 
 /* エディタ用：要素ごとの枠（どこに何があるか分かるように） */
 .card-face.cf-outline .card-face-title,

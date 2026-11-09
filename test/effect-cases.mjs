@@ -2538,6 +2538,8 @@ export const CASES = [
     picks: {},
     expect: [
       { kind: "deckLen", n: 1 },
+      // 【#538・2026-11-10】置くマスの順番を選べるようにしたので、4マスの候補から聞かれる。
+      { kind: "called", name: "pickLocationCandidates", arg: "4" },
       { kind: "cellStackOrder", row: 2, col: 3, cards: ["red-jump-pad", "red-jump-pad", "red-jump-pad"] },
       { kind: "cardAtCell", row: 3, col: 2, faceUp: false },
       { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
@@ -4658,6 +4660,47 @@ export const CASES = [
       { kind: 'pileOrder', pile: 'discard', cards: ['green-growing-trees', 'red-jump-pad'] },
       { kind: 'called', name: 'pickBoardCardsOrdered', arg: 'nD,nU' },
       { kind: 'tokenAtCell', id: 'diag', row: 2, col: 2 },
+    ],
+  },
+  // ───────── 2026-11-10（続き679）─────────
+  // #537 報告「場の中央に経済成長があってそこに駒が到達した時、経済成長は場の中央に
+  // 置き直しません。なので不発です！」→ ユーザー判断「不発モーダルでいいです」。
+  {
+    name: '状況(到達): 既に場の中央に在るなら置き直さず不発（#537）',
+    kind: 'arrival',
+    cardId: '1st-pink-growth',
+    state: {
+      activePlayers: ['A', 'B'], turnPlayer: 'A',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 3, col: 3 } },
+        { id: 'self', kind: 'card', cardId: '1st-pink-growth', faceUp: true, location: { zone: 'cell', row: 3, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: '1st-pink-growth', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      // 置き直さない＝カードを動かす呼び出しが1回も無い。
+      { kind: 'called', name: 'moveAndSync', n: 0 },
+      { kind: 'tokenAtCell', id: 'self', row: 3, col: 3 },
+    ],
+  },
+  {
+    name: '状況(到達): 中央でないなら今までどおり中央へ置く（#537 の回帰）',
+    kind: 'arrival',
+    cardId: '1st-pink-growth',
+    state: {
+      activePlayers: ['A', 'B'], turnPlayer: 'A',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 5, col: 3 } },
+        { id: 'self', kind: 'card', cardId: '1st-pink-growth', faceUp: true, location: { zone: 'cell', row: 5, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: '1st-pink-growth', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 5, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: 'tokenAtCell', id: 'self', row: 3, col: 3 },
     ],
   },
 ];

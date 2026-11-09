@@ -27,7 +27,9 @@ let peakImgMB = 0; // 画像の重さのピーク（iOSでは heapMB が0なの�
 //    さらに #454/#446（勝利演出中に落ちる）でも決め手が出せなかったので足す。
 //    canvas は 幅×高さ×4バイト で効く＝画像と同じ理屈で、全画面1枚で約23MBになる。
 let peakCanvasMB = 0;
-let peakTotalMB = 0; // 画像＋canvas の合計のピーク（端末が苦しくなるのは合計なので、これが本命）
+let peakTotalMB = 0;
+// 画像＋canvas の合計のピーク（端末が苦しくなるのは合計なので、これが本命）
+let peakAllMB = 0; // 【#543】さらに WebGL のテクスチャ・描画バッファ・音まで足した合計のピーク
 let peakTag = null; // そのピークを記録した場面（noteBlackboxWeight の呼び元。心拍なら null）
 // 🔴 **場面ごとの最大。これが本命。** 「合計のピーク」は画像が重い瞬間に奪われるので
 //    （実測: 対局中の心拍 69MB > 勝利演出の GATHER 59MB）、peakTag だけでは
@@ -64,6 +66,18 @@ function heapMB() {
 // gatherWeightSnapshot と**同じ式**にしてある（報告時の weight と突き合わせられるように）。
 // ⚠ WebGL の canvas は実際には深度バッファ・テクスチャぶんも食うので、この式は**過小評価**。
 //   それでも「23MBの全画面 canvas が何枚生きていたか」は分かる。
+// 🔴【#543・2026-11-10】**他のモジュールが「自分だけが知っている数字」を足せる口。**
+//   勝利演出の後に落ちる報告が6回目になり、数えている量（画像・canvas）は下がり続けて
+//   いるのに落ちる。⇒ **まだ数えていない所**（WebGLのテクスチャ・読み込んだ音・
+//   ランク戦の待機）を足すために、各モジュールから小さな関数を登録してもらう。
+//   ⚠ このファイルは**他のモジュールを一切 import しない**決まり（循環import/TDZ回避）なので、
+//     こちらから取りに行くのではなく**向こうから登録してもらう**形にする。
+//   ⚠ 登録する関数は**数字だけを返す**こと（重い走査はしない）。心拍（5秒ごと）で呼ばれる。
+const probes = new Map();
+export function registerBlackboxProbe(name, fn) {
+  if (typeof name === "string" && typeof fn === "function") probes.set(name, fn);
+}
+
 function pageWeight() {
   try {
     let bytes = 0;
@@ -82,14 +96,29 @@ function pageWeight() {
       cCount++;
       cBytes += cList[i].width * cList[i].height * 4;
     }
-    return {
+    const out = {
       imgMB: Math.round(bytes / 1048576),
       imgCount: count,
       canvasMB: Math.round(cBytes / 1048576),
       canvasCount: cCount,
       totalMB: Math.round((bytes + cBytes) / 1048576),
       domNodes: document.getElementsByTagName("*").length,
+      audioEls: document.getElementsByTagName("audio").length,
+      // 🔴【#543】**ランク戦の待機中かどうか。** 落ちた報告6件のうち #454 と #543 は
+      //   どちらも「ランク戦の待機中にCPU練習で勝った」。待機中は裏で通信と巡回が
+      //   動いているので、メモリだけの話ではない疑いがある。DOM を1つ見るだけ（軽い）。
+      rankedWait: document.getElementById("ranked-practice-banner") ? 1 : 0,
     };
+    // 登録された計器を足す（1つ失敗しても他は残す）。
+    for (const [name, fn] of probes) {
+      try {
+        const v = fn();
+        if (v && typeof v === "object") for (const k of Object.keys(v)) out[name + "_" + k] = v[k];
+      } catch {
+        /* その計器だけ諦める */
+      }
+    }
+    return out;
   } catch {
     return { imgMB: 0, imgCount: 0, canvasMB: 0, canvasCount: 0, totalMB: 0, domNodes: 0 };
   }
@@ -111,6 +140,13 @@ function writeRecord(extra) {
       peakTotalMB = totalNow;
       peakTag = (extra && extra.weightTag) || null;
     }
+    // 🔴【#543・2026-11-10】**端末が本当に抱えている量**は、画像＋canvas だけではない。
+    //   WebGL のテクスチャと描画バッファ（実測でこの2つだけで31MB）、デコード済みの音は
+    //   `<img>` にも `<canvas>` にも写らない。⇒ それらも足した allMB を別に持つ。
+    //   ⚠ **totalMB の意味は変えない**——過去の報告（79/48/54MB）と比べられなくなるため。
+    const 計器MB = (weight.gl_texMB || 0) + (weight.gl_bufMB || 0) + (weight.snd_MB || 0);
+    const allNow = totalNow + 計器MB;
+    if (allNow > peakAllMB) peakAllMB = allNow;
     const tag = (extra && extra.weightTag) || null;
     if (tag && (tagPeaks[tag] === undefined || totalNow > tagPeaks[tag])) {
       if (tagPeaks[tag] !== undefined || Object.keys(tagPeaks).length < TAG_PEAKS_MAX) tagPeaks[tag] = totalNow;
@@ -131,6 +167,16 @@ function writeRecord(extra) {
       peakTag,
       tagPeaks,
       domNodes: weight.domNodes,
+      // 【#543】ここから下が 2026-11-10 に足した欄。
+      allMB: allNow,
+      peakAllMB,
+      glTex: weight.gl_tex ?? null,
+      glTexMB: weight.gl_texMB ?? null,
+      glBufMB: weight.gl_bufMB ?? null,
+      sndCount: weight.snd_count ?? null,
+      sndMB: weight.snd_MB ?? null,
+      audioEls: weight.audioEls ?? null,
+      rankedWait: weight.rankedWait ?? null,
       cleanExit,
       ...(extra || {}),
     };
@@ -200,7 +246,17 @@ export function getBlackboxSummary() {
     /* ignore */
   }
   const w = pageWeight();
+  // 🔴【#543・2026-11-10】登録された計器（gl_* / snd_* など）と、新しく数えるように
+  //   した欄（audioEls / rankedWait）も**そのまま載せる**。載せ忘れると「数えているのに
+  //   報告に出ない」ことになり、続き643 で踏んだ穴とまったく同じになる。
+  const 追加 = {};
+  for (const k of Object.keys(w)) {
+    if (k === "imgMB" || k === "canvasMB" || k === "canvasCount" || k === "totalMB") continue;
+    if (k === "imgCount" || k === "domNodes") continue; // 既に bootReport 側で見ている
+    追加[k] = w[k];
+  }
   return {
+    ...追加,
     navType: navType(),
     heapMB: heapMB(),
     peakHeapMB,
@@ -249,6 +305,17 @@ function init() {
       prevTagPeaks: prev.tagPeaks ?? null,
       prevImgCount: prev.imgCount ?? null,
       prevDomNodes: prev.domNodes ?? null,
+      // 【#543・2026-11-10】画像・canvas に写らない量。勝利演出の後に落ちる報告が6回目で、
+      //   数えている量は下がり続けているのに落ちるため、**まだ数えていない所**を足した。
+      prevAllMB: prev.allMB ?? null, // WebGL のテクスチャ・描画バッファ・音まで足した合計
+      prevPeakAllMB: prev.peakAllMB ?? null,
+      prevGlTex: prev.glTex ?? null,
+      prevGlTexMB: prev.glTexMB ?? null,
+      prevGlBufMB: prev.glBufMB ?? null,
+      prevSndCount: prev.sndCount ?? null,
+      prevSndMB: prev.sndMB ?? null,
+      prevAudioEls: prev.audioEls ?? null,
+      prevRankedWait: prev.rankedWait ?? null, // 🔴 ランク戦の待機中だったか（#454・#543 とも待機中）
       prevLastError: prev.lastError ?? null, // 直前の未捕捉エラー（あれば）
     };
   }
