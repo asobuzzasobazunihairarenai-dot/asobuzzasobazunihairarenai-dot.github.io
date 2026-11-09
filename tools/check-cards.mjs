@@ -259,10 +259,16 @@ if (firstEdSrc) {
   // 🔴 1st EDITION のファーストカードを持っている席は、駒が宝石になる
   //   （src/piece-skins.js の seatUsesJewelPiece）。絵が無いと **駒が丸ごと見えなくなる**
   //   （404。0th拡張で同じ形の穴を踏んでいる＝続き652）。7色そろっているかを毎回見る。
+  // 🔴【続き677】WebGL描画がONの時は、その駒を**宝石の立体**で描く
+  //   （src/jewel-piece-shape.js）。色がそこに無いと立体が作れず、**駒が1つだけ消える**
+  //   （立方体の板も作らない作りなので、代わりに描かれるものが無い）。色の表も毎回見る。
+  const 宝石色 = fs.readFileSync(path.join(ROOT, "src/jewel-piece-shape.js"), "utf8");
+  const 宝石色の表 = 宝石色.slice(宝石色.indexOf("JEWEL_BODY_RGB = {"));
   for (const id of first1st) {
     const 色 = id.replace("first-1st-", "");
     const rel = `assets/pieces/${色}-jewel.webp`;
     if (!fs.existsSync(path.join(ROOT, rel))) note(`1st EDITION: 宝石の駒の絵が無い: ${rel} → node tools/make-jewel-pieces.mjs`);
+    if (!宝石色の表.includes(`${色}:`)) note(`1st EDITION: 宝石の立体の色が無い: ${色}（src/jewel-piece-shape.js の JEWEL_BODY_RGB）`);
   }
   firstEdLine =
     `ⓘ 1st EDITION ${fe.length} 種（＋Eカード ${eternal1st.length} 種・Fカード ${first1st.length} 種）: 文(日英)と絵は上で検査済み。` +

@@ -171,6 +171,29 @@ export function noteBoard3dTransform(key) {
     /* 記録のためだけの処理なので、失敗しても描画は止めない */
   }
 }
+// --- 「このDOM要素を毎コマ追いかけて」-------------------------------------------------
+// 【続き677・ユーザー要望「接触と助走もそのままで行きたい！方法はない？」】
+// CSSのtransitionで動いている要素（接触の助走・突進の駒）は、作り直し（実機 56〜280ms）では
+// 追いつけない。そこで board-3d.js に「この要素だけ毎コマ置き直す」口を用意し、こちらから
+// 呼ぶ。作り直しも走査もしないので費用は板1枚ぶん。
+// ⚠ 動かし終わったら必ず false で解除する（解除時に1回だけ作り直して重なり順を戻す）。
+// 🔴 WebGL描画が止まっている時は null のまま＝何もしない。その時はDOMが駒を描いているので、
+//    そもそも追いかける必要が無い（CSSがそのまま滑らかに動かす）。
+let animTracker = null;
+export function setBoard3dAnimTracker(fn) {
+  animTracker = typeof fn === "function" ? fn : null;
+}
+/** WebGL描画が動いているか（＝追いかける口が在るか）。main.js が渡し方を決めるのに使う。 */
+export function isBoard3dPainting() {
+  return !!animTracker;
+}
+export function trackBoard3dAnim(el, on) {
+  try {
+    animTracker?.(el, on);
+  } catch (err) {
+    /* 追いかけに失敗しても演出そのものは止めない */
+  }
+}
 export function setBoard3dFlusher(fn) {
   flusher = typeof fn === "function" ? fn : null;
 }

@@ -33,6 +33,7 @@ import {
   setBoard3dInvalidator,
   setBoard3dTransformNoter,
   setBoard3dFlusher,
+  setBoard3dAnimTracker,
   isBoard3dLit,
   setBoard3dLitChangeHandler,
   getBoard3dLight,
@@ -41,6 +42,9 @@ import {
 // 【#324・2026-09-07】2D表示（body.diagnostic-flatten-3d）中はWebGL描画を止めるために見る。
 // tablet-2d-mode.js は board-3d.js を import しないので循環しない。
 import { isFlatten2dMode, onFlatten2dModeChange } from "./tablet-2d-mode.js";
+// 【続き677】1st EDITION の駒は立方体ではなく**宝石の立体**で描く。
+// jewel-piece-shape.js は three.js 以外を import しない葉なので循環しない（続き573）。
+import { getJewelGeometry, getJewelFacetCount, JEWEL_TOP_Z } from "./jewel-piece-shape.js";
 
 let renderer = null;
 let scene = null;
@@ -95,6 +99,9 @@ const meshByElement = new Map();
 // 同じ要素が「画像の板」と「形の板」を両方持つことがある（例: 盤面のカードは、絵はWebGL、
 // 枠線もWebGL）。混ざらないように別のMapで持つ。
 const shapeMeshByElement = new Map();
+// 【続き677】.piece.is-jewel-piece → 宝石の立体（1つの .piece につき1つ）。
+// こちらは板（PlaneGeometry）ではないので上の2つとは別に持つ。
+const jewelMeshByElement = new Map();
 // 画像URL → テクスチャ。同じカード裏面などを何度も読み込まない。
 const textureCache = new Map();
 const textureLoader = new THREE.TextureLoader();
@@ -134,6 +141,13 @@ const PAINT_SELECTOR = [".board-card", ".piece-face", ".stack-top", ".lock-area-
 // box-shadow（ロックスロットのグロー）は剥がさない——箱の内側/外側に描かれるもので、
 // WebGLの板（枠だけ・中は透明）に隠されないため、今までどおりDOMのまま動く。
 const SHAPE_SELECTOR = ".cell, .lock-slot, .board-card";
+
+// 【続き677】宝石の立体で描く駒。.piece に付く目印（main.js の buildCubePiece）。
+// この駒の .piece-face は板にしない（代わりに立体を1つ描く）。
+const JEWEL_SELECTOR = ".piece.is-jewel-piece";
+function isJewelFace(el) {
+  return el.classList.contains("piece-face") && !!el.parentElement?.classList.contains("is-jewel-piece");
+}
 let stripSheet = null;
 function ensureStripSheet() {
   if (stripSheet) return stripSheet;
@@ -718,34 +732,35 @@ function ensureShapeMesh(el, spec) {
   return mesh;
 }
 
-function rebuild() {
-  const table = getTable();
-  if (!table || !rootGroup) return;
-  const seen = new Set();
-  const seenShapes = new Set();
-  // マス・ロックスロットの「形」は先に読む（この中だけ剥がすルールを外すため、
-  // 後段の走査とは分けてある）。
-  const shapeSpecs = readShapeSpecs(table);
-  const els = table.querySelectorAll(PAINT_SELECTOR + "," + SHAPE_SELECTOR);
-  // DOMの並び順＝重なり順。手前のものを少しだけカメラ側へ寄せて、同じ平面上の
-  // カードと駒がZファイティング（ちらつき）を起こさないようにする。
-  let order = 0;
-  for (const el of els) {
+// 【続き677】1つの要素ぶんの板を置く。
+// 🔴 **rebuild() から全要素ぶん呼ぶのと、「動いている駒を毎コマ追いかける」時に
+//    その駒の分だけ呼ぶのと、同じ関数を通す**（2か所に同じ置き方を書くと必ず食い違う）。
+// orderRef が null の時は重なり順（domIndex）を今のまま据え置く＝並べ替えの基準が
+// 動かないので、追いかけている間に前後関係が入れ替わらない。
+// 戻り値: { painted, shaped }（rebuild() が「見かけた要素」を数えるのに使う）
+function paintOne(el, table, shapeSpecs, orderRef) {
+  const out = { painted: false, shaped: false };
+  {
     const shape = shapeSpecs.get(el);
     const url = backgroundImageUrl(el);
-    if (!url && !shape) continue;
+    if (!url && !shape) return out;
     // 【#381】`board3d-skip` が付いている間は板を作らない（既にある板は下の後片付けで
     // 取り下げられる）。CSSのtransitionで動かしたい要素を、一時的にDOM描画へ戻すための
     // 目印。全体の作り直しは実機で56〜280ms掛かるので、動いている間ずっと追いかけるのは
     // 無理がある（#381: 接触のタックル中は毎秒3回しか描けていなかった）。
-    if (el.classList.contains("board3d-skip")) continue;
+    // 【続き677】いまはその代わりに「動いている駒だけを毎コマ置き直す」道があるので、
+    // 駒についてはDOMへ渡さなくなった（main.js の handLungeToDom 参照）。この目印は
+    // 他の用途のために残してある。
+    if (el.classList.contains("board3d-skip")) return out;
+    // 【続き677】宝石の駒の面は板にしない（1つの立体として別に描く）。
+    if (isJewelFace(el)) return out;
     const cs = getComputedStyle(el);
-    if (cs.display === "none" || cs.visibility === "hidden") continue;
+    if (cs.display === "none" || cs.visibility === "hidden") return out;
     const vis = effectiveVisual(el, table);
-    if (vis.hidden) continue;
+    if (vis.hidden) return out;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    if (w <= 0 || h <= 0) continue;
+    if (w <= 0 || h <= 0) return out;
     const base = localMatrixTo(el, table);
     // 1つの要素が「絵の板」と「形の板（枠線・背景色・グロー）」の両方を持つことがある
     // （盤面のカード＝絵はWebGL・枠線もWebGL）。CSSと同じく、枠線は絵の上に描く。
@@ -766,7 +781,8 @@ function rebuild() {
       // 掛け算の意味が変わって暗くなりすぎる。続き420で踏んだのと同じ話）。
       const b = Math.max(0, Math.min(4, vis.brightness));
       mesh.material.color.setRGB(b, b, b, THREE.SRGBColorSpace);
-      mesh.userData.domIndex = order++;
+      // orderRef が null（＝毎コマの追いかけ）なら、重なり順は据え置く。
+      if (orderRef) mesh.userData.domIndex = orderRef.n++;
       mesh.visible = true;
       // 【#314】CSSの backface-visibility: hidden を尊重する（ユーザー報告「キューブの奥側
       // 上の辺の黒太線が気になります」）。駒の立方体の**奥の壁**は、CSSでは裏を向いた瞬間に
@@ -787,13 +803,124 @@ function rebuild() {
       }
     };
     if (url) {
-      seen.add(el);
+      out.painted = true;
       place(ensureMesh(el, url), 0);
     }
     if (shape) {
-      seenShapes.add(el);
+      out.shaped = true;
       place(ensureShapeMesh(el, shape), shape.pad || 0);
     }
+  }
+  return out;
+}
+
+// --- 宝石の駒（1st EDITION）------------------------------------------------------------
+// 🔴 板ではなく**閉じた立体**なので、描き方が板とは1つだけ違う:
+//    このアプリは半透明の板を重ねるために**深度バッファを使わず、描く順番だけ**で
+//    前後を決めている（sortByDepth）。立体の中の面どうしは順番では決められないが、
+//    **凸な立体なら「外を向いた面だけ描く」だけで正しい絵になる**（画面のどの点も
+//    外向きの面にちょうど1回だけ覆われる）。だから深度バッファは要らない。
+// 🔴 ⚠ 「外を向いた面」がどちらかを**自分で計算してはいけない。**
+//    盤面の行列には Y の反転（rootGroup の scale(1,-1,1)）が入っていて巻き方が裏返るが、
+//    **three.js がそれを自分で埋め合わせている**（renderBufferDirect が
+//    object.matrixWorld.determinant() < 0 を見て frontFace を切り替える）。
+//    ここで行列式を見て BackSide に替えると**二重に裏返り、宝石の内側が描かれる**——
+//    上から見ると facet の線が底の一点へ集まる「傘」になる（続き677 で実際にそうなった）。
+function placeJewel(pieceEl, table) {
+  // 描かない時は、既にある立体を必ず隠す。
+  // ⚠ 作り直し（rebuild）は「見かけなかった立体」を片付けるので放っておいても消えるが、
+  //   **毎コマの追いかけ中は作り直しが走らない**ので、隠さないと古い位置に残り続ける。
+  const やめる = () => {
+    const m = jewelMeshByElement.get(pieceEl);
+    if (m) m.visible = false;
+    return false;
+  };
+  const color = pieceEl.dataset.jewelColor;
+  const geo = getJewelGeometry(color);
+  if (!geo) return やめる();
+  const cs = getComputedStyle(pieceEl);
+  if (cs.display === "none" || cs.visibility === "hidden") return やめる();
+  const vis = effectiveVisual(pieceEl, table);
+  if (vis.hidden) return やめる();
+  const w = pieceEl.offsetWidth;
+  const h = pieceEl.offsetHeight;
+  if (w <= 0 || h <= 0) return やめる();
+  // 🔴 宝石の高さは **駒の幅から** 決める（--piece-height ではない）。
+  //    宝石の比率は決まっている（本物のブリリアントは 深さ ≒ 直径の 0.6）ので、
+  //    幅に対して決めないと「宝石ではない形」になる。結果として**立方体の駒より低い**。
+  //    詳しくは jewel-piece-shape.js の冒頭（上から見てとがりが見えない条件）。
+  const H = Math.min(w, h);
+  let mesh = jewelMeshByElement.get(pieceEl);
+  if (!mesh) {
+    const mat = new THREE.MeshBasicMaterial({
+      // 🔴 陰影はファセットごとの頂点色に焼き込んである（立方体のCSSと同じ式）。
+      //    「盤面に光を当てる」がONでも MeshStandardMaterial にはしない——
+      //    二重に陰影が付いて、立方体の駒と見え方が揃わなくなる。
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.FrontSide,
+    });
+    mesh = new THREE.Mesh(geo, mat);
+    mesh.matrixAutoUpdate = false;
+    jewelMeshByElement.set(pieceEl, mesh);
+    rootGroup.add(mesh);
+  } else if (mesh.geometry !== geo) {
+    mesh.geometry = geo; // 色が変わった（席の入れ替え等）
+  }
+  const m = localMatrixTo(pieceEl, table);
+  // 立体は単位の箱（x,y ∈ [-0.5,0.5]・z は駒の幅を 1 とした高さ）で組んであるので、
+  // 中心へずらして w・h・H を掛ける＝底が盤の面に触れる。
+  m.multiply(new THREE.Matrix4().makeTranslation(w / 2, h / 2, 0));
+  m.multiply(new THREE.Matrix4().makeScale(w, h, H));
+  mesh.matrix.copy(m);
+  mesh.material.opacity = vis.opacity;
+  // 並べ替えの鍵は「盤の面からどれだけ持ち上がっているか」（sortByDepth 参照）。
+  // 立体の行列の z は底＝0 なので、そのままだとカードと同じ平面と見なされる。
+  // 宝石の真ん中の高さを使う＝立方体の上面と同じようにカードより手前へ来る。
+  mesh.userData.sortZ = m.elements[14] + H * JEWEL_TOP_Z * 0.5;
+  mesh.userData.domIndex = 1e6; // 同じ高さのものの中では最後（＝いちばん手前）
+  // 外向きの面がどちらになるかを行列式の符号で決める（上の説明）。
+  // 🔴 **side は FrontSide で固定**（＝外を向いた面だけ描く）。立体の三角は
+  //    「外から見て反時計回り」に組んである（jewel-piece-shape.js）。
+  //    ⚠ 盤面の行列には Y の反転（rootGroup の scale(1,-1,1)）が入っていて巻き方が
+  //      裏返るが、**three.js はそれを自分で埋め合わせる**（renderBufferDirect が
+  //      object.matrixWorld.determinant() < 0 を見て frontFace を切り替える）。
+  //      ここで行列式を見て BackSide に替えると**二重に裏返って宝石の内側が描かれる**。
+  //      実際それをやってしまい、上から見ると「傘」に見えた——天面を白く塗る試験
+  //      （scratchpad の白塗り版）で**白い天面が1枚も見えない**ことから分かった（続き677）。
+  mesh.material.side = THREE.FrontSide;
+  mesh.visible = true;
+  return true;
+}
+
+function rebuild() {
+  const table = getTable();
+  if (!table || !rootGroup) return;
+  const seen = new Set();
+  const seenShapes = new Set();
+  // マス・ロックスロットの「形」は先に読む（この中だけ剥がすルールを外すため、
+  // 後段の走査とは分けてある）。
+  const shapeSpecs = readShapeSpecs(table);
+  const els = table.querySelectorAll(PAINT_SELECTOR + "," + SHAPE_SELECTOR);
+  // DOMの並び順＝重なり順。手前のものを少しだけカメラ側へ寄せて、同じ平面上の
+  // カードと駒がZファイティング（ちらつき）を起こさないようにする。
+  const orderRef = { n: 0 };
+  for (const el of els) {
+    const r = paintOne(el, table, shapeSpecs, orderRef);
+    if (r.painted) seen.add(el);
+    if (r.shaped) seenShapes.add(el);
+  }
+  // 【続き677】宝石の駒（立体）。
+  const seenJewels = new Set();
+  for (const pieceEl of table.querySelectorAll(JEWEL_SELECTOR)) {
+    if (placeJewel(pieceEl, table)) seenJewels.add(pieceEl);
+  }
+  for (const [el, mesh] of jewelMeshByElement) {
+    if (seenJewels.has(el)) continue;
+    rootGroup.remove(mesh);
+    mesh.material.dispose(); // 🔴 形（geometry）は色ごとに使い回すので捨てない
+    jewelMeshByElement.delete(el);
   }
   // 消えた要素のメッシュを片付ける（カードが手札へ戻った等）。
   for (const [el, mesh] of meshByElement) {
@@ -904,7 +1031,7 @@ function scheduleRender() {
 const _center = new THREE.Vector3();
 const _world = new THREE.Matrix4();
 function allMeshes() {
-  return [...meshByElement.values(), ...shapeMeshByElement.values()];
+  return [...meshByElement.values(), ...shapeMeshByElement.values(), ...jewelMeshByElement.values()];
 }
 
 let needsSort = true;
@@ -925,7 +1052,9 @@ function sortByDepth() {
     // 駒だけが立方体として持ち上がっており（数px以上）、カード・マス・山の上面・プレイマット・
     // 床はすべて 0＝同じ高さ。同じ高さのものはCSSと同じく**DOMの並び順**で決める。
     // こうすると、盤面のどこにあるか・どれだけ大きいかに関係なく、CSSでの見え方と一致する。
-    list.push({ mesh, z: mesh.matrix.elements[14], i: mesh.userData.domIndex ?? 0 });
+    // 【続き677】宝石の立体は底が盤の面（行列の z が 0）なので、真ん中の高さを
+    // userData.sortZ に入れてある。板はそのまま行列の z を使う。
+    list.push({ mesh, z: mesh.userData.sortZ ?? mesh.matrix.elements[14], i: mesh.userData.domIndex ?? 0 });
   }
   // 【重要・#251】同じ高さのものは「DOMの並び順」で決める、という意図だったが、比較が
   // `a.z !== b.z` の**厳密比較**だったため事実上その分岐に入らなかった。マスとその中の
@@ -944,6 +1073,7 @@ function sortByDepth() {
 // 実機での重さを見るための計測（管理者モードの表示・不具合報告用）。ヘッドレスのテスト環境は
 // GPUが無くWebGLをCPUで描くため、そこでの数値は実機の参考にならない——必ず実機で見る。
 let lastRebuildMs = 0;
+let rebuildCount = 0; // 【続き677】作り直しが何回走ったか（追いかけの検証で「作り直し無しで追いついたか」を見る）
 let lastDrawMs = 0;
 let frameAvgMs = 0;
 let lastFrameAt = 0;
@@ -1042,6 +1172,55 @@ function flushNow() {
   }
 }
 
+// --- 「動いているものだけを毎コマ追いかける」-------------------------------------------
+// 【続き677・ユーザー要望「接触と助走もそのままで行きたい！方法はない？」】
+// 🔴 作り直し（rebuild）は実機で 56〜280ms 掛かるので、CSSのtransitionで動いている1.5秒の
+//    あいだ呼び続けることはできない（#381: 毎秒3回しか描けず、ガクガクに見えた）。
+//    だから今までは `board3d-skip` を付けて**DOMに描かせていた**——それが #523
+//   「接触演出時、自分の駒がひらぺったくなります」の原因そのものだった（続き671）。
+// 🔴 **動いている1つを追いかけるだけなら作り直しは要らない。** その要素の行列を読み直して
+//    置き直すだけ（paintOne / placeJewel）＝走査も後片付けもしないので、板1枚ぶんの費用。
+//    ⇒ WebGLのまま 60コマで滑らかに動き、DOMへ渡す必要が無くなる。
+// ⚠ 追いかけている間は**重なり順を据え置く**（paintOne の orderRef=null）。毎コマ番号を
+//    振り直すと、走査の順番のゆらぎで前後が入れ替わってちらつく。
+const trackedEls = new Set();
+export function trackAnimElement(el, on) {
+  if (!el) return;
+  if (on) trackedEls.add(el);
+  else trackedEls.delete(el);
+  needsDraw = true;
+  needsSort = true;
+  if (!on) needsRebuild = true; // 追いかけ終わりは、正しい重なり順へ戻すために1回作り直す
+}
+const EMPTY_SHAPE_SPECS = new Map();
+function refreshTracked(table) {
+  if (!trackedEls.size || !table) return false;
+  let any = false;
+  // 「形」は読まない（マス・ロックスロットは動かないので、動いている駒には関係ない）。
+  // 読みに行くと剥がすルールの出し入れが入って重くなる。
+  const 形なし = EMPTY_SHAPE_SPECS;
+  for (const el of trackedEls) {
+    if (!el.isConnected) continue;
+    try {
+      if (el.matches(JEWEL_SELECTOR)) {
+        if (placeJewel(el, table)) any = true;
+      } else {
+        for (const child of el.querySelectorAll(PAINT_SELECTOR)) {
+          if (paintOne(child, table, 形なし, null).painted) any = true;
+        }
+        if (el.matches(PAINT_SELECTOR) && paintOne(el, table, 形なし, null).painted) any = true;
+      }
+      // 宝石の駒が子に居ることもある（将来 .piece を包む要素を追いかける場合）
+      for (const j of el.querySelectorAll(JEWEL_SELECTOR)) {
+        if (placeJewel(j, table)) any = true;
+      }
+    } catch (err) {
+      /* 1つ失敗しても他の駒の追いかけは続ける */
+    }
+  }
+  return any;
+}
+
 function frame() {
   if (!active) return;
   rafId = requestAnimationFrame(frame);
@@ -1056,9 +1235,17 @@ function frame() {
     rebuild();
     rebuiltThisFrame = true;
     lastRebuildMs = performance.now() - t0;
+    rebuildCount++;
     needsDraw = true;
   }
   if (!syncCamera()) return;
+  // 【続き677】動いているものを追いかける（作り直しはしない）。
+  if (trackedEls.size) {
+    if (refreshTracked(getTable())) {
+      needsDraw = true;
+      needsSort = true;
+    }
+  }
   if (needsSort) needsDraw = true; // 盤面の変形が変わった（syncCamera）か作り直した（rebuild）
   sortByDepth();
   // #348: 何も変わっていなければ、前のフレームと同じ絵なので描かない（発熱対策）。
@@ -1313,6 +1500,8 @@ function reconcileBoard3dActive() {
     setBoard3dTransformNoter(noteTransformWritten);
     // 【#301/#302】演出が実物を見せた瞬間に、その場で描き直せるようにする（上の flushNow）。
     setBoard3dFlusher(flushNow);
+    // 【続き677】動いているものを毎コマ追いかける口を開ける（main.js から trackBoard3dAnim で呼ぶ）。
+    setBoard3dAnimTracker(trackAnimElement);
     // 【試作 2026-09-29】「盤面に光を当てる」を切り替えたら、材質は板ごとに作って**使い回して
     // いる**ので、全部捨てて作り直させる（次の rebuild() で makeQuadMaterial が新しい材質を
     // 作る）。光源も足し外しする。
@@ -1325,6 +1514,7 @@ function reconcileBoard3dActive() {
       } catch (err) { /* 作り直しの途中で落ちても、描画が止まるだけにはしない */ }
       meshByElement.clear();
       shapeMeshByElement.clear();
+      jewelMeshByElement.clear(); // 【続き677】こちらも捨てたので表から外す（忘れると空の表が残る）
       applyLightRig();
       needsRebuild = true;
       flushNow();
@@ -1348,6 +1538,7 @@ function reconcileBoard3dActive() {
     setBoard3dInvalidator(null);
     setBoard3dTransformNoter(null);
     setBoard3dFlusher(null);
+    setBoard3dAnimTracker(null);
     unsubscribe?.();
     unsubscribe = null;
     // 【#278】文脈が失われた後にもここを通る（handleContextLost）ので、GPU側の後片付けは
@@ -1360,6 +1551,8 @@ function reconcileBoard3dActive() {
     } catch (err) {}
     meshByElement.clear();
     shapeMeshByElement.clear();
+    jewelMeshByElement.clear(); // 【続き677】
+    trackedEls.clear(); // 追いかけ途中で止まっても残さない
     lastStatsLogAt = 0;
     try { if (renderer) renderer.clear(); } catch (err) {}
   }
@@ -1372,6 +1565,10 @@ export function getBoard3dStats() {
     active,
     quads: meshByElement.size + shapeMeshByElement.size,
     shapes: shapeMeshByElement.size,
+    // 【続き677】宝石の立体の数と、1つあたりのファセット数、いま追いかけているものの数。
+    jewels: jewelMeshByElement.size,
+    jewelFacets: jewelMeshByElement.size ? getJewelFacetCount() : 0,
+    tracking: trackedEls.size,
     tinted: allMeshes().filter((m) => m.material.color.getHex() !== 0xffffff).length,
     textures: textureCache.size + shapeTextures.size,
     // 内訳（#262の切り分け用）。texShape が上限48に張り付き texEvicted が増え続けるなら、
@@ -1382,6 +1579,7 @@ export function getBoard3dStats() {
     texNewColor: shapeTextureNewColorOnly,
     texNewGeom: shapeTextureNewGeom,
     rebuildMs: +lastRebuildMs.toFixed(1),
+    rebuilds: rebuildCount,
     drawMs: +lastDrawMs.toFixed(2),
     frameMs: +frameAvgMs.toFixed(1),
   };
@@ -1453,4 +1651,29 @@ export function debugMeshInfo(el) {
         }
       : null;
   return { image: one(meshByElement.get(el)), shape: one(shapeMeshByElement.get(el)) };
+}
+
+// 【続き677】検証用: 宝石の立体がどこに置かれているか。
+// 🔴 「毎コマ追いかけているか」を**行列の数字で**確かめるためのもの。見た目では
+//    「動いていない」と「毎秒3回しか動いていない」が区別できない（#381 でそれを3回読み違えた）。
+export function debugJewelMeshInfo(pieceEl) {
+  const mesh = jewelMeshByElement.get(pieceEl);
+  if (!mesh) return null;
+  const e = mesh.matrix.elements;
+  return {
+    renderOrder: mesh.renderOrder,
+    visible: mesh.visible,
+    opacity: +mesh.material.opacity.toFixed(3),
+    // 盤面（#game-table）のローカル座標での置き場所と大きさ。追いかけているかはここを見る。
+    x: +e[12].toFixed(2),
+    y: +e[13].toFixed(2),
+    z: +e[14].toFixed(2),
+    w: +e[0].toFixed(2),
+    h: +e[5].toFixed(2),
+    hz: +e[10].toFixed(2),
+    sortZ: +(mesh.userData.sortZ ?? 0).toFixed(2),
+    side: mesh.material.side === THREE.BackSide ? "back" : mesh.material.side === THREE.FrontSide ? "front" : "double",
+    faces: mesh.geometry.getAttribute("position").count / 3,
+    tracking: trackedEls.has(pieceEl),
+  };
 }

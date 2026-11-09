@@ -4745,6 +4745,12 @@ body.is-phone-device .priority-transfer-label .phase-guide-tooltip {
    ⓘ この間その面はWebGLの対象から外れている（board-3d.js が board3d-skip を skip する）ので、
    　 陰影の係数（cssBrightness）を読まれることも無い＝**WebGL側には1ミリも影響しない**。
    ⚠ 手前の壁と上面はもともと filter を持たないので、重ねも作らない（無駄な要素を増やさない）。 */
+/* 🔴【続き677・2026-11-09】**いま、接触の助走・突進はここを通らない。**
+   「DOMへ渡す」のをやめ、board-3d に「この駒だけ毎コマ置き直して」と頼む形にしたので
+   （main.js の handLungeToDom → trackBoard3dAnim）、`board3d-skip` が駒に付く場面は
+   いまは無い。⇒ **#523 の原因そのものが消えた**（DOMの立方体を見せる瞬間が無くなった）。
+   この規則は消さずに残してある——`board3d-skip` の仕組み自体は board-3d.js に在り、
+   他の演出で使う時に同じ罠（preserve-3d の中の filter）を踏まないための備え。 */
 .piece-face.board3d-skip {
   filter: none !important;
 }

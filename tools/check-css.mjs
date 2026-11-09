@@ -112,6 +112,53 @@ for (const { cssVar, jsConst } of DEFAULT_TRIPLES) {
   }
 }
 
+
+// ④ 宝石の駒（1st EDITION）の陰影が、立方体の駒のCSSと同じ光の当たり方か。
+//    🔴 続き677 の実害: jewelFacetShade の ny の符号を逆に書いていて、
+//    **宝石だけ手前が暗く奥が明るい**（立方体と逆）という当たり方になっていた。
+//    しかも同時に表裏も裏返っていて内側を見ていたため、**目で見ても気づけなかった**。
+//    ⇒ style.css の .piece-wall-* の brightness と式を毎回突き合わせる。
+const 壁 = [
+  { 名: '手前', cls: 'piece-wall-front', n: [0, 1, 0], 既定: 1 },
+  { 名: '奥', cls: 'piece-wall-back', n: [0, -1, 0] },
+  { 名: '右', cls: 'piece-wall-right', n: [1, 0, 0] },
+  { 名: '左', cls: 'piece-wall-left', n: [-1, 0, 0] },
+  { 名: '上面', cls: 'piece-top', n: [0, 0, 1], 既定: 1 },
+];
+const { jewelFacetShade } = await import('../src/jewel-piece-shape.js');
+let 宝石照合 = 0;
+for (const w of 壁) {
+  // 🔴 **行頭で探す**（続き648）。`body.pieces-interaction-hidden .piece-wall-back {` のような
+  //    別の規則が先に当たると、まったく違う塊を読んでしまう。
+  const 頭 = src.indexOf("\n." + w.cls + " {");
+  if (頭 < 0) {
+    console.error('❌ style.css に .' + w.cls + ' が無い。検査が当たっていない疑い。');
+    process.exit(2);
+  }
+  const 塊 = src.slice(頭, src.indexOf('}', 頭));
+  const m = /filter:\s*brightness\(([0-9.]+)\)/.exec(塊);
+  const css値 = m ? parseFloat(m[1]) : w.既定;
+  if (!Number.isFinite(css値)) {
+    console.error('❌ .' + w.cls + ' の brightness を読めなかった。検査が当たっていない疑い。');
+    process.exit(2);
+  }
+  // きらめき（上＋手前だけに乗る演出）を除いた素の値で比べる。
+  const [nx, ny, nz] = w.n;
+  const kz = nz >= 0 ? 0.325 * nz : 0.1 * nz;
+  const 素 = 0.675 + 0.125 * nx + 0.325 * ny + kz;
+  if (Math.abs(素 - css値) > 1e-9) {
+    problems.push(
+      '宝石の陰影が立方体のCSSと合っていない: ' + w.名 + '（.' + w.cls + '） CSS=' + css値
+        + ' / 式=' + 素.toFixed(4) + '（src/jewel-piece-shape.js の jewelFacetShade）'
+    );
+  }
+  // 式そのものが書き換わっていないかも見る（上の素の値は検査側の写しなので）。
+  const 実 = jewelFacetShade(nx, ny, nz);
+  if (実 + 1e-9 < 素) {
+    problems.push('宝石の陰影の式が ' + w.名 + ' で暗くなっている: ' + 実.toFixed(4) + ' < ' + 素.toFixed(4));
+  }
+  宝石照合++;
+}
 if (problems.length) {
   console.error("❌ " + SHOW + " に問題 " + problems.length + " 件");
   for (const p of problems) console.error("  ・" + p);
@@ -119,5 +166,5 @@ if (problems.length) {
 }
 console.log(
   "✅ 問題なし（" + SHOW + " / ブレース " + open + "対" + close + "・max-height の vh 0件・"
-    + "既定値の3か所照合 " + DEFAULT_TRIPLES.length + "件）"
+    + "既定値の3か所照合 " + DEFAULT_TRIPLES.length + "件・宝石の陰影 " + 宝石照合 + "面）"
 );

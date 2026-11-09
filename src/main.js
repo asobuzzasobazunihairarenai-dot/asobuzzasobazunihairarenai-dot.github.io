@@ -209,6 +209,7 @@ import {
 } from "./contact-approval.js";
 import {
   getSkinImagePath,
+  isJewelPieceSeat,
   getMyPieceColor,
   openPieceSkinPicker,
   registerPieceSkinHelpers,
@@ -463,7 +464,7 @@ function cardDisplayName(cardId) {
   return getCardName(cardId) || getCardDefinition(cardId)?.name || cardId;
 }
 import { isBoardIllustOnly } from "./board-card-display.js";
-import { invalidateBoard3d, flushBoard3d, noteBoard3dTransform } from "./board-3d-setting.js";
+import { invalidateBoard3d, flushBoard3d, noteBoard3dTransform, trackBoard3dAnim, isBoard3dPainting } from "./board-3d-setting.js";
 // 【続き547】カメラ演出（アグレッシブモード）。倍率と移動量を持つだけで、実際に transform を
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
 import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, isCinematicCameraHome, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
@@ -1352,6 +1353,15 @@ function buildPileZone(pileKey) {
 function buildCubePiece(color, seat) {
   const piece = document.createElement("div");
   piece.className = "piece";
+  // 【続き677】1st EDITION のファーストカードを持っている席は、駒を**宝石の立体**で描く
+  // （board-3d.js の placeJewel）。ここではその目印と色だけを付ける——
+  // 🔴 DOMの立方体は**当たり判定の箱として必ず残す**（タップ判定は elementsFromPoint の
+  //    自前方式なので、箱を消すと掴めなくなる＝教訓4）。WebGL が止まっている端末では
+  //    この立方体（ジュエルの絵を貼ったテクスチャ）がそのまま見える＝今までの見た目。
+  if (isJewelPieceSeat(seat)) {
+    piece.classList.add("is-jewel-piece");
+    piece.dataset.jewelColor = color;
+  }
   const skinUrl = `url("${getSkinImagePath(color, seat)}")`;
 
   const top = document.createElement("div");
@@ -11608,42 +11618,47 @@ async function playContactLunge(...args) {
 // 作り直しに56〜280ms掛かる**ので追いつかない——報告のログでは、まさにタックル中の
 // 描き直しが**毎秒3.2回**だった。助走8px・突進26pxが2〜3コマで終われば、見えないに等しい。
 //
-// 直し方: 動かす駒だけ `board3d-skip` を付けてWebGLの板を取り下げ、同時にDOM側の絵を
+// 当時の直し方: 動かす駒だけ `board3d-skip` を付けてWebGLの板を取り下げ、同時にDOM側の絵を
 // 復活させる（WebGL描画中はCSSが `background-image: none !important` で剥がしているので、
-// インラインに `!important` で付け直して勝つ）。こうすると**ブラウザの合成が60コマで
-// 滑らかに動かしてくれる**上に、動いている間の作り直しが**0回**になる（＝#348 の発熱にも有利）。
-// 絵の読み取りはインラインstyleから行われているので（board-3d.js の backgroundImageUrl）、
-// `!important` を足してもWebGL側の読み取りは壊れない。
+// インラインに `!important` で付け直して勝つ）。
+//
+// 🔴【続き677・いまはこうしていない】上の「DOMへ渡す」が #523「接触演出時、自分の駒が
+//   ひらぺったくなります」の原因だった（DOMの立方体は filter: brightness() で陰影を
+//   付けていて、preserve-3d の中では平坦化され得る＝教訓1）。
+//   **作り直し（56〜280ms）が重いのは「盤面を全部走査するから」で、動いている1つを
+//   追いかけるだけなら軽い。** だから board-3d 側に「この要素だけ毎コマ置き直す」口を
+//   作り（trackBoard3dAnim）、DOMへ渡すのをやめた。滑らかさはそのままで、
+//   DOMの立方体を見せる瞬間が無くなる＝#523 の原因が消える。
 //
 // 接触の後半（相手の駒がゲートへ飛ぶ playContactFlight）は元からDOMの影武者を飛ばす
 // 作りで、WebGLの描き直しに頼っていない。**前半だけが取り残されていた**という形。
 function handLungeToDom(pieceEl) {
-  const faces = pieceEl ? [...pieceEl.querySelectorAll(".piece-face")] : [];
-  if (faces.length === 0) {
-    // 駒の面が見つからない時は従来どおり（30msごとに描き直して追いかける）。
-    return { waitStep: waitWhileFlushingBoard3d, restore() {}, handedOver: false };
+  // 【続き677・ユーザー要望「接触と助走もそのままで行きたい！方法はない？」】
+  // 🔴 **DOMへ渡すのをやめた。** 代わりに board-3d へ「この駒だけ毎コマ置き直して」と
+  //    頼む（trackBoard3dAnim）。作り直し（実機 56〜280ms）は走らないので、WebGLのまま
+  //    60コマで滑らかに動く＝滑らかさはそのままで、
+  //    **#523「接触演出時、自分の駒がひらぺったくなります」の原因そのものが消える**
+  //    （DOMの立方体を見せなくなるので、preserve-3d の平坦化も filter も関係なくなる）。
+  // ⚠ 名前は handLungeToDom のまま残してある（呼び出し側の約束＝waitStep / restore /
+  //   handedOver は変えていない）。中身がDOM渡しでなくなったことだけ、ここに書いておく。
+  if (pieceEl && isBoard3dPainting()) {
+    trackBoard3dAnim(pieceEl, true);
+    return {
+      waitStep: wait, // WebGL側が毎コマ追いかけるので、こちらから描き直しを急かす必要は無い
+      handedOver: true,
+      painter: "webgl",
+      restore() {
+        trackBoard3dAnim(pieceEl, false); // 解除時に1回だけ作り直されて重なり順が戻る
+      },
+    };
   }
-  const before = faces.map((f) => f.style.backgroundImage);
-  for (const f of faces) {
-    f.classList.add("board3d-skip");
-    const url = f.style.backgroundImage;
-    if (url && url !== "none") f.style.setProperty("background-image", url, "important");
+  if (pieceEl) {
+    // WebGL描画が動いていない（設定OFF・2D表示・起動に失敗した端末）。その時はDOMが
+    // ふだんから駒を描いているので、何もしなくてよい（CSSがそのまま滑らかに動かす）。
+    return { waitStep: wait, handedOver: true, painter: "dom", restore() {} };
   }
-  invalidateBoard3d();
-  flushBoard3d(); // ここで1回だけ作り直して、WebGLの板を取り下げる
-  return {
-    waitStep: wait,
-    handedOver: true,
-    restore() {
-      faces.forEach((f, i) => {
-        f.classList.remove("board3d-skip");
-        f.style.removeProperty("background-image"); // !important ごと外す
-        if (before[i]) f.style.backgroundImage = before[i]; // 元のインライン指定に戻す
-      });
-      invalidateBoard3d();
-      flushBoard3d();
-    },
-  };
+  // 駒の要素が見つからない時は従来どおり（30msごとに描き直して追いかける）。
+  return { waitStep: waitWhileFlushingBoard3d, restore() {}, handedOver: false, painter: null };
 }
 
 async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerRect, defenderFromLocation, attackerFromLocation, attackerColor }) {
@@ -11789,6 +11804,9 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
     logAction("diag-contact-lunge", {
       phase: "dom-handover",
       handedOver: lunge.handedOver,
+      // 【続き677】誰が駒を描いているか。"webgl" なら #523（DOMの立方体が平らに潰れる）は
+      // そもそも起こり得ない。下の topLift / wallH は**見えていないDOMの箱**の数字になる。
+      painter: lunge.painter || null,
       // 🔴 掴んだ要素が生きているか。false なら、引き直しが効いた＝直す前は何も動かなかった回。
       staleAlive: !!attackerEl && attackerEl.isConnected,
       movingIsLive: !!movingEl && movingEl.isConnected,
