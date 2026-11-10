@@ -18,6 +18,7 @@ import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { isCardArrivalModalPersistent } from "./admin.js";
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ13: 表示用のカード名
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
+import { logAction } from "./action-log.js"; // 【#552】死んだモーダルを出しかけた時の記録
 // 勝利演出中は「見せるだけ」のモーダルを出さない（ユーザー報告2026-09-02）。選択を求める
 // モーダル（showHandEffectOptionPicker等）は対象外——止めると効果の解決が進まなくなるため。
 import { isCelebrationActive, registerCelebrationCleanup } from "./celebration-state.js";
@@ -519,12 +520,26 @@ export function showHandEffectOptionPicker(cardId, optionsWithUsability, onReady
 
     const list = document.createElement("div");
     list.className = "hand-effect-option-picker-list";
+    // 🔴【#552・2026-11-11】**このモーダルには逃げ道が無い**（✕も覆いのキャンセルも無い＝
+    //   カード効果はキャンセルできないので意図的）。だから「全部の選択肢が押せない」状態に
+    //   なると**そのターンが完全に詰む**。実際に治安悪化で起きた（渡す側が印を付け忘れていた）。
+    //   ⇒ 二重に守る:
+    //   ① 印が**書かれていない**選択肢は「選べる」として扱う（false と**書かれた時だけ**灰色）。
+    //      既存の呼び出し側はすべて true/false を明示しているので、今までの動きは1つも変わらない。
+    //   ② それでも全部押せないなら、**死んだモーダルを出さずに**その場で諦める
+    //      （呼び出し側は null を「選ばなかった」として扱える）。行動ログに1行残すので後から分かる。
+    const 押せる = (o) => o.usable !== false;
+    if (!optionsWithUsability.some(押せる)) {
+      logAction("diag-option-picker-dead", { cardId, n: optionsWithUsability.length });
+      finish(null);
+      return;
+    }
     for (const option of optionsWithUsability) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "hand-effect-option-picker-btn";
       btn.textContent = resolveOptionLabel(option);
-      if (!option.usable) {
+      if (!押せる(option)) {
         btn.disabled = true;
         btn.classList.add("is-unusable");
       } else {

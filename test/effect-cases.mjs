@@ -3694,6 +3694,10 @@ export const CASES = [
     picks: { option: ["1st-unrest-discard-locked"] },
     expect: [
       { kind: "called", name: "situationApplies", arg: "true" },
+      // 🔴【#552】**両方の選択肢に usable の印が付いていること。**
+      //   印が無いと本物のピッカーは全部グレーアウトし、✕も覆いのキャンセルも無いので
+      //   **そのターンが詰む**（ユーザー報告）。? が1つでも出たら落ちる。
+      { kind: "called", name: "pickArrivalOptionFlags", arg: "1st-unrest-discard-locked=1,1st-unrest-discard-4=1" },
       { kind: "tokenGone", id: "lk0" },
       { kind: "handCount", player: "A", n: 5 }, // 手札は減らない（ロックを捨てた方）
     ],
@@ -4643,7 +4647,7 @@ export const CASES = [
     ],
   },
   {
-    name: '迷いの森(到達): 隣のカードを捨てる順を選べる（#535）',
+    name: '迷いの森(到達): 隣のカードを捨てる順を盤面のマスで選べる（#535 / #560）',
     kind: 'arrival',
     cardId: 'ex0-green-lost-forest',
     state: {
@@ -4659,13 +4663,60 @@ export const CASES = [
       piles: { deck: ['red-jump-pad', 'red-counter-lock', 'orange-mass-change', 'green-growing-trees', 'red-jump-pad'], eternal: [], first: [], discard: [] },
     },
     ctx: { player: 'A', cardId: 'ex0-green-lost-forest', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 3, col: 3 } },
-    picks: { boardCardsOrdered: [['nD', 'nU']] },
+    // 🔴【#560】モーダルではなく**盤面のマス**を順番にタップする（ユーザー要望）。
+    //   下(4,3)→上(2,3) の順に押す。まとめて1回確認して「はい」。
+    // 到達効果は「１枚ドロー → カードの無い４マスに山札から置く → 隣のカードをすべて捨てる」。
+    // ⚠ 先に走る「４マスに置く」が location の指定を4つ食べるので、**盤面の遠い所**を指定して
+    //   隣のマスを汚さないようにする（指定を省くと候補の先頭が選ばれる＝どこに置かれるか読みにくい）。
+    picks: {
+      location: [
+        { row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 },
+        { row: 4, col: 3 }, { row: 2, col: 3 },
+      ],
+      confirmCells: [true, true],
+    },
     expect: [
-      // 2枚以上あるので順番を聞く。選んだ順（nD→nU）に捨てる＝捨て場の1番上は nU。
-      { kind: 'called', name: 'pickBoardCardsOrdered' },
+      // ⚠ モーダル（pickBoardCardsOrdered）はもう使わない。
+      { kind: 'called', name: 'pickBoardCardsOrdered', n: 0 },
+      // 捨てる札のあるマスは2つ＝聞かれる。候補は毎回「まだ選んでいないマス」。
+      { kind: 'called', name: 'pickLocationCandidates', arg: '2' },
+      { kind: 'called', name: 'confirmPickedCells', arg: '2' },
+      // 選んだ順（下→上）に捨てる＝捨て場の1番上は上のマスの札（red-jump-pad）。
       { kind: 'pileOrder', pile: 'discard', cards: ['green-growing-trees', 'red-jump-pad'] },
-      { kind: 'called', name: 'pickBoardCardsOrdered', arg: 'nD,nU' },
       { kind: 'tokenAtCell', id: 'diag', row: 2, col: 2 },
+    ],
+  },
+  // 🔴【#555・2026-11-11】**選んだマスをもう一度押すと外れる。**
+  //   ⚠ 外す処理を消しても、順番だけ見るテストは通ってしまう（押した順が結局同じになる）ので、
+  //     **わざと外してから別の順に選び直す**筋書きにする。外れなければ discard の並びが変わる。
+  {
+    name: '迷いの森(到達): 選んだマスをもう一度押すと外れる（#555）',
+    kind: 'arrival',
+    cardId: 'ex0-green-lost-forest',
+    state: {
+      activePlayers: ['A', 'C'], turnPlayer: 'A',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 3, col: 3 } },
+        { id: 'self', kind: 'card', cardId: 'ex0-green-lost-forest', faceUp: true, location: { zone: 'cell', row: 3, col: 3 } },
+        { id: 'nU', kind: 'card', cardId: 'red-jump-pad', location: { zone: 'cell', row: 2, col: 3 } },
+        { id: 'nD', kind: 'card', cardId: 'green-growing-trees', location: { zone: 'cell', row: 4, col: 3 } },
+      ],
+      piles: { deck: ['red-jump-pad', 'red-counter-lock', 'orange-mass-change', 'green-growing-trees', 'red-jump-pad'], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: 'ex0-green-lost-forest', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 3, col: 3 } },
+    picks: {
+      location: [
+        { row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 },
+        // 下(4,3)を選ぶ → もう一度押して**外す** → 上(2,3) → 下(4,3) の順で選び直す。
+        { row: 4, col: 3 }, { row: 4, col: 3 }, { row: 2, col: 3 }, { row: 4, col: 3 },
+      ],
+      confirmCells: [true, true],
+    },
+    expect: [
+      { kind: 'called', name: 'confirmPickedCells', arg: '2' },
+      // 外れていれば 上→下 の順になり、捨て場の1番上は下のマスの札（green-growing-trees）。
+      // 外れていなければ 下→上 のままで、並びが逆になる＝落ちる。
+      { kind: 'pileOrder', pile: 'discard', cards: ['red-jump-pad', 'green-growing-trees'] },
     ],
   },
   // ───────── 2026-11-10（続き679）─────────

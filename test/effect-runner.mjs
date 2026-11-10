@@ -150,12 +150,22 @@ export async function runOneCase(spec) {
       return order;
     },
     pickLocation: async (candidates, hint, options) => {
-      const r = resolveLocation(nextPick("location"), candidates);
+      // 🔴【#555・2026-11-11】**選んだマスも候補に残る**ようになった（もう一度押すと外れる）。
+      //   台本に書かれていない時に candidates[0] を返すと、**外した同じマスをまた返す**ので
+      //   **無限に回る**（実際にテストが止まった）。書かれていない時は「まだ選んでいない候補」から選ぶ。
+      //   ⚠ 台本で**わざと選び済みのマスを指定**した時（＝外す検査）は、全部の候補から探す。
+      const 希望 = nextPick("location");
+      const 済 = new Set(((options && options.selectedCells) || []).map((c) => c.row + "," + c.col));
+      const 未選択 = (candidates || []).filter((c) => !(c.zone === "cell" && 済.has(c.row + "," + c.col)));
+      const 探す先 = 希望 == null ? 未選択 : candidates;
+      const r = resolveLocation(希望, 探す先);
       callLog.push(["pickLocation", r]);
       // 🔴 候補の**数**を残す。候補の絞り込み（「あなたの隣以外」「プレイヤーのいない
       //   マス」等）は、resolveLocation が候補外の指定もそのまま返すため、座標を指定する
       //   形のテストでは通らない。数を見れば「何マス外したか」を検査できる。
-      callLog.push(["pickLocationCandidates", String((candidates || []).length)]);
+      // ⚠ 数は**まだ選んでいない候補**で記録する（既存の台本の期待値の意味を変えないため。
+      //   見たいのは「絞り込みで何マス外したか」であって、選び済みの数ではない）。
+      callLog.push(["pickLocationCandidates", String(未選択.length)]);
       callLog.push(["pickLocationPurpose", options?.purpose ?? null]);
       if (options?.avoidCells) for (const a of options.avoidCells) callLog.push(["pickLocationAvoidCell", a.row + "," + a.col]);
       return r;
@@ -260,8 +270,13 @@ export async function runOneCase(spec) {
     pickPlayer: async () => { const r = nextPick("player"); callLog.push(["pickPlayer", r]); return r; },
     // 選択肢モーダル: engine は選ばれた「オプションのオブジェクト」（.id/.actions/.usable）を期待する。
     // 台本には id 文字列を書く → 渡された options 配列から id 一致のオブジェクトを返す。
-    pickArrivalOption: async (cardId, options) => { const want = nextPick("option"); const o = (options || []).find((x) => x.id === want) || null; callLog.push(["pickArrivalOption", want]); return o; },
-    pickHandEffectOption: async (cardId, options) => { const want = nextPick("option"); const o = (options || []).find((x) => x.id === want) || null; callLog.push(["pickHandEffectOption", want]); return o; },
+    // 🔴【#552・2026-11-11】**印（usable）そのものを記録する。**
+    //   本物のピッカーは usable が false の選択肢を押せないようにするが、このスタブは
+    //   id で探すだけだったので、**渡す側が印を付け忘れていても検査が通っていた**
+    //   （治安悪化で全部グレーアウトして詰んだ＝#552）。印が無いものは ? と記録するので、
+    //   台本に Flags の期待値を書けば「付け忘れ」をそのまま捕まえられる。
+    pickArrivalOption: async (cardId, options) => { const want = nextPick("option"); callLog.push(["pickArrivalOptionFlags", (options || []).map((x) => x.id + "=" + ("usable" in x ? (x.usable ? "1" : "0") : "?")).join(",")]); const o = (options || []).find((x) => x.id === want && x.usable !== false) || null; callLog.push(["pickArrivalOption", want]); return o; },
+    pickHandEffectOption: async (cardId, options) => { const want = nextPick("option"); callLog.push(["pickHandEffectOptionFlags", (options || []).map((x) => x.id + "=" + ("usable" in x ? (x.usable ? "1" : "0") : "?")).join(",")]); const o = (options || []).find((x) => x.id === want && x.usable !== false) || null; callLog.push(["pickHandEffectOption", want]); return o; },
     // 【#473/#474】汎用の「選択肢を1つ選ぶ」（足下の隠し財産の「山札から／手札から」）。
     // 台本には choice: ["deck"] のように id 文字列を書く。返すのは id（本物も id を返す）。
     // 🔴 候補の id も記録する——**聞かれなかったこと**（片方しか無い時は聞かない）も

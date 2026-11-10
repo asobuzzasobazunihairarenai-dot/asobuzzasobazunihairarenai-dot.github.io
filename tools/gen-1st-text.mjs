@@ -56,7 +56,9 @@ for (const c of FIRST_ED_CARDS) {
   if (!t.basic && !t.arrival && !t.hand) 問題.push("基本も到達も手札も空: " + c.id);
 
   ja.push(
-    "  " + J(c.id) + ": { flavor: " + J(t.flavor || "") + ", titleRuby: \"\", basic: " + J(t.basic || "") +
+    // 🔴【#551・2026-11-11】ルビは出どころ（1st-text-source.json）から出す。
+    //   ここが "" の決め打ちだったので、出どころに書いてもルビが出なかった。
+    "  " + J(c.id) + ": { flavor: " + J(t.flavor || "") + ", titleRuby: " + J(t.titleRuby || "") + ", basic: " + J(t.basic || "") +
     ", subtitle: " + J(t.subtitle || "") + ", arrival: " + J(t.arrival || "") + ", hand: " + J(t.hand || "") + " },"
   );
   en.push(

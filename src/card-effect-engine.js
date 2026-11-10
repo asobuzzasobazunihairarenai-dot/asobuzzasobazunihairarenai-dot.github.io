@@ -408,7 +408,15 @@ export async function runSituationEffect(cardId, player, helpers) {
   if (def.options) {
     const usable = def.options.filter((opt) => isArrivalOptionUsable(player, runCtx.pieceLocation, opt, cardId));
     if (usable.length === 0) return false;
-    const chosen = usable.length === 1 ? usable[0] : await helpers.pickArrivalOption?.(cardId, usable, player);
+    // 🔴【#552 / #553・2026-11-11】**選択肢には必ず usable の印を付けて渡す。**
+    //   ピッカー（showHandEffectOptionPicker）は `if (!option.usable)` でボタンを無効にするので、
+    //   印の無い選択肢は**全部グレーアウトする**。しかもこのモーダルは✕も覆いのキャンセルも
+    //   無い（カード効果はキャンセルできないので意図的）ため、**そのターンが完全に詰む**
+    //   ——ユーザー報告「治安悪化の選択項目が２つともグレーアウトしてどちらも選べない」はこれ。
+    //   ⚠ 到達効果の側（runArrivalOptionsEffect）と**同じ形**にそろえた＝選べないものも
+    //     灰色で見せる（なぜ選べないのかが分かる）。**片方だけ別の渡し方をしない。**
+    const optionsWithUsability = def.options.map((opt) => ({ ...opt, usable: usable.includes(opt) }));
+    const chosen = usable.length === 1 ? usable[0] : await helpers.pickArrivalOption?.(cardId, optionsWithUsability, player);
     const opt = chosen ?? usable[0];
     let 何かした = false;
     for (const action of opt.actions) {
@@ -1697,26 +1705,16 @@ async function runAction(action, ctx, helpers) {
       let 選んだマス = [];
       // ⚠ 1マスずつの時はここで選ばない（下で「選ぶ→置く」を繰り返すため）。
       for (; !一マスずつ; ) {
-        選んだマス = [];
-        const 済 = new Set();
-        for (let i = 0; i < 置ける枚数; i++) {
-          const candidates = getEmptyCellCandidates(!!action.requireNoPiece).filter(
-            (c) => !済.has(c.row + "," + c.col)
-          );
-          if (candidates.length === 0) break;
-          const dest =
-            candidates.length === 1 && !ctx.forcePrompt && !まとめ確認
-              ? candidates[0]
-              : await helpers.pickLocation(candidates, t("ce.placeNth", { i: i + 1, n: 欲しい枚数 }), {
-                  purpose: "place",
-                  // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
-                  skipConfirm: まとめ確認,
-                });
-          if (!dest) break;
-          済.add(dest.row + "," + dest.col);
-          選んだマス.push(dest);
-          if (まとめ確認) helpers.markPlacementTarget?.(dest); // 選んだマスを光らせ続ける
-        }
+        // 🔴【#555】選んだマスをもう一度押すと外れる（共通の pickCellsWithDeselect）。
+        選んだマス = await pickCellsWithDeselect(helpers, {
+          want: 置ける枚数,
+          forcePrompt: ctx.forcePrompt,
+          listCells: () => getEmptyCellCandidates(!!action.requireNoPiece),
+          label: (n) => t("ce.placeNth", { i: n, n: 欲しい枚数 }),
+          // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
+          pickOpts: { purpose: "place", skipConfirm: まとめ確認 },
+          highlight: まとめ確認,
+        });
         if (選んだマス.length === 0) break;
         if (!まとめ確認 || 選んだマス.length < 2) break;
         if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 選んだマス.length)) break;
@@ -1829,15 +1827,48 @@ async function runAction(action, ctx, helpers) {
       //   白の意志の覚醒で既にやっているので、**同じモーダル**（pickBoardCardsOrdered）に寄せる。
       //   ⚠ 1枚だけの時は聞かない（選ぶ余地が無い）。
       let 並び = 対象;
-      if (対象.length >= 2 && helpers.pickBoardCardsOrdered) {
-        const 札 = 対象.map((id) => getState().tokens.find((tk) => tk.id === id)).filter(Boolean);
-        const ordered = await helpers.pickBoardCardsOrdered(ctx.player, t("ce.pickDiscardOrder", { n: 1 }), 札, {
-          purpose: "discard",
-        });
-        if (Array.isArray(ordered) && ordered.length > 0) {
-          const 済 = new Set(ordered.map((tk) => tk.id));
-          並び = [...ordered.map((tk) => tk.id), ...対象.filter((id) => !済.has(id))];
+      // 🔴【#560・2026-11-11】ユーザー要望「迷いの森は**盤面で**選びたい」。
+      //   捨てる順はモーダルではなく、**光っているマスを順番にタップ**して決める
+      //   （#481・#514 でユーザーが決めた「①確認なしで選ぶ →②まとめて1回確認」と同じ流れ）。
+      //   ⚠ **決められるのはマスの順番まで。** 同じマスに積まれた札は、物と同じく
+      //     **上から順**に捨てる（1枚ずつ別のマスの札と混ぜる並べ方はできない）。
+      //   ⚠ 捨てる札のあるマスが1つだけなら聞かない（選ぶ余地が無い）。
+      const マス別 = [];
+      for (const id of 対象) {
+        const tk = getState().tokens.find((t2) => t2.id === id);
+        if (!tk) continue;
+        const 鍵 = tk.location.row + "," + tk.location.col;
+        let 枠 = マス別.find((g) => g.鍵 === 鍵);
+        if (!枠) { 枠 = { 鍵, row: tk.location.row, col: tk.location.col, ids: [] }; マス別.push(枠); }
+        // ⚠ tokens の並びは**下から上**（教訓18）。捨てるのは物と同じく上からなので逆に積む。
+        枠.ids.unshift(id);
+      }
+      if (マス別.length >= 2) {
+        for (;;) {
+          const 順 = await pickCellsWithDeselect(helpers, {
+            want: マス別.length,
+            forcePrompt: true,
+            listCells: () => マス別.map((g) => ({ zone: "cell", row: g.row, col: g.col })),
+            label: (n) => t("ce.forestPickCellOrder", { i: n, n: マス別.length }),
+            pickOpts: { purpose: "destroy", skipConfirm: true },
+            highlight: true,
+          });
+          if (順.length === 0) break; // 選ばなかった＝今までどおりの並びで捨てる
+          if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 順.length)) {
+            const 済 = new Set();
+            const 新 = [];
+            for (const c of 順) {
+              const 枠 = マス別.find((g) => g.row === c.row && g.col === c.col);
+              if (!枠) continue;
+              for (const id of 枠.ids) if (!済.has(id)) { 済.add(id); 新.push(id); }
+            }
+            for (const id of 対象) if (!済.has(id)) 新.push(id); // 選ばれなかった分は後ろへ
+            並び = 新;
+            break;
+          }
+          helpers.clearPlacementTargets?.(); // 「いいえ」＝選び直し
         }
+        helpers.clearPlacementTargets?.();
       }
       // #463: 直後に「n枚捨てた」の要約を出すので、1枚ごとのお知らせは出さない。
       for (const id of 並び) await helpers.discardAndSync(id, { batchNotice: true });
@@ -3267,25 +3298,19 @@ async function runAction(action, ctx, helpers) {
       const まとめ確認 = want >= 2;
       let 選んだ = [];
       for (;;) {
-        選んだ = [];
-        const 済 = new Set();
-        for (let i = 0; i < want; i++) {
-          const cells = getCellsWithFaceDownCardWithoutPiece().concat(
-            getAnyCellWithFaceDownCardCandidates().filter((c) => hasPieceAt(c.row, c.col))
-          ).filter((c) => !済.has(c.row + "," + c.col));
-          if (cells.length === 0) break;
-          const cell =
-            cells.length === 1 && !ctx.forcePrompt && want === 1
-              ? cells[0]
-              : await helpers.pickLocation(cells, t("ce.ex0PeekPick", { i: i + 1, n: want }), {
-                  // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
-                  skipConfirm: まとめ確認,
-                });
-          if (!cell) break;
-          済.add(cell.row + "," + cell.col);
-          選んだ.push(cell);
-          if (まとめ確認) helpers.markPlacementTarget?.(cell); // 選んだマスを光らせ続ける
-        }
+        // 🔴【#555】選んだマスをもう一度押すと外れる（共通の pickCellsWithDeselect）。
+        選んだ = await pickCellsWithDeselect(helpers, {
+          want,
+          forcePrompt: ctx.forcePrompt,
+          listCells: () =>
+            getCellsWithFaceDownCardWithoutPiece().concat(
+              getAnyCellWithFaceDownCardCandidates().filter((c) => hasPieceAt(c.row, c.col))
+            ),
+          label: (n) => t("ce.ex0PeekPick", { i: n, n: want }),
+          // 1マスずつの「このマスでいいですか？」は出さない（②でまとめて聞くため）。
+          pickOpts: { skipConfirm: まとめ確認 },
+          highlight: まとめ確認,
+        });
         if (選んだ.length === 0) return false; // 1マスも選べなかった（善処の原則）
         if (!まとめ確認 || 選んだ.length < 2) break;
         if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 選んだ.length)) break;
@@ -3303,7 +3328,9 @@ async function runAction(action, ctx, helpers) {
         見たもの.push(top.cardId ?? null);
         // ⓘ 見えるのは**この効果を使っている人の画面だけ**（peekCards →
         //    playCenterCardFlipReveal は配信しない。みんなに見せる時は別の関数を使う）。
-        await helpers.peekCards?.([top.cardId ?? null]);
+        // 🔴【#556】**どのマスの札か**と**誰の効果か**を渡す。中央の拡大がその
+        //   マスに重ならない所へ出て、本人の時だけ「次へ」で進む形になる（main.js 側）。
+        await helpers.peekCards?.([top.cardId ?? null], { cell, player: ctx.player });
       }
       if (見たもの.length === 0) return false;
       return true;
@@ -4912,6 +4939,44 @@ async function runActionSafely(action, ctx, helpers) {
     logAction("effect-verb", { verb: action.verb, cardId: ctx.cardId, player: ctx.player, result: "error", error: String(err) });
     return false;
   }
+}
+
+// 🔴【#555・2026-11-11】**複数マスを選ぶ時は、選んだマスをもう一度押すと外れる。**
+//   ユーザー要望（押し間違いの救い）。同じことをする所が3つある（裏を見る／山札から置く／
+//   迷いの森の捨てる順）ので、**1つの関数に寄せる**——別々に書くと必ず片方だけ直して
+//   食い違う（このプロジェクトで何度も踏んだ形）。
+//   ⚠ **既に選んだマスも候補に残す**（残さないと押せない＝外せない）。
+//   ⚠ これ以上選べるマスが無くなったら抜ける（やり直しは呼び出し側の「いいえ」でできる）。
+//   ⚠ 光らせ直しは**毎回まとめて**行う（1つずつ足し引きすると、外した時にズレる）。
+async function pickCellsWithDeselect(helpers, { want, listCells, label, pickOpts, forcePrompt, highlight }) {
+  const 鍵 = (c) => c.row + "," + c.col;
+  const 選んだ = [];
+  const 光らせ直す = () => {
+    if (!highlight) return;
+    helpers.clearPlacementTargets?.();
+    for (const c of 選んだ) helpers.markPlacementTarget?.(c);
+  };
+  // ⚠ 押した回数の上限。**付け外しは人が押すものなので現実には届かない数**だが、
+  //   上限が無いと「同じマスが返り続ける」経路があった時に**対局が固まる**
+  //   （実際にテスト用スタブがそうなって止まった）。固まるより打ち切る方が安全。
+  let 回数 = 0;
+  const 上限 = want * 20 + 40;
+  while (選んだ.length < want) {
+    if (++回数 > 上限) break;
+    const base = listCells();
+    if (base.length === 0) break;
+    if (選んだ.length >= base.length) break; // これ以上は選べない（全部選び終わった）
+    const 自動 = base.length === 1 && !forcePrompt && want <= 1;
+    const 文 = label(選んだ.length + 1) + (highlight ? t("ce.tapAgainToUnselect") : "");
+    // 🔴 いま選んでいるマスも渡す（画面では光っている。検査用のスタブもこれを見る）。
+    const cell = 自動 ? base[0] : await helpers.pickLocation(base, 文, { ...pickOpts, selectedCells: 選んだ });
+    if (!cell) break;
+    const i = 選んだ.findIndex((c) => 鍵(c) === 鍵(cell));
+    if (i >= 0) { 選んだ.splice(i, 1); 光らせ直す(); continue; } // もう一度押した＝外す
+    選んだ.push(cell);
+    光らせ直す();
+  }
+  return 選んだ;
 }
 
 // 選べる罠専用: 「以下の効果のうち1つ得る」形の到達効果（arrivalOptions）を処理する。

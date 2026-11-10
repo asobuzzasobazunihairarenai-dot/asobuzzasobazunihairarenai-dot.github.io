@@ -40,5 +40,5 @@ export const CARD_TEXT_EX0_JA = {
   "ex0-white-dragon": { flavor: "暴れている…冷静になれぬ理由ももはや覚えていないのであろう", titleRuby: "", basic: "これは他のカードの効果の対象にならない。", subtitle: "", arrival: "１枚ドロー。１マス強制移動する。", hand: "これを任意のマスに表向きで置く。" },
   "ex0-black-bad-burger": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "１枚ドロー。場の中央と四隅のマスのうち、プレイヤーのいないマスを１マス選ぶ。あなたの手札をすべて、そのマスの１番上に置く。", hand: "任意の１マスのカードをすべて捨てる。１枚ドロー。" },
   "ex0-black-vood-contract": { flavor: "契約とは時に一方的なものだ", titleRuby: "", basic: "", subtitle: "", arrival: "全員は手札が２枚以下になるように捨てる。そうしたなら、自分の手札を１枚ロックしてもよい、ただし最後のロックはできない。", hand: "上記の到達効果を得る。" },
-  "ex0-red-crimson-fist": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・【追色１】２枚ドロー。\n・あなたの周囲の相手を１人選ぶ。その相手に接触する。", hand: "【追色S】あなたの周囲の相手を１人選ぶ。その相手に接触する。" },
+  "ex0-red-crimson-fist": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・【追色１】２枚ドロー。\n・あなたの周囲の相手を１人選ぶ。その相手に接触する。", hand: "【追色S】あなたの周囲の相手を１人選ぶ。その相手に接触する。\n（接触で奪えるカードはＳの２倍の枚数である）" },
 };

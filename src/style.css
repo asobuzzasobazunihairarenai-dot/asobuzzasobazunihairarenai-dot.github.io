@@ -13929,6 +13929,32 @@ body.reduce-glow .piece-swap-glow {
   animation: none;
 }
 
+/* 【#556・2026-11-11】中央の公開演出の「次へ」。
+   ⚠ .eternal-reveal-card は pointer-events: none なので、ボタン側で auto に戻す。
+   ⚠ 明暗2テーマあるので**自分で色を全部持つ**（継承に任せると片方で読めなくなる＝教訓15）。 */
+.center-reveal-next-btn {
+  position: absolute;
+  left: 50%;
+  /* 🔴 カードの**下ではなく中の下端**に置く。カードは画面の端近くへ寄ることがあり
+     （#556 でマスを避けて動かすため）、外に出すと画面からはみ出して押せなくなる。 */
+  bottom: 0.6rem;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  padding: 0.7rem 2.2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #0b1220;
+  background: rgba(250, 250, 250, 0.96);
+  border: 0.2rem solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+body.is-phone-device .center-reveal-next-btn {
+  font-size: 2.4rem;
+  padding: 1rem 3rem;
+}
 .eternal-reveal-card {
   position: fixed;
   z-index: 9999;

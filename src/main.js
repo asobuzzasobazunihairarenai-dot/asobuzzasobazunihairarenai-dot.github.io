@@ -1747,7 +1747,10 @@ function spawnArrivalBurst__inner(hostEl, color) {
   // 到達したカードがいきなり「2 連鎖」**になり、その次の到達も 2 のままで「1つ増えていない」
   // ように見えていた（ユーザー報告「ジャンプ台に到達は1連鎖のはず。ゴメンナサイ移動が
   // 連鎖にカウントされていない」）。ガードの分を引いて数える。
-  const chainDepth = arrivalChainDepth();
+  // 🔴【#548】いま処理している到達が**誰の駒のものか**で数える（相手の駒の到達を数に入れない）。
+  //   ⚠ この関数は hostEl と color しか受け取らないので、**いま積まれている席の一番上**を見る
+  //     （triggerCardArrival が到達のたびに積んでいる）。location は**ここには無い**。
+  const chainDepth = arrivalChainDepth(arrivalChainSeats[arrivalChainSeats.length - 1] || null);
   if (chainDepth >= 2) {
     burst.classList.add("is-chained");
     const chain = document.createElement("div");
@@ -3639,13 +3642,20 @@ function revealCenterCardForAll(cardId, labelText, onFlip) {
 //   それだけで「本人だけが見る」になる（続き653 の記録と同じ考え方）。
 // ⚠ オンラインでは裏向きのカードの cardId がマスクされて null で来る（意図的な仕様）。
 //   その時は中身を出せないので、そう伝える（盤面は何も変わらないのでルール違反にはならない）。
-async function peekCardsForEffect(cardIds) {
+// 🔴【#556・2026-11-11】opts で「どのマスの札か」「誰の効果か」を受け取る。
+//   ・cell … そのマスの光に**重ならない**所へ拡大を出す（pickRevealCenter）。
+//   ・player … **本人が見ている時だけ**「次へ」で進める。CPUの番は押す人がいないので
+//     今までどおり時間で進む（押させると、CPUの手番で人間が押す羽目になる）。
+async function peekCardsForEffect(cardIds, opts = {}) {
   const list = (cardIds ?? []).filter((x) => x !== undefined);
   if (list.length === 0) return;
   if (list.some((x) => !x)) await announceEffectNoticeForEffect(null, t("ce.ex0PeekCannotSeeOnline"));
+  const table = document.getElementById("game-table");
+  const avoidEl = table && opts.cell ? findLocationElement(table, opts.cell) : null;
+  const waitForNext = !isCpuSelectingNow(opts.player ?? null);
   for (const cardId of list) {
     if (!cardId) continue;
-    await playCenterCardFlipReveal(cardId, { labelText: t("game.label.peeked") });
+    await playCenterCardFlipReveal(cardId, { labelText: t("game.label.peeked"), waitForNext, avoidEl });
   }
 }
 
@@ -10533,8 +10543,20 @@ let arrivalEffectProcessingDepth = 0;
 // 数える時だけ差し引く（busy 判定は今までどおり合計で見る＝挙動を変えない）。
 let postMoveArrivalGuardDepth = 0;
 // 演出に出す「N 連鎖 / N コンボ」の N。本物の到達の入れ子だけを数える。
-function arrivalChainDepth() {
-  return Math.max(0, arrivalEffectProcessingDepth - postMoveArrivalGuardDepth);
+// 🔴【#548・2026-11-11】**連鎖は「自分の駒が連鎖した数」だけ数える。**
+//   報告「ヴィヴィアンの効果で相手が移動する時、2連鎖と表示されました」。
+//   到達処理の入れ子の深さは**誰の駒の到達かを区別していなかった**ので、
+//   自分の到達の中で相手の駒を動かす効果（ヴィヴィアン・委任）が走ると、
+//   相手の到達が「2連鎖目」として出ていた。
+//   ⇒ 入れ子ごとに**どの席の到達か**を覚え、同じ席のぶんだけ数える。
+//   ⚠ 席が分からない入れ子（移動〜到達の空白を埋めるガード等）は今までどおり数に入れない。
+const arrivalChainSeats = [];
+function arrivalChainDepth(seat) {
+  const 素 = Math.max(0, arrivalEffectProcessingDepth - postMoveArrivalGuardDepth);
+  if (!seat || arrivalChainSeats.length === 0) return 素;
+  const 同じ席 = arrivalChainSeats.filter((s) => s === seat).length;
+  // 素の数を超えないようにする（ガードの分を引いた上限）。
+  return Math.max(0, Math.min(素, 同じ席));
 }
 function isArrivalEffectProcessing() {
   return arrivalEffectProcessingDepth > 0;
@@ -10870,6 +10892,7 @@ function triggerCardArrival(cardId, location, onFullyResolved, opts = {}) {
     // #178/#179: このチェーンで処理した到達として記録（flush時の二重発火判定に使う）。
     chainProcessedArrivalKeys.add(dedupKey);
     arrivalEffectProcessingDepth++;
+    arrivalChainSeats.push(player || null); // 【#548】どの席の到達かを覚える
     // 続き75診断ログ: ユーザー報告「ムーブフェイズがきれいに終わったのにターンが
     // 終了されなかった」の調査用。このフラグがtrueのまま戻らなくなっていないか
     // （下のfinallyでの解除ログと突き合わせて確認する）を後から追えるようにする。
@@ -10917,6 +10940,7 @@ function triggerCardArrival(cardId, location, onFullyResolved, opts = {}) {
         // ならないよう、到達効果の完了時に必ず止める（stopHeartbeatは冪等）。
         stopHeartbeat();
         arrivalEffectProcessingDepth = Math.max(0, arrivalEffectProcessingDepth - 1);
+        arrivalChainSeats.pop(); // 【#548】対で外す
         const remainCount = (activeAutoArrivalKeys.get(dedupKey) || 1) - 1;
         if (remainCount <= 0) activeAutoArrivalKeys.delete(dedupKey);
         else activeAutoArrivalKeys.set(dedupKey, remainCount);
@@ -12131,7 +12155,56 @@ function getEternalRevealCenterRect(pileRect) {
 // 2026-08-08「公開エリアだけでなく画面中央に大々的に、少しじらしてフリップして開く感じ」）。
 // エターナル獲得と同じ正方形スケールXフリップを流用した簡易版（飛翔・ロック着地は無し）。
 // 演出オフ設定中は既存のカード受け取りモーダルで簡潔に見せる。
-async function playCenterCardFlipReveal(cardId, { labelText = t("game.label.reveal"), suspenseMs = 850, holdMs = 850, onFlip } = {}) {
+// 🔴【#556・2026-11-11】**中央の拡大を、光っているマスに重ならない所へ出す。**
+//   ユーザー指摘「マスとカード拡大が被っています」。見せたいのは「どのマスの札か」なので、
+//   拡大がその光を覆ってしまうと、肝心の対応が分からない。
+//   ⚠ 上下どちらが安全かを**当て推量で決めない**——画面の縦横比とマスの位置で毎回変わる。
+//     候補を9つ置いて、**重なりの面積がいちばん小さい所**を選ぶ。まん中を先に見るので、
+//     重ならないならいつもどおりまん中に出る（他の演出の見た目は変わらない）。
+function pickRevealCenter(avoidEl, size) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const 既定 = { x: W / 2, y: H / 2 };
+  let 箱 = null;
+  try { 箱 = avoidEl && avoidEl.getBoundingClientRect ? avoidEl.getBoundingClientRect() : null; } catch (err) { 箱 = null; }
+  if (!箱 || 箱.width <= 0 || 箱.height <= 0) return 既定;
+  const 半 = size / 2;
+  const 余白 = 8;
+  let 最良 = 既定;
+  let 最小 = Infinity;
+  for (const y of [H * 0.5, H * 0.27, H * 0.73]) {
+    for (const x of [W * 0.5, W * 0.26, W * 0.74]) {
+      const cx = Math.min(Math.max(x, 半 + 余白), Math.max(半 + 余白, W - 半 - 余白));
+      const cy = Math.min(Math.max(y, 半 + 余白), Math.max(半 + 余白, H - 半 - 余白));
+      const 重なり =
+        Math.max(0, Math.min(cx + 半, 箱.right) - Math.max(cx - 半, 箱.left)) *
+        Math.max(0, Math.min(cy + 半, 箱.bottom) - Math.max(cy - 半, 箱.top));
+      if (重なり < 最小) { 最小 = 重なり; 最良 = { x: cx, y: cy }; }
+      if (最小 === 0) return 最良;
+    }
+  }
+  return 最良;
+}
+
+// 🔴【#556】ユーザー報告「ジェイクのカードめくりが速すぎ」。**時間で進めると、速い人には
+//   遅く、遅い人には速い。** ⇒ 本人が「次へ」を押すまで待つ。
+//   ⚠ 押し忘れ・押せない事故で対局が止まらないよう、**長めの保険で必ず進む**。
+function waitForRevealNext(reveal) {
+  return new Promise((resolve) => {
+    let 済 = false;
+    let timer = null;
+    const 進む = () => { if (済) return; 済 = true; clearTimeout(timer); resolve(); };
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "center-reveal-next-btn";
+    btn.textContent = t("game.reveal.next");
+    btn.addEventListener("click", (e) => { e.stopPropagation(); 進む(); });
+    reveal.appendChild(btn);
+    timer = setTimeout(進む, 30000);
+  });
+}
+
+async function playCenterCardFlipReveal(cardId, { labelText = t("game.label.reveal"), suspenseMs = 850, holdMs = 850, onFlip, waitForNext = false, avoidEl = null } = {}) {
   // 【#287】「開く瞬間」に呼ぶ合図。1回しか呼ばない（呼び忘れ・二重呼び出しの両方を防ぐ）。
   let flipSignalled = false;
   const signalFlip = () => {
@@ -12149,7 +12222,9 @@ async function playCenterCardFlipReveal(cardId, { labelText = t("game.label.reve
     return;
   }
   const size = Math.min(window.innerWidth, window.innerHeight) * 0.5;
-  const localCenter = stageClientToLocal(window.innerWidth / 2, window.innerHeight / 2);
+  // 【#556】光っているマス（avoidEl）に重ならない所へ出す。渡されなければ今までどおりまん中。
+  const 中心 = pickRevealCenter(avoidEl, size);
+  const localCenter = stageClientToLocal(中心.x, 中心.y);
   const w = stageDelta(size);
   const h = stageDelta(size);
   const reveal = document.createElement("div");
@@ -12191,7 +12266,9 @@ async function playCenterCardFlipReveal(cardId, { labelText = t("game.label.reve
   await wait(half);
   reveal.classList.remove("is-bursting");
   reveal.classList.add("is-revealed");
-  await wait(holdMs);
+  // 【#556】本人が見ている時だけ「次へ」で進める（CPUの番は今までどおり時間で進む）。
+  if (waitForNext) await waitForRevealNext(reveal);
+  else await wait(holdMs);
   reveal.remove();
 }
 

@@ -852,7 +852,12 @@ function placeJewel(pieceEl, table) {
   //    宝石の比率は決まっている（本物のブリリアントは 深さ ≒ 直径の 0.6）ので、
   //    幅に対して決めないと「宝石ではない形」になる。結果として**立方体の駒より低い**。
   //    詳しくは jewel-piece-shape.js の冒頭（上から見てとがりが見えない条件）。
-  const H = Math.min(w, h);
+  // 【#544・2026-11-11】ユーザー要望「ジュエルの駒はもう少し大きい方がいいかも」→「一旦、1.2倍に！」。
+  //   ⚠ **立方体の駒は触らない**（--piece-size はそのまま）。ここで宝石だけ大きくする。
+  //   ⚠ 当たり判定の箱（DOMの .piece）は元の大きさのままなので、**見た目だけ**が1.2倍。
+  //     掴みやすさを変えたい時は --piece-hitbox-scale の方を動かす。
+  const 宝石倍率 = 1.2;
+  const H = Math.min(w, h) * 宝石倍率;
   let mesh = jewelMeshByElement.get(pieceEl);
   if (!mesh) {
     const mat = new THREE.MeshBasicMaterial({
@@ -875,7 +880,7 @@ function placeJewel(pieceEl, table) {
   // 立体は単位の箱（x,y ∈ [-0.5,0.5]・z は駒の幅を 1 とした高さ）で組んであるので、
   // 中心へずらして w・h・H を掛ける＝底が盤の面に触れる。
   m.multiply(new THREE.Matrix4().makeTranslation(w / 2, h / 2, 0));
-  m.multiply(new THREE.Matrix4().makeScale(w, h, H));
+  m.multiply(new THREE.Matrix4().makeScale(w * 宝石倍率, h * 宝石倍率, H));
   mesh.matrix.copy(m);
   mesh.material.opacity = vis.opacity;
   // 並べ替えの鍵は「盤の面からどれだけ持ち上がっているか」（sortByDepth 参照）。
