@@ -125,6 +125,11 @@ let pickLocationHelper = null;
 // 救済ピック中の二重発火防止（reconcileMovePhaseは何度も呼ばれるため）。
 let awaitingFallbackPick = false;
 
+// ⚠ **同じ名前の PHASES が phase-guide.js にもあるが、別物。**
+//   こちら: フェイズidの**文字列**の配列（順番＝進む順）。
+//   あちら: 案内板のボタンを作るための**オブジェクト**の配列（{ id, icon, labelKey, ... }）。
+//   🔴 取り違えると `phase-guide-${p}-button` が `[object Object]` になって黙って外れる。
+//   （2026-11-10 に実際に読み違えて、動いているコードを直しかけた。）
 export const PHASES = ["lock", "hand", "move"];
 const PHASE_LABEL = { lock: "LOCK", hand: "HAND", move: "MOVE" };
 // UI英語化フェーズ11: 定数にすると読み込み時の言語で固定されるので、使う時に解決する。
@@ -1172,6 +1177,14 @@ function enterPhase__inner(phase, player) {
   const prevPhase = currentPhase;
   currentPhase = phase;
   phaseOwner = player; // このフェイズがどの席のものか（ターン境界のリセット判定に使う。#19）
+  // 🔴【B-2・2026-11-10】**案内板の発光は currentPhase と同じ所で更新する。**
+  //   それまでは下の announcePhase() の後にしか無く、**自動でスキップされるフェイズ**
+  //   （ロックできる札が無い／使える手札が無い）は早期 return でそこへ辿り着かなかった。
+  //   実測（iPhone相当・自分の手番・CPU戦）: getCurrentPhase() が lock→hand→move と進むのに、
+  //   光っていたのは **move だけ**。lock と hand の間は**どこにも印が出ていなかった**
+  //   ＝「いま何をすればいいか」がいちばん分かりにくい瞬間に、案内板が無言だった。
+  //   ⚠ 下の updatePhaseGuideGlow() はそのまま残す（二度呼んでも同じ結果＝無害）。
+  updatePhaseGuideGlow();
   if (phase === "lock") lockedIdsAtPhaseStart = getLockedTokenIds(player);
   if (phase === "lock") myDeckDrawnThisPhase = false; // 【#286/#288】ロックフェイズごとに1回だけ
   if (phase === "move") moveActionTaken = false;

@@ -20,6 +20,9 @@ import { openSummarySheet } from "./summary-sheet.js";
 // phaseDetail/phaseTitle を通して現在の言語で解決する（tutorial.js/help.js もこの関数を使う）。
 // ムーブフェイズの detail は行動ごとに絵文字見出し（🚶移動/🤝接触/📥その他）を付けて短文に
 // 分割してある（読みやすさのため）。
+// ⚠ **同じ名前の PHASES が phase-automation.js にもあるが、別物。**
+//   こちら: 案内板のボタンを作るための**オブジェクト**の配列。
+//   あちら: フェイズidの**文字列**の配列（進む順）。取り違えに注意。
 export const PHASES = [
   { id: "lock", icon: "assets/icons/lock-phase.webp", labelKey: "phase.lock.label", shortKey: "phase.lock.short", detailKeys: ["phase.lock.d1", "phase.lock.d2"] },
   { id: "hand", icon: "assets/icons/hand-phase.webp", labelKey: "phase.hand.label", shortKey: "phase.hand.short", detailKeys: ["phase.hand.d1", "phase.hand.d2"] },

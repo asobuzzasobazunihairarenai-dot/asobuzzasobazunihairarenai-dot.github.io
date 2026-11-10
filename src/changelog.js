@@ -76,6 +76,7 @@ export const CHANGELOG = [
       "ランク戦の待機中に出る練習の帯が盤面に重なっていたのを、右上へ寄せました。",
       "移動の確認に「あなたのゲート（手前）へ移動します」のように行き先を言葉で出すようにしました。押し間違いにその場で気づけます。",
       "勝利の演出で使う端末のメモリを大きく減らしました。演出の最中や直後にアプリが落ちてタイトルに戻ってしまう件への対策です。",
+      "フェイズ案内板（右下）が、自動で飛ばされたフェイズでは光っていませんでした。いまどのフェイズかが常に分かるようにしました。",
     ],
     fixesEn: [
       "Fixed a black band that could stay at the bottom when the app is opened from the home screen.",
@@ -84,6 +85,7 @@ export const CHANGELOG = [
       "The practice banner shown while waiting for a ranked match has moved to the top right, so it no longer covers the board.",
       "The move confirmation now says where the piece is going (for example \"to your own gate\"), so a mistap is easy to spot.",
       "The victory sequence now uses far less memory on your device, to reduce the chance of the app reloading back to the title screen during or just after it.",
+      "The phase guide (bottom right) did not light up for phases that were skipped automatically. It now always shows which phase you are in.",
     ],
     devItems: [
       "🔴 **【A-1】勝利演出の白が画面を覆っている間、WebGL描画ごと畳んで GPU側の持ち物を返すようにした。** 続き679 で数え漏れていた量を測ったら、**WebGL のテクスチャ＋描画バッファ**がどの計器にも写らないまま抱えられていた（`<img>` にも `<canvas>` にも出ない）。FLASH で白が覆い切ってから `setBoard3dSuspended(true)`、`dismiss()` で戻す（＋3分の保険タイマー）。🔴 **止めるだけ（setBoard3dActive(false)）では材質を捨てるだけでテクスチャと描画バッファは返らない**ので `disposeRenderer()` まで呼ぶ。作り直しは #278 の文脈喪失からの復帰と同じ道なので実績がある。**実測（iPhone 932x430・dpr3・本物の演出を走らせた）: FLASH まで 28MB（テクスチャ17＋バッファ11）→ VICTORY で 0MB、dismiss 後に作り直されて戻る。例外0件。** ⚠ 畳んでいる間は CSS描画が同じ絵を描く（白88%の下の見え方は、畳む／畳まないのスクリーンショットを並べて同じことを確認）。ただし iOS では CSS の3D合成が自前の層を作るので、**実際に返る量は28MBより小さい**（どれだけかは実機でしか分からない）。",
