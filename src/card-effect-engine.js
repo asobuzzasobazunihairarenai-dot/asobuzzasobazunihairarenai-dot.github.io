@@ -4361,8 +4361,13 @@ async function runAction(action, ctx, helpers) {
       // 貧民の行進（1st）到達。「このカードをあなたの手札に加える。財力２以下のプレイヤーは全員、
       //   ２枚ドローし２マス移動する、移動先のカードはオープンしない。」
       // ⚠ 「プレイヤー」＝**自分も含む**（「相手」と書かれていない）。処理順は使用者から時計回り。
-      // ⚠ 「２マス移動」は距離2のマス（ring）として扱う。「２マス先に一気に」との違いは
-      //   途中のマスに止まるかどうかだけで、ここは**オープンしない**指定なので差が出ない。
+      // 🔴【#557 / #559・2026-11-10】「２マス移動」は**1マスずつ2回**。
+      //   それまでは距離2のマス（ring）を1回選ばせていたが、ユーザー指摘のとおり
+      //   「２マス先に一気に」とは別物で、**途中の道のりも選ぶ**のが正しい。
+      //   ⚠ しかも「移動先のカードはオープンしない」は**裏の札をめくらない**という意味で、
+      //     **既に表なら到達する**（#559「スラム街に到達しなかった」がこれ）。
+      //     ⇒ 既定の到達は止めたまま（moveAndSync の第4引数 true）、
+      //       triggerArrivalAtIfFaceUp を1マスごとに自分で呼ぶ。
       // 🔴 他の人の移動先は**本人に選んでもらう**（choose-cell の委任）。使用者の画面で
       //   勝手に決めると、相手の意思が入らない（#471・#506 と同じ考え方）。
       let 行進した = false;
@@ -4374,30 +4379,37 @@ async function runAction(action, ctx, helpers) {
         }
         const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
         if (!piece || piece.location.zone !== "cell") continue;
-        const cands = getMoveCandidates(piece.location, action.move ?? 2, true);
-        if (cands.length === 0) continue;
-        let dest = null;
-        if (p === ctx.player) {
-          dest = cands.length === 1 && !ctx.forcePrompt
-            ? cands[0]
-            : await helpers.pickLocation(cands, t("ce.feMarchMove"), { purpose: "move" });
-        } else {
-          const 返事 = await helpers.delegateToPlayer?.(p, "choose-cell", {
-            // ⚠ zone を落とさない。落とすと委任先の画面で候補のマスが1つも見つからず、
-            //   選ぶ画面が出ないまま既定の候補に決まってしまう（#534）。
-            candidates: cands.map((c) => ({ ...c })),
-            hintKey: "ce.feMarchMoveFor",
-            forPlayer: p,
-          });
-          if (返事 && typeof 返事.row === "number") dest = { zone: "cell", row: 返事.row, col: 返事.col };
-          if (!dest) dest = cands[0]; // 委任が届かなかった時も「移動する」は守る（善処の原則）
+        const 歩数 = action.move ?? 2;
+        for (let 歩 = 0; 歩 < 歩数; 歩++) {
+          const いま = getState().tokens.find((tk) => tk.id === piece.id);
+          if (!いま || いま.location.zone !== "cell") break;
+          const cands = getMoveCandidates(いま.location, 1, true);
+          if (cands.length === 0) break;
+          let dest = null;
+          if (p === ctx.player) {
+            dest = cands.length === 1 && !ctx.forcePrompt
+              ? cands[0]
+              : await helpers.pickLocation(cands, t("ce.feMarchMove"), { purpose: "move" });
+          } else {
+            const 返事 = await helpers.delegateToPlayer?.(p, "choose-cell", {
+              // ⚠ zone を落とさない。落とすと委任先の画面で候補のマスが1つも見つからず、
+              //   選ぶ画面が出ないまま既定の候補に決まってしまう（#534）。
+              candidates: cands.map((c) => ({ ...c })),
+              hintKey: "ce.feMarchMoveFor",
+              forPlayer: p,
+            });
+            if (返事 && typeof 返事.row === "number") dest = { zone: "cell", row: 返事.row, col: 返事.col };
+            if (!dest) dest = cands[0]; // 委任が届かなかった時も「移動する」は守る（善処の原則）
+          }
+          if (!dest) break;
+          // 第4引数 true ＝既定の到達をさせない（＝裏の札をめくらない）。
+          await helpers.moveAndSync(piece.id, dest, undefined, true);
+          helpers.recordMoveVisited?.(dest);
+          if (p === ctx.player) ctx.pieceLocation = dest;
+          行進した = true;
+          // 🔴 既に表向きの札なら到達する（めくらないだけ）。1マスごとに見る。
+          await helpers.triggerArrivalAtIfFaceUp?.(dest, p);
         }
-        if (!dest) continue;
-        // 第4引数 true ＝到達させない（＝移動先のカードはオープンしない）。
-        await helpers.moveAndSync(piece.id, dest, undefined, true);
-        helpers.recordMoveVisited?.(dest);
-        if (p === ctx.player) ctx.pieceLocation = dest;
-        行進した = true;
       }
       return 行進した;
     }

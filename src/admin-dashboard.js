@@ -228,9 +228,37 @@ function renderBugReports() {
   renderCollapsibleRows(bugReportBody, rows, makeBugReportRow, bugReportShowAllBtn);
 }
 
+// 🔴【2026-11-10】一覧では **action_log / console_log を取らない**。
+//   この2列は1件あたり数万字あり、全件ぶんまとめて返すと**サーバー側が statement timeout**
+//   になる（557件の時点で実測12.6秒・29.9秒とも失敗＝報告が1件も読めなくなっていた）。
+//   ⚠ context は残す（一覧で添付画像の有無を出すのに要る）。実測 727ms / 1.1MB / 557件。
+//   ⚠ PostgREST は RPC の結果にも select を掛けられるので、**SQL は変えなくてよい**。
+const BUG_REPORT_LIST_COLUMNS = "id,created_at,email,display_name,comment,resolved,context";
+
+// 1件ぶんのログを取りに行く（既に持っていれば何もしない）。
+// 「詳細」「コピー」など、**本当にログが要る時だけ**呼ぶ。
+async function ensureBugReportLogs(row) {
+  if (!row || row.__logsLoaded) return row;
+  try {
+    const { data, error } = await client
+      .rpc("so7_get_admin_bug_reports")
+      .select("id,action_log,console_log")
+      .eq("id", row.id)
+      .limit(1);
+    if (!error && data && data[0]) {
+      row.action_log = data[0].action_log;
+      row.console_log = data[0].console_log;
+      row.__logsLoaded = true;
+    }
+  } catch (err) {
+    /* 取れなくても一覧は使えるままにする（本文に「(なし)」と出るだけ） */
+  }
+  return row;
+}
+
 async function loadBugReports() {
   bugReportStatusEl.textContent = "読み込み中...";
-  const { data, error } = await client.rpc("so7_get_admin_bug_reports");
+  const { data, error } = await client.rpc("so7_get_admin_bug_reports").select(BUG_REPORT_LIST_COLUMNS);
   if (error) {
     bugReportStatusEl.textContent = `取得に失敗しました: ${error.message}`;
     return;
@@ -329,6 +357,7 @@ async function fetchShotAsPngBlob(url) {
 // 【制約】クリップボードに載せられる画像は1枚だけなので、複数選択のコピーでは
 // 画像そのものではなくURLをテキストに含める（bugReportToText が既に入れている）。
 async function copyBugReport(row, btn) {
+  await ensureBugReportLogs(row); // 【2026-11-10】ログは一覧に載っていないので、ここで取りに行く
   const text = bugReportToText(row);
   const shotUrl = bugReportShotUrl(row);
   const done = (msg) => {
@@ -418,6 +447,8 @@ async function copySelectedBugReports(btn) {
     return;
   }
   rows.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  // 【2026-11-10】ログは一覧に載っていないので、選んだ分だけ先に取りに行く。
+  await Promise.all(rows.map((r) => ensureBugReportLogs(r)));
   const text = rows.map(bugReportToText).join("\n\n" + "-".repeat(60) + "\n\n");
   const shots = rows
     .map((r) => ({ url: bugReportShotUrl(r), label: `#${r.id}  ${formatDateTime(r.created_at)}` }))
@@ -589,9 +620,23 @@ function makeBugReportRow(row) {
   const detailBtn = document.createElement("button");
   detailBtn.type = "button";
   detailBtn.textContent = "詳細";
-  detailBtn.addEventListener("click", () => {
-    const full = bugReportToText(row);
+  detailBtn.addEventListener("click", async () => {
+    // 🔴【2026-11-10】window.open は**押した処理と同じ流れの中**で呼ばないと
+    //   ポップアップブロックに止められる。だから**先に窓を開けて**から、
+    //   一覧に載っていないログを取りに行く（取れるまで「読み込み中」を出しておく）。
     const w = window.open("", "_blank");
+    if (w) {
+      w.document.title = ("不具合報告 #" + row.id);
+      const 待ち = w.document.createElement("pre");
+      待ち.style.cssText = "font-family: monospace; padding: 1rem;";
+      待ち.textContent = "読み込み中…";
+      w.document.body.appendChild(待ち);
+      await ensureBugReportLogs(row);
+      待ち.remove();
+    } else {
+      await ensureBugReportLogs(row);
+    }
+    const full = bugReportToText(row);
     if (w) {
       if (shotUrl) {
         const shot = w.document.createElement("img");
@@ -604,7 +649,6 @@ function makeBugReportRow(row) {
       pre.style.cssText = "white-space: pre-wrap; word-break: break-word; font-family: monospace; padding: 1rem;";
       pre.textContent = full;
       w.document.body.appendChild(pre);
-      w.document.title = `不具合報告 #${row.id}`;
     } else {
       alert(full);
     }

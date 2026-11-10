@@ -1388,6 +1388,17 @@ function buildCubePiece(color, seat) {
   return piece;
 }
 
+// 🔴【#545 / #549・2026-11-10】**盤面の外へ出す駒**（跳ねるゴースト・ドラッグのゴースト）に付ける。
+//   ジュエルの駒は WebGL が盤面の上に描く立体なので、盤面の外では DOM の立方体が
+//   そのまま見えて「一瞬キューブになる」。このアプリのカメラは盤面から48度の高さで、
+//   WebGL の宝石も**ほとんど天面しか見えない**（続き677 で測った）ので、
+//   **壁を消して天面だけ見せれば**立方体の輪郭が消え、飛んでいる間も宝石に見える。
+//   ⚠ ジュエルでない駒には何もしない（今までどおりの立方体）。
+function markOutsideBoardPiece(pieceEl) {
+  if (pieceEl && pieceEl.classList.contains("is-jewel-piece")) pieceEl.classList.add("is-jewel-ghost");
+  return pieceEl;
+}
+
 function findLocationElement(table, location) {
   if (location.zone === "cell") {
     return table.querySelector(`.cell[data-row="${location.row}"][data-col="${location.col}"]`);
@@ -5733,6 +5744,64 @@ function spawnPieceMoveTrail(from, to, size, color, durationMs, chained) {
   setTimeout(() => el.remove(), life + 120);
 }
 
+// 🔴【#545 / #549・2026-11-10】**ジュエルの駒は、移動の間も宝石のまま飛ばす。**
+//   跳ねる演出はふだん document.body 直下のゴースト（DOMの立方体）で作るが、
+//   ジュエルの駒は **WebGL が #game-table の中を走査して描く立体**なので、
+//   盤面の外のゴーストには出せない＝飛んでいる間だけ立方体に化けていた。
+//   ⇒ 続き677 の **trackBoard3dAnim**（動いている要素を WebGL に毎コマ追いかけさせる口）で、
+//     **ゴーストを使わず本物の駒を盤面の中で動かす**。
+//   ⚠ 本物の駒は既に**着地側のマス**に居るので、**出発点へずらしてから 0 へ戻す**。
+//     ずれ量はマスの offsetLeft/offsetTop の差＝**盤面の中の座標**なので、遠近も傾きも
+//     WebGL が正しく掛けてくれる（ゴーストのように自分で rotateX する必要が無い）。
+//   返り値: 動かせたら true（呼び出し元はゴーストを作らない）、無理なら false。
+async function playJewelHopInBoard(pieceId, fromLocation, durationMs, styleName) {
+  try {
+    const table = document.getElementById("game-table");
+    if (!table || !isBoard3dPainting()) return false; // WebGLが描いていない時はゴーストのまま
+    const srcCell = findLocationElement(table, fromLocation);
+    const 引く = () => table.querySelector(".piece[data-token-id=" + JSON.stringify(String(pieceId)) + "]");
+    let el = 引く();
+    if (!srcCell || !el || !el.classList.contains("is-jewel-piece")) return false;
+    const destCell = el.closest(".cell");
+    if (!destCell) return false;
+    const dx = srcCell.offsetLeft - destCell.offsetLeft;
+    const dy = srcCell.offsetTop - destCell.offsetTop;
+    if (!dx && !dy) return false;
+    const 高さ = el.offsetHeight || 0;
+    // ワープは「浮かない」演出なので山なりにしない（ゴースト版と同じ扱い）。
+    const 山 = styleName === "warp" ? 0 : 高さ * 1.15;
+    trackBoard3dAnim(el, true);
+    const t0 = performance.now();
+    await new Promise((resolve) => {
+      // 🔴 rAF は画面が見えていない間は進まない（#360）ので、実時間の保険を必ず置く。
+      const 保険 = setTimeout(() => resolve(), durationMs + 1200);
+      const 終わる = () => { clearTimeout(保険); resolve(); };
+      const 進む = () => {
+        const 比 = Math.min(1, (performance.now() - t0) / Math.max(1, durationMs));
+        // ⚠ 途中で render() が走ると駒の要素は作り直される（続き644）。毎コマ引き直す。
+        const いま = 引く();
+        if (いま && いま !== el) {
+          try { trackBoard3dAnim(el, false); } catch (err) {}
+          el = いま;
+          trackBoard3dAnim(el, true);
+        }
+        if (!el || !el.isConnected) { 終わる(); return; }
+        const z = Math.sin(Math.PI * 比) * 山;
+        el.style.transform = "translate3d(" + (dx * (1 - 比)) + "px, " + (dy * (1 - 比)) + "px, " + z + "px)";
+        if (比 >= 1) { el.style.transform = ""; 終わる(); return; }
+        requestAnimationFrame(進む);
+      };
+      requestAnimationFrame(進む);
+    });
+    try { if (el) el.style.transform = ""; } catch (err) {}
+    try { trackBoard3dAnim(el, false); } catch (err) {}
+    return true;
+  } catch (err) {
+    console.error("playJewelHopInBoard failed", err);
+    return false;
+  }
+}
+
 function playPieceHopGhost(fromRect, toRect, token, durationMs, opts = {}) {
   const style = pieceMoveStyleOf(opts.style);
   const isWarp = opts.style === "warp";
@@ -5793,7 +5862,7 @@ function playPieceHopGhost(fromRect, toRect, token, durationMs, opts = {}) {
   const unyaw = document.createElement("div");
   unyaw.className = "piece-hop-yaw";
   unyaw.style.transform = `rotateZ(${-yawDeg}deg)`;
-  const ghostCube = buildCubePiece(token.color, token.player);
+  const ghostCube = markOutsideBoardPiece(buildCubePiece(token.color, token.player)); // 【#545/#549】
   unyaw.appendChild(ghostCube);
   pitch.appendChild(unyaw);
   yaw.appendChild(pitch);
@@ -6788,7 +6857,10 @@ async function playPieceMoveAnimation__inner(pieceId, fromLocation, animOpts = {
   // 【#285】remote-move-animator から呼ばれる時は、あちらが既に駒を隠して**自分の**
   // 隠す集合を管理しているので、ここで集合を上書き（＝他の飛翔中トークンを露出させる）
   // してはいけない。その場合は隠す/戻すの操作だけを飛ばし、跳ねる動きは同じものを使う。
-  const managePending = !animOpts.skipPendingHide;
+  // 🔴【#545 / #549】ジュエルの駒は**隠さずに本物を動かす**（下の playJewelHopInBoard）。
+  //   隠してしまうと WebGL が描く相手が居なくなるので、ここで分ける。
+  const ジュエル = !!pieceEl.classList.contains("is-jewel-piece") && isBoard3dPainting();
+  const managePending = !animOpts.skipPendingHide && !ジュエル;
   if (managePending) {
     setSetupPendingTokenIds(new Set([pieceId]));
     render();
@@ -6802,8 +6874,25 @@ async function playPieceMoveAnimation__inner(pieceId, fromLocation, animOpts = {
     if (styleName === "warp") {
       spawnPieceLandingRing(findLocationElement(document.getElementById("game-table"), fromLocation), token.color);
     }
-    const { done } = playPieceHopGhost(fromRect, toRect, token, durationMs, { style: styleName, trail: chained });
-    await done;
+    if (ジュエル) {
+      // 盤面の中で本物の駒を動かす。尾（trail）はゴースト版と同じものを出す。
+      const from = stageClientToLocal(fromRect.left + fromRect.width / 2, fromRect.top + fromRect.height / 2);
+      const to = stageClientToLocal(toRect.left + toRect.width / 2, toRect.top + toRect.height / 2);
+      spawnPieceMoveTrail(from, to, stageDelta(fromRect.height), token.color, durationMs, chained);
+      const 動いた = await playJewelHopInBoard(pieceId, fromLocation, durationMs, styleName);
+      if (!動いた) {
+        // 動かせなかった時はゴーストに落とす（WebGLが止まっている端末など）。
+        setSetupPendingTokenIds(new Set([pieceId]));
+        render();
+        const { done } = playPieceHopGhost(fromRect, toRect, token, durationMs, { style: styleName, trail: chained });
+        await done;
+        setSetupPendingTokenIds(new Set());
+        render();
+      }
+    } else {
+      const { done } = playPieceHopGhost(fromRect, toRect, token, durationMs, { style: styleName, trail: chained });
+      await done;
+    }
   } finally {
     if (managePending) {
       setSetupPendingTokenIds(new Set());
@@ -16496,7 +16585,7 @@ function createGhost(kind, tokenId) {
     inner.className = "drag-ghost-piece-inner";
     const tilt = getComputedStyle(document.documentElement).getPropertyValue("--table-tilt").trim();
     inner.style.transform = `rotateX(${tilt})`;
-    inner.appendChild(buildCubePiece(token.color, token.player));
+    inner.appendChild(markOutsideBoardPiece(buildCubePiece(token.color, token.player))); // 【#545/#549】
     outer.appendChild(inner);
     document.body.appendChild(outer);
     return outer;

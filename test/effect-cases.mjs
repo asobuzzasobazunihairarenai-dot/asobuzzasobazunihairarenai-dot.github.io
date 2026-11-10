@@ -3618,7 +3618,7 @@ export const CASES = [
   //   効果をそのまま走らせる（本物と同じ runSituationEffect を通る）。
 
   {
-    name: "貧民の行進(到達): 財力２以下の全員が２枚ドローし２マス移動（オープンしない）",
+    name: "貧民の行進(到達): 財力２以下の全員が２枚ドローし、1マスずつ2回移動する",
     kind: "arrival",
     cardId: "1st-red-poor-march",
     state: {
@@ -3627,6 +3627,10 @@ export const CASES = [
         { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
         { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
         { id: "self", kind: "card", cardId: "1st-red-poor-march", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 🔴【#557】1マスずつ進むので、**途中のマスにもカードが要る**（駒はカードの上しか進めない）。
+        //   ⚠ 1マス目の候補が1つだと**聞かずに決まる**ので、分かれ道（2,3）も置いて毎回聞かせる。
+        { id: "c3", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 2, col: 3 } },
+        { id: "c0", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 3, col: 4 } },
         { id: "c1", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 3, col: 5 } },
         { id: "c2", kind: "card", cardId: "red-jump-pad", location: { zone: "cell", row: 0, col: 2 } },
         // B は手札5枚＝財力5 なので対象外（A は0枚＝対象）。
@@ -3639,7 +3643,9 @@ export const CASES = [
       piles: { deck: ["red-jump-pad", "red-counter-lock", "green-growing-trees"], eternal: [], first: [], discard: [] },
     },
     ctx: { player: "A", cardId: "1st-red-poor-march", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
-    picks: { location: [{ row: 3, col: 5 }] },
+    // 🔴【#557】「２マス移動」は**1マスずつ2回**。途中の道のりも選ぶ（ユーザー指示）。
+    //   ⚠ 2回目の候補に1回目の出発点が入るので、**戻ってこない道**を選ばせて検査する。
+    picks: { location: [{ row: 3, col: 4 }, { row: 3, col: 5 }] },
     expect: [
       { kind: "pieceAt", player: "A", row: 3, col: 5 },
       { kind: "pieceAt", player: "B", row: 0, col: 0 }, // 財力5＝対象外なので動かない

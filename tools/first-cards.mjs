@@ -40,8 +40,8 @@ export function printedCardFile(no) {
 // pick … フォルダの中の候補が複数ある時に、どれを使うか（名前順で0から）
 export const FIRST_ED_CARDS = [
   // ── Eカード（各色1種）。財力の数字が色ごとに 0〜6 で割り振られている ──
-  { no: "01", id: "eternal-1st-red",    kind: "eternal", name: "走書の赤歴　ジョイナール",   color: "red",    frame: "エターナルカード_表_赤", count: 1, folder: "【H】Eカード　走書の赤歴　ジョイナール　　" },
-  { no: "02", id: "eternal-1st-orange", kind: "eternal", name: "強欲の絵本　オレギャング",   color: "orange", frame: "エターナルカード_表_橙", count: 1, folder: "【H】Eカード　強欲の絵本　オレギャング　" },
+  { no: "01", id: "eternal-1st-red",    kind: "eternal", name: "走書の赤歴　ジョイナール",   color: "red",    frame: "エターナルカード_表_赤", count: 1, folder: "【H】Eカード　走書の赤歴　ジョイナール" },
+  { no: "02", id: "eternal-1st-orange", kind: "eternal", name: "強欲の絵本　オレギャング",   color: "orange", frame: "エターナルカード_表_橙", count: 1, folder: "【H】Eカード　強欲の絵本　オレギャング" },
   { no: "03", id: "eternal-1st-yellow", kind: "eternal", name: "黄王学の薦め　ネロイズム",   color: "yellow", frame: "エターナルカード_表_黄", count: 1, folder: "【H】Eカード　黄王学の薦め　ネロイズム" },
   { no: "04", id: "eternal-1st-green",  kind: "eternal", name: "新緑の史文　グリングリン",   color: "green",  frame: "エターナルカード_表_緑", count: 1, folder: "【H】Eカード　新緑の史文　グリングリン" },
   { no: "05", id: "eternal-1st-blue",   kind: "eternal", name: "古の蒼書　ティセリオス",     color: "blue",   frame: "エターナルカード_表_青", count: 1, folder: "【H】Eカード　古の蒼書　ティセリオス" },
@@ -58,13 +58,13 @@ export const FIRST_ED_CARDS = [
   //    ⇒ 文字が焼き込まれているので、この7枚だけは **assets/cards/ を持ち、アプリは文字を描かない**
   //      文字はアプリが描く（cards-data.js の hasBakedCardFace は空）。絵を描き直す時は
   //      pick を書けば、他の26種と同じ合成の道に戻る。
-  { no: "08", id: "first-1st-red",    kind: "first", name: "赤のジュエル　ルビナグナ",   color: "red",    frame: "ファーストカード_表_赤", count: 1, folder: "【H】Fカード　赤の色石　レッドスピネル", 保留: true },
-  { no: "09", id: "first-1st-orange", kind: "first", name: "橙のジュエル　カリブランス", color: "orange", frame: "ファーストカード_表_橙", count: 1, folder: "【H】Fカード　橙の色石　サンストーン", 保留: true },
-  { no: "10", id: "first-1st-yellow", kind: "first", name: "黄のジュエル　ルミナジア",   color: "yellow", frame: "ファーストカード_表_黄", count: 1, folder: "【H】Fカード　黄の色石　ヘリオドール", 保留: true },
-  { no: "11", id: "first-1st-green",  kind: "first", name: "緑のジュエル　ネオリーフィア", color: "green", frame: "ファーストカード_表_緑", count: 1, folder: "【H】Fカード　緑の色石　ジェイド", 保留: true },
-  { no: "12", id: "first-1st-blue",   kind: "first", name: "青のジュエル　ラピスティア", color: "blue",   frame: "ファーストカード_表_青", count: 1, folder: "【H】Fカード　青の色石　ラピスラズリ", 保留: true },
-  { no: "13", id: "first-1st-pink",   kind: "first", name: "桃のジュエル　モルガライト", color: "pink",   frame: "ファーストカード_表_桃", count: 1, folder: "【H】Fカード　桃の色石　モルガナイト", 保留: true },
-  { no: "14", id: "first-1st-purple", kind: "first", name: "紫のジュエル　ラヴェルナイト", color: "purple", frame: "ファーストカード_表_紫", count: 1, folder: "【H】Fカード　紫の色石　ラヴェルライト", 保留: true },
+  { no: "08", id: "first-1st-red",    kind: "first", name: "赤のジュエル　ルビナグナ",   color: "red",    frame: "ファーストカード_表_赤", count: 1, folder: "【H】Fカード　赤のジュエル　ルビナグナ", 保留: true },
+  { no: "09", id: "first-1st-orange", kind: "first", name: "橙のジュエル　カリブランス", color: "orange", frame: "ファーストカード_表_橙", count: 1, folder: "【H】Fカード　橙のジュエル　カリブランス", 保留: true },
+  { no: "10", id: "first-1st-yellow", kind: "first", name: "黄のジュエル　ルミナジア",   color: "yellow", frame: "ファーストカード_表_黄", count: 1, folder: "【H】Fカード　黄のジュエル　ルミナジア", 保留: true },
+  { no: "11", id: "first-1st-green",  kind: "first", name: "緑のジュエル　ネオリーフィア", color: "green", frame: "ファーストカード_表_緑", count: 1, folder: "【H】Fカード　緑のジュエル　ネオリーフィア", 保留: true },
+  { no: "12", id: "first-1st-blue",   kind: "first", name: "青のジュエル　ラピスティア", color: "blue",   frame: "ファーストカード_表_青", count: 1, folder: "【H】Fカード　青のジュエル　ラピスティア", 保留: true },
+  { no: "13", id: "first-1st-pink",   kind: "first", name: "桃のジュエル　モルガライト", color: "pink",   frame: "ファーストカード_表_桃", count: 1, folder: "【H】Fカード　桃のジュエル　モルガライト", 保留: true },
+  { no: "14", id: "first-1st-purple", kind: "first", name: "紫のジュエル　ラヴェルナイト", color: "purple", frame: "ファーストカード_表_紫", count: 1, folder: "【H】Fカード　紫のジュエル　ラヴェルナイト", 保留: true },
 
   // ── 通常カード（7色 × 2種 × 7枚） ──
   { no: "15", id: "1st-red-poor-march",      kind: "normal", name: "貧民の行進",         color: "red",    frame: "通常カード_表_赤１", count: 7, folder: "【H】貧民の行進" },
@@ -80,16 +80,16 @@ export const FIRST_ED_CARDS = [
   { no: "20", id: "1st-pink-overeating",     kind: "normal", name: "食べ過ぎ",           color: "pink",   frame: "通常カード_表_桃１", count: 7, folder: "【H】食べ過ぎ" },
   { no: "27", id: "1st-pink-growth",         kind: "normal", name: "経済成長",           color: "pink",   frame: "通常カード_表_桃１", count: 7, folder: "【H】状況：経済成長", 状況: true, pick: 0 },
   { no: "21", id: "1st-purple-slum",         kind: "normal", name: "路地裏のスラム街",   color: "purple", frame: "通常カード_表_紫２", count: 7, folder: "【H】路地裏のスラム街" },
-  { no: "28", id: "1st-purple-bribe",        kind: "normal", name: "裏貴族の賄賂",       color: "purple", frame: "通常カード_表_紫２", count: 7, folder: "【H】賄賂" },
+  { no: "28", id: "1st-purple-bribe",        kind: "normal", name: "裏貴族の賄賂",       color: "purple", frame: "通常カード_表_紫２", count: 7, folder: "【H】裏貴族の賄賂" },
 
   // 29 なないろの欠片 … リメイクの rainbow-shard を使い回す（フォルダが無い＝0th拡張と同じ）
 
   // ── 無色（白3種 各1枚／黒2種 各2枚） ──
-  { no: "30", id: "1st-white-airship",    kind: "normal", name: "飛空艇アルヴァ",   color: "white", frame: "通常カード_表_白１", count: 1, folder: "【H】飛空艇ブランカ" },
-  { no: "31", id: "1st-white-whim",       kind: "normal", name: "大富豪の気紛れ",   color: "white", frame: "通常カード_表_白１", count: 1, folder: "【H】大富豪の力" },
-  { no: "32", id: "1st-white-revolution", kind: "normal", name: "ドゥエンの革命",   color: "white", frame: "通常カード_表_白１", count: 1, folder: "【H】革命" },
-  { no: "33", id: "1st-black-depression", kind: "normal", name: "デプレッション",   color: "black", frame: "通常カード_表_黒１", count: 2, folder: "【H】状況：財産の流出", 状況: true },
-  { no: "34", id: "1st-black-great-order", kind: "normal", name: "偉大なる大号令", color: "black", frame: "通常カード_表_黒１", count: 2, folder: "【H】偉大なる号令" },
+  { no: "30", id: "1st-white-airship",    kind: "normal", name: "飛空艇アルヴァ",   color: "white", frame: "通常カード_表_白１", count: 1, folder: "【H】飛空艇アルヴァ" },
+  { no: "31", id: "1st-white-whim",       kind: "normal", name: "大富豪の気紛れ",   color: "white", frame: "通常カード_表_白１", count: 1, folder: "【H】大富豪の気紛れ" },
+  { no: "32", id: "1st-white-revolution", kind: "normal", name: "ドゥエンの革命",   color: "white", frame: "通常カード_表_白１", count: 1, folder: "【H】ドゥエンの革命" },
+  { no: "33", id: "1st-black-depression", kind: "normal", name: "デプレッション",   color: "black", frame: "通常カード_表_黒１", count: 2, folder: "【H】状況：デプレッション", 状況: true },
+  { no: "34", id: "1st-black-great-order", kind: "normal", name: "偉大なる大号令", color: "black", frame: "通常カード_表_黒１", count: 2, folder: "【H】偉大なる大号令" },
 ];
 
 // クレジット行（カードに印刷されているもの）

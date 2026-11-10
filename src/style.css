@@ -3335,6 +3335,31 @@ body.theme-light .card-note-section-label {
    将来フェイズ状態を持たせた時に該当ボタンを光らせられるよう、dataset.phaseで識別できる
    構造にしてある（phase-guide.js参照）。位置は管理者モードで調整可能
    （--phase-guide-bottom/-right）。 */
+/* 🔴【#545 / #549・2026-11-10】盤面の外へ出すジュエルの駒（跳ねるゴースト・ドラッグの
+   ゴースト）は、**天面だけ**見せる。ジュエルの駒は WebGL が盤面の上に描く立体なので、
+   盤面の外では DOM の立方体がそのまま見えて「一瞬キューブになる」という報告になっていた。
+   このアプリのカメラは盤面から48度の高さで、WebGL の宝石も**ほとんど天面しか見えない**
+   （続き677 で測った）ため、壁を消すだけで見た目がほぼ揃う。
+   ⚠ 当たり判定の箱（.piece-hitbox）は消さない。 */
+.piece.is-jewel-ghost .piece-wall-back,
+.piece.is-jewel-ghost .piece-wall-front,
+.piece.is-jewel-ghost .piece-wall-left,
+.piece.is-jewel-ghost .piece-wall-right {
+  display: none;
+}
+/* 【#544・2026-11-10】ジュエルの駒の足元の影が正方形なのが気になる、という報告。
+   宝石は八角形なので丸い影の方が合う。
+   🔴 **角を丸めるだけにする。** box-shadow は border-radius に従うので、これだけで丸い影になる。
+   ⚠ 疑似要素に z-index:-1 で影を敷く案は**やめた**——`.piece` は preserve-3d なので、
+     負の z-index は盤面の裏へ回り込みかねない（教訓3）。しかも WebGL の canvas は
+     盤面のDOMより**奥**なので、`.piece` 自身に背景を敷くと**宝石の上に黒い円が乗る**。
+     box-shadow は要素の外側に描かれるので、どちらの罠にも当たらない。
+   ⚠ 中身（.piece-face）は border-radius では切り取られない（overflow を付けていないため）。
+   ⚠ ふつうの立方体の駒はそのまま（あちらは本当に四角い）。 */
+.piece.is-jewel-piece {
+  border-radius: 50%;
+}
+
 /* 🔴【B-2・2026-11-10】「いま何をすればいいか」の1行（画面の上端）。
    ⚠ **画面のちょうど中央には置けない。** 実測（4人戦 1280x800・viewport px）:
      x13〜210 に題字、x777〜1267 に常駐のボタン列（オンライン状態・通貨・不具合報告・
@@ -16394,6 +16419,9 @@ body.reduce-glow .cell.card-effect-placement-target {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+  /* ⚠【#558・2026-11-10】ここを 2rem → 1rem に詰めたら**はみ出しが 33px → 41px へ増えた**。
+     縦に justify-content:center で並べる作りなので、余白を減らすと**中身の方が伸びる**。
+     ホームの縦を詰めたい時は、ここではなく**各ブロックの高さ**を減らすこと。 */
   padding: 2rem 1rem;
   /* ユーザー提供の背景画像（assets/home-bg.webp、元は画像素材/ホーム画面/タイトル寄せ.png）。
      ユーザー報告「ホームに入る時に一瞬“以前の黒い画面”が出て、そこへ今のホーム画面が覆い
@@ -16420,7 +16448,8 @@ body.reduce-glow .cell.card-effect-placement-target {
 #home-screen-subtitle {
   font-size: 0.9rem;
   color: #334155;
-  margin-bottom: 1.6rem;
+  /* 【#558・2026-11-10】ホームがスクロールするので詰めた（実測はみ出し52px）。 */
+  margin-bottom: 0.8rem;
   letter-spacing: 0.2em;
   text-shadow: 0 1px 5px rgba(255, 255, 255, 0.85);
 }
@@ -16436,8 +16465,9 @@ body.reduce-glow .cell.card-effect-placement-target {
   justify-content: center;
   gap: 0.2rem 0.8rem;
   max-width: min(46rem, 92%);
-  margin: -1.1rem 0 1.3rem;
-  padding: 0.5rem 1.1rem;
+  /* 【#558】ホームがスクロールしたので詰めた。この帯がはみ出しの約37pxを占めていた。 */
+  margin: -1.1rem 0 0.2rem;
+  padding: 0.28rem 1rem;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 0.7rem;
   background: linear-gradient(100deg, #16304f 0%, #1f4a73 55%, #2f6d93 100%);
@@ -16451,7 +16481,7 @@ body.reduce-glow .cell.card-effect-placement-target {
 #home-screen-cf:active { transform: translateY(1px); }
 .home-screen-cf-main { font-size: 0.82rem; letter-spacing: 0.02em; color: #f2f7fb; }
 .home-screen-cf-cta { font-size: 0.78rem; font-weight: 700; white-space: nowrap; color: #ffd98a; }
-body.is-phone-device #home-screen-cf { padding: 0.42rem 0.8rem; margin: -0.8rem 0 1rem; }
+body.is-phone-device #home-screen-cf { padding: 0.24rem 0.8rem; margin: -0.9rem 0 0.2rem; }
 body.is-phone-device .home-screen-cf-main { font-size: 0.74rem; }
 body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
 /* ホームの現ランク表示（rank-badge.js、フェーズ4/6）。ホームは常にクリーム色のライト背景なので
@@ -22939,8 +22969,9 @@ body.is-phone-device #card-effect-picker-hint.show {
   align-items: center;
   gap: 0.9rem;
   width: min(46rem, 92vw);
-  margin: 0.2rem auto 1rem;
-  padding: 0.85rem 3rem 0.85rem 1rem;
+  /* 【#558・2026-11-10】ホームがスクロールするので上下を詰めた。 */
+  margin: 0.1rem auto 0.3rem;
+  padding: 0.45rem 3rem 0.45rem 1rem;
   border: 2px solid rgba(250, 204, 21, 0.75);
   border-radius: 0.7rem;
   background: linear-gradient(140deg, rgba(66, 46, 8, 0.92), rgba(28, 22, 10, 0.92));
