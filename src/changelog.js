@@ -53,6 +53,43 @@ import { markChangelogRead } from "./changelog-signature.js";
 export const CHANGELOG = [
   {
     date: "2026-11-10",
+    summary: [
+      "不具合報告のボタンを、タイトル画面で見つけやすくしました",
+    ],
+    summaryEn: [
+      "The bug-report button is now easy to spot on the title screen",
+    ],
+    items: [
+      "タイトル画面で、右上の⚙オプションの**すぐ左**に「不具合報告」のアイコンが並ぶようになりました。これまでも同じ画面に出てはいたのですが、⚙から**200px以上離れたところに1つだけ**、しかも**絵が⚙の半分以下の大きさ**で浮いていたので、押せるものだと気づきにくい状態でした。大きさも⚙とそろえたので、スマホ・タブレットでもタップしやすくなっています。対局中の位置は今までどおり（上の列の、残金と全画面ボタンの間）ですが、そちらもアイコンの絵を大きくしたので、以前より見つけやすいはずです。",
+    ],
+    itemsEn: [
+      "On the title screen, the bug-report icon now sits directly to the left of the gear, at the same size. It was always on that screen, but it floated alone more than 200px away from the gear with a drawing less than half the size, so it did not read as a button. Matching the gear also makes it a comfortable tap target on phones and tablets. During a game it stays where it was, in the top row between your funds and the full-screen button, where its drawing is now larger and easier to find.",
+    ],
+    devItems: [
+      "**経緯**: ユーザー相談「不具合報告ボタンをアイコンで小さく通常も表示しておきませんか？上部がいいかな？」。調べたら**既にその形で実装済み**だった（`#self-status-bug-report`、body直下の position:fixed、タイトル画面から表示＝不具合報告 #420 への対応）。つまり実体は「**出ているのに気づかれていない**」。ご提案の方向（小さく・上部）はそのままに、**見つかる形に直した**。",
+      "**実測で分かった原因は2つ。** ①タイトル画面では**両隣が全部 display:none**（`body.opening-screen-active` の一括hide）なので、見えているアイコンは⚙とこれの**2つだけ**。間は **PC 237px / スマホ横 205px / タブレット 198px** で、その間に何も無い。②`.icon-action-button-icon-img` の既定が **62%**——これは「丸いバッジの中に絵を収める」ための値だが、このボタンは**丸枠も背景も出さない**（2026-08-10のユーザー要望「画像単体で見せる」）ので、残りの38%が**ただの余白**になる。**絵の実寸は PC 15px / スマホ 13px / タブレット 14px** で、⚙の絵（**21 / 28 / 44px**）に対し**タブレットでは約3分の1**だった。",
+      "**直し①（全画面共通）**: 絵の割合を **86%** に。🔴 **箱（`--bug-report-icon-size`, 1.9rem）は広げていない**——対局中の列では**右隣の全画面ボタンと隙間0・左隣の残金と9px**しか無く、2.6remにすると残金に食い込む（実測）。86%なら絵が **21 / 19 / 19px** になり、**列の他のアイコンの絵（62%×2.6rem＝21px）とちょうど揃う**。",
+      "**直し②（タイトル画面だけ）**: `body.opening-screen-active` のスコープで⚙の左隣へ寄せ、箱も⚙と同じ大きさにした。**位置は⚙の宣言値から calc で導く**（`1rem ＋ ⚙の大きさ − ⚙のtranslateX ＋ 隙間` ＝ ⚙の左端の、画面右端からの距離）ので、管理者モードで⚙の大きさ・位置を変えても**追従する＝同じ数字を二重に持たない**。この画面では**絵の割合を62%に戻す**——箱が大きくなるので86%のままだと絵が29pxになり、⚙の21pxを追い越して**右上でいちばん目立つ物**になってしまう。狙いは「⚙の兄弟に見えること」。",
+      "🔴 **端末ごとに3通り書く必要があった。** ⚙は PC=`--icon-size-options`(2.6rem)／タッチ=`--icon-size-options-touch`(6rem)／スマホ=`--icon-size-options-phone`(3.9rem) と**別々の変数**を持ち、さらに**スマホでは `#option-area` 全体が top-right 基準で1.65倍される**のに、このボタンは body 直下なので**その倍率に乗らない**（既存のスマホ用ルールが同じ理由で ×1.65 を手書きしている）。⚠ **`is-phone-device` には `is-touch-device` も一緒に付く**（実測）ので、詳細度が同じスマホ用の規則は**必ずタッチ用の後ろ**に置いて並び順で勝たせる。",
+      "縦は `max(0rem, …)` で⚙に合わせつつ**画面の外へは出さない**ようにした。⚙はタッチ端末で**上へ食い出す調整**（`--icon-pos-options-touch-y: -0.9rem` 等、ユーザー自身の調整値）が入っており、そのまま真似ると**大きくした箱が画面の上で切れる**。結果タブレットでだけ⚙と **7pxの段差**が残る（71pxの箱に対し約10%）が、切れるより良いと判断した。",
+      "**A/B**（`scratchpad/ab-bug-icon.mjs`。**直す前の style.css を配信**して同じ測り方で比較・3端末×2画面）。**タイトル**: PC 24x24/右283/絵15 → **33x33/右54/絵21・⚙との隙間8px**、スマホ横 22x22/右328/絵13 → **45x45/右128/絵28・隙間5px**、タブレット 22x22/右261/絵14 → **71x71/右70/絵44・隙間7px**。**3端末とも絵の実寸が⚙と完全一致**、⚙と重ならず、**矩形の5点のヒットテストで両方とも実際に押せる**。**ホーム画面（＝対局中と同じ列が11個並ぶ）**: 列の文字列（id:右端からの距離/幅）が**前後で完全一致＝1pxも動いていない**。絵だけ 15→21 / 13→19 / 14→19。例外0件。",
+      "⚠ **測り方のしくじり2つ（記録）。** ①最初ヒットテストが**全部 false** になり「押せない」と出たが、**起動直後の案内モーダルの覆い（`.so7-modal-backdrop`、z100050〜100060）が残っていた**だけだった。**モーダル本体を display:none にしても覆いは別要素なので残る。** 最初の版は邪魔者を `div` としか出しておらず正体が分からなかったので、**名前・class・z-index・大きさまで出す**ように直して一発で分かった。②**Git Bash の `grep -c $'\\r'` と `cat -A` は CR を取り除いてから見る**ので、CRLF のファイルが「全部 LF」に見える。style.css の改行を一度そう誤認した。**`tr -dc '\\r' | wc -c` で数える**のが正しい（実際は全行 CRLF）。",
+      "⚠ **直していないもの3つ（申し送り）。** ①🔴 **スマホ・タブレットでは、起動直後の案内モーダルの覆い（z100060）がこのボタン（z100055）より手前**なので、**案内が出ている間は押せない**（PCは覆いが z100050 なので押せる）。つまり**起動直後に不具合に遭った人は、案内を閉じるまで報告できない**。②同じく枠無しの**行動ログ**アイコンの絵は 62% のまま（対局中しか出ないもので、今回の相談の対象外）。③`#bug-report-intro-modal` の `width: min(30rem, 90vw)` は続き575の★の罠（30/90 なので vw が勝つ＝スマホで細くなる）。",
+    ],
+    devItemsEn: [
+      "The user asked for the bug-report button to be shown as a small icon at the top at all times. It already was: a body-level fixed icon shown from the title screen, added for bug report #420. The real problem was that nobody noticed it, so the direction was kept and the execution fixed.",
+      "Two measured causes. On the title screen every neighbouring icon is hidden, leaving only the gear and this one, 237px apart on desktop, 205px on phone, 198px on tablet. And the shared icon rule draws the picture at 62% of its box, which is sized for a round badge; this button deliberately has no badge, so the rest is empty space. The drawn picture was 15/13/14px against the gear's 21/28/44px — about a third on tablet.",
+      "Fix one, everywhere: the picture now fills 86% of its box. The box itself was not enlarged, because in the in-game row it already touches the full-screen button and leaves only 9px to the funds readout. At 86% the drawing is 21/19/19px, matching every other icon in that row.",
+      "Fix two, title screen only: the icon moves beside the gear and takes the gear's size, with its position derived by calc from the gear's own variables so admin-mode adjustments still carry. The picture drops back to 62% there, so it matches the gear instead of overtaking it.",
+      "Three device variants were needed: the gear has separate size variables for desktop, touch and phone, and on phones the whole icon area is scaled 1.65x while this button, being body-level, is not. Phones also carry the touch class, so the phone rules must come after the touch rules to win on source order.",
+      "Vertical alignment uses max(0rem, ...) so the enlarged box never leaves the top of the screen, since the gear itself is nudged upward on touch devices. That leaves a 7px step on tablet, about 10% of a 71px icon, which is preferable to clipping.",
+      "A/B against the pre-change stylesheet on three devices and two screens. Title screen: the icon lands beside the gear at matching size on all three, with the drawn picture exactly the gear's size, no overlap, and both reachable by hit test. Home screen, where eleven icons line up as in play: the row is byte-identical before and after, only the drawing grew.",
+      "Two measurement mistakes worth recording. The hit test first reported everything unreachable; the startup notice's backdrop was still in place, because hiding the modal itself leaves the backdrop behind. And Git Bash's grep and cat -A strip carriage returns, which made a CRLF file look like LF.",
+      "Three things left alone: on phones and tablets the startup notice's backdrop still sits above this button, so a player who hits a bug at launch must close the notice before reporting; the action-log icon still draws at 62%; and the bug-report intro modal still uses a viewport-width value that shrinks it on phones.",
+    ],
+  },
+  {
+    date: "2026-11-10",
     summary: [],
     summaryEn: [],
     items: [],
