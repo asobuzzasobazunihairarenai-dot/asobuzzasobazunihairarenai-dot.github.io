@@ -56,17 +56,21 @@ export const CHANGELOG = [
     summary: [
       "スマホでもカードを長押しで拡大できるようになりました",
       "長押し中に上へスワイプすると、効果文と補足を大きな文字で読めます",
+      "自分の番の間、画面の上に「いま何をすればいいか」が1行出ます",
     ],
     summaryEn: [
       "Press and hold a card on a phone to enlarge it",
       "Swipe up while holding to read the effect text and notes at a readable size",
+      "While it is your turn, a single line at the top of the screen tells you what to do now",
     ],
     items: [
       "これまでスマホでは、長押しで拡大できるのは自分の手札だけでした。盤面やロックエリアのカードは長押ししても何も起きず、中身を確かめる方法がありませんでした（パソコンはカーソルを乗せれば出るので気づかれていませんでした）。どのカードでも長押しで拡大できるようにしました。",
+      "自分の番の間、画面の上に「ロックフェイズ：手札をロックエリアへ（しなくてもOK）」のような1行が出るようにしました。フェイズ・優先権・割り込みと覚えることが多いので、いま何をすればいいかが常に見えているようにしました。相手の番の間は出しません（画面の右下に「○○のターンです」と出ているためです）。⚠ スマホでは画面の上端に余白が足りないので出していません（右下のフェイズ案内板が光ります）。",
       "拡大したカードの中の文字は、カードの絵の一部なのでどうしても小さいままです。そこで、長押ししたまま上へスワイプすると、そのカードの効果文と補足を大きな文字で読める画面が開くようにしました。長押しすると「↑ 上へスワイプで補足を見る」と出ます。パソコンでは今までどおりカードを右クリックで開けます。こちらにも効果文が出るようになりました。",
     ],
     itemsEn: [
       "Until now, holding a card on a phone only enlarged cards in your own hand. Cards on the board or in a lock area did nothing, so there was no way to check what they said (on a computer you just hover, so this went unnoticed). Now press and hold works on any card.",
+      "While it is your turn, a single line now appears at the top of the screen, such as Lock phase: drag a card to your lock area (optional). With phases, priority and interrupts to keep track of, it helps to always see what to do next. Nothing is shown during an opponent turn, since the bottom right already names whose turn it is. Note: it is not shown on phones, where the top strip has no free space (the phase guide at the bottom right lights up instead).",
       "The text inside an enlarged card is part of the card art, so it stays small. Now, while still holding, swipe up to open a panel that shows that card's effect text and notes at a readable size. A hint appears while you hold. On a computer, right-clicking a card still opens the same panel, and it now shows the effect text too.",
     ],
     fixes: [

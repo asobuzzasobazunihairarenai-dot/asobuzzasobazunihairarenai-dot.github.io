@@ -453,8 +453,10 @@ function openMatchChoiceModal() {
   // 🔴 管理者だけに出す「テストモード」。0th拡張（0th EDITION 拡張）の33種で遊ぶための入口。
   //   遊んでいる人には**この区画自体が存在しない**（既定はリメイクの33種のまま）。
   //   ⚠ ここで選んだものは**次に始める対局から**効く（いま走っている対局の山札は変えられない）。
-  //   ⚠ フレンドリーマッチはオンラインなので、**部屋を作った人の設定が全員に効く**形が要る。
-  //     それは online 側の作りなので、いまは CPU戦だけが確実に効く。下の注意書きにもそう出す。
+  //   ⚠ **ここは CPU戦用の既定**。フレンドリーマッチは続き650 から部屋ごとに効くようになり、
+  //     さらに 2026-11-10 から**部屋の中でも選べる**（online-ui.js の buildRoomCardSetChooser）。
+  //     部屋で選ばなければ、ここの選択がそのまま使われる。
+  //   🔴 **ランク戦はここを見ない**（必ずリメイク）。それまでは端末の設定が漏れていた。
   if (isAdminUser()) {
     const setBox = document.createElement("div");
     setBox.className = "home-match-choice-difficulty home-match-choice-testmode";

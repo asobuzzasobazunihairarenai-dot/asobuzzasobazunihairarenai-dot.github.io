@@ -3335,6 +3335,110 @@ body.theme-light .card-note-section-label {
    将来フェイズ状態を持たせた時に該当ボタンを光らせられるよう、dataset.phaseで識別できる
    構造にしてある（phase-guide.js参照）。位置は管理者モードで調整可能
    （--phase-guide-bottom/-right）。 */
+/* 🔴【B-2・2026-11-10】「いま何をすればいいか」の1行（画面の上端）。
+   ⚠ **画面のちょうど中央には置けない。** 実測（4人戦 1280x800・viewport px）:
+     x13〜210 に題字、x777〜1267 に常駐のボタン列（オンライン状態・通貨・不具合報告・
+     全画面・2D・Discord・ヘルプ・ランキング・マイページ・行動ログ・⚙）。
+     真ん中に置くと**奥の席の名前**（実測 x693〜759）とも重なる。
+     ⇒ **空いている帯（おおよそ x210〜777）の中で中央寄せ**にする。
+   ⚠ 位置は CSS 変数にしてあるので、実機で見てからここだけ動かせる。
+   ⚠ 色は自分で全部持つ。このアプリは明暗2テーマあるので継承に任せない（教訓15）。 */
+#turn-hint-bar {
+  position: fixed;
+  top: var(--turn-hint-top, 2.6rem);
+  left: var(--turn-hint-left, 14rem);
+  /* 🔴 実測: 4人戦では**奥の席の名前**が x693〜759（1280x800の実画面px）に出る。
+     40rem だと箱の右端が 768 まで伸びて重なったので、47rem まで詰めた（右端 678）。 */
+  right: var(--turn-hint-right, 47rem);
+  z-index: 1000;
+  pointer-events: none;
+  text-align: center;
+  font-family: sans-serif;
+  font-size: var(--turn-hint-size, 1.15rem);
+  line-height: 1.3;
+  color: #e2e8f0;
+  text-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.9), 0 0 0.2rem rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.theme-light #turn-hint-bar {
+  color: #3a3326;
+  text-shadow: 0 0.1rem 0.3rem rgba(255, 255, 255, 0.9), 0 0 0.2rem rgba(255, 255, 255, 0.8);
+}
+/* タブレットはステージが縮むので字を上げる（#453 と同じ理由）。 */
+body.is-tablet-device #turn-hint-bar {
+  font-size: var(--turn-hint-size-tablet, 1.6rem);
+}
+/* 🔴 **スマホでは出さない。** 実測（932x430・4人戦・実画面px）では上端の帯に
+   題字 x91〜208／オンライン状態 x350〜451／通貨 x491〜536／不具合報告・全画面・2D・
+   Discord・ヘルプ・ランキング・マイページ・行動ログ・⚙ が x546〜844 と並び、
+   **空いているのは x208〜350 の142pxだけ**。さらに4人戦では**奥の席の名前**が
+   x497〜536 y24〜37 と、この帯の中へ入ってくる。
+   ⇒ 1行を置く余地が無いので、スマホでは出さない（フェイズ案内板の発光で代用）。
+   ⚠ 出すなら**別の場所**（盤面の上に半透明で重ねる等）を決める必要がある＝ユーザー判断。 */
+body.is-phone-device #turn-hint-bar {
+  display: none !important;
+}
+
+/* 【2026-11-10】部屋ごとのカードセット（管理者だけ見える）。ロビーのモーダルと
+   オンラインパネルの待機中ボックスの両方で使う。
+   ⚠ 色は自分で全部持つ（このアプリは明暗2テーマある＝教訓15）。 */
+.lobby-card-set-box {
+  margin: 0.6rem 0 0.2rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 0.4rem;
+  background: rgba(56, 189, 248, 0.08);
+  text-align: left;
+}
+.lobby-card-set-label {
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
+  color: #bae6fd;
+}
+.lobby-card-set-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.lobby-card-set-btn {
+  flex: 1 1 auto;
+  min-width: 5.5rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+.lobby-card-set-btn.is-selected {
+  background: rgba(56, 189, 248, 0.9);
+  border-color: rgba(56, 189, 248, 0.9);
+  color: #0b1220;
+  font-weight: bold;
+}
+.lobby-card-set-hint {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+body.theme-light .lobby-card-set-label { color: #2a5f78; }
+body.theme-light .lobby-card-set-btn { background: #fdfbf5; border-color: rgba(176, 141, 63, 0.5); color: #3a3326; }
+/* 🔴 選んでいるボタンの上書きも明テーマに要る。上の1行だけだと **.is-selected にも当たって**
+   選択中と未選択が同じ色になり、どれを選んでいるか分からなくなる（実測で地も字も同じだった）。
+   しかも**既定が明テーマ**なので、そちらが普通の見え方。 */
+body.theme-light .lobby-card-set-btn.is-selected {
+  background: rgba(176, 141, 63, 0.95);
+  border-color: rgba(176, 141, 63, 0.95);
+  color: #fdfbf5;
+  font-weight: bold;
+}
+body.theme-light .lobby-card-set-hint { color: #4a4336; }
+
 #phase-guide-bar {
   position: fixed;
   bottom: var(--phase-guide-bottom, 0rem);

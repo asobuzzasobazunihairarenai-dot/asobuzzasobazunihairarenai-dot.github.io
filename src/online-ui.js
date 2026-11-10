@@ -34,8 +34,11 @@ import {
   onRosterChange,
   subscribeToOpenRoomsChanges,
   getAccountDisplayLabel,
+  isAdminUser,
 } from "./online.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
+// 【2026-11-10】部屋ごとのカードセット（管理者だけ選べる）。card-set.js は何も import しない葉。
+import { getCardSet, CARD_SETS } from "./card-set.js";
 import { isLobbyPseudoCpuToggleVisible } from "./cpu-battle-state.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { subscribe, getState, isOnlineMode, notifyListeners } from "./state.js";
@@ -138,6 +141,64 @@ let pendingRoomPseudoCpuModeEnabled = false;
 let pendingRoomBoost = false;
 // マイデッキ戦（マイデッキ.txt）: ロックする代わりに各自の持ち込みデッキから1枚引ける。
 let pendingRoomMyDeck = false;
+// 🔴【2026-11-10】**この部屋で使うカードのセット**（管理者だけ選べる）。
+//   null＝まだ選んでいない＝端末の設定（ホームの『詳細を設定する』で選んだもの）に従う。
+//   ⚠ **ランク戦はここを見ない**（必ずリメイク。下の startGame で明示している）——
+//     それまでは端末の設定がランク戦にも漏れていて、管理者が 0th拡張 のまま
+//     ランク戦を始めると**そのセットで始まってしまっていた**。
+//   ⚠ 他の pendingRoom* と同じく、部屋の再描画をまたいで保つためにモジュールスコープに置く
+//     （renderRoomStatus はロスターが変わるたびに作り直されるため）。
+let pendingRoomCardSet = null;
+// 開始を押した時に実際に使うセット。
+function roomCardSet() {
+  return pendingRoomCardSet ?? getCardSet();
+}
+// 管理者だけに出す「この部屋で使うカード」の選択。管理者でなければ null を返す
+// （押せないものを見せない）。部屋を作る画面は2つある（ロビーのモーダルと
+// オンラインパネルの待機中ボックス）ので、**1か所で作って両方から使う**。
+function buildRoomCardSetChooser() {
+  let 管理者 = false;
+  try { 管理者 = isAdminUser(); } catch (err) { 管理者 = false; }
+  if (!管理者) return null;
+  const box = document.createElement("div");
+  box.className = "lobby-card-set-box";
+  const label = document.createElement("div");
+  label.className = "lobby-card-set-label";
+  label.textContent = t("oui.cardSetLabel");
+  box.appendChild(label);
+  const seg = document.createElement("div");
+  seg.className = "lobby-card-set-seg";
+  const btns = [];
+  const refresh = () => {
+    const cur = roomCardSet();
+    for (const b of btns) b.classList.toggle("is-selected", b.dataset.v === cur);
+  };
+  for (const [v, key] of [
+    [CARD_SETS.REMAKE, "home.matchChoice.cardSetRemake"],
+    [CARD_SETS.EX0, "home.matchChoice.cardSetEx0"],
+    [CARD_SETS.FIRST_ED, "home.matchChoice.cardSet1st"],
+    [CARD_SETS.MIXED, "home.matchChoice.cardSetMixed"],
+  ]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "lobby-card-set-btn";
+    b.dataset.v = v;
+    b.textContent = t(key);
+    b.addEventListener("click", () => {
+      pendingRoomCardSet = v;
+      refresh();
+    });
+    seg.appendChild(b);
+    btns.push(b);
+  }
+  box.appendChild(seg);
+  const hint = document.createElement("div");
+  hint.className = "lobby-card-set-hint";
+  hint.textContent = t("oui.cardSetHint");
+  box.appendChild(hint);
+  refresh();
+  return box;
+}
 
 async function renderPanelContent() {
   if (!contentEl) return;
@@ -304,6 +365,9 @@ function buildLobbyOptionRows() {
   addIconToggle("assets/icons/boost-mode.svg", t("oui.L262"), pendingRoomBoost, (v) => (pendingRoomBoost = v));
   addIconToggle("assets/icons/my-deck.svg", t("oui.L263"), pendingRoomMyDeck, (v) => (pendingRoomMyDeck = v));
   wrap.appendChild(iconRow);
+  // 【2026-11-10】管理者だけ、この部屋で使うカードのセットを選べる。
+  const 選ぶ = buildRoomCardSetChooser();
+  if (選ぶ) wrap.appendChild(選ぶ);
   // 疑似CPUモードのチェックは管理者モードで表示ONの時だけ出す（既定は非表示。ユーザー要望2026-08-08）。
   // アイコン素材が無いため従来のチェックボックスのまま。
   if (isLobbyPseudoCpuToggleVisible()) {
@@ -363,6 +427,7 @@ async function renderLobbyModal() {
           pseudoCpuModeEnabled: pendingRoomPseudoCpuModeEnabled,
           boost: pendingRoomBoost,
           myDeckMode: pendingRoomMyDeck,
+          cardSet: roomCardSet(), // 【2026-11-10】この部屋のセット（管理者が選べる）
         });
         closeLobbyModal();
       } catch (err) {
@@ -1079,6 +1144,11 @@ async function renderRoomStatus(gameId, myGeneration) {
               boost: true,
               myDeckMode: true,
               pseudoCpuModeEnabled: false,
+              // 🔴【2026-11-10】**ランク戦は必ずリメイク。**
+              //   それまで cardSet を渡していなかったので、startGame は端末の設定
+              //   （getCardSet()＝管理者がホームのテストモードで選んだもの）に落ちていた。
+              //   ⇒ 管理者が 0th拡張 のままランク戦を始めると**そのセットで始まっていた**。
+              cardSet: CARD_SETS.REMAKE,
             });
             closePanel();
           } catch (err) {
@@ -1180,6 +1250,9 @@ async function renderRoomStatus(gameId, myGeneration) {
       boostRow.appendChild(boostLabel);
       waitingBox.appendChild(boostRow);
 
+      // 【2026-11-10】管理者だけ、この部屋で使うカードのセットを選べる（ロビーと同じ部品）。
+      const 選ぶ2 = buildRoomCardSetChooser();
+      if (選ぶ2) waitingBox.appendChild(選ぶ2);
       const startBtn = textButton(t("oui.startGame", { n: count }));
       // ログインパネルのボタン（renderLoginForm）と同じ理由で、display:blockを明示しないと
       // .header-tool-buttonの既定表示(inline-block)のせいで横並びになってしまう
@@ -1193,6 +1266,7 @@ async function renderRoomStatus(gameId, myGeneration) {
             includeBlackWhite: bwCheckbox.checked,
             pseudoCpuModeEnabled: pseudoCpuCheckbox.checked,
             boost: boostCheckbox.checked,
+            cardSet: roomCardSet(), // 【2026-11-10】この部屋のセット（管理者が選べる）
           });
           closePanel();
         } catch (err) {

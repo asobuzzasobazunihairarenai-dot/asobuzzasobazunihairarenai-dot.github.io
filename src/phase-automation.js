@@ -27,6 +27,7 @@ import {
   canUseHandEffect,
 } from "./card-effect-engine.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
+import { onLangChange } from "./i18n.js"; // 【B-2】上端の1行を言語切替で貼り直す
 import { runGateInvasionsIfNeeded } from "./gate-invasion.js";
 import { getEffectDelegationTarget, onEffectDelegationChange } from "./effect-delegation.js"; // 続き626
 import { isGateInvasionQueueActive } from "./gate-invasion-modal.js";
@@ -806,6 +807,7 @@ function announcePhase(phase) {
 
 // --- UI: フェイズ案内板（phase-guide.js）のボタンを、今のフェイズだけ光らせる ---------
 function updatePhaseGuideGlow() {
+  updateTurnHint(); // 【B-2】上端の1行も同じ合図で出し直す
   const shown = getDisplayedPhase();
   for (const p of PHASES) {
     const btn = document.getElementById(`phase-guide-${p}-button`);
@@ -1075,6 +1077,40 @@ export function updateSkipButtonVisibility() {
     }
     statusEl.textContent = text;
   }
+  updateTurnHint();
+}
+
+// 🔴【B-2・2026-11-10】**「いま何をすればいいか」の1行**（画面の上端）。
+//   ユーザー要望「フェイズ・優先権・割り込みと状態が多く、慣れるまで迷子になる。
+//   画面のどこかに常に1行あるだけで、質問の多くが消えると思います」。
+//
+//   🔴 **出すのは自分の番の時だけ。** 相手の番は右下のターン表示が既に
+//     「○○のターンです（ムーブ）」と名指しで出している——上にも出すと同じことを2回言う。
+//   ⚠ 置き場所は**画面のちょうど中央ではない。** 実測（4人戦 1280x800）では、上端の
+//     x777〜1267 に常駐のボタン列（オンライン状態・通貨・不具合報告・全画面・2D・
+//     Discord・ヘルプ・ランキング・マイページ・行動ログ・⚙）が並び、x13〜210 に題字がある。
+//     **空いているのは x210〜777** なので、その帯の中で中央寄せにする（CSS変数で動かせる）。
+//     真ん中に置くと、4人戦では**奥の席の名前**（実測 x693〜759）とも重なる。
+let turnHintEl = null;
+function ensureTurnHintEl() {
+  if (turnHintEl && turnHintEl.isConnected) return turnHintEl;
+  turnHintEl = document.createElement("div");
+  turnHintEl.id = "turn-hint-bar";
+  document.body.appendChild(turnHintEl);
+  return turnHintEl;
+}
+function updateTurnHint() {
+  let el;
+  try { el = ensureTurnHintEl(); } catch (err) { return; }
+  const state = getState();
+  let 文 = "";
+  // 対局中で、自分の番の時だけ出す。
+  if (state.turnPlayer && state.turnPlayer === getSelfSeat()) {
+    const shown = getDisplayedPhase();
+    文 = shown ? t("game.turnHint." + shown) : t("game.turnHint.myTurn");
+  }
+  el.textContent = 文;
+  el.style.display = 文 ? "block" : "none";
 }
 
 // フェイズ自動送りのON/OFFは葉モジュール（auto-phase-skip-setting.js）が持つ。ここでは
@@ -1082,6 +1118,9 @@ export function updateSkipButtonVisibility() {
 // させるための再評価）だけを購読して行う。値の所有をこのモジュールから外したのは、ボタン側
 // （phase-guide.js）がphase-automation.jsをimportするとモジュール評価順が壊れて起動不能に
 // なったため（auto-phase-skip-setting.js冒頭コメント参照）。
+// 【B-2】言語を切り替えたら上端の1行も貼り直す（購読していないと前の言語のまま残る）。
+try { onLangChange(() => { try { updateTurnHint(); } catch (err) {} }); } catch (err) {}
+
 onAutoPhaseSkipChange((on) => {
   // ONに切り替えた瞬間、今いるフェイズが「することが無い」なら即スキップに入れるよう、
   // 自分の手番のロック/ハンドフェイズなら入り直して自動スキップ判定をやり直す（まだ
