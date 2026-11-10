@@ -2408,6 +2408,55 @@ body.reduce-glow .rainbow-lock-sweep {
    「奇跡の森 ヴァーディアンの公開ドローで引いたカードは、このターン使わなければ
    ターン終了時に捨てられる」の告知に使う。プレビュー自体は固定サイズなので、
    注意書きはその下（外側）へはみ出す形で置く。 */
+/* 【B-1・2026-11-10・#536】スマホの長押し拡大に出る案内（「↑ 上へスワイプで補足を見る」）。
+   ⚠ 注意書き（.card-preview-note）は下に出るので、こちらは**上**に出す（重ならない）。
+   ⚠ 文字色を継承に任せない。このアプリは明暗2テーマあるので自分の色を全部持つ（教訓15）。 */
+.card-preview-swipe-hint {
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(var(--card-preview-size) * 1.35);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(24, 20, 14, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+/* 上へスワイプし切った＝指を離せば開く、という構え。はっきり色を変えて分かるようにする。 */
+.card-preview-swipe-hint.is-ready {
+  background: rgba(250, 204, 21, 0.95);
+  border-color: rgba(250, 204, 21, 0.95);
+  color: #1c1917;
+  font-weight: 700;
+}
+body.theme-light .card-preview-swipe-hint {
+  background: #fdfbf5;
+  border-color: rgba(176, 141, 63, 0.6);
+  color: #3a3326;
+}
+body.theme-light .card-preview-swipe-hint.is-ready {
+  background: rgba(176, 141, 63, 0.95);
+  border-color: rgba(176, 141, 63, 0.95);
+  color: #fdfbf5;
+}
+/* スマホは画面が小さい（ステージを縮めて描くので実画面では半分以下になる）ので大きめに。 */
+/* ⚠ ステージは実画面へ 0.478 倍で縮むので、1.15rem だと**実画面 8.8px**しかない（実測）。
+   読める大きさ（実画面で約18px）になるまで上げる。 */
+body.is-phone-device .card-preview-swipe-hint,
+body.is-tablet-device .card-preview-swipe-hint {
+  font-size: 2.4rem;
+  padding: 0.7rem 1.6rem;
+  border-width: 2px;
+}
+
 .card-preview-note {
   position: absolute;
   top: calc(100% + 0.35rem);
@@ -3214,6 +3263,10 @@ body.theme-light #contact-result-modal {
   position: relative;
   width: 14rem;
   flex-shrink: 0;
+  /* 🔴【B-4・2026-11-10】横並びの flex は既定で高さいっぱいに伸びる（align-items: stretch）。
+     効果文を足して右の列が高くなったら、カードの絵が 214x320 に**縦へ伸びた**（実測）。
+     aspect-ratio より stretch の高さが勝つため。上端に揃えて正方形を守る。 */
+  align-self: flex-start;
   border-radius: 0.4rem;
   /* <img> から <div>（テキスト合成/画像）へ置換したため、正方形・クリップ・画像敷き設定を明示。 */
   aspect-ratio: 1 / 1;
@@ -3235,6 +3288,21 @@ body.theme-light #contact-result-modal {
   font-size: 0.85rem;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+/* 【B-4・2026-11-10】補足モーダルの中の小見出し（基本効果／到達効果／手札効果／補足）。
+   ⚠ 色を継承に任せない。このアプリは明暗2テーマあるので自分の色を持つ（教訓15）。 */
+.card-note-section-label {
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  margin: 0.7rem 0 0.2rem;
+  color: #94a3b8;
+}
+.card-note-section-label:first-of-type {
+  margin-top: 0;
+}
+body.theme-light .card-note-section-label {
+  color: #8a7a52;
 }
 /* カード補足モーダル（右クリック・山札一覧の両方）共通の、右上に浮かせる丸型✕閉じるボタン。
    下部に「閉じる」テキストボタンを置く形から変更（画像+テキスト横並びレイアウトと相性が良い）。

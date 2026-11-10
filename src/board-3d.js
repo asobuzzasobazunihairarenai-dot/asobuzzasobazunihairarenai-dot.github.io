@@ -1478,6 +1478,38 @@ export function isBoard3dActive() {
 // ずれてます」になっていた。2D表示はもともと「3D合成をやめて軽く・確実に描く」ための表示
 // なので、WebGLを止めれば素のCSS描画に戻るだけで失うものは無い。
 let board3dDesired = false;
+// 🔴【A-1・2026-11-10】**盤面が見えていない間だけ、WebGL描画ごと畳む。**
+//   #543 まで「勝利演出の後に落ちる」の報告が6回。続き679 で数え漏れていた量を測ったら、
+//   **WebGL のテクスチャ18MB＋描画バッファ14MB＝約32MB**が、どの計器にも写らないまま
+//   抱えられていた（`<img>` にも `<canvas>` にも出ない）。
+//   勝利演出は FLASH で白が画面を覆い、**勝利モーダルを閉じるまで（＝数分）盤面は見えない**。
+//   その間ずっと32MBを握っているのは無駄なので、**捨てて、戻る時に作り直す**。
+//   🔴 止めるだけ（setBoard3dActive(false)）では材質を捨てるだけで、**テクスチャと
+//     描画バッファは返らない**。GPU側を返すには disposeRenderer() まで要る。
+//   ⚠ 畳んでいる間は CSS描画が盤面を描く（＝見た目は同じ絵）。ただし iOS では CSS の
+//     3D合成が自前の層を作るので、**実際に返る量は32MBより小さい**（どれだけかは実機でしか
+//     分からない）。少なくとも WebGL のテクスチャと描画バッファは確実に返る。
+//   ⚠ 作り直しは ensureRenderer() が全部やる（#278 の文脈喪失からの復帰と同じ道なので
+//     実績がある）。作り直せなかった時は false が返り、CSS描画のまま静かに続く。
+let board3dSuspended = false;
+export function setBoard3dSuspended(on) {
+  const next = !!on;
+  if (next === board3dSuspended) return active;
+  board3dSuspended = next;
+  const r = reconcileBoard3dActive();
+  if (next) {
+    // 畳んだ後に GPU側の持ち物を返す（順番が逆だと、作り直し待ちの板が残る）。
+    disposeRenderer();
+    try { logAction("diag-board3d-suspend", { on: 1 }); } catch (err) {}
+  } else {
+    try { logAction("diag-board3d-suspend", { on: 0, ok: r ? 1 : 0 }); } catch (err) {}
+  }
+  return r;
+}
+export function isBoard3dSuspended() {
+  return board3dSuspended;
+}
+
 
 export function setBoard3dActive(on) {
   board3dDesired = !!on;
@@ -1488,7 +1520,7 @@ export function setBoard3dActive(on) {
 function reconcileBoard3dActive() {
   let flat = false;
   try { flat = isFlatten2dMode(); } catch (err) { flat = false; }
-  const on = board3dDesired && !flat;
+  const on = board3dDesired && !flat && !board3dSuspended;
   if (on === active) return active;
   if (on) {
     if (!ensureRenderer()) return false;

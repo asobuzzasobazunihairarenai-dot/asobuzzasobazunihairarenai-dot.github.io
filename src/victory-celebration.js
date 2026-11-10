@@ -28,6 +28,27 @@ import { playSound, stopGameBgm, playVictoryChime, playVictoryChimeChord, getVic
 // 演出中は対局中のお知らせ（獲得/ロック/効果の理由など）を出さない（ユーザー報告2026-09-02）。
 import { setCelebrationActive } from "./celebration-state.js";
 
+// 🔴【A-1・2026-11-10】WebGL を畳む／戻す。**必ず対で動かす**ので1か所にまとめる。
+//   保険のタイマーを必ず置く——dismiss() を1つ取りこぼすと、その対局の間ずっと
+//   CSS描画のまま（＝絵は同じだが、WebGLにした理由であるチカチカ対策が効かない）になる。
+let board3dSuspendedByUs = false;
+let board3dResumeSafetyTimer = null;
+const BOARD3D_SUSPEND_MAX_MS = 180000; // 演出フラグの保険と同じ3分
+function suspendBoard3dForCelebration() {
+  if (board3dSuspendedByUs) return;
+  board3dSuspendedByUs = true;
+  try { setBoard3dSuspended(true); } catch (err) { /* 畳めなくても演出は進める */ }
+  clearTimeout(board3dResumeSafetyTimer);
+  board3dResumeSafetyTimer = setTimeout(() => resumeBoard3dForCelebration(), BOARD3D_SUSPEND_MAX_MS);
+}
+function resumeBoard3dForCelebration() {
+  clearTimeout(board3dResumeSafetyTimer);
+  board3dResumeSafetyTimer = null;
+  if (!board3dSuspendedByUs) return;
+  board3dSuspendedByUs = false;
+  try { setBoard3dSuspended(false); } catch (err) { /* 戻せなくても CSS描画で見える */ }
+}
+
 // 演出フラグの保険タイマー（dismiss が呼ばれなかった時に必ず元へ戻すため）。
 let celebrationSafetyTimer = null;
 import { isFlightAnimationDisabled } from "./motion-prefs.js";
@@ -44,7 +65,10 @@ import { applyAvatarContent } from "./avatar-render.js";
 import { t } from "./ui-text.js";
 import { logAction } from "./action-log.js";
 // 【続き643】全画面 canvas（約23MB）を張った瞬間を墜落の控えに残す。葉モジュールなので循環しない。
-import { noteBlackboxWeight } from "./crash-blackbox.js";
+import { noteBlackboxWeight, EFFECT_CANVAS_MAX_DPR } from "./crash-blackbox.js";
+// 🔴【A-1・2026-11-10】盤面が白で覆われている間は WebGL描画ごと畳んで、GPU側の持ち物を返す。
+//   ⚠ board-3d.js から victory-celebration.js へは辿れないので循環しない（機械で確認済み）。
+import { setBoard3dSuspended } from "./board-3d.js";
 // 【#459】勝利演出の前に、残っている霧散演出の canvas を手放させる。
 // card-dissolve.js は crash-blackbox.js だけを読む葉なので、ここから読んでも循環しない
 // （循環させると続き573 のように TDZ で落ちる）。
@@ -422,6 +446,13 @@ export async function playVictoryCelebration(player, opts = {}) {
     cubeRing?.remove(); cubeRing = null;
     cubeCracks?.remove(); cubeCracks = null;
     await step(ms(BASE.flash / s.flashSpeed));
+    // 🔴【A-1】ここから先、盤面は白（既定88%）の下に隠れ、**勝利モーダルを閉じるまで（＝数分）**
+    //   見えない。その間ずっと WebGL のテクスチャ18MB＋描画バッファ14MB を握っているのは
+    //   無駄なので畳む。戻すのは下の dismiss()（＋保険のタイマー）。
+    //   ⚠ 畳むのは**白が覆い切ってから**（覆う前だと切り替わりが見えてしまう）。
+    //   ⚠ 畳んでいる間は CSS描画が同じ絵を描くので、万一 dismiss が呼ばれなくても
+    //     「盤面が消える」ことにはならない（それでも保険のタイマーで必ず戻す）。
+    suspendBoard3dForCelebration();
     // 🔴 カメラを戻すのはここ。白が画面を覆い切っているので**戻る動きは見えない**。
     //    ⚠ 追従は**戻り切ってから**止める。止めたまま戻すと盤面だけが動いて疑似キューブが
     //      取り残される（白は 88% なので完全には隠れない）。finally にも保険の停止がある。
@@ -459,6 +490,9 @@ export async function playVictoryCelebration(player, opts = {}) {
     stopCubeTrack?.();
     if (cameraZoomed) { cameraZoomed = false; cameraHome(300); }
     stageRoot = null;
+    // 【A-1】例外で落ちた時も、白が出ていなければ盤面はそのまま見えているので即戻す。
+    //   白を残して返す通常の道（keepWhite）では畳んだままにし、dismiss() で戻す。
+    if (!keepWhite) resumeBoard3dForCelebration();
     // flares / ghost は root の子なので root ごと消える。盤面側には何も付けていない。
     if (stopCanvas) stopCanvas();
     document.body.classList.remove("victory-celebration-active");
@@ -483,6 +517,7 @@ export async function playVictoryCelebration(player, opts = {}) {
     // 白を引く＝リザルトまで終わったので、対局中のお知らせを元に戻す。
     clearTimeout(celebrationSafetyTimer);
     setCelebrationActive(false);
+    resumeBoard3dForCelebration(); // 【A-1】白を引くので盤面が見える＝WebGLを戻す
     if (!el) return;
     el._cleanupSkip?.();
     el.classList.add("is-dismissing");
@@ -981,7 +1016,8 @@ function spawnLockedCards(root, player, slots, mid) {
 // 吸い込まれる。直線のレーザーにしない・7色が混ざって水色一色にならないようにする。
 function runGatherCanvas(root, origins, cube, s, durMs) {
   const canvas = root.querySelector(".vic-canvas");
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // 【A-1・2026-11-10】上限は crash-blackbox.js に1つだけ置いてある（既定値を2か所に書かない）。
+  const dpr = Math.min(window.devicePixelRatio || 1, EFFECT_CANVAS_MAX_DPR);
   const W = canvas.clientWidth || viewW();
   const H = canvas.clientHeight || viewH();
   canvas.width = Math.round(W * dpr);

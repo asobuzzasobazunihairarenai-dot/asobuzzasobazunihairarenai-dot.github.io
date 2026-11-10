@@ -456,7 +456,7 @@ import {
 } from "./sound.js";
 import { initScreenWakeLock } from "./wake-lock.js";
 import { getCardDefinition, getCardImagePath, getCardBackImagePath, getCardIllustPath } from "./cards-data.js";
-import { getCardName, getCardNote } from "./card-text.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
+import { getCardName, getCardNote, getCardText } from "./card-text.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
 
 // モーダル・行動ログ等に出す「表示用のカード名」。英語のカードテキストがあればその名前、
 // 無ければ cards-data.js の日本語の原名にフォールバックする。
@@ -15350,6 +15350,37 @@ function getPreviewNoteFor(el) {
 
 // 拡大プレビューの注意書き（getPreviewNoteFor）を付け外しする。カード面のマウント
 // （.card-face-mount）とは別の要素なので、showCardFace の作り直しに巻き込まれない。
+// 【B-1】いま拡大プレビューに出ている札。上スワイプで補足を開く時に使う。
+let previewCardId = null;
+
+// 🔴【B-1・2026-11-10・#536】スマホの長押し拡大に「上へスワイプで補足」の案内を出す。
+//   ⚠ 出すのは**指で長押ししている間だけ**（previewFollowsTouch）。マウスのホバーには
+//     出さない——あちらは右クリックで補足を開けるし、スワイプもできない。
+//   ⚠ 補足が無いカードには出さない（押しても何も出ないものを案内しない）。
+function applyPreviewSwipeHint(preview, cardId, state) {
+  let el = preview.querySelector(":scope > .card-preview-swipe-hint");
+  const 要る = !!cardId && previewFollowsTouch && !!cardNoteTextFor(cardId);
+  if (!要る) {
+    el?.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "card-preview-swipe-hint";
+    preview.appendChild(el);
+  }
+  const 構え = state === "ready";
+  el.classList.toggle("is-ready", 構え);
+  el.textContent = t(構え ? "game.cardPeek.noteRelease" : "game.cardPeek.noteHint");
+}
+
+// 補足の本文（無ければ null）。案内を出すかどうかの判定と、モーダルの中身で同じものを見る。
+function cardNoteTextFor(cardId) {
+  const def = getCardDefinition(cardId);
+  if (!def) return null;
+  return getCardNote(def.id) || def.note || null;
+}
+
 function applyPreviewNote(preview, note) {
   let noteEl = preview.querySelector(":scope > .card-preview-note");
   if (!note) {
@@ -15381,13 +15412,16 @@ function updatePreview(el, clientX, clientY) {
   // 使用モーダルを非表示設定にしていると、カードをクリックした直後のホバー拡大が霧散演出の上に
   // 被って演出が隠れてしまうため。演出が終われば通常のホバー拡大に戻る。
   const cardId = el && !isCardDissolvePlaying() ? getVisibleCardId(el) : null;
+  previewCardId = cardId; // 【B-1】上スワイプで補足を開く時に、どの札かを知るため
   if (!cardId) {
+    applyPreviewSwipeHint(preview, null);
     preview.style.display = "none";
     return;
   }
   // テキストモードならカード面を合成して被せ、画像モードなら従来通り背景画像を敷く。
   showCardFace(preview, cardId, getCardImagePath(cardId));
   applyPreviewNote(preview, getPreviewNoteFor(el));
+  applyPreviewSwipeHint(preview, cardId, "hint"); // 【B-1】スマホの長押し中だけ案内を出す
   positionPreviewPanel(preview, clientX, clientY);
   preview.style.display = "block";
 }
@@ -15792,9 +15826,12 @@ function closeContextMenu() {
   }
 }
 
-function showCardNoteModal(cardId) {
+// 【B-1・2026-11-10】opts.guardMs: 開いた直後に覆いのクリックで閉じない猶予（ミリ秒）。
+//   スワイプで開く時は、指を離した勢いの click が覆いに当たって**出た瞬間に閉じる**ため。
+function showCardNoteModal(cardId, opts = {}) {
   const def = getCardDefinition(cardId);
   if (!def) return;
+  const guardUntil = performance.now() + (opts.guardMs || 0);
   const backdrop = document.createElement("div");
   backdrop.id = "card-note-modal-backdrop";
   const modal = document.createElement("div");
@@ -15808,10 +15845,31 @@ function showCardNoteModal(cardId) {
   const title = document.createElement("div");
   title.className = "card-note-title";
   title.textContent = def.name;
+  // 🔴【B-4・2026-11-10】**ここに効果文も載せる。**
+  //   実測（iPhone 932x430）: 長押しで拡大したカードの効果文は**実画面 6.8px**しかない
+  //   （カードの絵の中の文字なので、カードを大きくしない限り大きくならない）。
+  //   一方この箱の本文は**13.0px**で読める。⇒ 読める箱の方へ文を持ってくる。
+  //   ⚠ 絵に焼き込まれているカード（1stのFカード等）でも、文のデータは在るので出せる。
+  const 文 = getCardText(def.id) || {};
+  for (const [鍵, 中身] of [["basic", 文.basic], ["arrival", 文.arrival], ["hand", 文.hand]]) {
+    if (!中身) continue;
+    const 見出し = document.createElement("div");
+    見出し.className = "card-note-section-label";
+    見出し.textContent = t("game.cardNote." + 鍵);
+    const 本文 = document.createElement("div");
+    本文.className = "card-note-body";
+    本文.textContent = 中身;
+    textCol.appendChild(見出し);
+    textCol.appendChild(本文);
+  }
+  const noteLabel = document.createElement("div");
+  noteLabel.className = "card-note-section-label";
+  noteLabel.textContent = t("game.cardNote.note");
   const body = document.createElement("div");
   body.className = "card-note-body";
   body.textContent = getCardNote(def.id) || def.note || t("game.stack.noNote");
-  textCol.appendChild(title);
+  textCol.insertBefore(title, textCol.firstChild);
+  textCol.appendChild(noteLabel);
   textCol.appendChild(body);
   const content = document.createElement("div");
   content.className = "card-note-content";
@@ -15826,7 +15884,10 @@ function showCardNoteModal(cardId) {
     modal.remove();
   };
   closeBtn.addEventListener("click", close);
-  backdrop.addEventListener("click", close);
+  backdrop.addEventListener("click", () => {
+    if (performance.now() < guardUntil) return; // 【B-1】開いた勢いの click では閉じない
+    close();
+  });
   modal.appendChild(closeBtn);
   modal.appendChild(content);
   document.body.appendChild(backdrop);
@@ -16181,7 +16242,19 @@ function initDragHandlers() {
       return;
     }
     const hit = findDraggableAt(e.clientX, e.clientY);
-    if (!hit) return;
+    if (!hit) {
+      // 🔴【B-1・2026-11-10・#536】掴めない札でも**長押しの拡大だけ**はできるようにする。
+      //   自動処理モードでは掴めるのが自分の手札だけなので、それまでスマホからは
+      //   盤面・ロックエリアのカードを拡大する方法が1つも無かった（マウスはホバーで出る）。
+      //   拡大は見るだけで盤面を変えないので、掴めるかどうかとは切り離してよい。
+      //   ⚠ **札の上の時だけ**始める（空きマスのタップ移動を邪魔しないため）。
+      //   ⚠ preventDefault は呼ばない（マスのタップ・カメラ操作をそのまま通す）。
+      if (e.pointerType === "touch" || e.pointerType === "pen") {
+        const 見ている = findHoverTarget(e.clientX, e.clientY);
+        if (見ている && getVisibleCardId(見ている)) startTouchHoldOrDrag(e, null);
+      }
+      return;
+    }
     e.preventDefault();
 
     // 捨て場の山をダブルクリック／ダブルタップで捨て札一覧を開く（右クリックの無いタブレット/
@@ -16291,11 +16364,15 @@ function hideHandDropHint() {
 const TOUCH_HOLD_MS = 450; // これ以上動かさずに押さえ続けたら「長押し」＝プレビュー表示
 const TOUCH_HOLD_MOVE_CANCEL_PX = 10; // これ以上動いたら長押しをやめて通常のドラッグに切り替える
 
+// 【B-1】長押し拡大中に、これだけ上へ動かしたら「離すと補足を開く」構えになる。
+//   ⚠ 長押しが成立した後なので、ドラッグへの昇格とはぶつからない（settled 済み）。
+const PEEK_NOTE_SWIPE_PX = 36;
 function startTouchHoldOrDrag(e, hit) {
   const startX = e.clientX;
   const startY = e.clientY;
   let settled = false; // ドラッグ開始・タイムアウト・指離しのいずれかが起きたらtrue
   let peeking = false;
+  let peekWantsNote = false; // 【B-1】上へスワイプして「離すと開く」構えになっているか
 
   function cleanupListeners() {
     window.removeEventListener("pointermove", onMove);
@@ -16314,6 +16391,17 @@ function startTouchHoldOrDrag(e, hit) {
   }, TOUCH_HOLD_MS);
 
   function onMove(ev) {
+    // 【B-1】長押し拡大中は、上へのスワイプを「補足を開く」構えとして拾う。
+    if (peeking) {
+      if (!previewCardId || !cardNoteTextFor(previewCardId)) return;
+      const 上へ = startY - ev.clientY;
+      const 横へ = Math.abs(ev.clientX - startX);
+      const 構え = 上へ >= PEEK_NOTE_SWIPE_PX && 上へ > 横へ; // 横に流れた時は構えない
+      if (構え === peekWantsNote) return;
+      peekWantsNote = 構え;
+      applyPreviewSwipeHint(getPreviewEl(), previewCardId, 構え ? "ready" : "hint");
+      return;
+    }
     if (settled) return;
     const dx = ev.clientX - startX;
     const dy = ev.clientY - startY;
@@ -16321,6 +16409,9 @@ function startTouchHoldOrDrag(e, hit) {
     settled = true;
     clearTimeout(timer);
     cleanupListeners();
+    // 【B-1】hit が null＝「拡大だけ」の長押し。指が動いたら何もせず諦める
+    //   （カメラの移動やマスのタップをそのまま通すため）。
+    if (!hit) { releaseAbortSlot(); return; }
     // 長押し判定より先に指が動いた＝ドラッグとして開始する（このmoveイベント分もすぐに反映する）。
     if (hit.kind === "pile") startPileDrag(e, hit.pile);
     else startTokenDrag(e, hit.tokenId, hit.kind, hit.el);
@@ -16331,9 +16422,13 @@ function startTouchHoldOrDrag(e, hit) {
     clearTimeout(timer);
     cleanupListeners();
     if (peeking) {
+      // 【B-1】上へスワイプしていたら補足を開く。拡大を消す前に、どの札かを控えておく。
+      const 開く札 = peekWantsNote ? previewCardId : null;
       previewFollowsTouch = false; // 【#358】指を離したら通常（マウス＝ユーザー設定）へ戻す
       clearHover();
       updatePreview(null);
+      // 🔴 指を離した勢いの click が覆いに当たって出た瞬間に閉じるので、猶予を渡す。
+      if (開く札) showCardNoteModal(開く札, { guardMs: 450 });
     } else {
       // ユーザー報告「スマホで、ハンドフェイズにファーストカードがタップで使用できません」
       // （続き62）。ファーストカード/エターナルカードの「動かさずクリックで使う」判定は
@@ -16344,6 +16439,9 @@ function startTouchHoldOrDrag(e, hit) {
       // この抜け穴が無く、タッチ特有のバグだった）。この場合はドラッグを開始してから
       // 同じ座標のまま即座に終了させ、マウスの「動かさずクリック」と全く同じ経路
       // （isSameLocation判定）を通す。
+      // 【B-1】hit が null＝「拡大だけ」の長押し。素早いタップでは何もしない
+      //   （マスのタップは capture フェーズのハンドラが既に処理している）。
+      if (!hit) { settled = true; releaseAbortSlot(); return; }
       if (hit.kind === "pile") startPileDrag(e, hit.pile);
       else startTokenDrag(e, hit.tokenId, hit.kind, hit.el);
       onDragEnd(ev);
@@ -16360,6 +16458,7 @@ function startTouchHoldOrDrag(e, hit) {
     clearTimeout(timer);
     cleanupListeners();
     if (peeking) {
+      peekWantsNote = false; // 【B-1】中断したら補足は開かない
       previewFollowsTouch = false; // 【#358】中断時も戻す（立てっぱなしにしない）
       clearHover();
       updatePreview(null);
