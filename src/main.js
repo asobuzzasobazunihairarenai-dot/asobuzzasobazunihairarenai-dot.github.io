@@ -5442,7 +5442,10 @@ document.addEventListener(
               // 【重要】行動済みにする(markPhaseMoveActionTaken)のは確定してから——確認前に
               // 呼ぶとハイライトが剥がれ、「選び直す」を押した時にもう移動できなくなる。
               void (async () => {
-                if (!(await confirmCellChoice(cellEl, t("game.cellConfirm.moveHint")))) return;
+                // 【#442】行き先を言葉で出す（押し間違いをその場で気づけるように）。
+                const 自駒 = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === getSelfSeat());
+                const 案内 = describeMoveDestination(自駒 ? 自駒.location : null, location);
+                if (!(await confirmCellChoice(cellEl, 案内))) return;
                 // 確認中に状況が変わっている可能性があるので、まだ移動できるかを見直す。
                 if (!isMovePhaseActive()) return;
                 markPhaseMoveActionTaken("tap-move");
@@ -6869,6 +6872,37 @@ async function confirmPieceLandedOnline(pieceId, location, player) {
   document.body.appendChild(label);
   setTimeout(() => label.remove(), 3400);
   return false;
+}
+// 🔴【#442・2026-11-10】**行き先を言葉で言う。**
+//   報告「今自分のゲートに移動先を選んだつもりが右に移動した。なんでだろう？」。
+//   行動ログを読むと**当たり判定も確認モーダルも正しく動いていた**（押したマスが
+//   そのまま行き先になり、本人が「はい」を押している）。盤面は傾いているので、
+//   **どのマスを押したのかが見ただけでは分かりにくい**のが本体だった。
+//   ⇒ 「このマスへ移動します」だけでなく、**どっちへ／どこへ**を文に出す。
+//   ⚠ 盤面は席によって回らない（SEAT_TO_SIDE で辺が決まるだけ）ので、
+//     画面に見えるとおりの言葉（奥・手前・左・右）で全員に通じる。
+function describeMoveDestination(from, to) {
+  try {
+    if (!to || to.zone !== "cell") return t("game.cellConfirm.moveHint");
+    let dir = t("game.dir.far");
+    if (from && from.zone === "cell") {
+      const dr = to.row - from.row;
+      const dc = to.col - from.col;
+      if (dr === 0 && dc === 0) dir = t("game.dir.far");
+      else if (Math.abs(dr) >= Math.abs(dc)) dir = dr > 0 ? t("game.dir.down") : t("game.dir.up");
+      else dir = dc > 0 ? t("game.dir.right") : t("game.dir.left");
+    }
+    for (const side of Object.keys(GATE_POSITIONS)) {
+      const g = GATE_POSITIONS[side];
+      if (g.row !== to.row || g.col !== to.col) continue;
+      const seat = SIDE_TO_SEAT[side];
+      if (seat === getSelfSeat()) return t("game.cellConfirm.moveHintOwnGate", { dir });
+      return t("game.cellConfirm.moveHintGate", { name: getPlayerName(seat), dir });
+    }
+    return t("game.cellConfirm.moveHintDir", { dir });
+  } catch (err) {
+    return t("game.cellConfirm.moveHint");
+  }
 }
 async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
   // actingSeat: 通常は自分の席。ローカルCPU戦では自動処理がCPU(C)の席を渡してくる。
