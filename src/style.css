@@ -20620,7 +20620,7 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-title ruby,
 .card-face-title .card-face-title-run { position: relative; display: inline-block; }
 .card-face-title rt,
-.card-face-title .card-face-title-rt { position: absolute; left: 50%; bottom: 100%; white-space: nowrap; font-weight: 700; line-height: 1; color: #fff; text-shadow: 0 0.2cqw 0.5cqw rgba(0, 0, 0, 0.85), 0 0 0.3cqw rgba(0, 0, 0, 0.6); font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; }
+.card-face-title .card-face-title-rt { position: absolute; left: 50%; bottom: 100%; white-space: nowrap; font-weight: 700; line-height: 1; color: #141414; font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; }
 /* 能力名《》はタイトルと同じフォント。 */
 .card-face-subtitle { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 800; text-align: center; color: color-mix(in srgb, var(--card-accent, #555) 55%, #201a16); }
 /* フレーバーは斜体にしない（ユーザー指摘）。フォント＝FOT-マティス。 */
@@ -20638,7 +20638,14 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
    🔴 **原因の取り違えだった。** 印刷されたカードを切り出して確かめたら
    （scratchpad/_titlecrop.mjs）、製品版は**濃い帯の上に白い題字**で、
    アプリが題字を #141414（黒に近い）で描いていたことが本当の原因だった。
-   ⇒ 題字とルビを白にして（上の .card-face-title）、この下敷きは外した。
+   ⇒ 題字を白にして（上の .card-face-title）、この下敷きは外した。
+   🔴 **ただしルビ（ふりがな）は白にしてはいけない。** ユーザー指摘「カードタイトルの
+     ルビは実物では黒じゃなかったっけ？」で測り直したら、そのとおりだった
+     （scratchpad/_ruby3.mjs）。印刷のカードは**ルビの行だけ地が明るい帯**で、
+     ルビの行（カード高の51〜52%）は地 176〜201・文字 [0,0,0]＝黒、
+     題字の行（54〜55%）は地 48〜78・文字 [244,255,255]＝白。
+     一度は題字と一緒に白へ変えてしまったので #141414 へ戻した（2026-11-10）。
+     ⚠ ファーストカードは別（^="first" の規則で題字もルビも白＝印刷どおり）。
    ⚠ **同じ報告が2日続けて来たのは、症状の方を消しにいったから**
      （1日目は 1st だけ、2日目は 0th拡張だけ、と対象を広げても直らない形だった）。
      **見本（この場合は印刷されたカード）と突き合わせる**のが先だった。 */

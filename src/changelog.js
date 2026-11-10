@@ -71,7 +71,7 @@ export const CHANGELOG = [
     ],
     fixes: [
       "ホーム画面に追加したアプリで、下に黒い帯が残ったままになることがあったのを直しました。",
-      "カードのタイトルが読みにくかったのを、実物のカードと同じ白い文字にしました。",
+      "カードのタイトルが読みにくかったのを、実物のカードと同じ白い文字にしました（ふりがなは実物どおり黒のままです）。",
       "スマホで「このマスでいいですか？」の文字が小さすぎたのを大きくしました。",
       "ランク戦の待機中に出る練習の帯が盤面に重なっていたのを、右上へ寄せました。",
       "移動の確認に「あなたのゲート（手前）へ移動します」のように行き先を言葉で出すようにしました。押し間違いにその場で気づけます。",
@@ -79,7 +79,7 @@ export const CHANGELOG = [
     ],
     fixesEn: [
       "Fixed a black band that could stay at the bottom when the app is opened from the home screen.",
-      "Card titles are now white, matching the printed cards, so they are easier to read.",
+      "Card titles are now white, matching the printed cards, so they are easier to read (the furigana stays black, also as printed).",
       "The \"Use this square?\" prompt is now larger on phones.",
       "The practice banner shown while waiting for a ranked match has moved to the top right, so it no longer covers the board.",
       "The move confirmation now says where the piece is going (for example \"to your own gate\"), so a mistap is easy to spot.",
