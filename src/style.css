@@ -3441,19 +3441,6 @@ body.is-phone-device #phase-guide-bar {
   width: var(--bug-report-icon-size, 1.9rem);
   height: var(--bug-report-icon-size, 1.9rem);
 }
-/* 🔴 絵そのものを枠いっぱいに近づける（ユーザー相談2026-11-10「不具合報告ボタンをアイコンで
-   小さく通常も表示しておきませんか？」＝既に出ているのに気づかれていなかった、への対応の片方）。
-   .icon-action-button-icon-img の既定は 62% で、これは「丸いバッジの中に絵を収める」ための値。
-   このボタンは丸枠・背景を出さない（上のルール＝ユーザー要望2026-08-10「画像単体で見せる」）ので、
-   62% だと周りの38%が何も無い余白になり、箱(1.9rem)は隣と大差ないのに絵だけが小さく見える。
-   実測（絵の実寸）: PC 15px / スマホ横 13px / タブレット 14px に対し、⚙オプションの絵は
-   21px / 28px / 44px ——タブレットでは約3分の1だった。
-   ⚠ 箱(--bug-report-icon-size)は広げない。対局中の列では右隣の全画面ボタンと隙間0・左隣の
-   残金と9pxしか空いていないので、箱を2.6remにすると残金に食い込む（実測）。 */
-#self-status-bug-report .icon-action-button-icon-img {
-  width: 86%;
-  height: 86%;
-}
 /* 不具合報告・行動ログアイコンは丸枠・背景塗りつぶし・影を出さず、画像単体で見せる
    （ユーザー要望2026-08-10）。ID+classでベースの.icon-action-button-icon-wrapに勝つ。 */
 #self-status-bug-report .icon-action-button-icon-wrap,
@@ -8452,87 +8439,6 @@ body.opening-screen-active #options-menu-panel {
 body.opening-screen-active #option-area #self-status-online,
 body.opening-screen-active #option-area #self-status-action-log {
   display: none;
-}
-/* 🔴 タイトル画面では、このボタンの左右の隣（残金・全画面・2D/3D・ヘルプ…）が上のルール群で
-   全部 display:none になるため、画面右上に1つだけ離れてぽつんと浮く。実測（見えているアイコン
-   は⚙とこれの2つだけ）: ⚙との間が PC 237px / スマホ横 204px、間には何も無い。しかも絵が
-   小さいので「汚れ」に見えて押せるものだと気づかれない（ユーザー相談2026-11-10
-   「不具合報告ボタンをアイコンで小さく通常も表示しておきませんか？」＝既に出ているのに
-   気づかれていなかった）。
-   ⇒ **隣が居ないこの画面でだけ**、⚙の左隣へ寄せて大きさも⚙に揃える。ホーム画面・対局中は
-   列が埋まっている（実測で11個並ぶ）ので位置も大きさも一切変えない。
-   位置は⚙の宣言値から calc で導く: 「1rem＋⚙の大きさ−⚙のtranslateX」＝⚙の左端の、画面
-   右端からの距離。管理者モードで⚙の大きさ・位置を変えても追従する（値を二重に持たない）。
-   縦は⚙の中心に合わせるが、⚙は上に食い出す調整が入っている端末があるので max(0rem, …) で
-   画面の外へは出さない。 */
-body.opening-screen-active #self-status-bug-report {
-  top: max(0rem, calc(0.3rem + var(--icon-pos-options-y, 0rem)));
-  right: calc(1rem + var(--icon-size-options, 2.6rem) - var(--icon-pos-options-x, 0rem) + 0.6rem);
-}
-body.opening-screen-active #self-status-bug-report .icon-action-button-icon-wrap,
-body.opening-screen-active #self-status-bug-report .bug-report-icon-emoji {
-  width: var(--icon-size-options, 2.6rem);
-  height: var(--icon-size-options, 2.6rem);
-}
-body.opening-screen-active #self-status-bug-report .bug-report-icon-emoji {
-  font-size: calc(var(--icon-size-options, 2.6rem) * 0.44);
-}
-/* 🔴 タイトル画面では絵の割合を既定の62%に戻す（上で足した86%を打ち消す）。86%は「箱が
-   1.9remのまま対局中の列と釣り合わせる」ための値で、箱が⚙と同じ大きさになるこの画面で
-   86%のままだと、絵が⚙(62%＝実測21px)より大きい29pxになって、右上でいちばん目立つ物に
-   なってしまう。狙いは「⚙の兄弟に見えること」なので、⚙と同じ割合にして実寸も揃える。 */
-body.opening-screen-active #self-status-bug-report .icon-action-button-icon-img {
-  width: 62%;
-  height: 62%;
-}
-/* タッチ端末（タブレット）: ⚙はタッチ専用の大きな値(--icon-size-options-touch, 6rem)と専用の
-   translate(--icon-pos-options-touch-*)を持つので、そちらを見る。 */
-body.opening-screen-active.is-touch-device #self-status-bug-report {
-  top: max(0rem, calc(0.3rem + var(--icon-pos-options-touch-y, 0rem)));
-  right: calc(
-    1rem + var(--icon-size-options-touch, var(--icon-size-options, 2.6rem)) -
-      var(--icon-pos-options-touch-x, 0rem) + 0.6rem
-  );
-}
-body.opening-screen-active.is-touch-device #self-status-bug-report .icon-action-button-icon-wrap,
-body.opening-screen-active.is-touch-device #self-status-bug-report .bug-report-icon-emoji {
-  width: var(--icon-size-options-touch, var(--icon-size-options, 2.6rem));
-  height: var(--icon-size-options-touch, var(--icon-size-options, 2.6rem));
-}
-body.opening-screen-active.is-touch-device #self-status-bug-report .bug-report-icon-emoji {
-  font-size: calc(var(--icon-size-options-touch, var(--icon-size-options, 2.6rem)) * 0.44);
-}
-/* 🔴 スマホ: #option-area 全体が top-right 基準で 1.65倍(--option-area-scale-phone)されるのに、
-   このボタンは body 直下の固定配置なので倍率に乗らない。だから既存のスマホ用ルール（上の
-   body.is-phone-device #self-status-bug-report）と同じく、こちらも同じ倍率を掛けた値で書く。
-   ⚠ is-phone-device は is-touch-device も一緒に付く（実測）ので、詳細度が同じこの規則は
-   必ずタッチ用の後ろに置く（並び順で勝たせる）。 */
-body.opening-screen-active.is-phone-device #self-status-bug-report {
-  top: max(
-    0rem,
-    calc((0.3rem + var(--icon-pos-options-phone-y, 0rem)) * var(--option-area-scale-phone, 1.65))
-  );
-  right: calc(
-    (
-        1rem + var(--icon-size-options-phone, var(--icon-size-options, 2.6rem)) -
-          var(--icon-pos-options-phone-x, 0rem) + 0.4rem
-      ) * var(--option-area-scale-phone, 1.65)
-  );
-}
-body.opening-screen-active.is-phone-device #self-status-bug-report .icon-action-button-icon-wrap,
-body.opening-screen-active.is-phone-device #self-status-bug-report .bug-report-icon-emoji {
-  width: calc(
-    var(--icon-size-options-phone, var(--icon-size-options, 2.6rem)) * var(--option-area-scale-phone, 1.65)
-  );
-  height: calc(
-    var(--icon-size-options-phone, var(--icon-size-options, 2.6rem)) * var(--option-area-scale-phone, 1.65)
-  );
-}
-body.opening-screen-active.is-phone-device #self-status-bug-report .bug-report-icon-emoji {
-  font-size: calc(
-    var(--icon-size-options-phone, var(--icon-size-options, 2.6rem)) * var(--option-area-scale-phone, 1.65) *
-      0.44
-  );
 }
 /* ユーザー要望（続き75）「ホーム画面やプロフ全画面でも上のオプションエリアのアイコン等は
    表示していてください」。opening-screen-activeと同じ「#option-area自体のz-indexを
