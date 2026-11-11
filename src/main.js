@@ -4933,7 +4933,7 @@ async function delegateToPlayerForEffect__inner(player, taskType, taskArg) {
       try {
         return await runDelegatedArrivalTask(player, taskType, taskArg);
       } finally {
-        transferPriorityTo(turnPlayer);
+        restorePriorityToCurrentTurn(turnPlayer); // 【#567】ターンが進んでいたら今の人へ
       }
     }
     // #27/#28: CPU戦でCPUの番に、自分（人間）へ委任された選択（パーティ・スラム上がりの役人等）が、
@@ -4947,7 +4947,7 @@ async function delegateToPlayerForEffect__inner(player, taskType, taskArg) {
       try {
         return await runDelegatedArrivalTask(player, taskType, taskArg);
       } finally {
-        transferPriorityTo(turnPlayer);
+        restorePriorityToCurrentTurn(turnPlayer); // 【#567】ターンが進んでいたら今の人へ
       }
     }
     return runDelegatedArrivalTask(player, taskType, taskArg);
@@ -5010,8 +5010,8 @@ async function delegateToPlayerForEffect__inner(player, taskType, taskArg) {
       : null;
   });
   hideEffectPickerHint();
-  logAction("diag-delegate", { phase: "resolved", player, taskType, result, returningPriorityTo: turnPlayer });
-  transferPriorityTo(turnPlayer);
+  logAction("diag-delegate", { phase: "resolved", player, taskType, result, returningPriorityTo: getState().turnPlayer ?? turnPlayer });
+  restorePriorityToCurrentTurn(turnPlayer); // 【#567】ターンが進んでいたら今の人へ
   return result;
 }
 // 受け手側: 自分宛ての委任リクエストが届いたら、このクライアント（＝対象プレイヤー
@@ -5983,14 +5983,22 @@ function gateBreakVar(name, fallback) {
   const n = parseFloat(raw);
   return Number.isFinite(n) ? n : fallback;
 }
+// 🔴【#564・2026-11-11】**この演出を見せ終わるまで、次のモーダルで盤面を覆わない。**
+//   報告「侵攻のモーダルと演出が被っている」。呼び出し側（ローカルの gate-invasion.js と
+//   オンラインの gate-invasion-modal.js）が**待つ時間として使う**ので、ms を返す。
+//   ⚠ 演出が出せなかった時（設定で切っている・ゲートの要素が無い）は **0 を返す**
+//     ＝待たない。待ってしまうと「何も起きないのに固まった」ように見える。
+//   ⚠ 2400ms の覆いの撤去より短くしてある。**全部見せ切る必要は無い**（余韻はモーダルの
+//     後ろで続く）ので、テンポと見応えの折り合いでこの値にした。
+const GATE_BREAK_WATCH_MS = 1500;
 function playGateBreakEffect(attacker, defender) {
-  if (isArrivalEffectDisabled()) return;
+  if (isArrivalEffectDisabled()) return 0;
   const table = document.getElementById("game-table");
   const side = SEAT_TO_SIDE[defender];
   const gate = side ? GATE_POSITIONS[side] : null;
-  if (!table || !gate) return;
+  if (!table || !gate) return 0;
   const hostEl = findLocationElement(table, { zone: "cell", row: gate.row, col: gate.col });
-  if (!hostEl) return;
+  if (!hostEl) return 0;
   const colorOf = (seat) => {
     const c = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === seat)?.color ?? null;
     return c && c !== "rainbow" ? `var(--color-${c})` : "#f6c945";
@@ -6083,6 +6091,7 @@ function playGateBreakEffect(attacker, defender) {
   } catch (e) {
     /* ログが書けなくても演出は進む */
   }
+  return GATE_BREAK_WATCH_MS; // 【#564】呼び出し側はこのぶん待ってからモーダルを出す
 }
 
 // 【2026-09-07】ゲート侵攻③「自ゲートへ帰還」の演出。①手札を半分奪う（光の筋）・
@@ -9467,6 +9476,33 @@ function setAnytimeInterruptOptedOut(v) {
 let anytimeInterruptQueue = []; // ローカル対戦で複数プレイヤー分を順番に見せるための待ち行列
 let anytimeInterruptModalEl = null;
 let anytimeInterruptTimer = null;
+// 🔴【2026-11-11・ユーザー提案】**割り込みモーダルを出している間は、その席に優先権を預ける。**
+//   それまでは「モーダルは出ているのに優先権は手番プレイヤーのまま」だった。つまり、
+//   **考えている間ずっと相手の持ち時間が減っていく**（#491・#500 でロック宣言がこの窓の
+//   閉じるのを待つようになってから、特に不公平になった）。
+//   ⇒ 接触の承認モーダル（transferPriorityTo(defender)）と**同じ形**にそろえる。
+//   ⚠ **返すのは closeAnytimeInterruptModal の1か所だけ**にする。閉じる経路は4つあるが
+//     全部そこを通り、しかも**必ず閉じるタイマー**があるので、取り残しが起きない
+//     ——取り残すと #567 と同じ『どちらも動けない膠着』になる。
+//   ⚠ 持ち時間を使わない対局（priorityPlayer が終始 null）では**何もしない**。
+let anytimeInterruptPriorityReturn = null;
+function takeAnytimeInterruptPriority(player) {
+  if (anytimeInterruptPriorityReturn) return; // 二重取得しない
+  const 手番 = getState().turnPlayer;
+  const いまの優先権 = getState().priorityPlayer;
+  if (!手番 || !いまの優先権) return; // タイマーOFFの対局は触らない
+  if (いまの優先権 === player) return; // もう本人なら何もしない
+  anytimeInterruptPriorityReturn = 手番;
+  transferPriorityTo(player);
+  logAction("diag-anytime-priority", { phase: "take", to: player, returnTo: 手番 });
+}
+function releaseAnytimeInterruptPriority() {
+  if (!anytimeInterruptPriorityReturn) return;
+  const 控え = anytimeInterruptPriorityReturn;
+  anytimeInterruptPriorityReturn = null;
+  logAction("diag-anytime-priority", { phase: "release", returnTo: 控え });
+  restorePriorityToCurrentTurn(控え); // 【#567】効果でターンが進んでいたら今の人へ
+}
 let resumeAnytimeInterruptButtonEl = null;
 const ANYTIME_INTERRUPT_MODAL_DURATION_MS = 6000;
 
@@ -9484,6 +9520,7 @@ function getAnytimeUsableHandTokensFor(player) {
 function closeAnytimeInterruptModal() {
   clearTimeout(anytimeInterruptTimer);
   anytimeInterruptTimer = null;
+  releaseAnytimeInterruptPriority(); // 預かっていた優先権を必ず返す（取り残すと膠着する）
   anytimeInterruptModalEl?.remove();
   anytimeInterruptModalEl = null;
 }
@@ -9583,7 +9620,7 @@ function advanceAnytimeInterruptQueue() {
     const turnPlayer = getState().turnPlayer;
     if (turnPlayer) transferPriorityTo(player);
     runAutoHandEffect(chosen.cardId, chosen.id, player).finally(() => {
-      if (turnPlayer) transferPriorityTo(turnPlayer);
+      if (turnPlayer) restorePriorityToCurrentTurn(turnPlayer); // 【#567】
       settleAnytimeWindowWaiters(true);
     });
     return;
@@ -9633,7 +9670,7 @@ function showAnytimeInterruptModal(player, tokens) {
       const turnPlayer = getState().turnPlayer;
       if (turnPlayer) transferPriorityTo(player);
       runAutoHandEffect(token.cardId, token.id, player).finally(() => {
-        if (turnPlayer) transferPriorityTo(turnPlayer);
+        if (turnPlayer) restorePriorityToCurrentTurn(turnPlayer); // 【#567】
         // 【#491・#500】待っている側（ロック宣言）へ「割り込まれた」ことを知らせる。
         settleAnytimeWindowWaiters(true);
       });
@@ -9678,6 +9715,7 @@ function showAnytimeInterruptModal(player, tokens) {
 
   document.body.appendChild(modal);
   anytimeInterruptModalEl = modal;
+  takeAnytimeInterruptPriority(player); // 出している間はこの席が考える番
   anytimeInterruptTimer = setTimeout(() => {
     closeAnytimeInterruptModal();
     advanceAnytimeInterruptQueue();
@@ -18734,6 +18772,25 @@ function showGateInvasionAutoProcessConfirmModal(onYes, onNo) {
 // 同じ経路（nextTurn()を呼ぶだけ）を使っているため、同じ窓が起き得る。ここでも次の
 // turnPlayerを自前に計算し、このボタンを押した（＝確実に動いている）クライアント自身
 // から直接transferPriorityToを呼んでおくことで、その窓を埋める。
+// 🔴【#567・2026-11-11】**割り込み・委任が終わった時、優先権は「いまのターンの人」へ返す。**
+//   報告「リトルマウス使ったら止まった」。これらの経路は昔から
+//   「始める前の turnPlayer を控えて、終わったらそこへ戻す」形だった。ところが
+//   **効果の中でターンが終わるカード**（リトルマウスの「このターンを終了する」）があるので、
+//   戻した先が**1つ前のターンの人**になる ⇒ **ターンは C・優先権は A** という、
+//   どちらも動けない膠着になった（行動ログに NEXT_TURN の26ms後の
+//   SET_PRIORITY_STATE player:A がそのまま残っている）。
+//   ⇒ 控えた値はもう当てにしない。**今の turnPlayer** へ返す。
+//   ⚠ ターンが動いていなければ控えた値＝今の値なので、**今までとまったく同じ**。
+//   ⚠ 今の turnPlayer が取れない時だけ控えた値に落とす（保険）。
+function restorePriorityToCurrentTurn(capturedTurnPlayer) {
+  if (!capturedTurnPlayer) return;
+  const いま = getState().turnPlayer;
+  if (いま && いま !== capturedTurnPlayer) {
+    logAction("diag-priority-turn-moved", { captured: capturedTurnPlayer, now: いま });
+  }
+  transferPriorityTo(いま || capturedTurnPlayer);
+}
+
 function transferPriorityToNextTurnPlayer(currentTurnPlayer) {
   const activePlayers = getState().activePlayers;
   const order = SEAT_ORDER.filter((p) => activePlayers.includes(p));

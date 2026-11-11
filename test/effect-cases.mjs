@@ -4719,6 +4719,64 @@ export const CASES = [
       { kind: 'pileOrder', pile: 'discard', cards: ['red-jump-pad', 'green-growing-trees'] },
     ],
   },
+  // 🔴【#566 / #562・2026-11-11】リトルマウスは「奪う。**あなたのターンに使ったなら**ターンを終了する」。
+  //   ⇒ 相手のターンに割り込んだ時は**このカードの2文目が条件で外れる**ので、奪えなければ何も起きない
+  //     ＝善処の原則で発動宣言できない。
+  //   ⚠ **割り込みで「このターンを終了する」が効かないわけではない**（ユーザー指摘）。条件無しで
+  //     「このターンを終了する」と書かれた札なら、相手のターンでも終了する。これはリトルマウス固有。
+  //   ⚠ 自分のターンなら奪えなくても使える（ターンを終えるという効果が残る）。
+  {
+    name: 'リトルマウス(手札): 相手のターンに割り込む時、奪える相手がいなければ使えない（#566）',
+    kind: 'hand',
+    cardId: 'ex0-yellow-little-mouse',
+    state: {
+      activePlayers: ['A', 'C'], turnPlayer: 'C',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 6, col: 3 } },
+        { id: 'pieceC', kind: 'piece', player: 'C', location: { zone: 'cell', row: 0, col: 3 } },
+        { id: 'self', kind: 'card', cardId: 'ex0-yellow-little-mouse', location: { zone: 'hand', player: 'A' } },
+      ],
+      piles: { deck: ['red-jump-pad'], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: 'ex0-yellow-little-mouse', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 6, col: 3 } },
+    picks: {},
+    expect: [{ kind: 'handUsable', value: false }],
+  },
+  {
+    name: 'リトルマウス(手札): 相手のターンでも、相手の手札が1枚あれば使える（#478 の善処の原則）',
+    kind: 'hand',
+    cardId: 'ex0-yellow-little-mouse',
+    state: {
+      activePlayers: ['A', 'C'], turnPlayer: 'C',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 6, col: 3 } },
+        { id: 'pieceC', kind: 'piece', player: 'C', location: { zone: 'cell', row: 0, col: 3 } },
+        { id: 'self', kind: 'card', cardId: 'ex0-yellow-little-mouse', location: { zone: 'hand', player: 'A' } },
+        { id: 'hC0', kind: 'card', cardId: 'red-jump-pad', location: { zone: 'hand', player: 'C' } },
+      ],
+      piles: { deck: ['red-jump-pad'], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: 'ex0-yellow-little-mouse', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 6, col: 3 } },
+    picks: { player: ['C'] },
+    expect: [{ kind: 'handUsable', value: true }],
+  },
+  {
+    name: 'リトルマウス(手札): 自分のターンなら、奪える相手がいなくても使える（ターンを終える）',
+    kind: 'hand',
+    cardId: 'ex0-yellow-little-mouse',
+    state: {
+      activePlayers: ['A', 'C'], turnPlayer: 'A',
+      tokens: [
+        { id: 'pieceA', kind: 'piece', player: 'A', location: { zone: 'cell', row: 6, col: 3 } },
+        { id: 'pieceC', kind: 'piece', player: 'C', location: { zone: 'cell', row: 0, col: 3 } },
+        { id: 'self', kind: 'card', cardId: 'ex0-yellow-little-mouse', location: { zone: 'hand', player: 'A' } },
+      ],
+      piles: { deck: ['red-jump-pad'], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: 'A', cardId: 'ex0-yellow-little-mouse', cardTokenId: 'self', pieceTokenId: 'pieceA', pieceLocation: { zone: 'cell', row: 6, col: 3 } },
+    picks: {},
+    expect: [{ kind: 'handUsable', value: true }],
+  },
   // ───────── 2026-11-10（続き679）─────────
   // #537 報告「場の中央に経済成長があってそこに駒が到達した時、経済成長は場の中央に
   // 置き直しません。なので不発です！」→ ユーザー判断「不発モーダルでいいです」。

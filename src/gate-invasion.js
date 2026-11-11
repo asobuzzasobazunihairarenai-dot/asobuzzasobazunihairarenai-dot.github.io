@@ -303,12 +303,20 @@ function runBonusFor(attacker, defender, done) {
   try { playSound("gateInvasion"); } catch (err) { console.error("gateInvasion sound failed", err); }
   // 【続き674】音だけだと寂しいので、同じ瞬間に「GATE BREAK」の演出を出す。
   // ⚠ 失敗しても侵攻の処理は止めない（演出は進行の前提ではない）。
-  try { gateBreakEffect?.(attacker, defender); } catch (err) { console.error("gate break effect failed", err); }
-  runStealHand(attacker, defender, () => {
-    runEternal(attacker, () => {
-      runReturnHome(attacker, done);
+  // 🔴【#564】演出を見せ終わってから次の段（奪う）へ進む。同時に出すとモーダルが盤面を覆って
+  //   演出が見えない（報告「侵攻のモーダルと演出が被っている」）。
+  //   ⚠ 演出が出せなかった時は 0 が返るので、**今までどおり即座に**進む。
+  let 演出の待ち = 0;
+  try { 演出の待ち = gateBreakEffect?.(attacker, defender) || 0; } catch (err) { console.error("gate break effect failed", err); }
+  const 次の段へ = () => {
+    runStealHand(attacker, defender, () => {
+      runEternal(attacker, () => {
+        runReturnHome(attacker, done);
+      });
     });
-  });
+  };
+  if (演出の待ち > 0) setTimeout(次の段へ, 演出の待ち);
+  else 次の段へ();
 }
 
 // 不具合#32: ローカル（CPU戦含む）のゲート侵攻フローが進行中かどうかのフラグ。

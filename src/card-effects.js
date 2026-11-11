@@ -1302,6 +1302,11 @@ export const CARD_EFFECTS = {
     handEffect: {
       usableAnytime: true,
       usableAnytimeLabel: "いつでも使える。", // 印字どおり（手品師の技とは文言が違う）
+      // 🔴【#566 / #562】**相手のターンに割り込みで使う時は、奪える相手がいないと何も起きない**
+      //   （「あなたのターンに使ったなら」という2文目の条件が外れるため）＝善処の原則で使えない。
+      //   ⚠ 割り込みで END_TURN そのものが効かないわけではない——条件無しの札なら相手のターンでも終わる。
+      //   自分のターンなら今までどおり（奪えなくてもターンを終える）。
+      requiresStealTargetUnlessOwnTurn: true,
       // ⚠ inheritsArrival は立てない。立てると生成文が「上記の到達効果を得る。」
       //   だけになり、2文目（ターンを終了する）が消える。
       actions: [

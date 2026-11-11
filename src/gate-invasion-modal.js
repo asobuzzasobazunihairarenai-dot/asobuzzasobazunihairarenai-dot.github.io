@@ -254,11 +254,19 @@ export function forceCloseGateInvasionModal() {
 
 function showStep(step) {
   // 【#440・2026-11-03】段に音が指定されていれば鳴らす（いまはゲート侵攻の告知だけ）。
-  if (step.sound) {
+  // ⚠ 下の GATE BREAK は**同じ段を描き直す**ので、音は1回だけにする。
+  if (step.sound && !step._soundDone) {
+    step._soundDone = true;
     try { playSound(step.sound); } catch (err) { console.error("step sound failed", err); }
   }
-  if (step.gateBreak) {
-    try { gateBreakEffect?.(step.gateBreak.attacker, step.gateBreak.defender); } catch (err) { console.error("gate break effect failed", err); }
+  // 🔴【#564・2026-11-11】演出とモーダルが同時に出て、演出が見えなかった。
+  //   ⇒ **奪う飛翔演出とまったく同じ形**（演出 → 終わってから同じ段を描き直す）にそろえる。
+  //   ⚠ 演出が出せなかった時は 0 が返るので、**今までどおり即座に**モーダルを出す。
+  if (step.gateBreak && !step._gateBreakDone) {
+    step._gateBreakDone = true;
+    let 演出の待ち = 0;
+    try { 演出の待ち = gateBreakEffect?.(step.gateBreak.attacker, step.gateBreak.defender) || 0; } catch (err) { console.error("gate break effect failed", err); }
+    if (演出の待ち > 0) { setTimeout(() => showStep(step), 演出の待ち); return; }
   }
   // 帰還の演出は「盤面で起きたこと」を見せるだけなので、モーダルは止めずに同時に出す。
   if (step.returnHomeAnim && returnHomeAnimHelper && !isArrivalEffectDisabled()) {

@@ -481,6 +481,18 @@ function hasKonohanasakuyaTarget(player) {
     .some(({ row, col }) => inBounds(row, col) && !hasPieceAt(row, col) && findTopCardAtCell(row, col));
 }
 
+// 【#566 / #562・2026-11-11】リトルマウスで「奪える相手」がいるか。
+//   🔴 **動詞の実装（STEAL_RANDOM_FROM_MOST_LOCKED）とまったく同じ数え方**にそろえる
+//     ——別々に書くと「押せるのに何も起きない」「押せないのに起きるはず」が生える。
+//   ⚠ 自分は対象にならない（カードの文の literal な読み＝動詞側のコメント参照）。
+//   ⚠ 手札が1枚でも奪える（善処の原則・#478 でユーザー確認済み）。0枚の人しかいない時だけ false。
+function hasStealableMostLockedTarget(player) {
+  const players = getState().activePlayers;
+  let 最大 = -1;
+  for (const p of players) 最大 = Math.max(最大, countLockedCardsFor(p));
+  return players.some((p) => p !== player && countLockedCardsFor(p) === 最大 && getHandTokens(p).length > 0);
+}
+
 export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   if (!autoProcessingEnabled) return false;
   if (isHandEffectDisabledThisTurn(cardTokenId)) return false;
@@ -523,6 +535,17 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   }
   if (option.requiresCellWithCard) {
     if (getCellsWithCardCandidates().length === 0) return false;
+  }
+  // 🔴【#566 / #562】リトルマウス（0th拡張）専用。
+  //   この札は「上記の到達効果を得る（奪う）。**あなたのターンに使ったなら**このターンを終了する。」
+  //   ⇒ 相手のターンに割り込んだ時は**この札の2文目が条件で外れる**ので、奪えなければ何も起きない。
+  //   ⚠ **割り込みで「このターンを終了する」が効かないわけではない**（ユーザー指摘）。条件無しで
+  //     「このターンを終了する」と書かれた札なら、相手のターンでも終了する。これはリトルマウス固有。
+  //   善処の原則では、何も起きないと分かっている効果は発動宣言そのものができない。
+  //   報告「相手の手札が2枚未満なのに割り込みモーダルが出ます」「割り込みができていない」。
+  //   ⚠ **自分のターンなら今までどおり使える**（奪えなくてもターンを終える＝起きることがある）。
+  if (option.requiresStealTargetUnlessOwnTurn) {
+    if (getState().turnPlayer !== player && !hasStealableMostLockedTarget(player)) return false;
   }
   // 不思議な果実（0th拡張）。「あなたの隣の２マス以上にカードが置かれている時に使える。」
   if (Number.isFinite(option.requiresAdjacentCardsAtLeast)) {
@@ -710,6 +733,10 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   }
   if (option.requiresCellWithCard) {
     if (getCellsWithCardCandidates().length === 0) return t("ce.noCellWithCard");
+  }
+  // 【#566 / #562】ここに書かないと「押せないのに理由が出ない」になる（続き651 の教訓）。
+  if (option.requiresStealTargetUnlessOwnTurn) {
+    if (getState().turnPlayer !== player && !hasStealableMostLockedTarget(player)) return t("ce.ex0NoStealTarget");
   }
   if (Number.isFinite(option.requiresAdjacentCardsAtLeast)) {
     const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === player);
@@ -3062,6 +3089,13 @@ async function runAction(action, ctx, helpers) {
       if (!piece?.player) return false;
       if (!helpers.initiateContact) return false;
       const 奪う枚数 = action.stealMultiplier ? Math.max(1, (ctx.addColorPaid ?? 1) * action.stealMultiplier) : undefined;
+      // 🔴【#561・2026-11-11】**奪う枚数を1行で知らせる。**
+      //   カード面には「（接触で奪えるカードはＳの２倍の枚数である）」と印字されているが、
+      //   **払った S がいくつで、結局何枚になるのか**は画面のどこにも出ていなかった。
+      //   ⚠ ふだんの接触（1枚）では出さない——毎回出ると邪魔なだけ。到達効果②も1枚なので出ない。
+      if (奪う枚数 && 奪う枚数 > 1) {
+        await helpers.announceEffectReason?.(ctx.cardId, t("ce.ex0StealCountN", { s: ctx.addColorPaid ?? 1, n: 奪う枚数 }));
+      }
       await helpers.initiateContact(ctx.player, piece.player, 奪う枚数);
       return true;
     }
