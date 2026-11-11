@@ -1630,6 +1630,7 @@ export function getBoard3dMemoryInfo() {
 export function getBoard3dStats() {
   return {
     active,
+    suspended: board3dSuspended, // 【#590】勝利演出の間だけ畳む（続き683）。戻し損ねていないか
     quads: meshByElement.size + shapeMeshByElement.size,
     shapes: shapeMeshByElement.size,
     // 【続き677】宝石の立体の数と、1つあたりのファセット数、いま追いかけているものの数。

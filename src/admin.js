@@ -1906,6 +1906,18 @@ export function setRopeBaseSeconds(sec) {
   const n = Number(sec);
   if (Number.isFinite(n) && n > 0) ropeBaseSeconds = n;
 }
+// 🔴【#586・2026-11-12】CPU戦が「自分の基本時間」を長くするための**一時的な上書き**。
+//   以前は setRopeBaseSeconds(900) で ropeBaseSeconds そのものを書き替えていたが、
+//   「自分にも持ち時間」を入にした時は**何もしない**作りだったので、
+//   一度「切」で遊ぶと 900 が残り続け、入に戻しても**時間切れが来なかった**
+//   （報告「CPU戦の詳細設定のタイマーが効いていない」）。
+//   ⇒ 上書きは別の箱に持ち、null を渡せば必ず元（＝管理者モードのスライダーの値）へ戻る。
+//   ⚠ スライダーが書くのは ropeBaseSeconds の方なので、上書き中にいじっても食い違わない。
+let ropeBaseOverrideSeconds = null;
+export function setRopeBaseOverride(sec) {
+  const n = Number(sec);
+  ropeBaseOverrideSeconds = Number.isFinite(n) && n > 0 ? n : null;
+}
 export function getInitialHourglassStock() {
   return initialHourglassStock;
 }
@@ -1913,7 +1925,7 @@ export function getMaxHourglassStock() {
   return maxHourglassStock;
 }
 export function getRopeBaseSeconds() {
-  return ropeBaseSeconds;
+  return ropeBaseOverrideSeconds ?? ropeBaseSeconds; // 【#586】CPU戦の一時的な上書きが在ればそちら
 }
 export function getRopeExtensionSeconds() {
   return ropeExtensionSeconds;

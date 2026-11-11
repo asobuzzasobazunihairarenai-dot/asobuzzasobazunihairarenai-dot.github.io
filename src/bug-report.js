@@ -517,7 +517,11 @@ function gatherScreenSnapshot() {
   //    display や opacity ではなく背景画像の有無で見る（続き556 で踏んだ形）。
   try {
     const s = getBoard3dStats();
-    out.board = { webglActive: s.active, quads: s.quads, textures: s.textures, rebuildMs: s.rebuildMs, frameMs: s.frameMs };
+    // 【#590・2026-11-12】「ゲーム終了後、盤面が真っ暗」。続き683 から**勝利演出の間だけ
+    //   WebGL を畳む**（GPU側の持ち物を返す）ようにしたばかりなので、まずそこを疑えるように
+    //   「畳んでいたか」を残す。⚠ 畳んでいる間は CSS が盤面を描くので、ここが 1 なら
+    //   「畳んだまま」ではなく「畳んだあと CSS でも描けていない」という別の話になる。
+    out.board = { webglActive: s.active, suspended: s.suspended ? 1 : 0, quads: s.quads, textures: s.textures, rebuildMs: s.rebuildMs, frameMs: s.frameMs };
   } catch (e) {
     out.board = { error: clip(e, 80) };
   }

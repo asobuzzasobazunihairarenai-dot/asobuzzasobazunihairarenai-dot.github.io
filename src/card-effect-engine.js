@@ -2390,7 +2390,13 @@ async function runAction(action, ctx, helpers) {
       // ここに到達した時点で候補が0件になっているのは主に「宣言直後に他の効果で
       // 状況が変わった」ような稀なケースへの保険。
       const { candidateSlotsFor, tokens } = getLockableHandTokensExceptFinal(ctx.player);
-      if (tokens.length === 0) return false;
+      if (tokens.length === 0) {
+        // 【#584・2026-11-12】報告「CPUはセレナーデ使ったみたいだけど、ろっくした？」。
+        //   行動ログには result:false（＝ロックしていない）としか残っておらず、
+        //   **なぜ不発だったか**が追えなかった。ここで理由を1行残す。
+        try { logAction("diag-lock-except-final", { cardId: ctx.cardId, player: ctx.player, 理由: "候補なし" }); } catch (err) {}
+        return false;
+      }
       // 🔴 1st EDITION（貴族の特権）「…ロックしてもよい、ただし最後のロックはできない。」
       //   optional の時だけ「する／しない」を聞く（既定は今までどおり必ず1枚ロックする）。
       if (action.optional) {
@@ -2407,7 +2413,10 @@ async function runAction(action, ctx, helpers) {
       const lockableTokenIds = new Set(tokens.map((t) => t.id));
       // purpose:"lock" でCPUは「ロックしたい札（虹・要る色）優先」で自動選択（ユーザー要望2026-08-10）。
       const chosen = await helpers.pickHandCard(ctx.player, t("ce.L1086"), lockableTokenIds, { purpose: "lock" });
-      if (!chosen) return false;
+      if (!chosen) {
+        try { logAction("diag-lock-except-final", { cardId: ctx.cardId, player: ctx.player, 理由: "選ばれなかった", 候補: tokens.length }); } catch (err) {}
+        return false;
+      }
       const slots = candidateSlotsFor(chosen);
       if (slots.length === 0) return false;
       // ロック先スロットが1つに定まっているカード（通常の色カードは自分の色スロット1つ）は
@@ -3752,9 +3761,19 @@ async function runAction(action, ctx, helpers) {
         const dest =
           fresh.length === 1 && !ctx.forcePrompt && action.repeat !== "any"
             ? fresh[0]
-            : await helpers.pickLocation(fresh, action.repeat === "any" ? t("ce.ex0ForcedMoveRepeat") : t("ce.ex0ForcedMove"), {
-                purpose: "move",
-              });
+            : await helpers.pickLocation(
+                fresh,
+                action.repeat === "any" ? t("ce.ex0ForcedMoveRepeat") : t("ce.ex0ForcedMove"),
+                // 🔴【#595・2026-11-12】報告「ジョイナーの手札効果で終わりたいときに終われない」。
+                //   「任意の回数繰り返す」なので**やめる口**が要るのに、スキップボタンを
+                //   出していなかった（案内文には「もう動かないなら閉じる」と書いてあるのに、
+                //   マスを選ぶ画面には閉じるものが何も無かった）。
+                //   ⚠ 繰り返しの時だけ出す。1回だけの強制移動は「やめる」ことができない
+                //     （カード効果は原則キャンセルできない）。
+                action.repeat === "any"
+                  ? { purpose: "move", allowSkip: true, skipLabel: t("ce.ex0ForcedMoveStop") }
+                  : { purpose: "move" }
+              );
         // 繰り返しの時は「選ばない＝もう動かない」で終わる（任意の回数）。
         if (!dest) break;
         await helpers.moveAndSync(ctx.pieceTokenId, dest, undefined, !!action.noArrival);

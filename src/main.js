@@ -1377,6 +1377,20 @@ function buildCubePiece(color, seat) {
     piece.appendChild(wall);
   }
 
+  // 🔴【#587・2026-11-12】ジュエルの駒だけに足す「光の受け皿」。
+  //   報告「自ターンにジュエルの周りに透明な立方体の枠が見える」の正体は**光**だった。
+  //   手番のグロー・ホバー・効果の対象・接触のにらみ合いは、どれも .piece-face（天面＋
+  //   4つの壁）の box-shadow で描いている。ジュエルの駒は WebGL が宝石を描き、DOM の
+  //   立方体は当たり判定の箱としてだけ在る（透明）ので、**光だけが立方体の形に浮かぶ**。
+  //   ⇒ 足元に丸い1枚を置いて、WebGL が描いている間はそちらへ光を移す（style.css の .piece-glow）。
+  //   ⚠ pointer-events: none なので当たり判定には出てこない。
+  //   ⚠ board-3d.js の PAINT_SELECTOR にも入っていないので、WebGL の板にもならない。
+  if (isJewelPieceSeat(seat)) {
+    const glow = document.createElement("div");
+    glow.className = "piece-glow";
+    piece.appendChild(glow);
+  }
+
   // 見た目（立方体）とは別に、ホバー/掴む判定のためだけの透明な当たり判定エリアを重ねる。
   // --piece-hitbox-scale（管理者モードで調整可）でサイズだけ独立に拡大縮小できるようにし、
   // 立体の見た目を変えずに「掴みやすさ」を微調整できるようにした。.pieceの子要素なので
@@ -3745,6 +3759,17 @@ function pickOptionForEffect(cardId, optionsWithUsability, title) {
     { hidden, title } // title未指定なら既定「○○の効果を選択してください」（showHandEffectOptionPicker参照）
   ).then((option) => {
     activeEffectPicker = null;
+    // 🔴【#588・2026-11-12】**効果の中で何を選んだか**を行動ログに残す。
+    //   ⚠ 読みやすいログでは**行を増やさない**——直前の出来事の「詳細」に畳む
+    //     （ユーザー判断「ごちゃつきそうなら、詳細ボタンをつけてもいいかもね！」）。
+    //   ⚠ ここは到達効果・手札効果・状況カード・2択の委任まで**全部が通る1か所**なので、
+    //     カードごとに書き足す必要がない。
+    try {
+      const 選んだ = typeof option === "string" ? optionsWithUsability.find((o) => o?.id === option) : option;
+      if (選んだ?.label) logAction("effect-choice", { player: 選ぶ席, cardId, label: String(選んだ.label).slice(0, 60) });
+    } catch (err) {
+      /* ログは本筋ではないので、ここで対局を止めない */
+    }
     // 意思決定（選択肢の確定）＝行動として扱いタイマー回復（ユーザー要望2026-08-16）。
     // 選択肢モーダルは1回の確定で解決する単一決定なので、複数選択の無限回復にはならない。
     notifyPlayerDecision();
@@ -4663,6 +4688,24 @@ async function runChooseCellTask(player, taskArg) {
     : t("ce.L738");
   const dest = await requestCellChoiceForEffect(cands, hint);
   if (!dest || isDelegationExpired()) return false;
+  // 🔴【#581・2026-11-12】**候補に無いマスは返さない。**
+  //   報告「貧民の行進で CPUが3マス移動した気がする」の行動ログを読むと、2歩目が
+  //   **(2,3) → (4,4)**（隣ではない）になっていた。この効果の候補は必ず隣の4マスなので、
+  //   ここから候補の外が返っていたことになる。**どこで混ざったのかは行動ログからは
+  //   決められなかった**ので、まず「盤面が壊れること」を止める。
+  //   ⚠ ここは choose-cell の委任**5か所すべてが通る1か所**なので、1つ塞げば全部に効く。
+  //   ⚠ false を返すと、呼び出し側は候補の先頭へ落ちる（善処の原則＝「移動する」は守る）。
+  if (!cands.some((c) => c.row === dest.row && c.col === dest.col)) {
+    try {
+      logAction("diag-delegated-cell-out-of-range", {
+        got: { row: dest.row, col: dest.col },
+        cands: cands.map((c) => [c.row, c.col]),
+      });
+    } catch (err) {
+      /* ログは本筋ではない */
+    }
+    return false;
+  }
   return { row: dest.row, col: dest.col };
 }
 
@@ -4878,6 +4921,9 @@ async function resolveSituationAtTurnStart(player) {
       受ける = 返事 === "yes";
   }
   if (!受ける) return;
+  // 【#588・2026-11-12】ユーザー要望「行動ログに状況カードの選択も残したい」。
+  //   状況カードは**ターン開始時に勝手に効く**ので、何が起きたのか画面から追いにくい。
+  logAction("situation", { player, cardId });
   try {
     await announceEffectNoticeForEffect(cardId, t("ce.feSituationApplied", { card: cardDisplayName(cardId), name: getPlayerName(player) }));
     await runSituationEffect(cardId, player, buildArrivalEffectHelpers(player));
@@ -5990,7 +6036,12 @@ function gateBreakVar(name, fallback) {
 //     ＝待たない。待ってしまうと「何も起きないのに固まった」ように見える。
 //   ⚠ 2400ms の覆いの撤去より短くしてある。**全部見せ切る必要は無い**（余韻はモーダルの
 //     後ろで続く）ので、テンポと見応えの折り合いでこの値にした。
-const GATE_BREAK_WATCH_MS = 1500;
+// 【#564】ゲートブレイクの演出が終わるまで、呼び出し側（ローカル／オンラインの両方）が待つ長さ。
+// 🔴【#585・2026-11-12】ユーザー報告「演出のあとすぐにモーダルが出て余韻がなさすぎます」。
+//   演出そのものは約1.5秒で終わる。そこへ**余韻の0.8秒**を足し、光が引ききってから
+//   モーダルが出るようにした。⚠ 待つのは演出が実際に出た時だけ（出せなかった時は 0 を返す）。
+const GATE_BREAK_AFTERGLOW_MS = 800;
+const GATE_BREAK_WATCH_MS = 1500 + GATE_BREAK_AFTERGLOW_MS;
 function playGateBreakEffect(attacker, defender) {
   if (isArrivalEffectDisabled()) return 0;
   const table = document.getElementById("game-table");
@@ -12259,6 +12310,29 @@ function pickRevealCenter(avoidEl, size) {
 // 🔴【#556】ユーザー報告「ジェイクのカードめくりが速すぎ」。**時間で進めると、速い人には
 //   遅く、遅い人には速い。** ⇒ 本人が「次へ」を押すまで待つ。
 //   ⚠ 押し忘れ・押せない事故で対局が止まらないよう、**長めの保険で必ず進む**。
+// 🔴【#580・2026-11-12】「次へ」の置き場所を実測して決める（ユーザー指示「カードのそばに置こう！」）。
+//   続き690 では**カードの中の下端**に固定していた——カードは画面の端近くへ寄ることがあり
+//   （#556 でマスを避けて動かすため）、外に出すと押せなくなる、という理由だった。
+//   ⇒ **外に出しても収まる場面の方が多い**ので、下 → 上 → 中 の順に試し、
+//     画面に収まる最初のものを採る。収まらなければ今までどおりカードの中。
+//   ⚠ getBoundingClientRect() は**実画面の座標**を返す（body に掛かった拡大縮小が
+//     既に入っている）ので、window.innerWidth/innerHeight とそのまま比べてよい。
+function placeRevealNextBtn(btn) {
+  const 余白 = 4; // 画面の端ぎりぎりは押しにくいので、少し内側で判定する
+  for (const 置き場 of ["is-below", "is-above"]) {
+    btn.classList.remove("is-below", "is-above", "is-inside");
+    btn.classList.add(置き場);
+    const r = btn.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    if (r.top >= 余白 && r.left >= 余白 && r.bottom <= window.innerHeight - 余白 && r.right <= window.innerWidth - 余白) {
+      return 置き場;
+    }
+  }
+  btn.classList.remove("is-below", "is-above");
+  btn.classList.add("is-inside"); // 最後の逃げ場（カードの中なので必ず収まる）
+  return "is-inside";
+}
+
 function waitForRevealNext(reveal) {
   return new Promise((resolve) => {
     let 済 = false;
@@ -12270,6 +12344,7 @@ function waitForRevealNext(reveal) {
     btn.textContent = t("game.reveal.next");
     btn.addEventListener("click", (e) => { e.stopPropagation(); 進む(); });
     reveal.appendChild(btn);
+    placeRevealNextBtn(btn); // 【#580】付けてから実測して置き場所を決める
     timer = setTimeout(進む, 30000);
   });
 }
@@ -15042,10 +15117,15 @@ let lastStageViewport = { w: 0, h: 0 };
 //   ⚠ 差が大きい時も当てない（1.35倍まで）。iPad の分割表示のように**本当に小さい**場合に
 //     当てると、盤面が画面からはみ出す。今回の実測は 430/371 ＝ 1.16倍。
 //   ⚠ 幅は触らない（分割表示で変わるのは主に幅なので、危ないのは幅の方）。
+// 🔴【#591・2026-11-12】**iPhone/iPad のホーム画面アプリだけ**に限る。
+//   #531 では「display-mode: standalone」も見ていたが、**PC のアプリ版もそれに当たる**。
+//   PC では窓の枠のぶん outerHeight が本当に大きい（実測 inner 1052 / outer 1074）ので、
+//   outer を採ると**下が 22px 切り落とされた**（報告「画面の下が見切れています」）。
+//   ⇒ navigator.standalone は **iOS Safari にしか無い**プロパティなので、
+//     これだけを見れば #531（iPhone）には効き、#591（PC）には当たらない。
 function isHomeScreenApp() {
   try {
-    if (window.navigator && window.navigator.standalone === true) return true;
-    return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    return !!(window.navigator && window.navigator.standalone === true);
   } catch (err) {
     return false;
   }
@@ -18334,6 +18414,20 @@ function buildFriendlyLogItems() {
       msg = e.detail?.cardId
         ? t("game.log.contactTook", { name: あいて, card: cardDisplayName(e.detail.cardId) })
         : t("game.log.contactNothing", { name: あいて });
+    } else if (e.category === "situation" && e.detail?.cardId) {
+      // 【#588】状況カードは誰のターン開始時にも勝手に効くので、1行残す。
+      player = e.detail.player;
+      msg = t("game.log.situation", { card: cardDisplayName(e.detail.cardId) });
+    } else if (e.category === "effect-choice" && e.detail?.label) {
+      // 🔴【#588】効果の中の選択は**行を増やさず**、直前の出来事の「詳細」に畳む。
+      const 直前 = items[items.length - 1];
+      if (直前) {
+        if (!直前.subs) 直前.subs = [];
+        直前.subs.push(t("game.log.effectChoice", { card: cardDisplayName(e.detail.cardId), label: e.detail.label }));
+        // 詳細が付いた行は、同じ文言の次の行とまとめない（別の出来事として読めるように）。
+        lastKey = null;
+      }
+      continue;
     } else {
       continue;
     }
@@ -18376,6 +18470,30 @@ function buildActionLogEventRow(item) {
   const d = new Date(item.t);
   time.textContent = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   row.appendChild(text);
+  // 🔴【#588】効果の中で選んだものは「詳細」を押した時だけ開く（既定は閉じている）。
+  if (item.subs && item.subs.length > 0) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "action-log-event-detail-btn";
+    btn.textContent = t("game.log.detailsBtn");
+    const subs = document.createElement("div");
+    subs.className = "action-log-event-subs";
+    subs.style.setProperty("--log-accent", accent);
+    for (const line of item.subs) {
+      const d = document.createElement("div");
+      d.className = "action-log-event-sub";
+      d.textContent = line;
+      subs.appendChild(d);
+    }
+    btn.addEventListener("click", () => subs.classList.toggle("is-open"));
+    row.appendChild(btn);
+    row.appendChild(time);
+    // 行の下に畳んだ詳細を置くため、まとめた箱を返す（.action-log-event は横並びなので中に入れない）。
+    const wrap = document.createElement("div");
+    wrap.appendChild(row);
+    wrap.appendChild(subs);
+    return wrap;
+  }
   row.appendChild(time);
   return row;
 }

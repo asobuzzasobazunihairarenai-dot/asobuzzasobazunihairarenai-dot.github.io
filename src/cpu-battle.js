@@ -18,6 +18,7 @@ import {
   setPseudoCpuDeadlineMs,
   setTurnTimerEnabled,
   setRopeBaseSeconds,
+  setRopeBaseOverride,
 } from "./admin.js";
 import { quickStart } from "./game-setup.js";
 import { setPlayerName, setPlayerAvatar, ENTRUSTED_AVATAR } from "./player-identity.js";
@@ -78,7 +79,12 @@ export async function startCpuBattle(count = getCpuPlayerCount()) {
   // ただし「自分にも持ち時間を付ける」(isCpuSelfTimerEnabled)を選んでいる時は上書きしない
   // ——ここで15分にしてしまうと、免除を外しても実質時間切れが来ないため（ユーザー要望
   // 2026-09-09「タイマーあり（実質自分だけ）」）。管理者モードで設定した基本時間で回す。
-  if (!isCpuSelfTimerEnabled()) setRopeBaseSeconds(HUMAN_BASE_SECONDS);
+  // 🔴【#586・2026-11-12】**入/切のどちらでも必ず書き直す。**
+  //   以前は「切」の時だけ 900 秒を書いていたので、一度「切」で遊ぶとその値が残り、
+  //   次に「入」にしても 15分 のままで**時間切れが永遠に来なかった**
+  //   （報告「CPU戦の詳細設定のタイマーが効いていない」）。
+  //   入の時は null ＝ 管理者モードのスライダーの値（既定30秒）で普通に回る。
+  setRopeBaseOverride(isCpuSelfTimerEnabled() ? null : HUMAN_BASE_SECONDS);
   // 人数切替で前回のCPU席の名前/アバターが残らないよう、まず相手席（A以外）をクリアする。
   // 【重要】自分(A)は消さない——マイページ等で設定した自分の名前・アバターを保持する
   // （ユーザー報告「マイページで名前変更→CPU戦開始→プレイヤーAに戻る」の修正。ローカルCPU戦の
@@ -112,6 +118,9 @@ export async function startCpuBattle(count = getCpuPlayerCount()) {
 // ローカルのpseudoCpu/timerフラグを落としておけば練習のCPU駆動が対局に混入しない。
 export async function teardownCpuBattle() {
   setCpuBattleActive(false);
+  // 【#586】CPU戦用の基本時間の上書きを必ず外す。残すと、この後に作るオンラインの部屋へ
+  //   15分がそのまま持ち込まれる（online.js が部屋を作る時に getRopeBaseSeconds() を送る）。
+  setRopeBaseOverride(null);
   document.body.classList.remove("cpu-battle-mode");
   setPseudoCpuModeEnabled(false);
   setPseudoCpuIncludeSelf(false);
