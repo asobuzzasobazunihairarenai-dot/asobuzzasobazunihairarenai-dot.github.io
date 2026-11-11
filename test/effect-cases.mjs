@@ -1009,6 +1009,27 @@ export const CASES = [
     ],
   },
   {
+    // 【#582・2026-11-12】ユーザー報告「追色で1枚捨てるので捨て場に1枚あればフェニックスは発動可能です」。
+    // 🔴 コストで捨てる分も捨て場に積まれてから効果が走るので、捨て場が1枚でも「2番目」は成立する。
+    //   続き673 で #526 を直した時にここを数え落とし、撃てるはずの場面で発動宣言できなくなっていた。
+    name: "赤のキューブ フェニックス/first-red(手札): 捨て場が1枚でも、追色で積まれるので発動できる",
+    kind: "hand",
+    cardId: "first-red",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "self", kind: "card", cardId: "first-red", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "cost", kind: "card", cardId: "red-counter-lock", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: ["yellow-gamble"] },
+    },
+    ctx: { player: "A", cardId: "first-red", cardTokenId: "self" },
+    picks: { discardCost: ["cost"] },
+    expect: [
+      { kind: "handHasCard", player: "A", cardId: "yellow-gamble" },
+    ],
+  },
+  {
     name: "青のキューブ セレスティア/first-blue(手札): 追色1→手札2枚以上の相手全員から無作為に1枚捨てさせる",
     kind: "hand",
     cardId: "first-blue",
@@ -4436,9 +4457,12 @@ export const CASES = [
     ],
   },
   {
-    // 🔴 こちらはリメイクのフェニックス（捨て場の「1番上から2番目」）。1枚では2番目が無いので使えない。
-    //   #526 の直しを「どのカードでも効く」形（動詞から必要枚数を出す）にしたことの検査。
-    name: "赤のキューブ フェニックス/first-red(手札): 捨て場が1枚なら「2番目」が無いので使えない",
+    // 🔴 【#582・2026-11-12】**この検査は逆のことを書いていた。** ユーザー指摘
+    //   「追色で1枚捨てるので捨て場に1枚あればフェニックスは発動可能です」のとおり、
+    //   コストで捨てた分が先に積まれるので、捨て場1枚でも「2番目」は成立する。
+    //   続き673 で #526 を直した時にコスト分を数え落とし、**撃てるはずの場面で
+    //   発動宣言できなくなっていた**。ここはその「使える」を固定する。
+    name: "赤のキューブ フェニックス/first-red(手札): 捨て場が1枚でも、追色の1枚が先に積まれるので使える（#582）",
     kind: "hand",
     cardId: "first-red",
     state: {
@@ -4453,8 +4477,7 @@ export const CASES = [
     ctx: { player: "A", cardId: "first-red", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
     picks: {},
     expect: [
-      { kind: "handUsable", value: false },
-      { kind: "tokenZone", id: "cost", zone: "hand", player: "A" }, // コストも払われない
+      { kind: "handUsable", value: true },
     ],
   },
   {

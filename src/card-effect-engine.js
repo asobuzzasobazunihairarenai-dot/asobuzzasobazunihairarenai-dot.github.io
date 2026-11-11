@@ -701,7 +701,14 @@ function requiredDiscardPileSize(option, cardId) {
   if (他にも起きる) return 0;
   const 自分も捨てる =
     !option?.keepsCardOnUse && !cardId?.startsWith("eternal-") && !cardId?.startsWith("first-");
-  return 自分も捨てる ? Math.max(0, need - 1) : need;
+  // 🔴 【#582・2026-11-12】**コストで捨てる分も捨て場に積まれてから効果が走る。**
+  //   赤のキューブ フェニックスは【追色１】＋「捨て場の２番目」なので、
+  //   捨て場が**1枚**あれば、追色で1枚捨てて2枚になり「２番目」が成立する。
+  //   ここを数え落としていたため、撃てるはずの場面で発動宣言できなくなっていた
+  //   （続き673 で #526 を直した時の見落とし）。⚠ いまコストに使われる動詞は
+  //   DISCARD_SAME_COLOR（追色）だけ。別の「捨てる」コストを足す時はここにも足すこと。
+  const コストで捨てる = option?.cost?.verb === VERBS.DISCARD_SAME_COLOR ? (option.cost.count || 0) : 0;
+  return Math.max(0, need - (自分も捨てる ? 1 : 0) - コストで捨てる);
 }
 
 function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {

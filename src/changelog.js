@@ -52,6 +52,22 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-12",
+    summary: [],
+    summaryEn: [],
+    items: [],
+    itemsEn: [],
+    fixes: [
+      "「赤のキューブ フェニックス」の手札効果が、捨て場のカードが1枚のときに使えなくなっていたのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed Phoenix, the Red Cube: its hand effect could not be used when the discard pile held only one card.",
+    ],
+    devItems: [
+      "🔴 **【#582】赤のキューブ フェニックスが撃てなくなっていたのは、続き673（#526）の見落とし。** あの回で「捨て場が足りなければ発動宣言できない」を足した時、**コストで捨てる分が捨て場に積まれてから効果が走る**ことを数え落としていた。フェニックスは【追色１】＋「捨て場の**２番目**」なので、**捨て場が1枚あれば、追色で1枚捨てて2枚になり成立する**。⇒ `requiredDiscardPileSize()` が `option.cost`（いま使われているのは `DISCARD_SAME_COLOR` だけ）の枚数も引くようにした。🔴 **続き673 で私が書いたテストが、間違ったルールを固定していた**（「捨て場が1枚なら使えない」）ので、**そのテストの向きを入れ替えた**＋コストを払って取れることを見るケースを1件足した。**教訓: 「捨て場に何枚要るか」を数える時は、効果が走る前に積まれる分（コスト・自分自身）を全部数える。**",
+    ],
+  },
+  {
     date: "2026-11-11",
     summary: [],
     summaryEn: [],
