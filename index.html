@@ -88,17 +88,33 @@
     var buf = (window.__so7ConsoleBuffer = []);
     function ts() { return new Date().toISOString().slice(11, 23); }
     function push(line) { buf.push(line); if (buf.length > MAX) buf.shift(); }
+    // 🔴【#376・2026-11-11】Error をそのまま JSON.stringify すると **message が消える**
+    //   （name/message/stack は列挙可能なプロパティではない）。console.error("○○ failed", err)
+    //   という書き方はアプリ中に何十か所もあるのに、報告には理由が1文字も残っていなかった。
+    //   ⚠ src/bug-report.js の stringifyLogArg と**同じ扱い**にしてある（片方だけ直すと、
+    //     どちらのバッファが使われたかで報告の読み味が変わる）。
+    function argText(a) {
+      if (typeof a === "string") return a;
+      if (a instanceof Error) {
+        var nm = a.name || "Error";
+        var ex = [];
+        var ks = ["status", "statusCode", "code"];
+        for (var i = 0; i < ks.length; i++) if (a[ks[i]] !== undefined) ex.push(ks[i] + "=" + a[ks[i]]);
+        return nm + ": " + (a.message || "") + (ex.length ? " (" + ex.join(" ") + ")" : "");
+      }
+      try {
+        var s = JSON.stringify(a);
+        if ((s === undefined || s === "{}") && a && typeof a.message === "string") return String(a.message);
+        return s === undefined ? String(a) : s;
+      } catch (e) { return String(a); }
+    }
     ["log", "info", "warn", "error"].forEach(function (lv) {
       var orig = console[lv] ? console[lv].bind(console) : null;
       if (!orig) return;
       console[lv] = function () {
         try {
           var parts = [];
-          for (var i = 0; i < arguments.length; i++) {
-            var a = arguments[i];
-            if (typeof a === "string") parts.push(a);
-            else { try { parts.push(JSON.stringify(a)); } catch (e) { parts.push(String(a)); } }
-          }
+          for (var i = 0; i < arguments.length; i++) parts.push(argText(arguments[i]));
           push("[" + ts() + "] " + lv.toUpperCase() + ": " + parts.join(" "));
         } catch (e) { /* 取得失敗は無視。元の出力は必ず行う */ }
         orig.apply(console, arguments);

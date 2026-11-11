@@ -4993,10 +4993,21 @@ async function pickCellsWithDeselect(helpers, { want, listCells, label, pickOpts
   // ⚠ 押した回数の上限。**付け外しは人が押すものなので現実には届かない数**だが、
   //   上限が無いと「同じマスが返り続ける」経路があった時に**対局が固まる**
   //   （実際にテスト用スタブがそうなって止まった）。固まるより打ち切る方が安全。
+  //   🔴【#578・2026-11-11】**上限に当たった時は行動ログへ1行残す。**
+  //   報告「迷いの森をCPUが踏んだらなんかマス選択をし続けて動かなくなりました」＝
+  //   **自動の席が同じマスを選び直し続けていた**（main.js 側で候補から外すようにした）。
+  //   上限は効いていたが、**何も残らないので『固まった』としか見えなかった**。
   let 回数 = 0;
   const 上限 = want * 20 + 40;
   while (選んだ.length < want) {
-    if (++回数 > 上限) break;
+    if (++回数 > 上限) {
+      try {
+        logAction("diag-cell-pick-loop", { want, 上限, 選んだ: 選んだ.length, label: String(label(0)).slice(0, 24) });
+      } catch (err) {
+        /* ログが書けなくても打ち切る方を優先 */
+      }
+      break;
+    }
     const base = listCells();
     if (base.length === 0) break;
     if (選んだ.length >= base.length) break; // これ以上は選べない（全部選び終わった）

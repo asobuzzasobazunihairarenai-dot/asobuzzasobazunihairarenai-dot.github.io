@@ -302,7 +302,14 @@ function openMatchChoiceModal() {
   detailsToggle.type = "button";
   detailsToggle.className = "home-match-choice-details-toggle";
   const detailsNote = document.createElement("div");
-  detailsNote.className = "home-match-choice-difficulty-hint";
+  // 【#507・2026-11-11】ユーザー「ここでの詳細設定はCPUに関することだけな気がします！
+  //   なのでボタンは右側にあった方がいい？？」⇒ 2択は 🤝フレンドリー（左）／🤖CPU戦（右）の
+  //   並びなので、このボタンと1行を**右端へ寄せて CPU 側の下に付ける**（どちらの話かが
+  //   位置で分かる）。⚠ 強さ・人数・ルールは本当に CPU 戦専用だが、**カードセット（管理者
+  //   だけ）はフレンドリーの既定値にもなる**（部屋で選べばそちらが勝つ＝続き687）。
+  //   ⚠ is-details-note を足すのは、`home-match-choice-difficulty-hint` が詳細の中の
+  //     説明文とも共用のクラスで、そちらまで右寄せにしたくないため。
+  detailsNote.className = "home-match-choice-difficulty-hint is-details-note";
   // いまの設定が『おすすめ』のままかどうか。おすすめ＝人数2・強さ普通・ルール全部切。
   const isRecommended = () =>
     getCpuPlayerCount() === 2 &&

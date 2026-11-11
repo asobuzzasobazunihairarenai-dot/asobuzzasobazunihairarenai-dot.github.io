@@ -55,10 +55,78 @@ export function logAction(category, detail) {
   const turnInfo = getTurnInfoFn?.() ?? null;
   entries.push({ t: Date.now(), turn: turnInfo?.turn ?? null, round: turnInfo?.round ?? null, category, detail });
   if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
+  scheduleCarryFlush(); // #563: 落ちても直前が読めるように、薄く書き写しておく
 }
 
 export function clearActionLog() {
   entries = [];
+}
+
+// ---- 前回のぶんを持ち越す（#563 / #377・2026-11-11）--------------------------------
+// 🔴 **再読み込み・落ちた後の報告では、肝心の直前が読めなかった。**
+//   ログはメモリだけなので、再入場した瞬間に消える（#563 の報告者のログは35行しか無く、
+//   「移動できなかった」時間帯が丸ごと欠けていた。#377 でも同じことが起きている）。
+//   ⇒ **いまの分を localStorage へ薄く書き写しておき、次の起動でそれを『前回のぶん』
+//     として読めるようにする。**
+// ⚠ 書くのは**最後の200行だけ**（全部書くと重い。対局が重いという報告＝#409 もある）。
+// ⚠ 書く回数も絞る: **変わっていたら4秒に1回**＋**画面が隠れる時**（iOSがタブを捨てる前に
+//   必ず通る所）。ハードな墜落では何も飛ばないので、周期の書き込みが最後の砦になる。
+// ⚠ localStorage が使えない端末・いっぱいの時は**黙って諦める**（ログのために対局を
+//   止めない）。
+const LIVE_KEY = "so7-action-log-live";
+const PREV_KEY = "so7-action-log-prev";
+const CARRY_MAX_LINES = 200;
+const FLUSH_MS = 4000;
+let carriedText = null;
+let carryDirty = false;
+let carryTimer = null;
+
+function readCarriedOnBoot() {
+  try {
+    const live = localStorage.getItem(LIVE_KEY);
+    if (live) {
+      // 前回の走り書きを「前回のぶん」へ移して、今回の走り書き用に空ける。
+      localStorage.setItem(PREV_KEY, live);
+      localStorage.removeItem(LIVE_KEY);
+    }
+    carriedText = localStorage.getItem(PREV_KEY) || null;
+  } catch (err) {
+    carriedText = null;
+  }
+}
+readCarriedOnBoot();
+
+function flushCarry() {
+  if (!carryDirty) return;
+  carryDirty = false;
+  try {
+    const 行 = entries.slice(-CARRY_MAX_LINES).map(formatEntry).join("\n");
+    if (行) localStorage.setItem(LIVE_KEY, 行);
+  } catch (err) {
+    /* 書けない（容量・プライベートモード）なら諦める */
+  }
+}
+
+function scheduleCarryFlush() {
+  carryDirty = true;
+  if (carryTimer) return;
+  carryTimer = setTimeout(() => {
+    carryTimer = null;
+    flushCarry();
+  }, FLUSH_MS);
+}
+
+if (typeof window !== "undefined") {
+  // 画面が隠れる＝OSにタブを捨てられる直前。ここは**必ず**書く。
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushCarry();
+  });
+  window.addEventListener("pagehide", flushCarry);
+}
+
+// 前回（再読み込み・落ちる前）のログ。無ければ null。不具合報告に添えるためのもの。
+export function getCarriedActionLogText() {
+  return carriedText;
 }
 
 function formatEntry(entry) {

@@ -274,6 +274,46 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  563: {
+    ja: "再読み込みや強制終了のあとでも、その直前の行動ログが残るようにしました。これまでは入り直した瞬間に消えていたので、今回のように「移動できなかった」時間帯が丸ごと欠けていました。次に同じことが起きたら原因まで追えます。",
+    en: "The action log now survives a reload or a crash. Until now it was wiped the moment you re-entered, so the period you were describing was missing entirely. If it happens again the cause can be traced.",
+  },
+  568: {
+    ja: "案内表示の設定は、いまは端末ごとの保存でアカウントには紐づいていません。別の端末で遊ぶと案内がもう一度出ます。アカウントに紐づけることもできるので、必要なら言ってください。",
+    en: "Guide-display settings are currently saved per device, not on your account, so the guides reappear on another device. They can be moved onto your account if you want that.",
+  },
+  571: {
+    ja: "直しました。ロックエリアを選んでいる時は「このロックエリアでいいですか？」と出るようにしました。",
+    en: "Fixed. When you are choosing a lock area it now asks \"Use this lock area?\" instead of calling it a square.",
+  },
+  575: {
+    ja: "直しました。接触が行動ログに1行も残っていませんでした（内部の記録だけで、読める方のログには出ていませんでした）。これからは「誰に接触して何を奪ったか」が1行で残ります。",
+    en: "Fixed. Contacts were leaving no line in the readable action log (only internal diagnostics). Each contact now records who you contacted and what you took.",
+  },
+  578: {
+    ja: "直しました。前日に入れた「選んだマスをもう一度押すと外れる」が原因で、CPUが同じマスを選び直し続けていました。自動で動く席には選び済みのマスを出さないようにしたので止まりません。",
+    en: "Fixed. A change made the day before (tap a chosen square again to deselect it) made the CPU re-pick the same square forever. Automatic seats are no longer offered squares they have already chosen.",
+  },
+  410: {
+    ja: "いまは**ブーストモードではありません**。当時は本当に漏れていて、CPU戦のモーダルで選んだブースト・白黒の設定がそのまま本気のエイドス戦に引き継がれていました（白紙カードが混ざるなど）。2026-10-16 に、物語戦は誰がやっても同じ戦いになるよう設定を固定したので、いまは端末の設定に関わらずブースト無し・白黒無しです。",
+    en: "No, it is not. Back then the setting really did leak: the Boost and colorless options you picked in the CPU match dialog carried over into the serious Eidos battle. Since 2026-10-16 the story battle has fixed settings so that it plays the same for everyone, so Boost and colorless are always off there now.",
+  },
+  422: {
+    ja: "この形はすでに直っています。「このマスでいいですか？」が出ている間は、盤面のタップを受け付けないようにしました（別の報告への対応で入った直しです）。実際に確かめたところ、『はい』の裏に光っているマスが重なっていても、選んだマスのまま確定します。もし今も違うマスへ動くことがあれば、その時の行動ログを付けて教えてください。",
+    en: "This has already been fixed: while the \"Is this the square?\" prompt is open, taps on the board are ignored (the fix came in with another report). Measured directly: even when a highlighted square sits behind the Yes button, the move still goes to the square you picked. If it ever moves somewhere else again, please send the action log with it.",
+  },
+  507: {
+    ja: "ボタンを右側へ寄せました。2つの選択肢は「フレンドリーマッチ（左）」「CPU戦（右）」の並びなので、右端に付けるとCPU側の話だと見た目で分かります。なお強さ・人数・追加ルールはCPU戦だけの設定です（カードセットだけは、フレンドリーの部屋を作る時の最初の値にもなります）。",
+    en: "The button is now aligned to the right. The two choices are Friendly match (left) and CPU match (right), so putting it at the right edge shows at a glance that it belongs to the CPU side. Difficulty, player count and extra rules are CPU-only settings (only the card set also acts as the starting value when you open a friendly room).",
+  },
+  565: {
+    ja: "ゲート侵攻の告知の「✕」が、残りの告知をまとめて飛ばしていました（スキップボタンと同じ動きでした）。✕は「いま出ているものを閉じて次へ進む」だけにしたので、一気に進んでしまうことはなくなります。相手のワインウェアが画面に反映されない件は、まだ調べています。",
+    en: "The X on the gate-invasion announcements was skipping all of the remaining ones at once (it behaved exactly like the Skip button). X now just closes the current announcement and moves to the next one. The separate issue of an opponent's Wineware not showing on your screen is still being looked into.",
+  },
+  376: {
+    ja: "画像を添付できないことがあったのを直しました。ログインの状態が古くなっていると、添付ボタンは出るのに送る時だけ「ログインしていない」と判断されてしまうのが原因のひとつでした。あわせて、万一また送れなかった時にその理由が報告に残るようにしたので、次に起きたらすぐ原因が分かります。",
+    en: "Fixed a case where an image could not be attached. One cause was a stale sign-in state: the attach button appeared, but the upload itself decided you were signed out. The reason for any future failure is now recorded with the report, so the next occurrence can be pinned down right away.",
+  },
   447: {
     ja: "英語で遊んでいる時に、ログインボーナスのお知らせだけ日本語で出ることがあったのを直しました。言語の設定をアカウントから読み込むより先にお知らせが出てしまうのが原因だったので、出ている間に言語が決まったら書き直すようにしました。",
     en: "Fixed the daily bonus notice sometimes appearing in Japanese while you are playing in English. It was being shown before your language setting had finished loading from your account, so it now updates itself if the language is decided while it is on screen.",

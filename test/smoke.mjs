@@ -30,7 +30,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PORT = 8795;
+// 【2026-11-11】前の回のサーバーが残っていると EADDRINUSE でここから先へ進めない
+// （test/effects.mjs の SO7_TEST_PORT と同じ理由＝続き683）。環境変数で逃がせるようにする。
+const PORT = Number(process.env.SO7_SMOKE_PORT || 8795);
 // CLI引数: 人数（2/3/4）と --full（決着まで）。
 const ARGS = process.argv.slice(2);
 const PLAYER_COUNT = [2, 3, 4].includes(Number(ARGS.find((a) => /^[234]$/.test(a)))) ? Number(ARGS.find((a) => /^[234]$/.test(a))) : 2;

@@ -8619,6 +8619,20 @@ async function requestCellChoiceForEffect(...args) {
   return requestCellChoiceForEffect__inner(...args);
 }
 async function requestCellChoiceForEffect__inner(candidates, hint, options = {}) {
+  // 🔴【#578・2026-11-11】**自動で選ぶ席には、既に選んだマスを候補に出さない。**
+  //   報告「迷いの森をCPUが踏んだらなんかマス選択をし続けて動かなくなりました」。
+  //   #555 で「選んだマスをもう一度押すと外れる」を入れた時、**候補には選び済みのマスも
+  //   残したまま**にした（人が外せる口を残すため＝正しい）。ところが**自動の席（CPU・
+  //   持ち時間切れの代行）は同じマスを何度でも選び直す**ので、選ぶ→外す→選ぶ…を
+  //   上限（card-effect-engine.js の want*20+40 回）まで繰り返し、固まったように見えていた。
+  //   ⚠ **人の席はそのまま**（外せる口を残す）。
+  //   ⚠ 全部選び終わっていたら元の候補のまま（効果を不発にしない。engine 側も
+  //     「選んだ数が候補数以上なら抜ける」で受けている）。
+  if (Array.isArray(options.selectedCells) && options.selectedCells.length && isCpuSelectingNow(pickerOwner(options.owner))) {
+    const 済み = new Set(options.selectedCells.map((c) => c.row + "," + c.col));
+    const 残り = candidates.filter((c) => !済み.has(c.row + "," + c.col));
+    if (残り.length) candidates = 残り;
+  }
   for (;;) {
     // 【#352】相手に頼まれた選択の期限が切れていたら、選び直しでもハイライトを出し直さない。
     if (isDelegationExpired()) return null;
@@ -8644,7 +8658,16 @@ async function requestCellChoiceForEffect__inner(candidates, hint, options = {})
     // なっている」。ユーザー指摘のとおり、**そのマスに駒がいるかどうか**で決めてはいけない
     // （駒の下のマスを対象にする効果もあるため）。効果側が「マスを選ばせているのか、相手（駒）を
     // 選ばせているのか」を pickTarget で明示し、それだけで文言を切り替える。
-    const titleKey = options.pickTarget === "piece" ? "game.cellConfirm.titleOpponent" : undefined;
+    // 🔴【#571・2026-11-11】ユーザー指摘「ロックエリアは「マス」ではないです」。
+    //   この確認は `.cell` だけでなく **`.lock-slot`（ロックエリア）**でも使う
+    //   （cell-confirm.js の冒頭にそう書いてある）のに、見出しは「このマスでいいですか？」
+    //   のままだった。**選んでいる場所の種類で文言を変える。**
+    const titleKey =
+      options.pickTarget === "piece"
+        ? "game.cellConfirm.titleOpponent"
+        : loc?.zone === "lock"
+          ? "game.cellConfirm.titleLock"
+          : undefined;
     const confirmed = await confirmCellChoice(el, hint, { titleKey });
     if (confirmed === null) return null; // 【#352】期限切れで閉じられた＝選ぶのをやめた
     if (confirmed) return loc;
@@ -11493,6 +11516,15 @@ function isAdjacentCell(a, b) {
 // role:"both"はローカルモード（1画面で両者を見ているため）に使う。cardIdがnullの場合は
 // 「相手の手札が無く何も奪えなかった/奪われなかった」の文面にする。
 function openContactResultModal({ role, attacker, defender, cardId, onClose = null }) {
+  // 🔴【#575・2026-11-11】接触を行動ログに残す。**ここが唯一、両者の画面で必ず通る所**
+  //   （攻めた人は role:"attacker"、受けた人は "defender"、1画面対戦は "both"）で、
+  //   しかも「何を奪ったか」が分かっている。宣言の時点では結果が未確定なので残せない。
+  //   ⚠ 1画面対戦（both）では1回だけ残る＝二重にならない。
+  try {
+    logAction("contact", { attacker, defender, cardId: cardId ?? null, role });
+  } catch (err) {
+    /* 残せなくても結果の表示は続ける */
+  }
   const modal = document.createElement("div");
   modal.id = "contact-result-modal";
   // #40: 開いている間は自動ターン終了を止める（isAnyEffectProcessingBusy/computeShouldEmphasize
@@ -18291,6 +18323,17 @@ function buildFriendlyLogItems() {
       }
     } else if (e.category === "diag-gate-invasion-received") {
       msg = t("game.gateAuto.happened");
+    } else if (e.category === "contact") {
+      // 🔴【#575・2026-11-11】報告「行動ログに私の接触が載っていない」。
+      //   接触は `diag-contact-*`（内部診断）しか残しておらず、**この読みやすいログには
+      //   1行も出ていなかった**（上の分岐にも無かった）。接触は対局で最も大きい出来事の
+      //   1つなので、攻めた人・受けた人・奪ったカードを1行で残す。
+      //   ⚠ 奪えなかった時も残す（「何も奪えなかった」も結果のうち）。
+      player = e.detail?.attacker ?? null;
+      const あいて = getPlayerName(e.detail?.defender);
+      msg = e.detail?.cardId
+        ? t("game.log.contactTook", { name: あいて, card: cardDisplayName(e.detail.cardId) })
+        : t("game.log.contactNothing", { name: あいて });
     } else {
       continue;
     }

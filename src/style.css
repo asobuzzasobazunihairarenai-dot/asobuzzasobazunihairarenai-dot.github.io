@@ -17000,9 +17000,10 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
    ユーザー要望「まずCPUかフレンドリーかの2択だけでいい」＋「それを押さなければ
    おすすめ設定でスタート」。色は決め打ちせず、既存のセグメントボタンに合わせる
    （テーマが明暗2つあるので、新しい部品に文字色を決め打ちしない＝教訓15）。 */
+/* 【#507・2026-11-11】右端へ寄せて「CPU戦」（右の選択肢）の下に付ける。 */
 .home-match-choice-details-toggle {
   display: block;
-  margin: 0.6rem auto 0;
+  margin: 0.6rem 0 0 auto;
   padding: 0.35rem 1rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -17015,6 +17016,9 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
 }
 .home-match-choice-details-toggle:hover {
   background: rgba(56, 189, 248, 0.15);
+}
+.home-match-choice-difficulty-hint.is-details-note {
+  text-align: right;
 }
 .home-match-choice-segment-btn {
   padding: 0.4rem 0.95rem;

@@ -1452,7 +1452,22 @@ function getVisitorKey() {
 export async function uploadBugShot(blob) {
   return withLog("不具合報告の画像アップロード", async () => {
     if (!client) throw new Error(t("on.err.noClient"));
-    const user = await getCurrentUser();
+    // 🔴【#376・2026-11-11】**ここで getCurrentUser() だけを見ていたのが穴だった。**
+    //   あれは中で auth.getUser() ＝**サーバーへ問い合わせる**ので、アクセストークンが
+    //   古いと null が返り「ログインしていない」と誤判定する。ところが添付ボタンを出すかは
+    //   bug-report.js が **getCachedUser()（端末に残っている値）**で決めているので、
+    //   **ボタンは出るのに送れない**という形になる（10/5 に7件連続で失敗し、翌日は成功した
+    //   ＝版は同じ・バケットも生きていた。実測で #368/#369/#370/#378/#380/#571 には画像が在る）。
+    //   ⇒ 先に getSession() を通す。**期限が切れていれば supabase-js 自身が更新する**
+    //     （こちらでトークンを触らない＝ライブラリの仕組みに乗るだけ）。
+    let user = null;
+    try {
+      const { data } = await client.auth.getSession();
+      user = data?.session?.user ?? null;
+    } catch (e) {
+      /* 下の getCurrentUser() で見直す */
+    }
+    if (!user) user = await getCurrentUser();
     if (!user) throw new Error(t("on.err.signIn"));
     const path = `${user.id}/${Date.now()}-${Math.floor(Math.random() * 1e6)}.webp`;
     const { error: uploadError } = await client.storage.from("bug-shots").upload(path, blob, {
@@ -3656,8 +3671,33 @@ export async function fetchAndHydrate(gameId) {
       // 同じく、hydrateStateは丸ごと置き換えなので渡し忘れるとundefinedへ上書きされる。
       myDeckMode: gameRow.my_deck_mode ?? false,
     });
+    // 🔴【#565・2026-11-11】**「相手の効果が私の画面に反映されない」を読めるようにする。**
+    //   報告「相手のワインウェアが私の画面に反映されてない」を調べたが、**自分側のログには
+    //   相手の効果は1行も残らない**（効果を走らせるのは相手のクライアントなので当然）。
+    //   こちらに残るのは「受け取った状態」だけなのに、その記録が無かった＝**届いたのか、
+    //   届いたが描けなかったのかを切り分けられなかった**。
+    //   ⚠ 毎回書くと800件のログがすぐ埋まるので、**中身が変わった時だけ**1行残す。
+    try {
+      const s = getState();
+      const 札 = Array.isArray(s.tokens) ? s.tokens.filter((tk) => tk.kind === "card") : [];
+      const 指紋 = [s.turnNumber ?? 0, s.turnPlayer ?? "", 札.length, 札.filter((tk) => tk.faceUp).length].join("/");
+      if (指紋 !== lastAppliedStateFingerprint) {
+        lastAppliedStateFingerprint = 指紋;
+        logAction("diag-state-applied", {
+          turn: s.turnNumber ?? null,
+          turnPlayer: s.turnPlayer ?? null,
+          phase: s.turnPhase?.phase ?? null,
+          cards: 札.length,
+          faceUp: 札.filter((tk) => tk.faceUp).length,
+        });
+      }
+    } catch (err) {
+      /* 記録できなくても対局は続ける */
+    }
   });
 }
+// 【#565】直前に書いた「受け取った状態」の指紋。変わった時だけログを残すため。
+let lastAppliedStateFingerprint = null;
 
 // ターンタイマー設定（対局開始時に部屋作成者のローカル設定を1回だけ固定したもの）。
 // admin.jsの各getterはturn-timer.js側で「オンライン中はこちらを優先」というラップを

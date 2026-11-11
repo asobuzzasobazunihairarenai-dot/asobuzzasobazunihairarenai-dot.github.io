@@ -18,7 +18,7 @@ import {
   broadcastBugLogResponse,
   uploadBugShot,
 } from "./online.js";
-import { getActionLogText } from "./action-log.js";
+import { getActionLogText, getCarriedActionLogText } from "./action-log.js";
 import { getBlackboxSummary } from "./crash-blackbox.js";
 import { getPlayerName } from "./player-identity.js";
 import { createBackdrop, createModalCloseX } from "./ui-helpers.js";
@@ -45,6 +45,29 @@ const CONSOLE_BUFFER_MAX = 300;
 const consoleBuffer = [];
 let consoleHooked = false;
 
+// 🔴【#376・2026-11-11】**Error をそのまま JSON.stringify すると message が消える。**
+//   name/message/stack は列挙可能なプロパティではないので {} か {"status":400} になる。
+//   ⇒ console.error("○○ failed", err) という書き方が**アプリ中に何十か所もある**のに、
+//     報告に届くのは「失敗した」という事実だけで、**理由が1文字も残っていなかった**。
+//   ⚠ Supabase の一部のエラーは Error ではなく素のオブジェクト（message を持つ）なので、
+//     stringify が {} になった時も message を拾う。
+function stringifyLogArg(a) {
+  if (typeof a === "string") return a;
+  if (a instanceof Error) {
+    const 名 = a.name || "Error";
+    const 他 = [];
+    for (const k of ["status", "statusCode", "code"]) if (a[k] !== undefined) 他.push(k + "=" + a[k]);
+    return 名 + ": " + (a.message || "") + (他.length ? " (" + 他.join(" ") + ")" : "");
+  }
+  try {
+    const s = JSON.stringify(a);
+    if ((s === undefined || s === "{}") && a && typeof a.message === "string") return String(a.message);
+    return s === undefined ? String(a) : s;
+  } catch {
+    return String(a);
+  }
+}
+
 function installConsoleCapture() {
   if (consoleHooked) return;
   consoleHooked = true;
@@ -66,16 +89,7 @@ function installConsoleCapture() {
     if (!original) continue;
     console[level] = (...args) => {
       try {
-        const text = args
-          .map((a) => {
-            if (typeof a === "string") return a;
-            try {
-              return JSON.stringify(a);
-            } catch {
-              return String(a);
-            }
-          })
-          .join(" ");
+        const text = args.map(stringifyLogArg).join(" ");
         const ts = new Date().toISOString().slice(11, 23);
         consoleBuffer.push(`[${ts}] ${level.toUpperCase()}: ${text}`);
         if (consoleBuffer.length > CONSOLE_BUFFER_MAX) consoleBuffer.shift();
@@ -153,11 +167,27 @@ async function collectPeerLogs(timeoutMs = 2500) {
 
 // 収集した自分＋相手のログを、見出し付きで1本のテキストに束ねる（so7_bug_reportsの
 // action_log/console_log列にそのまま入れる。新しい列やSQLの追加は不要）。
+// 🔴【#563・2026-11-11】**再入場・墜落の前のログを頭に付ける。**
+//   ログはメモリだけなので、再読み込みした瞬間に消える——報告「ムーブフェイズで移動できず
+//   再入場したらゲートにいた」では、**肝心の時間帯が丸ごと欠けていた**（35行しか無かった）。
+//   ⚠ **今回のぶんの前に置く**（時系列どおり）。見出しで区切るので取り違えようがない。
+//   ⚠ 前回のぶんが無い（初回起動・localStorage が使えない）時は何も足さない。
+function withCarriedActionLog(text) {
+  let carried = null;
+  try {
+    carried = getCarriedActionLogText();
+  } catch (err) {
+    carried = null;
+  }
+  if (!carried) return text;
+  return "==== 前回（再読み込み／落ちる前）のログ ====\n" + carried + "\n==== ここから今回 ====\n" + text;
+}
+
 function sectionLabel(name, seat, kind, extra = "") {
   return `==== ${name ?? "?"}（${seat ?? "?"}${extra}）の${kind} ====`;
 }
 function buildCombinedLogs(peers) {
-  let actionLog = getActionLogText();
+  let actionLog = withCarriedActionLog(getActionLogText());
   let consoleLog = getConsoleLogText();
   // オフライン/単独時は従来通り自分のぶんだけをそのまま返す（見出しも付けない）。
   if (!isOnlineMode()) return { actionLog, consoleLog };
@@ -745,6 +775,28 @@ export function openBugReportModal() {
     status.classList.remove("is-error");
     status.textContent = isOnlineMode() ? t("bug.sendingOnline") : t("bug.sending");
     try {
+      // 画像は「送れたら添える」扱い。失敗しても本文とログの送信は必ず行う
+      // （バケット未作成＝SQL未実行や、未ログインでも報告自体は成立させる）。
+      // 🔴【#376・2026-11-11】**画像を先に送る。** 以前はログの写しを取った後に送っていたので、
+      //   失敗した時の console.error が**その報告のコンソールログには入らなかった**
+      //   （写しは既に出来上がっているため）。⇒ 10/5 に7件続けて失敗したのに、理由が
+      //   1件も残っていなかった。順番を入れ替えるだけで、次に失敗した時は写しに入る。
+      //   あわせて context.shotError にも残す（コンソールが短い端末でも必ず読める）。
+      let shotWarning = "";
+      let shotUrl = null;
+      let shotError = null;
+      if (shotBlob) {
+        status.textContent = t("bug.uploadingShot");
+        try {
+          const blob = await fileToShotBlob(shotBlob);
+          shotUrl = await uploadBugShot(blob);
+        } catch (err) {
+          shotError = stringifyLogArg(err);
+          console.error("uploadBugShot failed", err);
+          shotWarning = t("bug.shotFailed");
+        }
+        status.textContent = isOnlineMode() ? t("bug.sendingOnline") : t("bug.sending");
+      }
       const peers = await collectPeerLogs();
       const { actionLog, consoleLog } = buildCombinedLogs(peers);
       const context = gatherContext();
@@ -752,20 +804,8 @@ export function openBugReportModal() {
       if (screenCheck.checked) {
         context.screen2 = { ...screenAtOpen, agoMs: Date.now() - openedAt };
       }
-      // 画像は「送れたら添える」扱い。失敗しても本文とログの送信は必ず行う
-      // （バケット未作成＝SQL未実行や、未ログインでも報告自体は成立させる）。
-      let shotWarning = "";
-      if (shotBlob) {
-        status.textContent = t("bug.uploadingShot");
-        try {
-          const blob = await fileToShotBlob(shotBlob);
-          context.shotUrl = await uploadBugShot(blob);
-        } catch (err) {
-          console.error("uploadBugShot failed", err);
-          shotWarning = t("bug.shotFailed");
-        }
-        status.textContent = isOnlineMode() ? t("bug.sendingOnline") : t("bug.sending");
-      }
+      if (shotUrl) context.shotUrl = shotUrl;
+      if (shotError) context.shotError = shotError;
       await submitBugReport({
         comment,
         actionLog,

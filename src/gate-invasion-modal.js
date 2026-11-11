@@ -397,7 +397,18 @@ function showStep(step) {
     `padding: 0.4rem 1.4rem; ${skin.btn} border: none; border-radius: 0.25rem; cursor: pointer; margin-top: 0.4rem;`;
   skipBtn.addEventListener("click", () => skipAll("スキップ"));
 
-  modalEl.appendChild(createModalCloseX(() => skipAll("✕")));
+  // 🔴【#565・2026-11-11】**✕ は「この告知を閉じる」＝次の段へ進むだけにする。**
+  //   報告「侵攻された後一気にムーブフェイズになってしまっている」。行動ログに
+  //   `diag-gate-invasion-skipped {via:"✕", 残り:5}` が残っていた＝**✕ が残り5段を
+  //   まとめて飛ばしていた**（スキップボタンとまったく同じ動き）。
+  //   ✕ は「いま出ているものを閉じる」と読まれるので、列ごと消えるのは驚きになる。
+  //   ⇒ ✕＝次の段へ／「スキップ」＝列を終える、と役割を分ける（できることは減らない）。
+  const nextStep = (via) => {
+    logAction("diag-gate-invasion-next", { via: via || "?", 残り: queue.length });
+    closeCurrent();
+    advance();
+  };
+  modalEl.appendChild(createModalCloseX(() => nextStep("✕")));
   modalEl.appendChild(title);
   modalEl.appendChild(body);
   if (step.cardsHtml) {
