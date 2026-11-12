@@ -66,7 +66,27 @@ const ARRIVAL_VALUE = {
   //     ⚠ **止めるのではなく重みで決める**ままにしてある（他に良い手が無ければ行く）。
   //     ⚠ バスストップが在る時の +2 は**変えていない**（そちらは得な手）。
   "ex0-orange-bus": () => (hasFaceUpCardOnBoard("ex0-orange-bus-stop") ? 2 : -7),
+
+  // 🔴【#605・2026-11-12】報告「CPUがジャンプ台の効果で**何も得られない**フェスティバルの
+  //   マスを選択した」。【状況】カード5種（1st）の到達は「これを場の中央に表向きで置く」
+  //   だけで、**既に場の中央に在るなら不発**（#537）＝何も起きない。
+  //   ⇒ 中央に在るなら **-7**（#458・#519 と同じ値。前進や「まだ要る色」の加点に負けない）。
+  //     そうでなければ **+1**（誰にでも効く札なので、自分だけの得は小さい）。
+  //   ⚠ 止めるのではなく**重みで決める**ままにしてある（他に良い手が無ければ行く）。
+  ...Object.fromEntries(
+    ["1st-red-unrest", "1st-orange-festival", "1st-green-bubble", "1st-pink-growth", "1st-black-depression"].map((id) => [
+      id,
+      () => (isCardAtBoardCenter(id) ? -7 : 1),
+    ])
+  ),
 };
+
+// その札が**場の中央（3,3）に表向きで**置かれているか（【状況】カードが効いている状態）。
+function isCardAtBoardCenter(cardId) {
+  return getState().tokens.some(
+    (t) => t.kind === "card" && t.cardId === cardId && t.faceUp && t.location?.zone === "cell" && t.location.row === 3 && t.location.col === 3
+  );
+}
 
 // 場に**表向きで**置かれているカードがあるか（裏向きは非公開情報なので数えない
 // ＝CPUにだけ見える形にしない）。

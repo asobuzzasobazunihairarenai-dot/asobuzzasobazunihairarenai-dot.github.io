@@ -154,10 +154,19 @@ function showWaitingScreen() {
   countEl.textContent = "";
   overlayEl.appendChild(countEl);
 
+  // 🔴【#602・2026-11-12】報告「ランク戦の相手を探し中モーダルがデカすぎる！邪魔なので
+  //   左上に小さめに置けない？**詳しい説明はiマークとか置いてそれ押すとわかる**とかどう？」。
+  //   ⇒ 箱そのものは左上の小さな panel にして（CSS）、**説明・豆知識・通知のおすすめ**は
+  //     この ⓘ の中へ畳む。畳んでいる間も「探している」ことと操作だけは見えている。
+  //   ⚠ 豆知識（続き485 で『中央に大きく』にしたもの）もここへ入れた。箱が小さくなった
+  //     ので中央には置けないし、小さくすると読めない。**開けば今までどおり読める。**
+  const details = document.createElement("div");
+  details.className = "ranked-waiting-details";
+  details.style.display = "none";
   const hint = document.createElement("div");
   hint.className = "ranked-waiting-hint";
   hint.textContent = t("rm.L142");
-  overlayEl.appendChild(hint);
+  details.appendChild(hint);
 
   // 待機中CPU練習（docs/ranked-spec.md「待機中にCPU練習」）。探している間ヒマなので、
   // CPU戦で練習できる。人間が見つかったら自動で中断して「対戦開始」に呼び戻す。
@@ -189,7 +198,7 @@ function showWaitingScreen() {
     });
     notifyRow.appendChild(notifyText);
     notifyRow.appendChild(notifyBtn);
-    overlayEl.appendChild(notifyRow);
+    details.appendChild(notifyRow);
   }
 
   // 【ユーザー要望2026-09-07】「暇なので助かり情報や豆知識を流すのはどうかな？」。
@@ -198,7 +207,21 @@ function showWaitingScreen() {
   // 移した（待ち時間の主役はこちら。操作ボタンは引き続き一番下にまとまっている）。
   // 画面を閉じる時に必ず止める（closeWaitingScreen）。
   waitingTips = createWaitingTips();
-  overlayEl.appendChild(waitingTips.el);
+  details.appendChild(waitingTips.el);
+  overlayEl.appendChild(details);
+  // ⓘ は題の行に置く（押すと details が開く）。
+  const infoBtn = document.createElement("button");
+  infoBtn.type = "button";
+  infoBtn.className = "ranked-waiting-info";
+  infoBtn.textContent = "ⓘ";
+  infoBtn.title = t("rm.detailsTip");
+  infoBtn.setAttribute("aria-label", t("rm.detailsTip"));
+  infoBtn.addEventListener("click", () => {
+    const 開く = details.style.display === "none";
+    details.style.display = 開く ? "" : "none";
+    infoBtn.classList.toggle("is-open", 開く);
+  });
+  title.appendChild(infoBtn);
 
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";

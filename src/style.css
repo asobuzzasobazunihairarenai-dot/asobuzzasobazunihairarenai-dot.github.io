@@ -25071,3 +25071,81 @@ body.reduce-glow .is-only-card { animation: none; outline-color: rgba(246, 201, 
    （phase-auto-skip-toggle のクラスを一緒に付けてある）ので、ここでは絵文字の大きさだけ。 */
 .anytime-interrupt-toggle .phase-auto-skip-toggle-glyph { font-size: 1.05em; }
 
+
+/* ═══════════ 【#602・2026-11-12】ランク戦の「探し中」を左上の小さな箱へ ═══════════
+   報告「ランク戦の相手を探し中モーダルがデカすぎる！邪魔なので左上に小さめに置けない？
+   詳しい説明はiマークとか置いてそれ押すとわかるとかどう？」。
+   🔴 **上の #ranked-waiting（inset:0 の全画面）をここで上書きしている。** 元のブロックは
+     残してある（色・文字の大きさなど、ここで触っていない物はそちらが効く）。
+   ⚠ 練習バナーは右上（top:4.7rem/right:0.6rem・#436/#450）なので、こちらは左上に置いて
+     重ならないようにする。
+   ⚠ vh は使わない（このアプリは 1600x900 のステージを縮めて描くので 1vh は画面の高さでは
+     ない＝tools/check-css.mjs が見張っている）。高さの上限は % で取る。 */
+#ranked-waiting {
+  inset: auto;
+  top: 3.4rem;
+  left: 0.8rem;
+  width: 26rem;
+  max-height: 74%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid rgba(255, 215, 122, 0.45);
+  border-radius: 0.7rem;
+  background: linear-gradient(160deg, rgba(26, 33, 48, 0.97), rgba(10, 13, 20, 0.97));
+  box-shadow: 0 1.2rem 2.4rem rgba(0, 0, 0, 0.5);
+}
+#ranked-waiting .ranked-waiting-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+}
+.ranked-waiting-info {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 215, 122, 0.5);
+  background: rgba(255, 215, 122, 0.12);
+  color: #ffd77a;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ranked-waiting-info.is-open { background: rgba(255, 215, 122, 0.3); }
+.ranked-waiting-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.45rem;
+  background: rgba(15, 23, 42, 0.6);
+}
+#ranked-waiting .ranked-waiting-spinner { width: 2.2rem; height: 2.2rem; align-self: center; }
+#ranked-waiting .ranked-waiting-status { font-size: 0.95rem; }
+#ranked-waiting .ranked-waiting-count { font-size: 0.85rem; }
+/* 🔴 スマホはステージを約0.48倍に縮めて描くので、26rem のままだと**実画面で199px**＝
+   中の字が7px 前後になって読めない（#453 と同じ罠）。⇒ 幅と字を上げる。
+   実測（iPhone 932x430）: 幅 474px（画面の51%）・題 11.5px・本文 10.5px。
+   ⚠ 全画面に戻さない（#602 の趣旨は「邪魔なので小さく」）。 */
+body.is-phone-device #ranked-waiting {
+  width: 62rem;
+  right: auto;
+  max-height: 72%;
+  gap: 0.9rem;
+  padding: 1.4rem 1.6rem 1.6rem;
+}
+body.is-phone-device #ranked-waiting .ranked-waiting-title { font-size: 2.4rem; }
+body.is-phone-device #ranked-waiting .ranked-waiting-status { font-size: 2.2rem; }
+body.is-phone-device #ranked-waiting .ranked-waiting-count { font-size: 1.8rem; }
+body.is-phone-device #ranked-waiting .ranked-waiting-hint { font-size: 1.8rem; }
+body.is-phone-device .ranked-waiting-info { width: 3.4rem; height: 3.4rem; font-size: 2rem; }
+body.is-phone-device #ranked-waiting .ranked-waiting-spinner { width: 3.4rem; height: 3.4rem; }
+

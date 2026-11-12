@@ -1848,9 +1848,17 @@ async function runAction(action, ctx, helpers) {
         // 「それらをオープンする。」置いた順に表向きにする。
         // ⓘ requireNoPiece のカード（大地創造）は**駒のいないマスにしか置かない**ので到達は
         //   起きないが、将来 reveal を駒のいるマスで使うなら到達判定が要る（その時はここに足す）。
-        for (const dest of 置いた) {
+        // 🔴【#603・2026-11-12】報告「大地創造でカードをオープンしてくとき、**しっかり
+        //   オープンしてから**次のマスにカメラが行くようにした方がいい！」。
+        //   開く演出はカメラが寄ってからめくるので、めくった直後に次のマスへ寄ると
+        //   **めくれた絵を見る間が無い**。⇒ 1枚ごとに少し置く（最後の1枚の後は置かない）。
+        //   ⚠ 省略可の口なので、テストや寄らない設定では何も待たない。
+        for (let i = 0; i < 置いた.length; i++) {
+          const dest = 置いた[i];
           const top = findTopCardAtCell(dest.row, dest.col);
-          if (top && !top.faceUp) await helpers.flipCard(top.id);
+          if (!top || top.faceUp) continue;
+          await helpers.flipCard(top.id);
+          if (i < 置いた.length - 1) await helpers.holdForReveal?.();
         }
       }
       await helpers.announceEffectReason?.(
@@ -3294,9 +3302,13 @@ async function runAction(action, ctx, helpers) {
         const j = 残りマス.findIndex((c) => c.row === dest.row && c.col === dest.col);
         if (j >= 0) 残りマス.splice(j, 1);
         else 残りマス.shift(); // 念のため（候補外が返ってきても無限ループにしない）
+        // 🔴【#608・2026-11-12】報告「ピーターフッドの到達効果の処理がまどろっこしく遅く
+        //   感じる」。この札は**隣4マスへ3枚ずつ＝計12回**置くので、1回ずつ飛翔を見せると
+        //   長い。⚠ 同じマスへの2枚目・3枚目は**同じ所に重なるだけ**なので、飛翔は
+        //   1枚目だけにする（音は毎回鳴るので、積まれたことは分かる）。
         for (let k = 0; k < (action.count ?? 1); k++) {
           if (getState().piles.deck.length === 0) break;
-          await helpers.placeFromDeck(dest);
+          await helpers.placeFromDeck(dest, { quick: k > 0 });
           置いた++;
         }
         helpers.markPlacedLocation?.(dest);

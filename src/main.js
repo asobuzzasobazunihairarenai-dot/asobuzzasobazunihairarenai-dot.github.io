@@ -2113,8 +2113,10 @@ async function triggerArrivalAtIfFaceUpForEffect(location, expectedPlayer) {
 // PLACE_CARDのsource:"deck"用（終わりなき化学ゲンテクニーク・月下の漂流船プリドゥエン等）。
 // 山札の一番上を、手札を経由せず直接そのマスへ裏向きで置く（performMoveFallbackAndEndTurn
 // と同じ考え方）。
-async function placeFromDeckForEffect(location) {
-  const deckRect = location?.zone === "cell" ? deckStackRect() : null; // 着地演出の飛び元（山札）
+// 🔴【#608・2026-11-12】opts.quick ＝**飛翔の演出を省く**（同じマスへ重ねる2枚目以降）。
+//   音は鳴らすので「積まれた」ことは分かる。ピーターフッドの12回が目に見えて短くなる。
+async function placeFromDeckForEffect(location, opts = {}) {
+  const deckRect = !opts.quick && location?.zone === "cell" ? deckStackRect() : null; // 着地演出の飛び元（山札）
   if (isOnlineMode()) {
     try {
       await drawFromPile("deck", location);
@@ -2128,6 +2130,16 @@ async function placeFromDeckForEffect(location) {
   }
   playSound("cardPlace");
   await playDeckToCellLanding(deckRect, location); // ③演出(#147): 山→マス配置にも着地演出（続き212: 完了まで待つ）
+}
+
+// 🔴【#603・2026-11-12】めくった絵を見る間。開く演出はカメラが寄ってからめくるので、
+//   続けて何枚も開く効果（大地創造・誰かの白きカゲ）では**めくった直後に次のマスへ寄る**と
+//   何が出たのか分からない。⇒ 1枚ごとにここで少し置く。
+//   ⚠ カメラが寄らない設定（決め所が切）では待たない——遅くなるだけで得が無い。
+//   ⚠ 自動で動く席（CPU）でも待つ: 見ているのは人間なので、見せる間は要る。
+function holdForRevealForEffect() {
+  if (!cinematicAllows("highlight")) return Promise.resolve();
+  return new Promise((r) => setTimeout(r, 650));
 }
 
 // 試練の儀式専用（ユーザー要望2026-08-08「オンラインもローカル同様のじらしフリップに」）。
@@ -10462,6 +10474,7 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         endTurn: endTurnForEffect,
         // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。
         peekCards: peekCardsForEffect,
+        holdForReveal: holdForRevealForEffect, // 【#603】めくった絵を見る間
         // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。
         pickNumber: pickNumberForEffect,
         // 【#473/#474】足下の隠し財産の「山札から／手札から」の2択用。
@@ -10666,6 +10679,7 @@ function buildArrivalEffectHelpers(player) {
       endTurn: endTurnForEffect,
       // 0th拡張（鑑定士の技・ジェイク）の「裏向きのカードの表面を見る」。
       peekCards: peekCardsForEffect,
+      holdForReveal: holdForRevealForEffect, // 【#603】めくった絵を見る間
       // 0th拡張（ピーターフッド）の「１〜７の数字を１つ選ぶ」。
       pickNumber: pickNumberForEffect,
       // 【#473/#474】足下の隠し財産の「山札から／手札から」の2択用。

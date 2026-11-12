@@ -555,10 +555,61 @@ function backgroundImageUrl(el) {
   return m ? m[2] : null;
 }
 
-function getTexture(url) {
-  let tex = textureCache.get(url);
+// 🔴【#607・2026-11-12】**盤面のカードのテクスチャを小さくする。**
+//   墜落の控え（#607）で内訳が割れた: 合計 121MB のうち **WebGLのテクスチャが62MB（119枚）**
+//   で、画像36MB・canvas24MB より大きい——**いちばん重い所だった**。
+//   🔴 実測（iPhone 932x430・dpr3・4人戦）: 盤面のカードは画面上 **26x18 CSS px＝77画素**
+//     しか無いのに、テクスチャは **433x433** を積んでいた（必要の31倍の画素数）。
+//   ⇒ 読み込んだ絵を **256px へ縮めてから**GPUへ渡す。カード1枚 0.75MB → 0.26MB（65%減）。
+//   ⚠ **256 の根拠**: いちばん寄る時（カードを開く 1.8倍・最後の1色 1.85倍）でも
+//     26 × 1.85 ≒ 48 CSS px。PCの大きい画面（ステージ倍率1.6・dpr2）でも 48×1.6×2 ≒ 154画素。
+//     256 はその1.6倍の余裕がある。
+//   ⚠ **縮めるのはカード・駒の絵だけ**。プレイマットと背景は画面いっぱいに出る
+//     （実測で1238画素要る）ので触らない。ロックの帯も663画素要るので触らない。
+//   ⚠ **元の絵（assets）は1枚も触っていない。** 長押しの拡大・右上に出るカードは
+//     DOMが原寸で出すので、今までどおりくっきり出る。
+const CARD_TEX_MAX_PX = 256;
+function texCapFor(el) {
+  if (!el || !el.classList) return 0;
+  return el.classList.contains("board-card") || el.classList.contains("stack-top") || el.classList.contains("piece-face")
+    ? CARD_TEX_MAX_PX
+    : 0;
+}
+// 読み込んだ絵を小さい canvas へ描き直して、そちらをGPUへ渡す。
+// ⚠ 元の <img> の参照をここで手放すので、decode 済みの大きい絵も回収される。
+// ⚠ 縮められなかった時は原寸のまま描く（絵が出ないより良い）。
+function shrinkTextureImage(tex, maxPx) {
+  try {
+    const im = tex && tex.image;
+    const w = im && (im.naturalWidth || im.width);
+    const h = im && (im.naturalHeight || im.height);
+    if (!w || !h) return;
+    const 長辺 = Math.max(w, h);
+    if (長辺 <= maxPx) return;
+    const k = maxPx / 長辺;
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w * k));
+    cv.height = Math.max(1, Math.round(h * k));
+    const g = cv.getContext("2d");
+    if (!g) return;
+    g.imageSmoothingQuality = "high";
+    g.drawImage(im, 0, 0, cv.width, cv.height);
+    tex.image = cv;
+    tex.needsUpdate = true;
+  } catch (err) {
+    /* 縮められなくても描画は続ける */
+  }
+}
+
+function getTexture(url, maxPx = 0) {
+  // 同じ絵を別の上限で使うことがあり得るので、鍵に上限も入れる。
+  const key = maxPx ? url + "|" + maxPx : url;
+  let tex = textureCache.get(key);
   if (!tex) {
-    tex = textureLoader.load(url, () => scheduleRender());
+    tex = textureLoader.load(url, (t) => {
+      if (maxPx) shrinkTextureImage(t, maxPx);
+      scheduleRender();
+    });
     tex.colorSpace = THREE.SRGBColorSpace;
     // 【重要】three.jsの既定(flipY=true)は「Yが上向き」の座標系向け。ここではCSSの座標系
     // （Yが下向き）のまま板を並べているので、そのままだと絵が**上下逆さま**に貼られる
@@ -568,7 +619,7 @@ function getTexture(url) {
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.anisotropy = renderer ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 1;
-    textureCache.set(url, tex);
+    textureCache.set(key, tex);
   }
   return tex;
 }
@@ -701,7 +752,7 @@ function ensureMesh(el, url) {
     rootGroup.add(mesh);
   }
   if (mesh.material.map?.__url !== url) {
-    const tex = getTexture(url);
+    const tex = getTexture(url, texCapFor(el));
     tex.__url = url;
     mesh.material.map = tex;
     mesh.material.needsUpdate = true;

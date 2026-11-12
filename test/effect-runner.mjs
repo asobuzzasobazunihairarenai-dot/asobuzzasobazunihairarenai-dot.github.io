@@ -91,7 +91,12 @@ export async function runOneCase(spec) {
     //   「裏向きにして重ねる」（食べ過ぎ）を**一度も検査できていなかった**
     //   ＝スタブが本物より甘いと検査にならない（続き479）。本物に合わせて反転にする。
     flipCard: async (tokenId) => { callLog.push(["flip", tokenId]); const t = findToken(tokenId); if (t) st.flipToken(tokenId); },
-    placeFromDeck: async (location, faceUp) => { callLog.push(["placeFromDeck", location, faceUp]); st.drawFromPile("deck", location); if (faceUp) { const top = S().tokens.filter((t)=>t.kind==="card"&&t.location.zone===location.zone&&(location.zone==="cell"?t.location.row===location.row&&t.location.col===location.col:t.location.side===location.side&&t.location.index===location.index)); const last = top[top.length-1]; if (last && !last.faceUp) st.flipToken(last.id); } },
+    // 🔴【#608・2026-11-12】**本物と同じ引数の並びにそろえた。** 本物は
+    //   placeFromDeckForEffect(location, opts) で、opts.quick は飛翔の演出を省くだけ。
+    //   ここには以前**スタブにだけ在る faceUp**が第2引数に座っていて（続き651 で気づいて
+    //   いたのに直していなかった）、engine が opts を渡した瞬間に**表向きで置かれて**
+    //   ピーターフッドのテストが落ちた。engine からは誰も faceUp を渡していない。
+    placeFromDeck: async (location, opts) => { callLog.push(["placeFromDeck", location, opts && opts.quick ? "quick" : ""]); st.drawFromPile("deck", location); },
     placeFromDeckReveal: async (location) => { callLog.push(["placeFromDeckReveal", location]); st.drawFromPile("deck", location); },
     swapPieces: async (pieceTokenId, fromLocation, targetLocation) => {
       callLog.push(["swap", pieceTokenId, targetLocation]);
