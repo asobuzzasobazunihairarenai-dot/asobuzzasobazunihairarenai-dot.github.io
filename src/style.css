@@ -25023,3 +25023,51 @@ body.board-3d-on .piece.is-jewel-piece .piece-face {
 }
 .action-log-event-subs.is-open { display: block; }
 .action-log-event-sub { padding: 0.08rem 0; }
+
+/* ═══════════ 【状況】カードが効いた時の演出（#592・2026-11-12）═══════════
+   ユーザー要望「ターン開始時に状況効果が起こるとき何かわかりやすい演出があるといいと
+   思うけどどう思う？」。【状況】カードは誰も何も押していないのに勝手に効くので、
+   何が起きたのか追えない。場の中央の札から札の色の輪が広がる（ゲート侵攻の輪と同じ作り）。
+   盤面のマスの上に置くので、重なり順は appendEffectHost に任せる。 */
+.situation-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 90%;
+  height: 90%;
+  border: 0.2rem solid var(--situation-color, #f6c945);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow:
+    0 0 0.9rem var(--situation-color, #f6c945),
+    inset 0 0 0.9rem var(--situation-color, #f6c945);
+  animation: situation-ring 1.4s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+.situation-ring.is-delayed { animation-delay: 0.3s; }
+@keyframes situation-ring {
+  0% { transform: translate(-50%, -50%) scale(0.25); opacity: 0; }
+  16% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(5.2); opacity: 0; }
+}
+body.reduce-glow .situation-ring { box-shadow: none; animation-duration: 0.8s; }
+
+/* ═══════════ ONLYカードの光（#596・2026-11-12）═══════════
+   ユーザー要望「ONLYカードはてからせよう！」。ONLY は1枚しか入れられない札。
+   ⚠ 金の outline を使う（box-shadow は複数ルールの値を合成せず後勝ちで上書きされるので、
+     既に影を持つ盤面のカード・手札の札と取り合いになる＝教訓10）。
+   ⚠ 色は7色のどのカードの上でも読めるよう、金1色に固定する。 */
+.is-only-card {
+  outline: 0.12rem solid rgba(246, 201, 69, 0.9);
+  outline-offset: -0.12rem;
+  animation: only-card-glow 2.4s ease-in-out infinite;
+}
+@keyframes only-card-glow {
+  0%, 100% { outline-color: rgba(246, 201, 69, 0.45); }
+  50% { outline-color: rgba(255, 228, 140, 1); }
+}
+body.reduce-glow .is-only-card { animation: none; outline-color: rgba(246, 201, 69, 0.8); }
+
+/* 【#593】サマリーの隣の「🔔 割り込み ON/OFF」。見た目は自動送りのトグルを流用
+   （phase-auto-skip-toggle のクラスを一緒に付けてある）ので、ここでは絵文字の大きさだけ。 */
+.anytime-interrupt-toggle .phase-auto-skip-toggle-glyph { font-size: 1.05em; }
+

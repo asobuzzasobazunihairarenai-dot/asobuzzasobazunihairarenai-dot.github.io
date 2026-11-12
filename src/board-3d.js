@@ -1229,6 +1229,68 @@ function refreshTracked(table) {
   return any;
 }
 
+// 🔴【#590・#601・2026-11-12】「ゲーム終了後、盤面が真っ暗になりました」。
+//   #601 の計器で決め手が出た:
+//     webglActive: true / suspended: 0 / quads: 204 / textures: 41 /
+//     cssStripped: true / artworkShown: 0
+//   ＝**WebGLは板もテクスチャも持っているのに、画面には何も出ていない。**
+//   board-3d-on が付いている間は CSS 側の絵が剥がされるので、WebGLが実際に描けて
+//   いないと**何も見えない盤面**になる（#369 と同じ致命的な組み合わせ）。
+//   🔴 #369 の verifyRecovery は「文脈が失われたか」「板が0枚か」しか見ないので、
+//     この形（板はある・文脈も生きている）を素通りする。
+//   ⇒ 毎コマ2つ見て、だめならCSS描画へ戻す（**真っ暗より今までの見た目**）:
+//     ① キャンバスの健康（在る・DOMに繋がっている・大きさがある・隠れていない・
+//        いま場面の中に居る）
+//     ② 「描きたいのに描けていない」が続いていないか
+//   ⚠ **「長く描いていない」は正常**（#348: 変化が無ければ描かない＝発熱対策）。
+//     見るのは needsDraw が立ちっぱなしの時間だけ。
+//   ⚠ 畳んでいる間（勝利演出・続き683）は active が false なので、ここは走らない。
+const BLANK_GRACE_MS = 2500;
+let wantDrawSince = 0;
+let blankSince = 0;
+function canvasHealth() {
+  if (!canvasEl) return "canvasなし";
+  if (!canvasEl.isConnected) return "canvasがDOMから外れている";
+  if (canvasEl.parentElement !== getScene()) return "canvasが別の場面に残っている";
+  if (!canvasEl.width || !canvasEl.height) return "canvasの画素が0";
+  const r = canvasEl.getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return "canvasの箱が0";
+  try {
+    const st = getComputedStyle(canvasEl);
+    if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity) < 0.02) return "canvasが隠れている";
+  } catch (err) {
+    /* 計算値が取れない端末でも描画は止めない */
+  }
+  return null;
+}
+function watchForBlankBoard(now) {
+  if (!active || board3dSuspended) {
+    blankSince = 0;
+    return;
+  }
+  const 理由 = canvasHealth() ?? (wantDrawSince && now - wantDrawSince > BLANK_GRACE_MS ? "描きたいのに描けていない" : null);
+  if (!理由) {
+    blankSince = 0;
+    return;
+  }
+  if (!blankSince) blankSince = now;
+  if (now - blankSince < BLANK_GRACE_MS) return;
+  blankSince = 0;
+  try {
+    logAction("diag-board3d-blank", {
+      理由,
+      quads: meshByElement.size + shapeMeshByElement.size,
+      textures: textureCache.size + shapeTextures.size,
+      frameMs: +frameAvgMs.toFixed(1),
+    });
+  } catch (err) {}
+  console.warn("board-3d: 盤面が見えていないので、CSS描画へ戻します (" + 理由 + ")");
+  // 設定そのものは変えない（次に開いた時はまたWebGLで試す＝#369 と同じ方針）。
+  try {
+    setBoard3dActive(false);
+  } catch (err) {}
+}
+
 function frame() {
   if (!active) return;
   rafId = requestAnimationFrame(frame);
@@ -1238,6 +1300,10 @@ function frame() {
   const gapMs = lastFrameAt ? t0 - lastFrameAt : 0; // このコマが前のコマから何ms空いたか
   if (lastFrameAt) frameAvgMs = frameAvgMs * 0.9 + (t0 - lastFrameAt) * 0.1;
   lastFrameAt = t0;
+  // 【#590/#601】描きたいのに描けていない時間を測り、見えていないならCSS描画へ戻す。
+  if (needsDraw && !wantDrawSince) wantDrawSince = t0;
+  watchForBlankBoard(t0);
+  if (!active) return; // 上で畳まれたら、このコマはここまで
   let rebuiltThisFrame = false;
   if (needsRebuild) {
     rebuild();
@@ -1271,6 +1337,7 @@ function frame() {
     handleContextLost();
     return;
   }
+  wantDrawSince = 0; // 【#590/#601】描けた＝「描きたいのに描けていない」の計測をやめる
   lastDrawMs = lastDrawMs * 0.8 + (performance.now() - t1) * 0.2;
   // 描き終えた。DOM に書かれた変形に追いついたなら、待たせた時間がズレの長さ。
   if (pendingTransformKey !== null) {
@@ -1631,6 +1698,10 @@ export function getBoard3dStats() {
   return {
     active,
     suspended: board3dSuspended, // 【#590】勝利演出の間だけ畳む（続き683）。戻し損ねていないか
+    // 【#590/#601】真っ暗の切り分け用。canvasOk が null 以外なら「WebGLは持っているが
+    //   画面に出ていない」が確定する（#601 はここが読めずに決められなかった）。
+    canvasOk: canvasHealth(),
+    wantDrawMs: wantDrawSince ? Math.round(performance.now() - wantDrawSince) : 0,
     quads: meshByElement.size + shapeMeshByElement.size,
     shapes: shapeMeshByElement.size,
     // 【続き677】宝石の立体の数と、1つあたりのファセット数、いま追いかけているものの数。

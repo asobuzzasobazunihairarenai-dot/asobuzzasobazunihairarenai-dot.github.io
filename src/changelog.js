@@ -54,18 +54,28 @@ export const CHANGELOG = [
   {
     date: "2026-11-12",
     summary: [
+      "割り込みの確認を、出る前からオン／オフできるようになりました",
+      "カードの補足で、効果文の中の言葉を押すと説明が出るようになりました",
       "行動ログに「状況カードの効果」と「効果で何を選んだか」が残るようになりました",
     ],
     summaryEn: [
+      "You can now turn interrupt prompts on and off before one appears",
+      "In card notes, tap a term in the effect text to see what it means",
       "The action log now records situation-card effects and the choices made inside effects",
     ],
     items: [
+      "右下のサマリーの隣に「🔔 割り込み」のボタンが出るようになりました。割り込める手札を持っている間だけ出て、押すと割り込みの確認を出す／出さないを切り替えられます。これまでは確認が出た時に「今後このモーダルを出さない」を選ぶしかなく、**出る前に切ることができません**でした。",
+      "カードを長押し（PCでは右クリック）して出る補足の画面で、効果文の中の言葉を押すと、その場で説明が開くようになりました。【追色】【財力】のほか、到達・強制移動・善処の原則・1番上の原則など、説明書の用語集にある言葉が対象です。",
       "行動ログに、ターン開始時に起きた【状況】カードの効果が1行で残るようになりました。効果の中で何を選んだかは、その行の「詳細」を押すと開きます。",
     ],
     itemsEn: [
+      "A \"🔔 Interrupts\" button now sits next to the summary button at the bottom right. It appears while you hold a card you can interrupt with, and toggles whether interrupt prompts are shown. Until now the only way to turn them off was inside the prompt itself, so you could not turn them off before one appeared.",
+      "In the card notes screen (long press, or right click on PC) you can now tap a term inside the effect text to open its explanation. Color Cost, Wealth, Arrival, Forced move, the best-effort principle and the other glossary terms are all covered.",
       "The action log now shows a line for each situation card that takes effect at the start of a turn. Press Details on that line to see what was chosen inside the effect.",
     ],
     fixes: [
+      "CPU対戦で「自分にも持ち時間」を入れている時に、持ち時間の数字が出ていなかったのを直しました。",
+      "対局のあとに盤面が真っ暗になることがあったのを直しました。描けていないと分かった時は、今までの描き方へ自動で戻ります。",
       "画面の下が見切れることがあったのを直しました（ホーム画面から開いたアプリで起きていました）。",
       "CPU対戦の「⚙ 詳細を設定する」で「自分にも持ち時間」を入れても、持ち時間が効かないことがあったのを直しました。",
       "選択肢の多いモーダルが画面の上下に見切れることがあったのを直しました。中でスクロールできます。",
@@ -73,6 +83,8 @@ export const CHANGELOG = [
       "「赤のキューブ フェニックス」の手札効果が、捨て場のカードが1枚のときに使えなくなっていたのを直しました。",
     ],
     fixesEn: [
+      "Fixed the timer not being displayed in CPU matches when your own timer is turned on.",
+      "Fixed the board sometimes going completely dark after a match. When drawing has failed it now falls back to the previous way of drawing.",
       "Fixed the bottom of the screen being cut off. It happened in the app opened from the home screen.",
       "Fixed the timer not applying in CPU matches even with “Timer for me too” turned on in Advanced settings.",
       "Fixed modals with many options being cut off at the top and bottom of the screen. They now scroll inside.",
@@ -80,6 +92,19 @@ export const CHANGELOG = [
       "Fixed Phoenix, the Red Cube: its hand effect could not be used when the discard pile held only one card.",
     ],
     devItems: [
+      "🔴 **#606 / #609「CPUのターンのフェスティバル／経済成長のモーダルが私の画面に出た」＝『選ぶ席』の渡し忘れが4つ目。** `resolveSituationAtTurnStart` は **turnPlayer のターン開始時**に走るのに `effectChoiceSeatOverride` を立てていなかった ⇒ `pickerOwner()` が undefined を返し、**いま画面を見ている人**のものとして出ていた。#471（到達）・#483（手札効果）・#496/#506（委任）とまったく同じ形。⇒ その席を立てて finally で戻す。CPUの席なら疑似CPUが自動で解決する（到達効果と同じ道）。**教訓: 「選ぶ権利」を立てる仕掛けを足したら、その権利が移る経路を全部数える。**",
+      "🔴 **#590 / #601「ゲーム終了後、盤面が真っ暗」の決め手が出た。** 続き679 で足した計器が返した: `webglActive: true / suspended: 0 / quads: 204 / textures: 41 / cssStripped: true / artworkShown: 0` ＝ **WebGLは板もテクスチャも持っているのに画面には何も出ていない**。`board-3d-on` が付いている間はCSS側の絵が剥がされるので**何も見えない盤面**になる（#369 と同じ致命的な組み合わせ）。🔴 #369 の verifyRecovery は「文脈が失われたか」「板が0枚か」しか見ないので**この形を素通りする**。⇒ 毎コマ ①キャンバスの健康（在る・DOMに繋がっている・いま場面の中に居る・大きさがある・隠れていない）②「描きたいのに描けていない」時間 を見て、2.5秒続いたらCSS描画へ戻す＋`diag-board3d-blank` を残す。⚠ **「長く描いていない」は正常**（#348: 変化が無ければ描かない）なので、見るのは `needsDraw` が立ちっぱなしの時間だけ。",
+      "**#594「フェスティバルでマスを選んでる最中にロックフェイズに移行した」。** ターン開始時の効果は subscribe から**待たずに**呼ばれるので、選んでいる間に自動進行が走っていた。⇒ 手札効果と同じ「処理中」の印（`handEffectBusy`）を借りて止める。⚠ **何もしない時は立てない**（早期 return の後で立てる）＝ふだんの対局は1ミリも変わらない。⚠ 30秒で自動的に進む作りなので、取り残しても対局は止まらない。",
+      "🔴 **#597「状況カードの手札効果で、場の中央に置く時にオープン動作が見た目上起こる」＝#503 の先回りが片側だけだった。** 着地より前にめくる処理を **`landingSourceRect`（飛び元のDOM）がある時だけ**に絞っていたが、手札効果は使った瞬間に札が手札から霧散して消えるので**飛び元が無く null**＝先回りが素通りし、engine が後からめくっていた。⇒ 飛ぶ演出の有無に関係なく、表向きで置くと分かっているなら必ず先にめくる。",
+      "🔴 **#599「場にカードが埋まっているのに大地創造が使えた。総点検を！」。** 置き先のマスが無ければ何も起きないので、善処の原則では発動宣言そのものができない。🔴 **カードごとのフラグではなく動詞から導いた**（`placeOnlyEffectHasNoCell`）＝同じ動詞を使う札（大地創造・迷いの森・大盤振舞・建設バブル）に一度で効き、新しい札が増えても自動で効く——これが『総点検』の答え。⚠ **他に起きることがあるなら止めない**（句点の原則）＝「この動詞しか無い（自分の始末を除く）」時だけ。**#582 でフェニックスを撃てなくした失敗で学んだ形。** ⚠ 到達効果は宣言ではないので止めない。テスト2件（49マス埋め／1マスだけ空ける）。",
+      "🔴 **#600「相手のトゥルーアイズの到達効果で私も表面を見れちゃった」。** 裏向きの札の表面は**発動者だけ**の情報。CPU戦は1画面なので、CPUの席のぶんまで出すと**非公開情報が漏れる**（#501 で割り込みの窓にCPUの手札を丸ごと見せていたのと同じ形）。⇒ 自動で動く席のぶんは中身を出さず、「確かめました」の1行だけ出す。盤面は何も変わらないのでルール上の処理は同じ。",
+      "🔴 **#598「CPU戦で自分も時間ありなのにタイマーが見た目上無い」。** `updateBaseClock` の「CPU戦では人間に持ち時間の数字を見せない」は、**その後に足した「CPU戦でも自分にも持ち時間」を見ていなかった**＝入れても数字が出ない。⇒ `isCpuSelfTimerEnabled()` の時は見せる。ⓘ 延長ロープ・砂時計の側は元からこの設定を見ていた（`isSelfTimeLimitExempt`）ので、隠れていたのは基本時間の数字だけ。",
+      "**#593「割り込みのオフを、モーダルが出る前からオフにできた方が良い。割り込みカードを手に入れたときからサマリーボタンの隣にオンオフボタン出現させるのはどう？」。** 指定どおりに実装。🔴 1つの状態を [src/anytime-interrupt-setting.js](src/anytime-interrupt-setting.js)（**import を1つも持たない葉**＝続き573 の TDZ 対策）へ移し、main.js と phase-guide.js の両方から読み書きする。出す／隠すは `getAnytimeUsableHandTokensFor`（割り込みの窓そのものと同じ判定）で決める＝「出ているのに押しても意味が無い」が生えない。⚠ **切っている間は持っていなくても出し続ける**（戻す道が消えないように）。⚠ 続き663 の『切った後にだけ出る再開ボタン』は**もう作らない**（このトグルが切る／戻すの両方を受け持つ）。関数とCSSは経緯のために残した。",
+      "**#589「カード補足の画面で、財力や追色などの固有効果があればそれの説明もあるといいかも」。** ⇒ **用語集の仕組みをそのまま持ってきた**（`linkifyGlossary`）。カードごとに説明を書くと必ず食い違うので、**説明は用語集に1か所だけ**置き、追色・財力の2語を足した（日英とも）。文中の既存の用語（到達・強制移動・善処の原則…）も一緒に押せるようになる。",
+      "**#592「ターン開始時に状況効果が起こるとき何かわかりやすい演出があるといい」。** 場の中央の札を主役にする——①その札へカメラを寄せる ②札の色の輪が2枚、盤面を洗うように広がる（ゲート侵攻の輪と同じ部品）③到達と同じオーラ。🔴 **canvas は1枚も使わない**（全画面の canvas は1枚で約23MB ＝ #441・#607 の山そのもの）。⚠ 動きを減らす設定では出さない。出せなかった時は何も待たない。",
+      "**#596「ONLYカードはてからせよう！」＝光らせる（確認済み）。** `showCardFace`（表向きのカードを出す**唯一の入口**）で `only: true` の札に `.is-only-card` を付ける＝盤面・手札・ロック・山札一覧・図鑑・拡大のどこでも一度で効く。⚠ **裏向きには付かない**（伏せてある札が ONLY だと分かるのは非公開情報の漏れ）。⚠ 色は7色のどの札の上でも読めるよう金1色に固定し、`outline` を使う（`box-shadow` は後勝ちで上書きされる＝教訓10）。",
+      "ⓘ **#604「賄賂しか持っていないのにハンドフェイズがスキップされない」は不具合ではなかった。** 1st EDITION のファーストカード（ジュエル）の手札効果は【財力＝１】＝**手札がちょうど1枚の時に使える**ので、手札が賄賂1枚だけの状態はまさにその条件。`hasUsableLockedFirstOrEternal` が true を返すので、フェイズが待つのが正しい。お礼の文に説明を書いた。",
+      "⚠ **道具のミス（記録）: 置換スクリプトを2回走らせて phase-guide.js に同じ塊を二重に入れた。** 1回目が main.js で例外になり、2回目で phase-guide.js にもう一度当たったため。🔴 **置換が自分の目印を出力に残していると、再実行で何度でも当たる——件数の検査では捕まらない。** ⇒ 以後、置換スクリプトの冒頭に「**もう入っていたら止める**」門番（挿入した目印の有無）を置く。今回は `git checkout -- src/phase-guide.js` で戻してやり直した。",
       "🔴 【#591】**画面の下が見切れるのは、私が #531 で入れた直しの巻き添えだった。** #531（iPhone のホーム画面アプリで下に黒い余白）で「standalone なら outerHeight を信じる」を入れたが、**PC のアプリ版も `display-mode: standalone` に当たる**。PC は窓の枠のぶん outer が本当に大きい（実測 inner 1052 / outer 1074）ので、outer を採ると**下が22px切り落とされた**（ステージ倍率 1.169 → 1.193）。⇒ `navigator.standalone === true` だけを見る形にした——**あれは iOS Safari にしか無いプロパティ**なので、#531（iPhone）には効き、#591（PC）には当たらない。**教訓: 「アプリとして開いているか」の判定に display-mode を使うと、PC のアプリ版まで巻き込む。**",
       "🔴 【#586】**CPU戦の「自分にも持ち時間」が効かないのは、上書きを戻していなかったから。** `if (!isCpuSelfTimerEnabled()) setRopeBaseSeconds(900)` は「入」の時に**何もしない**ので、一度「切」で遊ぶと基本時間が 900秒 のまま残り、次に「入」にしても**時間切れが永遠に来ない**。⇒ 上書きを `ropeBaseOverrideSeconds` という**別の箱**に移し、入/切のどちらでも必ず書き直す（入＝null＝管理者モードのスライダーの値＝既定30秒）。あわせて `teardownCpuBattle` でも必ず外す——残すと、この後に作るオンラインの部屋へ**15分がそのまま持ち込まれる**（`online.js` が部屋を作る時に `getRopeBaseSeconds()` を送る）。**教訓: 「条件つきで上書きする」は、条件が外れた時に戻す所まで書いて初めて対になる。**",
       "🔴 【#587】**ジュエルの周りの「透明な立方体の枠」の正体は光だった。** 手番のグロー・ホバー・効果の対象・接触のにらみ合いは、どれも `.piece-face`（天面＋4つの壁）の box-shadow で描いている。ふつうの立方体ならそれが辺を光らせて正しいが、ジュエルの駒は **WebGL が宝石を描き、DOM の立方体は当たり判定の箱としてだけ在る**（透明）ので、**光だけが立方体の形に浮かぶ**。⇒ 足元に丸い1枚（`.piece-glow`）を置き、WebGL が描いている間はそちらへ光を移した。🔴 **光の値は増やしていない**——既存の5つのルールの `.piece-face` を `:is(.piece-face, .piece-glow)` に広げただけなので、色も強さも「常時光る演出をやめる」設定も**1か所のまま**効く。⚠ `.piece` 自身には載せられない（足元の影に box-shadow を使っていて、box-shadow は複数ルールの値を合成しない＝教訓10）。実測: 5面とも box-shadow が「なし」になり、輪だけが光る。",

@@ -616,7 +616,13 @@ function updateBaseClock(state) {
   if (!baseClockEl) return;
   // CPU戦（1人用）では、CPUを自動で動かすためにタイマー機能自体は有効にしているが、
   // 人間側に基本時間の数字（900秒など）を見せる必要はない（ユーザー要望）。表示だけ隠す。
-  if (isCpuBattleActive()) {
+  // 🔴【#598・2026-11-12】報告「CPU戦で自分も時間ありでやってるけど、タイマーが
+  //   **見た目上無い**です」。この隠しは「CPU戦では人間に持ち時間が無い」前提で書いた
+  //   もので、その後に足した「CPU戦でも自分にも持ち時間」（isCpuSelfTimerEnabled）の
+  //   ことを見ていなかった＝**入れても数字が出ない**。⇒ 入れている時は見せる。
+  //   ⓘ 延長ロープ・砂時計の側は元から isCpuSelfTimerEnabled を見ている
+  //     （isSelfTimeLimitExempt）。隠れていたのは基本時間の数字だけ。
+  if (isCpuBattleActive() && !isCpuSelfTimerEnabled()) {
     setDisplayIfChanged(baseClockEl, "none");
     setTimeCriticalEdge(false, null);
     return;

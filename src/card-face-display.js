@@ -11,7 +11,7 @@
 // ドラッグ中のゴースト・飛翔演出・canvas（victory-summary / card-dissolve）は DOM スロットでは
 // ないため対象外（常に画像/canvasのまま）。
 import { buildCardFace } from "./card-renderer.js";
-import { hasBakedCardFace, getCardImagePath } from "./cards-data.js";
+import { hasBakedCardFace, getCardImagePath, getCardDefinition } from "./cards-data.js";
 import { getLang } from "./i18n.js";
 
 const STORE_KEY = "so7-card-face-mode";
@@ -62,8 +62,17 @@ export function clearCardFaceMount(el) {
 
 // el に「表向きカードの見た目」を表示する。テキストモードならカード面を合成して被せ、
 // 画像モードなら imageUrl を背景に敷く。
+// 🔴【#596・2026-11-12】ユーザー要望「ONLYカードはてからせよう！」＝**光らせる**（確認済み）。
+//   ONLY は「1枚しか入れられない」札（元のカードに ONLY と印字されている。0th拡張の
+//   7色＋白黒で計10種）。遊んでいて**その1枚と分かる**ようにする。
+//   ⚠ 目印のクラスを付けるだけ。見た目は style.css の .is-only-card が決める
+//     （金の縁＝ゆっくり脈打つ）。showCardFace は**表向きのカードを出す唯一の入口**なので、
+//     盤面・手札・ロックエリア・山札一覧・図鑑・拡大のどこでも一度で効く。
+//   ⚠ 裏向きのカードには付かない（cardId が無い呼び出し＝裏面には届かない）。
+//     伏せてある札が ONLY だと分かってしまうのは非公開情報の漏れになる。
 export function showCardFace(el, cardId, imageUrl) {
   if (!el) return;
+  el.classList.toggle("is-only-card", !!cardId && !!getCardDefinition(cardId)?.only);
   const prev = el.querySelector(":scope > .card-face-mount");
   // 🔴 絵に文字が焼き込まれているカード（1st EDITION の Fカード7種＝暫定で印刷データを
   //   当てている）は、テキストモードでも**画像のまま**出す。上から文字を描くと二重になる。

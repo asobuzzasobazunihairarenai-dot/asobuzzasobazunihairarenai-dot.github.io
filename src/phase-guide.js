@@ -14,6 +14,11 @@ import { isAutoPhaseSkipEnabled, setAutoPhaseSkipEnabled } from "./auto-phase-sk
 import { t } from "./ui-text.js";
 import { onLangChange } from "./i18n.js";
 import { openSummarySheet } from "./summary-sheet.js";
+import {
+  isAnytimeInterruptOptedOut,
+  setAnytimeInterruptOptedOut,
+  onAnytimeInterruptOptedOutChange,
+} from "./anytime-interrupt-setting.js";
 
 // tutorial.jsのチュートリアル手順・help.jsの静的ヘルプからも共有される（説明文の二重管理を
 // 避ける）。多言語化のため、表示文は ui-text.js のキーで持ち、下の phaseLabel/phaseShort/
@@ -115,6 +120,7 @@ function refreshPhaseGuideLabels() {
   }
   if (autoSkipSyncFn) autoSkipSyncFn();
   if (summaryLabelSyncFn) summaryLabelSyncFn();
+  if (interruptToggleSyncFn) interruptToggleSyncFn();
 }
 
 // 【続き583・ユーザー要望】「サマリーを見るボタンを右下の自動送りボタンの左隣に新設する
@@ -146,10 +152,70 @@ function buildSummaryButton() {
 }
 let summaryLabelSyncFn = null;
 
+// 🔴【#593・2026-11-12】ユーザー要望「割り込みのオフを、モーダルが出る前からオフに
+//   できた方が良い。**割り込みカードを手に入れたときから**サマリーボタンの隣にオンオフ
+//   ボタン出現させるのはどう？」。
+//   ⚠ **持っていない間は出さない**（押しても何も変わらないボタンを常に見せない）。
+//     出す／隠すは main.js の render() から setAnytimeInterruptToggleAvailable で切り替える。
+//   ⚠ 表示は反転している（ボタンの ON ＝ 割り込みを出す ＝ optedOut が false）。
+let interruptToggleBtn = null;
+let interruptToggleSyncFn = null;
+let interruptToggleAvailable = false;
+function applyInterruptToggleVisibility() {
+  if (!interruptToggleBtn) return;
+  // 切っている間は、持っていなくても出し続ける（戻す道が消えてしまわないように）。
+  const 出す = interruptToggleAvailable || isAnytimeInterruptOptedOut();
+  interruptToggleBtn.style.display = 出す ? "" : "none";
+}
+export function setAnytimeInterruptToggleAvailable(on) {
+  const next = !!on;
+  if (next === interruptToggleAvailable) return;
+  interruptToggleAvailable = next;
+  applyInterruptToggleVisibility();
+}
+function buildAnytimeInterruptToggleButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "anytime-interrupt-toggle";
+  btn.classList.add("icon-action-button", "phase-auto-skip-toggle", "anytime-interrupt-toggle");
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "icon-action-button-icon-wrap";
+  const glyph = document.createElement("span");
+  glyph.className = "phase-auto-skip-toggle-glyph";
+  glyph.textContent = "🔔";
+  const stateBadge = document.createElement("span");
+  stateBadge.className = "phase-auto-skip-toggle-state";
+  iconWrap.appendChild(glyph);
+  iconWrap.appendChild(stateBadge);
+  const caption = document.createElement("span");
+  caption.className = "icon-action-button-caption";
+  btn.appendChild(iconWrap);
+  btn.appendChild(caption);
+  const sync = () => {
+    const on = !isAnytimeInterruptOptedOut();
+    btn.classList.toggle("is-on", on);
+    btn.classList.toggle("is-off", !on);
+    stateBadge.textContent = on ? "ON" : "OFF";
+    caption.textContent = t("game.anytime.toggleCaption");
+    btn.title = on ? t("game.anytime.toggleTitleOn") : t("game.anytime.toggleTitleOff");
+    applyInterruptToggleVisibility();
+  };
+  btn.addEventListener("click", () => {
+    setAnytimeInterruptOptedOut(!isAnytimeInterruptOptedOut());
+  });
+  // モーダルの中の「今後このモーダルを出さない」で切られた時も追いつく（同じ1つの状態）。
+  onAnytimeInterruptOptedOutChange(sync);
+  interruptToggleBtn = btn;
+  interruptToggleSyncFn = sync;
+  sync();
+  return btn;
+}
+
 export function initPhaseGuide() {
   const bar = document.createElement("div");
   bar.id = "phase-guide-bar";
   bar.appendChild(buildSummaryButton()); // 自動送りのさらに左隣（バー先頭）
+  bar.appendChild(buildAnytimeInterruptToggleButton()); // 【#593】サマリーの隣
   bar.appendChild(buildAutoSkipToggleButton()); // ロックアイコンの左隣
   for (const phase of PHASES) {
     bar.appendChild(buildPhaseButton(phase));

@@ -4841,6 +4841,55 @@ export const CASES = [
       { kind: 'tokenAtCell', id: 'self', row: 3, col: 3 },
     ],
   },
+  // 🔴【#599・2026-11-12】報告「場にカード埋まってるのでそもそも使えないはずだけど
+  //   大地創造が使えてしまいました。総点検を！」。置き先のマスが1つも無ければ何も起きない
+  //   ので、発動宣言そのものができない（善処の原則）。
+  //   ⚠ 49マスを埋める形で検査する（枚数ではなく**候補が0か**を見ている）。
+  {
+    name: "大地創造(手札): 置けるマスが1つも無いなら使えない（#599）",
+    kind: "hand",
+    cardId: "ex0-green-creation",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-creation", location: { zone: "hand", player: "A" } },
+        ...Array.from({ length: 49 }, (_, i) => ({
+          id: "fill" + i,
+          kind: "card",
+          cardId: "red-jump-pad",
+          location: { zone: "cell", row: Math.floor(i / 7), col: i % 7 },
+        })),
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-creation", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: {},
+    expect: [{ kind: "handUsable", value: false }],
+  },
+  {
+    name: "大地創造(手札): 置けるマスが1つでもあれば使える（#599 の回帰）",
+    kind: "hand",
+    cardId: "ex0-green-creation",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-creation", location: { zone: "hand", player: "A" } },
+        // (0,0) だけ空けておく
+        ...Array.from({ length: 48 }, (_, i) => ({
+          id: "fill" + (i + 1),
+          kind: "card",
+          cardId: "red-jump-pad",
+          location: { zone: "cell", row: Math.floor((i + 1) / 7), col: (i + 1) % 7 },
+        })),
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-creation", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: ["0,0"] },
+    expect: [{ kind: "handUsable", value: true }],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------

@@ -267,6 +267,20 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   557, // 貧民の行進は「２マス一気」ではなく「１マスずつ２回」
   558, // ホーム画面がスクロールする（52px → 22px。残り22px はユーザー判断待ち）
   559, // 貧民の行進でスラム街に到達しない（表なら到達する、が正しい）
+  // ── 2026-11-12（続き696） ──
+  589, // カード補足の文の用語を押すと説明が出るようにした（追色・財力を用語集へ追加）
+  590, // 盤面が真っ暗: 見えていないと分かったらCSS描画へ戻す＋計器
+  592, // 【状況】カードが効く時の演出
+  593, // 割り込みのオンオフをサマリーの隣へ（持っている間だけ出る）
+  594, // 状況カードの処理中にフェイズが進んでしまうのを止めた
+  596, // ONLYカードを光らせる
+  597, // 状況カードの手札効果で「オープン動作」が見えていたのを直した
+  598, // CPU戦で「自分にも持ち時間」を入れてもタイマーの数字が出なかった
+  599, // 置けるマスが無いのに大地創造が使えた
+  600, // 相手の鑑定士の技で、こちらにも表面が見えていた
+  601, // 590 と同じ（盤面が真っ暗）
+  606, // CPUのターンのフェスティバルのモーダルが人間に出た
+  609, // CPUの経済成長のモーダルが人間に出た
 ]);
 
 // ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
@@ -285,6 +299,22 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  604: {
+    ja: "こちらは不具合ではありませんでした。ロックエリアに置いてあるファーストカードは、手札が1枚ちょうどの時に使えるようになるので、手札が賄賂だけでもハンドフェイズは止まります（使えるカードが残っているため）。",
+    en: "This one is working as intended. The First card in your lock area becomes usable when your hand is exactly one card, so the Hand phase waits even when the bribe is your only card in hand.",
+  },
+  600: {
+    ja: "直しました。裏向きのカードの表面は、効果を使った本人だけが見られるようにしました。相手が確かめた時は「確かめました」とだけ出ます。",
+    en: "Fixed. The face of a face-down card is now shown only to the player whose effect revealed it. When someone else checks, you only see that they checked.",
+  },
+  589: {
+    ja: "入れました。カードの補足の画面に出てくる言葉（【追色】【財力】など）を押すと、その場で説明が開きます。",
+    en: "Added. In the card notes screen you can now tap a term such as Color Cost or Wealth to open its explanation right there.",
+  },
+  598: {
+    ja: "直しました。CPU対戦で「自分にも持ち時間」を入れている時に、持ち時間の数字が出ていませんでした。",
+    en: "Fixed. In CPU matches with your own timer turned on, the time was not being displayed.",
+  },
   563: {
     ja: "再読み込みや強制終了のあとでも、その直前の行動ログが残るようにしました。これまでは入り直した瞬間に消えていたので、今回のように「移動できなかった」時間帯が丸ごと欠けていました。次に同じことが起きたら原因まで追えます。",
     en: "The action log now survives a reload or a crash. Until now it was wiped the moment you re-entered, so the period you were describing was missing entirely. If it happens again the cause can be traced.",

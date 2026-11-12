@@ -52,6 +52,7 @@ import {
   isMoveOpenSuppressedThisTurn,
   // 1st EDITION の【状況】カード（場の中央に置かれている間、全員のターン開始時に効く）。
   getActiveSituationCardId,
+  BOARD_CENTER,
   situationAppliesTo,
   situationNeedsWealthDeclaration,
   runSituationEffect,
@@ -261,7 +262,12 @@ import {
 } from "./hand-effect-ui.js";
 import { initPlayerButtons } from "./player-buttons.js";
 import { initQuickStart } from "./quick-start.js";
-import { initPhaseGuide } from "./phase-guide.js";
+import { initPhaseGuide, setAnytimeInterruptToggleAvailable } from "./phase-guide.js";
+import {
+  isAnytimeInterruptOptedOut,
+  setAnytimeInterruptOptedOut,
+} from "./anytime-interrupt-setting.js";
+import { linkifyGlossary } from "./glossary-linkify.js";
 import { initUpdateChecker, setUpdateBannerGate, reevaluateUpdateBanner } from "./update-checker.js";
 import { initTutorialAutoStart, registerTutorialStageHelpers } from "./tutorial.js";
 // チュートリアルCPU戦（台本化された練習試合）へ、ロック効果アニメとステージ座標変換を注入する。
@@ -1984,7 +1990,13 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
   //   ⓘ engine 側のめくりは `faceUp === false` の時だけ走るので、ここで表にすれば自然に
   //     素通りする（二重にめくって裏返る事故にならない）。「このターンにオープンされた」の
   //     記録は flipToFaceUpForEffect の中で今までどおり付く。
-  if (landingSourceRect && animOpts?.landFaceUp && location?.zone === "cell") {
+  // 🔴【#597・2026-11-12】報告「状況カードの**手札効果**で場の中央に置く時、オープン動作が
+  //   見た目上起こっています」。#503 でこの先回りのめくりを入れたが、**飛ぶ演出がある時
+  //   （landingSourceRect がある時）だけ**に絞っていた。手札効果は使った瞬間に札が手札から
+  //   霧散して消えるので、ここへ来た時には**飛び元のDOMが無く landingSourceRect が null**
+  //   ＝先回りが素通りし、engine が後からめくる＝「オープン動作」が見えていた。
+  //   ⇒ 飛ぶ演出の有無に関係なく、表向きで置くと分かっているなら必ず先にめくる。
+  if (animOpts?.landFaceUp && location?.zone === "cell") {
     const 置いた札 = getState().tokens.find((t) => t.id === tokenId);
     if (置いた札 && 置いた札.faceUp === false) {
       await flipToFaceUpForEffect(tokenId, { skipCamera: true });
@@ -3666,6 +3678,17 @@ async function peekCardsForEffect(cardIds, opts = {}) {
   if (list.some((x) => !x)) await announceEffectNoticeForEffect(null, t("ce.ex0PeekCannotSeeOnline"));
   const table = document.getElementById("game-table");
   const avoidEl = table && opts.cell ? findLocationElement(table, opts.cell) : null;
+  // 🔴【#600・2026-11-12】報告「相手のトゥルーアイズの到達効果で**私も表面を見れちゃった**」。
+  //   裏向きの札の表面は**発動した本人だけ**が見られる情報。CPU戦は1画面なので、CPUの席の
+  //   ぶんまで画面に出すと**非公開情報が漏れる**（#501 で割り込みの窓にCPUの手札を
+  //   丸ごと見せていたのと同じ形）。⇒ 自動で動く席のぶんは**出さない**。
+  //   ⚠ 何を見たかは伝えないが、**見たこと自体**は1行で知らせる（黙って進むと
+  //     「何も起きなかった」ように見える）。盤面は何も変わらないのでルール上の処理は同じ。
+  //   ⚠ 人間同士の1画面対戦は今までどおり出す（全員が同じ画面を覗いている前提）。
+  if (opts.player && isCpuSelectingNow(opts.player)) {
+    await announceEffectNoticeForEffect(null, t("ce.peekedByOther", { name: getPlayerName(opts.player), n: list.length }));
+    return;
+  }
   const waitForNext = !isCpuSelectingNow(opts.player ?? null);
   for (const cardId of list) {
     if (!cardId) continue;
@@ -4904,10 +4927,95 @@ async function resolvePeaceWishesAtTurnStart(player) {
 // 🔴 財力の条件がある状況札（治安悪化・デプレッション）は、**宣言しだいで対象になるかが
 //   変わる人にだけ聞く**（ユーザー指摘「あえて罰を受けたいときも出てきます」）。
 //   決まっている人には聞かない（無駄に止めない）。
+// 🔴【#592・2026-11-12】ユーザー要望「ターン開始時に状況効果が起こるとき何か
+//   わかりやすい演出があるといいと思うけどどう思う？」。
+//   【状況】カードは**誰も何も押していないのに勝手に効く**ので、何が起きたのか追えない。
+//   ⇒ 場の中央の札そのものを主役にする:
+//     ① その札へカメラを寄せる（どの札が効いたのかが分かる）
+//     ② 札の色の輪が中央から2枚、盤面を洗うように広がる（ゲート侵攻の輪と同じ部品）
+//     ③ 札の上に到達と同じオーラ（spawnArrivalBurst。既にある部品）
+//   🔴 **canvas は1枚も使わない。** 全画面の canvas は1枚で約23MB で、#441・#607 の
+//     「勝利演出の後に落ちる」の山そのもの（勝利演出・GATE BREAK と同じ方針）。
+//   ⚠ 動きを減らす設定では出さない（isArrivalEffectDisabled）。カメラは決め所の設定に従う。
+//   ⚠ 出せなかった時は何も待たない（待つと「何も起きないのに固まった」ように見える）。
+async function playSituationCardEffect(cardId) {
+  if (isArrivalEffectDisabled()) return;
+  const table = document.getElementById("game-table");
+  if (!table) return;
+  const cellEl = findLocationElement(table, BOARD_CENTER);
+  if (!cellEl) return;
+  const color = getCardDefinition(cardId)?.color ?? null;
+  const css = color && color !== "rainbow" ? "var(--color-" + color + ")" : "#f6c945";
+  try {
+    const ring = document.createElement("div");
+    ring.className = "situation-ring";
+    ring.style.setProperty("--situation-color", css);
+    appendEffectHost(cellEl, ring, 1500);
+    const ring2 = document.createElement("div");
+    ring2.className = "situation-ring is-delayed";
+    ring2.style.setProperty("--situation-color", css);
+    appendEffectHost(cellEl, ring2, 1800);
+    spawnArrivalBurst(cellEl, color);
+  } catch (err) {
+    console.error("playSituationCardEffect failed", err);
+  }
+  // カメラは最後（輪とオーラを出してから寄る＝寄った先で始まるのではなく、
+  // 起きていることへ寄っていくように見える）。寄れない設定なら何もしない。
+  if (cinematicAllows("highlight")) {
+    try {
+      const tu = getCinematicTuning();
+      await focusCameraOnElement(cellEl, { zoom: tu.openZoom, ms: 380, yaw: tu.openYaw, tilt: tu.openTilt });
+    } catch (err) {
+      console.error("playSituationCardEffect camera failed", err);
+    }
+  }
+}
+
+// 🔴【#594・2026-11-12】ターン開始時に走る効果（【状況】カード等）の間はフェイズを進めない。
+//   報告「フェスティバルでマスを選んでる最中にロックフェイズに移行した」。これらは
+//   subscribe から**待たずに**呼ばれるので、選んでいる間に自動進行が走っていた。
+//   ⇒ 手札効果と同じ「処理中」の印（handEffectBusy）を借りて止める。
+//   ⚠ **何もしない時は立てない**（呼ぶのは早期 return の後）＝ふだんの対局は1ミリも変わらない。
+//     立てっぱなしでも 30 秒で自動的に進む作りなので、取り残しても対局は止まらない。
+//   ⚠ 既に別の効果が処理中なら触らない（他人が立てた印を消さない）。
+let turnStartEffectBusyDepth = 0;
+let turnStartEffectBusyHeld = false;
+function beginTurnStartEffectBusy() {
+  turnStartEffectBusyDepth++;
+  if (turnStartEffectBusyDepth === 1 && !isHandEffectBusy()) {
+    turnStartEffectBusyHeld = true;
+    setHandEffectBusy(true);
+  }
+}
+function endTurnStartEffectBusy() {
+  turnStartEffectBusyDepth = Math.max(0, turnStartEffectBusyDepth - 1);
+  if (turnStartEffectBusyDepth === 0 && turnStartEffectBusyHeld) {
+    turnStartEffectBusyHeld = false;
+    setHandEffectBusy(false);
+  }
+}
+
 async function resolveSituationAtTurnStart(player) {
   if (!player) return;
   const cardId = getActiveSituationCardId();
   if (!cardId) return;
+  // 🔴【#606・#609・2026-11-12】「CPUのターンのフェスティバル／経済成長のモーダルが
+  //   私の画面に出た」。ここは **turnPlayer のターン開始時**に走るのに、
+  //   **選ぶ席を立てていなかった**＝pickerOwner() が undefined を返し、いま画面を見て
+  //   いる人のものとして出ていた（#471 到達・#483 手札効果・#496/#506 委任と
+  //   **まったく同じ形で4つ目**）。⇒ その席を立てる。CPUの席なら疑似CPUが自動で解決する。
+  //   ⚠ 必ず finally で戻す（戻し忘れると以降ずっと別人が選ぶことになる）。
+  const 前の選ぶ席 = effectChoiceSeatOverride;
+  effectChoiceSeatOverride = player;
+  beginTurnStartEffectBusy(); // 【#594】選んでいる間にフェイズを進めない
+  try {
+    await resolveSituationAtTurnStart__inner(cardId, player);
+  } finally {
+    endTurnStartEffectBusy();
+    effectChoiceSeatOverride = 前の選ぶ席;
+  }
+}
+async function resolveSituationAtTurnStart__inner(cardId, player) {
   let 受ける = situationAppliesTo(cardId, player);
   if (situationNeedsWealthDeclaration(cardId, player)) {
     const 返事 = await pickChoiceForEffect(
@@ -4925,6 +5033,8 @@ async function resolveSituationAtTurnStart(player) {
   //   状況カードは**ターン開始時に勝手に効く**ので、何が起きたのか画面から追いにくい。
   logAction("situation", { player, cardId });
   try {
+    // 【#592】お知らせの**前**に演出（何が起きたかを見せてから文で言う）。
+    await playSituationCardEffect(cardId);
     await announceEffectNoticeForEffect(cardId, t("ce.feSituationApplied", { card: cardDisplayName(cardId), name: getPlayerName(player) }));
     await runSituationEffect(cardId, player, buildArrivalEffectHelpers(player));
   } catch (err) {
@@ -9540,13 +9650,10 @@ export function isAnyEffectProcessingBusy() {
 // 本人以外のクライアントへ届くようにした（fireAnytimeCheckpoint参照）。手札効果
 // 使用宣言だけは引き続き既存のhand_effect_use経路で届いているため、この新しい
 // broadcastには乗せていない。
-let anytimeInterruptOptedOut = false;
-// 「今後この割り込みモーダルを出さない」を立てる唯一の口。立てたら必ず
-// 画面の「割り込みを再開」ボタンを出し直す（戻す道が見えないまま消えるのを防ぐ）。
-function setAnytimeInterruptOptedOut(v) {
-  anytimeInterruptOptedOut = !!v;
-  updateResumeAnytimeInterruptButton();
-}
+// 🔴【#593・2026-11-12】この1つの状態は src/anytime-interrupt-setting.js（import を1つも
+//   持たない葉）へ移した。phase-guide.js の「🔔 割り込み ON/OFF」ボタンからも読み書き
+//   するためで、main.js に持ったままだとあちらから読めない（逆向きの import は循環＝
+//   続き573 の TDZ）。立てる口は今までどおり setAnytimeInterruptOptedOut の1つだけ。
 let anytimeInterruptQueue = []; // ローカル対戦で複数プレイヤー分を順番に見せるための待ち行列
 let anytimeInterruptModalEl = null;
 let anytimeInterruptTimer = null;
@@ -9601,7 +9708,7 @@ function closeAnytimeInterruptModal() {
 
 function updateResumeAnytimeInterruptButton() {
   if (!resumeAnytimeInterruptButtonEl) return;
-  resumeAnytimeInterruptButtonEl.style.display = anytimeInterruptOptedOut ? "block" : "none";
+  resumeAnytimeInterruptButtonEl.style.display = isAnytimeInterruptOptedOut() ? "block" : "none";
 }
 
 function buildAnytimeInterruptResumeButton() {
@@ -9614,8 +9721,7 @@ function buildAnytimeInterruptResumeButton() {
   resumeAnytimeInterruptButtonEl.title = t("game.anytime.resumeTip");
   resumeAnytimeInterruptButtonEl.style.display = "none";
   resumeAnytimeInterruptButtonEl.addEventListener("click", () => {
-    anytimeInterruptOptedOut = false;
-    updateResumeAnytimeInterruptButton();
+    setAnytimeInterruptOptedOut(false);
   });
   bar.appendChild(resumeAnytimeInterruptButtonEl);
 }
@@ -9803,7 +9909,7 @@ function showAnytimeInterruptModal(player, tokens) {
 function triggerAnytimeInterruptCheckpoint(afterPlayer) {
   logAction("diag-anytime-checkpoint", {
     afterPlayer,
-    optedOut: anytimeInterruptOptedOut,
+    optedOut: isAnytimeInterruptOptedOut(),
     busy: isAnyEffectProcessingBusy(),
     gateInvasionPending: isGateInvasionPending(),
     gateInvasionQueueActive: isGateInvasionQueueActive(),
@@ -9823,7 +9929,7 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
   //   ⇒ 早く帰るなら**窓も閉じてから**帰る。待っている人（ロック宣言）にも知らせる。
   //   ⚠ modalAlreadyShowing の時は閉じない——**いま出ているモーダルがその窓を使っている**
   //     ので、閉じるとその場で押せなくなる。
-  if (anytimeInterruptOptedOut || isAnyEffectProcessingBusy()) {
+  if (isAnytimeInterruptOptedOut() || isAnyEffectProcessingBusy()) {
     clearInterruptWindow();
     settleAnytimeWindowWaiters(false);
     return;
@@ -10888,7 +10994,7 @@ async function offerArrivalCancelInterrupt(cardId, location, arrivedPlayer) {
     //   設定を見る行だけが抜けていた。
     //   ⓘ 右下の「割り込みを再開」ボタンを押せば、また出るようになる（同じ設定を共有）。
     //   ⚠ CPU（自動で動く席）はモーダルを出さずに即答するので、この設定の対象外。
-    if (anytimeInterruptOptedOut && !isSeatAutoDriven(p)) continue;
+    if (isAnytimeInterruptOptedOut() && !isSeatAutoDriven(p)) continue;
     // 🔴 #476: CPU がここをコイン投げで答えていた（cpuAutoResolveId が無く、cardId も
     //    評価表に無いと yes/no が 50% になる＝main.js の #120 のコメントのとおり）。
     //    カード名のとおり「**リーチを止める時だけ使う**」という基準を与える:
@@ -16174,7 +16280,13 @@ function showCardNoteModal(cardId, opts = {}) {
     見出し.textContent = t("game.cardNote." + 鍵);
     const 本文 = document.createElement("div");
     本文.className = "card-note-body";
-    本文.textContent = 中身;
+    // 🔴【#589・2026-11-12】ユーザー要望「カード補足の画面で、財力や追色などの固有効果が
+    //   あればそれの説明もあるといいかも」。⇒ **用語集の仕組みをそのまま持ってくる**
+    //   （linkifyGlossary）。文中の【追色】【財力】【状況】到達・強制移動・善処の原則…が
+    //   クリックできるようになり、押すと定義のポップアップが出る。
+    //   ⚠ 説明そのものは help-content.ja/en.js の用語集に1か所だけ置く（カードごとに
+    //     書くと必ず食い違う）。追色・財力はこの回に用語集へ足した。
+    linkifyGlossary(本文, 中身);
     textCol.appendChild(見出し);
     textCol.appendChild(本文);
   }
@@ -16183,7 +16295,7 @@ function showCardNoteModal(cardId, opts = {}) {
   noteLabel.textContent = t("game.cardNote.note");
   const body = document.createElement("div");
   body.className = "card-note-body";
-  body.textContent = getCardNote(def.id) || def.note || t("game.stack.noNote");
+  linkifyGlossary(body, getCardNote(def.id) || def.note || t("game.stack.noNote")); // 【#589】補足の中の用語も
   textCol.insertBefore(title, textCol.firstChild);
   textCol.appendChild(noteLabel);
   textCol.appendChild(body);
@@ -21305,7 +21417,13 @@ buildFinalLockApprovalBanner();
 buildTimerToggleButton();
 buildTimerToggleBanner();
 buildAutoProcessingToggleBanner();
-buildAnytimeInterruptResumeButton();
+// 🔴【#593・2026-11-12】**もう作らない。** サマリーの隣の「🔔 割り込み ON/OFF」
+//   （phase-guide.js）が、切る／戻すの両方を1つのボタンで受け持つようになったため
+//   （こちらは『切った後にだけ出る再開ボタン』で、出る前に切ることができなかった）。
+//   ⚠ 関数とCSSは**残してある**（消すと経緯が追えなくなる・公開済みの見た目に戻す
+//     時に要る）。作らないので resumeAnytimeInterruptButtonEl は null のままで、
+//     updateResumeAnytimeInterruptButton は何もしない。
+// buildAnytimeInterruptResumeButton();
 buildContactApprovalModal();
 turnRoundCounterEl = buildTurnRoundCounter();
 updateTurnRoundCounter();
@@ -21888,6 +22006,18 @@ subscribe(() => {
     }
   }
   prevTurnPlayerForAnnouncement = turnPlayer;
+});
+
+// 🔴【#593・2026-11-12】「🔔 割り込み ON/OFF」は**割り込めるカードを持っている間だけ**出す
+//   （ユーザー指定「割り込みカードを手に入れたときから…オンオフボタン出現させるのはどう？」）。
+//   判定は割り込みの窓そのものと同じ関数を使う＝「出ているのに押しても意味が無い」が生えない。
+subscribe(() => {
+  try {
+    const seat = getSelfSeat();
+    setAnytimeInterruptToggleAvailable(!!seat && getAnytimeUsableHandTokensFor(seat).length > 0);
+  } catch (err) {
+    console.error("setAnytimeInterruptToggleAvailable failed", err);
+  }
 });
 
 // 直近でrender()に反映済みの状態の軽量な指紋（フィンガープリント）。オンライン中、

@@ -219,6 +219,24 @@ export const GLOSSARY_EN = [
     ],
   },
   {
+    term: "Color Cost",
+    body: [
+      "The cost you pay to gain a card effect.",
+      "Where a card reads [Color Cost N], discard N cards of the same color as that card from your hand to gain the effect that follows.",
+      "If you do not have enough same-colored cards to discard, you cannot declare that effect at all (best-effort principle).",
+      "White and black are colorless, so they cannot be used as a color cost.",
+    ],
+  },
+  {
+    term: "Wealth",
+    body: [
+      "A condition printed on 1st EDITION cards: the number of cards in that player's hand.",
+      "[Wealth = 3] means exactly three, [Wealth <= 2] two or fewer, [Wealth >= 3] three or more; meet it to gain the effect that follows.",
+      "The S in [Wealth = S] stands for your own wealth, used as a number of cards or cells.",
+      "Unlike a color cost, wealth discards nothing. It is only a condition that is checked.",
+    ],
+  },
+  {
     term: "Color Cost S",
     body: [
       "Written as 【Color Cost S】.",

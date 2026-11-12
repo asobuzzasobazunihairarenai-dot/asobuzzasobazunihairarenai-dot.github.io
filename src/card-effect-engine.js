@@ -493,6 +493,26 @@ function hasStealableMostLockedTarget(player) {
   return players.some((p) => p !== player && countLockedCardsFor(p) === 最大 && getHandTokens(p).length > 0);
 }
 
+// 🔴【#599・2026-11-12】報告「場にカード埋まってるのでそもそも使えないはずだけど
+//   大地創造が使えてしまいました。総点検を！」。置き先のマスが1つも無ければ何も起きない
+//   ので、善処の原則では**発動宣言そのものができない**。
+//   🔴 **カードごとのフラグではなく動詞から導く**（#526/#582 の「捨て場に何枚要るか」と
+//     同じ形）。同じ動詞を使う札（大地創造・迷いの森・大盤振舞・建設バブル）に一度で効き、
+//     新しい札が増えても自動で効く＝これが『総点検』の答え。
+//   ⚠ **他に起きることがあるなら止めない**（句点の原則）。迷いの森の到達は
+//     「１枚ドロー → ４マスに置く → 隣のカードをすべて捨てる」なので、置けなくても
+//     残りの2つは起きる ⇒ 「この動詞しか無い（自分の始末を除く）」時だけ止める。
+//     #582（フェニックスを撃てなくした）で学んだ形。
+//   ⚠ 止めるのは**手札効果（発動宣言）だけ**。到達効果は宣言ではなく勝手に起きるので、
+//     置けなければ『あるだけ置く＝0枚』で素通りするのが正しい。
+function placeOnlyEffectHasNoCell(actions) {
+  const 実のある = (actions ?? []).filter((a) => a && a.verb !== VERBS.DISCARD_SELF);
+  if (実のある.length === 0) return false;
+  return 実のある.every(
+    (a) => a.verb === VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS && getEmptyCellCandidates(!!a.requireNoPiece).length === 0
+  );
+}
+
 export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   if (!autoProcessingEnabled) return false;
   if (isHandEffectDisabledThisTurn(cardTokenId)) return false;
@@ -536,6 +556,8 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   if (option.requiresCellWithCard) {
     if (getCellsWithCardCandidates().length === 0) return false;
   }
+  // 【#599】置き先のマスが1つも無く、それ以外に起きることが無いなら使えない。
+  if (placeOnlyEffectHasNoCell(option.actions)) return false;
   // 🔴【#566 / #562】リトルマウス（0th拡張）専用。
   //   この札は「上記の到達効果を得る（奪う）。**あなたのターンに使ったなら**このターンを終了する。」
   //   ⇒ 相手のターンに割り込んだ時は**この札の2文目が条件で外れる**ので、奪えなければ何も起きない。
@@ -741,6 +763,8 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   if (option.requiresCellWithCard) {
     if (getCellsWithCardCandidates().length === 0) return t("ce.noCellWithCard");
   }
+  // 【#599】ここに書かないと「押せないのに理由が出ない」になる（続き651 の教訓）。
+  if (placeOnlyEffectHasNoCell(option.actions)) return t("ce.needPlaceableCell");
   // 【#566 / #562】ここに書かないと「押せないのに理由が出ない」になる（続き651 の教訓）。
   if (option.requiresStealTargetUnlessOwnTurn) {
     if (getState().turnPlayer !== player && !hasStealableMostLockedTarget(player)) return t("ce.ex0NoStealTarget");
