@@ -177,7 +177,7 @@ import {
   isEternalStagedHidden,
 } from "./gate-invasion-stage.js";
 import { enqueueGateInvasionSteps, isGateInvasionQueueActive, registerOnGateInvasionQueueDrained, reapplyGateInvasionModal, registerGateInvasionModalEternalAnim, registerGateInvasionModalStealAnim, registerGateInvasionModalEternalPreHide, registerGateInvasionModalGateBreak, forceCloseGateInvasionModal } from "./gate-invasion-modal.js";
-import { checkForVictory, wouldCompleteLockWithNewIndex, getLockedCount, resetVictoryTracking, hasAnyoneWon } from "./victory.js";
+import { checkForVictory, wouldCompleteLockWithNewIndex, getLockedCount, resetVictoryTracking, hasAnyoneWon, isColorSlotStillFilled } from "./victory.js";
 // 【2026-10-29・ユーザー案】勝利演出の脈動の間だけキューブへ寄る。寄せる計算は下の
 // focusCameraOnElement（画角・手動ズーム・2D表示と合流する所）にしか無いので、登録で渡す。
 import { registerVictoryCameraFocus, syncVictoryCubeToCamera } from "./victory-celebration.js";
@@ -14760,7 +14760,12 @@ function playLockRobbedNotice(attackerSeat, side, index, cardId) {
   const label = document.createElement("div");
   label.id = "lock-robbed-label";
   label.className = "board-flash-label is-lock-robbed";
-  label.textContent = t("game.gomennasai.robbed", {
+  // 🔴【#616】奪ってもそのスロットが**まだ埋まっている**ことがある（同じ色に2枚重ねている時）。
+  //   それなのに「7色が揃わない」と出していたので、**防げたように見えてしまっていた**。
+  //   数え方は7色勝利とまったく同じ関数を使う（2か所に条件を書かない）。
+  const まだ埋まっている = isColorSlotStillFilled(attackerSeat, index);
+  label.textContent = t(まだ埋まっている ? "game.gomennasai.robbedStillFilled" : "game.gomennasai.robbed", {
+
     attacker: getPlayerName(attackerSeat),
     color: colorLabel,
   });

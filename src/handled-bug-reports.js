@@ -555,6 +555,14 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "直しました（#496 と同じ原因です）。ヤエザのように「相手に選ばせる」カードで、選ぶ権利がその相手に移っていませんでした。委任している間は選ぶ権利もその人のものになるようにしました。",
     en: "Fixed - the same cause as #496. For cards like Yaeza that ask an opponent to choose, the right to choose was not handed over. It now moves with the delegation.",
   },
+  615: {
+    ja: "直しました。色寄せの笛で「手札に加える」側に、笛そのものしか対象が無い時は、CPUが「オープンする」を選ぶようにしました（笛を取っても、その笛でまた同じ選択が来るだけなので）。",
+    en: "Fixed. With the colour flute, when the only card it could take is another flute, the CPU now picks \"reveal\" instead - taking a flute only brings up the same choice again.",
+  },
+  616: {
+    ja: "前半は不具合ではありませんでした。奪った紫のスロットには「なないろの欠片」がもう1枚残っていたので、7色は揃ったままでした。ただし画面が「7色が揃わない」と出していて紛らわしかったので、スロットがまだ埋まっている時はそう出すようにしました。後半の「画面が真っ暗」は直しました。",
+    en: "The first half was not a bug: the purple slot still held a second Rainbow Shard, so the seven colours were still complete. The message wrongly said \"not seven colours any more\", so it now says when the slot is still filled. The black screen is fixed.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

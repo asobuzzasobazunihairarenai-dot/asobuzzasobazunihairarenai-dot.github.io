@@ -93,3 +93,71 @@ body.ui-v2 .codex-section-heading {
   border-image-width: 0 0 2px 0;
   border-image-repeat: stretch;
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+   ③ 全画面ページを明朝体にする（試作の見た目の土台）
+   🔴 **ここが試作といちばん違っていた所。** アプリは `font-family: sans-serif` が
+      **213か所**で、全画面ページはゴシック。試作は Shippori Mincho B1 の明朝。
+   🔴 **新しい書体は1つも足していない。** Shippori Mincho B1 は index.html が
+      既に読み込んでいる（weight 600/700/800）＝**読み込みは1バイトも増えない**。
+   ⚠ `font-family: sans-serif` は**子の規則が自分で宣言している**ので、親に書くだけでは
+      効かない。⇒ ページの中を全部まとめて指定する。
+   ⚠ **等幅が要る所（コード・ID の表示）は戻す**（下の規則）。
+   ⚠ 盤面（対局画面）は対象外——ユーザー指示「対局画面だけはまだにしておいて」。
+   ──────────────────────────────────────────────────────────────────────── */
+body.ui-v2 #home-screen,
+body.ui-v2 #home-screen *:not(code):not(pre),
+body.ui-v2 #codex-page,
+body.ui-v2 #codex-page *:not(code):not(pre),
+body.ui-v2 #profile-page,
+body.ui-v2 #profile-page *:not(code):not(pre),
+body.ui-v2 #ranking-page,
+body.ui-v2 #ranking-page *:not(code):not(pre),
+body.ui-v2 #my-deck-page,
+body.ui-v2 #my-deck-page *:not(code):not(pre),
+body.ui-v2 #my-deck-list-page,
+body.ui-v2 #my-deck-list-page *:not(code):not(pre),
+body.ui-v2 #shop-panel,
+body.ui-v2 #shop-panel *:not(code):not(pre),
+body.ui-v2 #options-menu-panel,
+body.ui-v2 #options-menu-panel *:not(code):not(pre),
+body.ui-v2 #changelog-modal,
+body.ui-v2 #changelog-modal *:not(code):not(pre) {
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+/* 等幅が要る所は戻す（版の番号・識別子など、桁が揃っていないと読みにくいもの）。 */
+body.ui-v2 code,
+body.ui-v2 pre,
+body.ui-v2 [class*="mono"] {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   ④ 全画面ページの大見出しを、試作と同じ「金・明朝・字間広め」に
+   試作の見出しは**字間を開けた明朝**で、下に細い金の罫が1本。
+   🔴 **色は決め打ちで持つ**（教訓15: 明暗2テーマあるので継承に任せない）。
+      金は明るい地でも暗い地でも読める色（#8a6729 は試作のリンク色）。
+   ⚠ 大きさ・位置・余白には触らない（各ページで実測して詰めてある）。
+   ──────────────────────────────────────────────────────────────────────── */
+body.ui-v2 #codex-page-title,
+body.ui-v2 #profile-page-title,
+body.ui-v2 #ranking-page-title,
+body.ui-v2 #shop-panel-title,
+body.ui-v2 #mdl-title,
+body.ui-v2 #mds-title,
+body.ui-v2 #home-screen-title {
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  letter-spacing: 0.14em;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   ⑤ 画面の中の「区切りの罫」を金の細い線に
+   試作はどのページも**細い金の罫1本**で節を分けている。アプリの既定は
+   うすい灰色（rgba(148,163,184,.3)）なので、そこだけ金に寄せる。
+   ⚠ 太さは変えない（1px のまま）。太くすると罫が主役になる。
+   ──────────────────────────────────────────────────────────────────────── */
+body.ui-v2 #mdl-header,
+body.ui-v2 #mdb-header,
+body.ui-v2 #shop-panel-header {
+  border-bottom-color: rgba(176, 141, 63, 0.45);
+}

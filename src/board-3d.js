@@ -704,6 +704,16 @@ let fillLight = null;
 function applyLightRig() {
   if (!scene) return;
   const want = isBoard3dLit();
+  // 🔴【#616・2026-11-13】**別の場面（scene）に残っている光源を「在る」と数えない。**
+  //   これが「勝利演出から戻ると盤面が真っ黒」の正体だった。renderer を作り直すと
+  //   scene は新品になるのに lightRig はモジュールに残るので、ここが
+  //   「もう置いてある」と判断して**新しい scene に光源を1つも足さなかった**。
+  //   「盤面に光を当てる」がONだと材質は光を要るもの（MeshStandardMaterial）なので、
+  //   光源ゼロ＝**全部真っ黒**。実測で scene.children が 2 → 1 に減っていた。
+  if (lightRig && lightRig.parent !== scene) {
+    lightRig = null;
+    hemiLight = keyLight = fillLight = null;
+  }
   if (want && !lightRig) {
     lightRig = new THREE.Group();
     // 空と地面の色を分けた柔らかい下地。これだけで真っ黒な影が出るのを防ぐ。
@@ -1296,9 +1306,36 @@ function refreshTracked(table) {
 //   ⚠ **「長く描いていない」は正常**（#348: 変化が無ければ描かない＝発熱対策）。
 //     見るのは needsDraw が立ちっぱなしの時間だけ。
 //   ⚠ 畳んでいる間（勝利演出・続き683）は active が false なので、ここは走らない。
+//   🔴【#616・2026-11-13】**3つ目の形が出た。** 報告「画面が真っ暗になってしまう」の
+//     行動ログに `diag-board3d-suspend {on:1}` → 1秒後に `{on:0, ok:1}`＝
+//     **勝利演出で畳んで、戻して「成功した」ことになっている**。ところが報告時の状態は
+//     `canvasOk: null`（健康）・`wantDrawMs: 0`（描けている扱い）・`quads: 98`・
+//     `textures: 44` なのに、**画素を25点読むと色ありが0**＝**描いた絵が真っ黒**だった。
+//     ⇒ 上の①②では**絶対に捕まらない**（どちらも「健康」と答える）。
+//     ⇒ **画素そのものを見る**のを足した。見るのは2秒に1回だけ（readPixels はGPUの
+//        同期待ちが起きるので毎コマは高い）。
+//     🔴 **最初の1回は作り直して粘る**（dispose → 作り直し）。#369 の時と違い、ここは
+//        「畳んで戻した直後」という**作り直しで直る見込みのある壊れ方**なので、
+//        いきなりCSSへ落とすと WebGL の見た目を無駄に失う。
+//        作り直してもまだ真っ黒なら、そこでCSS描画へ落とす（**真っ暗より今までの見た目**）。
+//     ⚠ 空振りしない条件を付けた: 板もテクスチャも在る時だけ見る。
+//        盤面に何も無い時（起動直後・2D表示）は真っ黒が正常なので、見ない。
 const BLANK_GRACE_MS = 2500;
+// 画素を見る間隔と、何回続けて真っ黒なら動くか。2回＝約4秒（見間違いで落とさないため）。
+const BLANK_PIXEL_CHECK_MS = 2000;
+const BLANK_PIXEL_STRIKES = 2;
 let wantDrawSince = 0;
 let blankSince = 0;
+let lastPixelCheckAt = 0;
+let blackStrikes = 0;
+let blankRecoverTried = false;
+// 🔴 **作り直した直後・動き始めた直後は、画素を見てはいけない。**
+//   実測で踏んだ: 作り直しの直後は板が戻っていても**カメラの同期がまだ**で、
+//   probeBoard3dPixels() は自分で1回描いてから読むので**本当に真っ黒に見える**。
+//   そのまま数えると「作り直した→やっぱり黒い→CSSへ落とす」と一直線になり、
+//   **粘るために入れた作り直しが、落ちるまでを早めるだけ**になっていた。
+let pixelCheckPausedUntil = 0;
+const BLANK_PIXEL_WARMUP_MS = 6000;
 function canvasHealth() {
   if (!canvasEl) return "canvasなし";
   if (!canvasEl.isConnected) return "canvasがDOMから外れている";
@@ -1314,12 +1351,70 @@ function canvasHealth() {
   }
   return null;
 }
+// 【#616】描いた絵が本当に真っ黒かを見る。2秒に1回だけ・板とテクスチャが在る時だけ。
+function 画素が真っ黒か(now) {
+  if (now < pixelCheckPausedUntil) {
+    blackStrikes = 0;
+    return false;
+  }
+  if (now - lastPixelCheckAt < BLANK_PIXEL_CHECK_MS) return false;
+  lastPixelCheckAt = now;
+  const 板 = meshByElement.size + shapeMeshByElement.size;
+  const 絵 = textureCache.size + shapeTextures.size;
+  // 描くものが無ければ真っ黒が正常。見ない（0しか出ない計器にしない）。
+  if (板 < 4 || 絵 < 2) {
+    blackStrikes = 0;
+    return false;
+  }
+  const p = probeBoard3dPixels();
+  if (!p || p.読めた !== true) {
+    blackStrikes = 0;
+    return false;
+  }
+  blackStrikes = p.色あり === 0 ? blackStrikes + 1 : 0;
+  return blackStrikes >= BLANK_PIXEL_STRIKES;
+}
 function watchForBlankBoard(now) {
   if (!active || board3dSuspended) {
     blankSince = 0;
+    blackStrikes = 0;
     return;
   }
-  const 理由 = canvasHealth() ?? (wantDrawSince && now - wantDrawSince > BLANK_GRACE_MS ? "描きたいのに描けていない" : null);
+  let 理由 = canvasHealth() ?? (wantDrawSince && now - wantDrawSince > BLANK_GRACE_MS ? "描きたいのに描けていない" : null);
+  if (!理由 && 画素が真っ黒か(now)) {
+    // 🔴 最初の1回は作り直して粘る（畳んで戻した直後に起きる壊れ方なので、直る見込みがある）。
+    if (!blankRecoverTried) {
+      blankRecoverTried = true;
+      blackStrikes = 0;
+      blankSince = 0;
+      try {
+        logAction("diag-board3d-black", {
+          段: "作り直す",
+          quads: meshByElement.size + shapeMeshByElement.size,
+          textures: textureCache.size + shapeTextures.size,
+        });
+      } catch (err) {}
+      console.warn("board-3d: 描いた絵が真っ黒なので、作り直して粘ります");
+      // ⚠ disposeRenderer() だけだと rootGroup が null になり、rebuild() が頭で帰るので
+      //   **誰も作り直さない**。ensureRenderer() まで自分で呼ぶ（#278 の復帰と同じ道）。
+      let 作れた = false;
+      try {
+        disposeRenderer();
+        作れた = ensureRenderer();
+        needsRebuild = true;
+        needsDraw = true;
+        // 🔴 作り直した直後は見ない（カメラの同期も板の作り直しもこれから＝必ず黒く見える）。
+        pixelCheckPausedUntil = now + BLANK_PIXEL_WARMUP_MS;
+      } catch (err) {
+        作れた = false;
+      }
+      if (作れた) return;
+      理由 = "真っ黒で、作り直しもできない";
+    } else {
+      // 作り直しても直らなかった（または既に1回試した）。CSS描画へ落とす。
+      理由 = "描いた絵が真っ黒";
+    }
+  }
   if (!理由) {
     blankSince = 0;
     return;
@@ -1440,6 +1535,10 @@ function disposeRenderer() {
   rootGroup = null;
   try { canvasEl?.remove(); } catch (err) {}
   canvasEl = null;
+  // 🔴【#616】光源の参照も捨てる。残すと、作り直した scene に光源を足さないまま
+  //   「もう置いてある」と判断してしまう（上の applyLightRig のコメント参照）。
+  lightRig = null;
+  hemiLight = keyLight = fillLight = null;
   // GPU側の中身はもう無いので、こちらの持ち物も全部捨てて作り直させる。
   meshByElement.clear();
   shapeMeshByElement.clear();
@@ -1650,6 +1749,10 @@ function reconcileBoard3dActive() {
     active = true;
     document.body.classList.add("board-3d-on");
     needsRebuild = true;
+    // 【#616】動き始めた直後も画素は見ない（上の BLANK_PIXEL_WARMUP_MS の理由と同じ）。
+    //   勝利演出から戻った時（setBoard3dSuspended(false)）もここを通る。
+    blackStrikes = 0;
+    try { pixelCheckPausedUntil = performance.now() + BLANK_PIXEL_WARMUP_MS; } catch (err) {}
     unsubscribe = subscribe(() => markDirty());
     window.addEventListener("resize", markDirty);
     // 【#297】盤面のDOMを描き直した合図（main.js の render()）を受け取る。状態が変わらない

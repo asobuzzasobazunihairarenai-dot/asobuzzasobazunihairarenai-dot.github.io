@@ -433,6 +433,23 @@ const OPTION_RANK = {
   ),
 };
 
+// 【#615】色寄せの笛で「取る」対象が、笛そのもの以外に1枚も無いか。
+// ⚠ なないろの欠片は「★ これはすべての色」なので、同色として数える
+//   （続き698 の #613 で engine 側も同じ扱いにした）。
+function 取れるのが笛だけ(state, cardId) {
+  const 色 = getCardDefinition(cardId)?.color;
+  if (!色) return false;
+  const 札 = state?.tokens ?? [];
+  for (const t of 札) {
+    if (t.kind !== "card" || !t.faceUp || t.location?.zone !== "cell") continue;
+    if (String(t.cardId).startsWith("ex0-flute-")) continue;
+    const d = getCardDefinition(t.cardId);
+    if (!d) continue;
+    if (d.color === 色 || d.color === "rainbow") return false;
+  }
+  return true;
+}
+
 // --- ゲート侵攻の状況判断（ユーザー要望2026-08-08「ゲート侵攻に重きを」） ---------------------
 function pieceCellOf(state, seat) {
   const p = state.tokens.find((t) => t.kind === "piece" && t.player === seat);
@@ -491,6 +508,13 @@ export function chooseEffectOption(cardId, usableCandidates, driveSeat) {
     // ・選べる罠の「自ゲートへ強制移動」は、今まさに相手ゲートに乗って侵攻できる状況なら避ける
     //   （自ゲートへ戻ると侵攻が消える）。手札半分捨て等の方がマシ。
     if (cardId === "blue-choosable-trap" && opt.id === "forced-move-to-own-gate" && isOnActiveOpponentGate(state, driveSeat)) r = -1;
+    // 🔴【#615・2026-11-13】報告「CPUが笛で笛を手札に加えた。次自分が進む予定の場所を
+    //   オープンのがいい気がするけど」。#610 で入れた「取る＞オープン」は**取れるものが
+    //   他に在る前提**で、**取れるのが笛そのものしか無い時**は意味が薄い
+    //   （取っても、その笛でまた同じ2択が来るだけ）。⇒ その時だけ取るの評価を下げて、
+    //   オープン（裏向きを1枚めくって場の情報が増える）を選ばせる。
+    //   ⚠ 取る対象が他にも在るなら今までどおり「取る」が上（#610 の判断は変えない）。
+    if (/^ex0-flute-/.test(cardId) && opt.id === "ex0-flute-pickup" && 取れるのが笛だけ(state, cardId)) r = 0;
     return r;
   };
   let best = null;

@@ -74,18 +74,28 @@ export const CHANGELOG = [
       "The long-press hint for opening a card's notes now appears right where your finger is, as a small badge with an up arrow and the word \"Details\". It used to sit above the zoomed card, but the zoom opens on the opposite side of your finger, so the hint ended up across the screen.",
     ],
     fixes: [
+      "対局中に盤面が真っ暗になることがあったのを直しました",
+      "「ゴメンナサイ！」で奪った時の知らせが、まだ色が揃っているのに「7色が揃わない」と出ていたのを直しました",
+      "CPUが色寄せの笛で、笛ばかり手札に加えていたのを直しました",
       "CPU戦で「自分にも持ち時間」を入れた時に、延長ロープが出ないのを直しました",
       "盤面拡大ボタンがターン履歴と重なることがあったのを直しました",
       "色寄せの笛で「なないろの欠片」を選べなかったのを直しました",
       "重なったマスで、下に埋まった「なないろの欠片」のきらめきが上の札に出ていたのを直しました",
     ],
     fixesEn: [
+      "Fixed the board sometimes going completely black during a match",
+      "Fixed the message after a Gomennasai steal claiming the colours were broken when the slot was still filled",
+      "Fixed the CPU taking another flute with the colour flute instead of revealing a card",
       "Fixed the extension rope not appearing in CPU matches when your own clock is turned on",
       "Fixed the board zoom button overlapping the turn history",
       "Fixed the colour flute not being able to target the Rainbow Shard",
       "Fixed a buried Rainbow Shard's holo shimmer showing on top of the card above it",
     ],
     devItems: [
+      "🔴 **#616「画面が真っ暗になってしまう」（#590/#601/#614 と同じ、4回目）の真の原因が割れた。** 行動ログに `diag-board3d-suspend {on:1}` →1秒後に `{on:0, ok:1}`＝続き683 で入れた「勝利演出の間だけ WebGL を畳む」が走り、戻して「成功した」ことになっている。ところが報告時の状態は `canvasOk: null`（健康）・`wantDrawMs: 0`（描けている扱い）・`quads: 98`・`textures: 44` なのに、続き698 で足した画素の計器が **色あり0＝真っ黒**と答えた。⇒ **畳んで戻す経路を本物の関数で再現したら、1.5秒後も7.5秒後も真っ黒のまま**だった。覗き窓を足して差を1つに絞り込んだ: **`scene.children` が 2 → 1**＝**光源が無い**。🔴 `applyLightRig()` は `if (want && !lightRig)` で判断するが、`disposeRenderer()` は `scene` を捨てても **`lightRig` の参照はモジュールに残す**ので、作り直した新しい scene に**光源を1つも足さないまま「もう置いてある」と判断していた**。「盤面に光を当てる」がONだと材質は光が要るもの（MeshStandardMaterial）なので、光源ゼロ＝**全部真っ黒**。⇒ ①`disposeRenderer()` で光源の参照も捨てる ②`applyLightRig()` が**別の場面に残っている光源を「在る」と数えない**（`lightRig.parent !== scene` なら作り直す）。**教訓: 場面（scene）を作り直すなら、その場面に足したものへの参照も全部捨てる。**",
+      "🔴 **見張りも足した（保険）。** 既存の見張りは「キャンバスの健康」と「描きたいのに描けていない時間」しか見ないので、**今回の形（健康・描けている扱い・でも絵は真っ黒）は絶対に捕まらない**。⇒ **2秒に1回だけ画素を25点読み**、2回続けて色が無ければ、まず**1回だけ作り直して粘り**、それでも黒ければ CSS描画へ落とす（**真っ暗より今までの見た目**）。⚠ 空振りしない条件を付けた: 板が4枚以上・テクスチャが2枚以上ある時だけ見る（起動直後・2D表示では真っ黒が正常）。🔴 **実測で作りの穴を1つ潰した**——最初は作り直した直後も画素を見ていたが、**その瞬間はカメラの同期も板の作り直しもこれから**なので必ず黒く見え、「作り直す→やっぱり黒い→落とす」と一直線になっていた（＝粘るために入れた作り直しが、落ちるまでを早めるだけ）。⇒ 作り直した直後と動き始めた直後は**6秒見ない**。A/B: わざと黒くすると +8.9s に作り直し・+22.6s に CSS描画へ、ふつうの盤面では6秒経っても落ちない（空振り0）。",
+      "🔴 **#616 の前半「ゴメンナサイ！で相手の勝利を防いだのにもかかわらず負けた時の処理が進んだ」は、不具合ではなかった。** 行動ログの `attackerLocksBefore` に **`6:rainbow-shard` が2つ**並んでおり、奪った後（`afterSteal`）も1つ残っている＝**紫のスロットは埋まったまま**で7色成立。⇒ Cの勝ちは正しい。🔴 **ただし画面は「7色が揃わない」と言い切っていた**ので、防げたように見えてしまっていた。⇒ 7色勝利とまったく同じ数え方（`isColorSlotStillFilled`、`lockedColorIndexes` を使い回す＝条件を2か所に書かない）で、**そのスロットがまだ埋まっている時は別の文**を出すようにした。",
+      "**#615「CPUが笛で笛を手札に加えた」。** #610 で入れた「取る＞オープン」は**取れるものが他に在る前提**で、取れるのが笛そのものしか無い時は意味が薄い（取っても、その笛でまた同じ2択が来るだけ）。⇒ その時だけ取るの評価を下げてオープンを選ばせる。⚠ 取る対象が他にも在るなら今までどおり「取る」が上（#610 の判断は変えない）。⚠ なないろの欠片は ★すべての色 なので同色として数える（#613 と同じ扱い）。",
       "🔴 **#612「タイマーの数字やロープが表示されていない」は、続き696 の直し漏れ。** #598 で `updateBaseClock` の「CPU戦では数字を見せない」に `isCpuSelfTimerEnabled()` を足したが、**まったく同じ門番が `updateRope` にもあった**のを見落としていた。しかもあの回の記録に「延長ロープ・砂時計の側は元からこの設定を見ている」と書いたが、それは**時間切れの扱い**（`isSelfTimeLimitExempt`）の話で、**表示を隠すこの1行**とは別だった。**教訓: 同じ理由で書かれた門番は、直す前に grep でまとめて数える。**",
       "🔴 **#613「笛で七色の欠片を対象にできなかった」。** `getFaceUpCellCandidatesOfColor` が色の文字列を素で突き合わせていて、欠片の色は `\"rainbow\"` なので**どの色にも一致しなかった**。なないろの欠片は ★これはすべての色である ので、どの色の笛からも取れるのが正しい。⇒ `cardMatchesColor()` に切り出して欠片の例外を入れた。⚠ **同じ取り違えは engine の別の所のコメントが既に警告していた**（宣言色の判定で先に踏んでいる）。**教訓: 色を突き合わせる所を足したら、必ず欠片の例外を書く。** テスト1件（候補数2＝赤は入らない）で固定した。",
       "🔴 **#577「マックールで表向きのカードの上に乗っても到達効果を得なかった」。** 「移動先のカードはオープンしない」は**裏の札をめくらない**という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。同じ一文を持つ札は**4枚**（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、**貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形（既定の到達は止めたまま `triggerArrivalAtIfFaceUp` を自分で呼ぶ）にそろえた。",
@@ -100,7 +110,8 @@ export const CHANGELOG = [
       "🔴 **#576 の追加の問い「2枚目以降の欠片でもちゃんと光らない仕様になってる？」——なっていなかった。** 欠片のキラ加工は `[style*=\"rainbow-shard.webp\"]::after` ＝**絵のファイル名**を目印にしているので、**重なって下に埋まった欠片にも当たる**。しかも重なった札は**まったく同じ箱**に置かれ、WebGL描画が既定なので**DOMの背景は剥がされて透明**（実測: 2枚とも `background-image: none`・箱 565,285,46,38 で一致）。⇒ **埋まった欠片のキラが、上に乗っている別の札の絵の上に出ていた**。⇒ `renderBoardTokens` が `getCardStackGroups` の**最後の1枚以外**に `is-buried-card` を付け、CSS で `::after { content: none }`。実測で埋まった方だけ `content` が `none` になり、一番上はそのまま光る。**教訓: 絵のファイル名で当てるセレクタは、同じ絵が「見えない場所」にもあることを必ず数える。**",
       "⚠ **#576 のもとの問い「CPUのいるマスが虹色にてかってるのはなぜ？」自体は不具合ではない。** あれは**なないろの欠片のキラ加工**（実物のトレーディングカードのホロ加工を真似たもの）で、そのマスの一番上が欠片だと光る。報告時の行動ログにも `topCardId: \"rainbow-shard\"` が残っていた。CPUとは関係ない。",
     ],
-    devItemsEn: [],
+    devItemsEn: [
+],
   },
 
   {

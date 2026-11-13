@@ -119,6 +119,15 @@ export function getLockedCount(player) {
   return lockedColorIndexes(player).size;
 }
 
+// 【#616・2026-11-13】その色スロットが「まだ埋まっている」か（7色勝利の数え方と同じ条件）。
+// 報告「ゴメンナサイ！で相手の勝利を防いだのにもかかわらず負けた時の処理が進んだ」は、
+// 🔴 **不具合ではなかった**——奪った紫のスロットには**なないろの欠片がもう1枚**あり、
+// 7色は揃ったままだった（行動ログの attackerLocksBefore に同じ index が2つ並んでいる）。
+// 画面は「7色が揃わない」と出すので、**防げたように見えてしまう**。それを直すために要る。
+export function isColorSlotStillFilled(player, index) {
+  return lockedColorIndexes(player).has(index);
+}
+
 // カウンターロック／プレゼントの「１番少なくロックしている」判定用の“枚数”。
 // #170（ユーザー報告）: 判定に色数（getLockedCount＝スロットの集合サイズ）を使っていたため、
 // なないろの欠片の手札効果（LOCK_PAIR）で2枚を同じ色スロットへ重ねてロックした場合に
