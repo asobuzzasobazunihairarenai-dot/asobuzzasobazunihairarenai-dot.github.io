@@ -161,3 +161,159 @@ body.ui-v2 #mdb-header,
 body.ui-v2 #shop-panel-header {
   border-bottom-color: rgba(176, 141, 63, 0.45);
 }
+
+/* ============================================================================
+   ⑥〜 試作の見た目を「ちゃんと」当てる（2026-11-13・続き701）
+   ============================================================================
+   ユーザー指摘「全然変わってないね！もっと試作で見せてくれた画像みたいに
+   ガッツりやって見せて！」。⇒ 書体を替えただけでは足りない。**試作の見た目の正体は
+   『地と装飾の作り』**だったので、そこを当てる。
+
+   🔴 試作が持っていて、アプリに無かったもの（試作のソースから写した）:
+     ① アイボリーの地（#faf8f3）＋重ねた放射グラデ
+     ② 画面の上辺に**金の罫 4px**
+     ③ 左上と右下に**金の線画**（円・破線・小さな結晶）
+     ④ 右端に**縦書きの小さなロゴ**
+     ⑤ 大見出しの上に**字間を開けた小さな英字**（0TH EDITION）
+     ⑥ タイル／パネルが**紙の地＋金の細枠＋大きめの影**
+
+   ⚠ **地の差し替えは明テーマの時だけ**にした。暗テーマで地だけ明るくすると、
+     各ページの文字色（明るい色）が残って読めなくなる（教訓15）。
+     既定は明テーマなので、ふだん目に入るのはこちらの姿。
+   ⚠ 装飾（②③④⑤）は**どちらのテーマでも出す**（金は両方で読める）。
+   ============================================================================ */
+
+body.ui-v2 {
+  --v2-ivory: #faf8f3;
+  --v2-paper: #fffdf8;
+  --v2-ink: #241f1a;
+  --v2-gold: #b08d3f;
+  --v2-gold-deep: #8a6729;
+  --v2-gold-soft: rgba(176, 141, 63, 0.45);
+}
+
+/* ⑥-1 地（明テーマだけ）: アイボリー＋光の重なり＋四隅の金の線画 */
+body.ui-v2.theme-light #home-screen,
+body.ui-v2.theme-light #codex-page,
+body.ui-v2.theme-light #profile-page,
+body.ui-v2.theme-light #ranking-page,
+body.ui-v2.theme-light #my-deck-page,
+body.ui-v2.theme-light #my-deck-list-page,
+body.ui-v2.theme-light #shop-panel,
+body.ui-v2.theme-light #changelog-modal {
+  background-color: var(--v2-ivory);
+  background-image:
+    url("../assets/ui-v2/corner-a.svg"),
+    url("../assets/ui-v2/corner-b.svg"),
+    radial-gradient(1200px 820px at 14% -16%, rgba(255, 255, 255, 0.95), transparent 58%),
+    radial-gradient(900px 700px at 96% 108%, rgba(236, 231, 219, 0.9), transparent 62%),
+    linear-gradient(118deg, rgba(255, 255, 255, 0.7) 0 26%, rgba(241, 238, 230, 0.55) 26% 44%, rgba(255, 255, 255, 0.55) 44% 100%);
+  background-repeat: no-repeat;
+  background-position: left -116px top -120px, right -130px bottom -150px, 0 0, 0 0, 0 0;
+  background-size: 480px 480px, 470px 470px, auto, auto, auto;
+  background-attachment: fixed, fixed, fixed, fixed, fixed;
+  color: var(--v2-ink);
+}
+
+/* ⑥-2 金の罫（4px）。試作は画面のいちばん上だが、**そこには出せない**。
+   🔴 実測: アイコンの帯（#option-area）は **z 2700** で、全画面ページ（z 1500）より上。
+     ページの中の擬似要素は z をいくら上げても親（1500）を超えられないので、
+     いちばん上に置くと**必ず帯の下に隠れる**（わざと赤く太くして確かめた——
+     赤は出ていたが帯に暗く覆われていた）。
+   ⇒ **帯のすぐ下**に置く。道具の帯と本文を分ける金の罫になり、試作の意図どおり見える。 */
+body.ui-v2 #home-screen::before,
+body.ui-v2 #codex-page::before,
+body.ui-v2 #profile-page::before,
+body.ui-v2 #ranking-page::before,
+body.ui-v2 #my-deck-page::before,
+body.ui-v2 #my-deck-list-page::before,
+body.ui-v2 #shop-panel::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--option-area-band-height, 3rem);
+  height: 4px;
+  z-index: 9;
+  pointer-events: none;
+  background: linear-gradient(90deg, #b08d3f, #d9b468 40%, #b08d3f);
+}
+
+/* ⑥-3 右端の縦書きロゴ（試作の装丁）。
+   ⚠ 文字そのものを CSS で持つので、言語を切り替えても変わらない（装飾のため意図どおり）。 */
+body.ui-v2 #home-screen::after,
+body.ui-v2 #codex-page::after,
+body.ui-v2 #profile-page::after,
+body.ui-v2 #ranking-page::after,
+body.ui-v2 #my-deck-page::after,
+body.ui-v2 #my-deck-list-page::after,
+body.ui-v2 #shop-panel::after {
+  content: "SHADES OF S:EVEN";
+  position: fixed;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  font-family: "Cormorant Garamond", "Shippori Mincho B1", serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.62em;
+  color: var(--v2-gold);
+  z-index: 9;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ⑥-4 大見出しの上に、字間を開けた小さな英字（試作の「0TH EDITION」） */
+body.ui-v2 #codex-page-title::before,
+body.ui-v2 #profile-page-title::before,
+body.ui-v2 #ranking-page-title::before,
+body.ui-v2 #shop-panel-title::before,
+body.ui-v2 #mdl-title::before,
+body.ui-v2 #home-screen-title::before {
+  content: "0TH EDITION";
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
+  display: block;
+  font-family: "Cormorant Garamond", "Shippori Mincho B1", serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  color: var(--v2-gold-deep);
+  margin-bottom: 6px;
+}
+
+/* ⑥-5 ホームのタイルを「紙の札」に（試作の .sv-tile） */
+body.ui-v2.theme-light .home-screen-tile {
+  background: var(--v2-paper);
+  border: 1px solid var(--v2-gold-soft);
+  border-radius: 2px;
+  padding: 1rem 0.6rem 0.9rem;
+  color: var(--v2-ink);
+  box-shadow: 0 18px 40px -30px rgba(120, 96, 48, 0.7);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+body.ui-v2.theme-light .home-screen-tile:hover {
+  transform: translateY(-3px);
+  filter: none;
+  border-color: var(--v2-gold);
+  box-shadow: 0 22px 44px -26px rgba(120, 96, 48, 0.55);
+}
+body.ui-v2.theme-light .home-screen-tile.is-soon {
+  color: rgba(36, 31, 26, 0.55);
+}
+
+/* ⑥-6 上端の道具の帯を、紺から「墨＋金」へ寄せる
+   🔴 試作はアイボリーと金で出来ているので、**紺の帯だけが別の世界の色**として残る。
+   ⚠ 帯そのものは消せない——アイコンは明るい色で描かれていて、**明るい地にすると読めなくなる**
+     （この帯は元々「背景が白系だとアイコンが見にくい」ために足されたもの）。
+   ⇒ 暗さは保ったまま**色味だけ**を墨色へ寄せ、下端に金の細い線を置く。
+   ⚠ オープニング中は元のCSSが帯ごと消すので、ここも自動的に出ない。 */
+body.ui-v2 #option-area::before {
+  background: linear-gradient(
+    180deg,
+    rgba(40, 32, 20, 0.9) 0%,
+    rgba(40, 32, 20, 0.72) 55%,
+    rgba(40, 32, 20, 0) 100%
+  );
+}

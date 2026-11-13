@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" width="420" height="420">
+<g fill="none" stroke="#b08d3f" stroke-width="1" opacity=".5">
+<circle cx="210" cy="210" r="196"/>
+<circle cx="210" cy="210" r="168" stroke-dasharray="2 7"/>
+<circle cx="210" cy="210" r="124"/>
+<path d="M14 210h392M210 14v392"/>
+<path d="M72 72 348 348M348 72 72 348" stroke-dasharray="3 9"/>
+</g>
+<polygon points="210,40 221,66 210,92 199,66" fill="#9183b5" opacity=".28"/>
+<polygon points="92,210 118,199 144,210 118,221" fill="#cc5b52" opacity=".25"/>
+<polygon points="140,320 151,296 162,320 151,344" fill="#d8b24c" opacity=".28"/>
+</svg>

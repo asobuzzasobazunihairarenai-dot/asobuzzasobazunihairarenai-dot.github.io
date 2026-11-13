@@ -53,9 +53,30 @@ function readWanted() {
   }
 }
 
+// 🔴【続き701】試作が使っている欧文書体は、**v2 を入れた時だけ**読み込む。
+//   index.html に足すと**既定オフの人にも読み込みが増える**（ユーザー報告「重くなった」の
+//   直後なので、既定の人の負担は1バイトも増やさない）。
+//   ⚠ 和文の Shippori Mincho B1 は index.html が元から読んでいるので何もしない。
+const WEBFONT_ID = "ui-v2-webfonts";
+const WEBFONT_HREF =
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Oswald:wght@400;500;600&display=swap";
+function ensureWebfonts() {
+  try {
+    if (document.getElementById(WEBFONT_ID)) return;
+    const link = document.createElement("link");
+    link.id = WEBFONT_ID;
+    link.rel = "stylesheet";
+    link.href = WEBFONT_HREF;
+    document.head.appendChild(link);
+  } catch (err) {
+    /* 読めなくても、代わりの書体（明朝）で出るだけ */
+  }
+}
+
 function apply() {
   try {
     document.body.classList.toggle("ui-v2", enabled);
+    if (enabled) ensureWebfonts();
   } catch (err) {
     /* body がまだ無い端末（起きないはずだが、見た目のために落とさない） */
   }
