@@ -1077,6 +1077,23 @@ function handEffectValueFor(card, seat, state, handCount) {
       // ロック済み＝追色コストが実質タダの時だけ、「引いて今ターン使えるものがあれば使う」ために撃つ。
       // 緑がまだ要る色なら温存。使用可否（別の緑あり＋1/turn）はcanUseHandEffectが担保。
       return !neededColors(state, seat).has("green") ? 1 : 0;
+    // --- 割り込み（相手のロック宣言に差し込む札）------------------------------------
+    // 🔴【#620/#624・2026-11-14】報告「CPUが私の最後のロックの時にやり直しの鍵を使ってこなかった」
+    //   「最後ロックする時、CPUが賄賂を使ってこなかった」。**どちらもここに登録が無く、
+    //   default の 0 に落ちていた**＝使える場面でも一度も選ばれない。
+    //   ⚠ この2枚は『相手がロックを宣言した時』にしか使えない（getAnytimeUsableHandTokensFor が
+    //     窓を絞る）ので、ここで値を付けても**窓の外では走らない**。
+    //   ⚠ 相手が何色ロックしているかで重みを変える（手札を1枚払うので、序盤に撃つと損）。
+    case "ex0-purple-redo-key": // やり直しのカギ: 宣言した相手はこのターンにロックできない
+    case "1st-purple-bribe": {  // 裏貴族の賄賂: ロックしようとした札を奪い、手札から1枚渡す
+      const 最大 = Math.max(
+        0,
+        ...(state.activePlayers || []).filter((x) => x !== seat).map((p) => distinctLockedColorCount(state, p))
+      );
+      if (最大 >= COLORS.length - 1) return 4; // 6色＝次で勝たれる。ここで止めないと負ける
+      if (最大 >= 4) return 2;                 // 終盤。1枚払ってでも止める価値がある
+      return 0;                                // 序盤は温存（紫はロックの種にもなる）
+    }
     // --- 意図的に自動使用しない: 配置トラップ系(専用コンボ要) ほか ---
     default:
       return 0;

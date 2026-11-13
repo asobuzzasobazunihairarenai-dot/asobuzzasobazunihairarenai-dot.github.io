@@ -74,6 +74,9 @@ export const CHANGELOG = [
       "The long-press hint for opening a card's notes now appears right where your finger is, as a small badge with an up arrow and the word \"Details\". It used to sit above the zoomed card, but the zoom opens on the opposite side of your finger, so the hint ended up across the screen.",
     ],
     fixes: [
+      "勝利演出のあと、一瞬だけ盤面が真っ暗になることがあったのを直しました",
+      "カメラが寄ったまま元の位置に戻らなくなることがあったのを直しました",
+      "CPUが「やり直しのカギ」「裏貴族の賄賂」を一度も使ってこなかったのを直しました",
       "対局中に盤面が真っ暗になることがあったのを直しました",
       "「ゴメンナサイ！」で奪った時の知らせが、まだ色が揃っているのに「7色が揃わない」と出ていたのを直しました",
       "CPUが色寄せの笛で、笛ばかり手札に加えていたのを直しました",
@@ -83,6 +86,9 @@ export const CHANGELOG = [
       "重なったマスで、下に埋まった「なないろの欠片」のきらめきが上の札に出ていたのを直しました",
     ],
     fixesEn: [
+      "Fixed the board flashing black for a moment after the victory sequence",
+      "Fixed the camera sometimes staying zoomed in and never returning",
+      "Fixed the CPU never using Redo Key or Noble Bribe",
       "Fixed the board sometimes going completely black during a match",
       "Fixed the message after a Gomennasai steal claiming the colours were broken when the slot was still filled",
       "Fixed the CPU taking another flute with the colour flute instead of revealing a card",
@@ -92,6 +98,9 @@ export const CHANGELOG = [
       "Fixed a buried Rainbow Shard's holo shimmer showing on top of the card above it",
     ],
     devItems: [
+      "🔴 **#618 / #625「また真っ暗です」「勝利後、一瞬また真っ暗になった気がする」。** #618 は光源の直しが入る**前**のビルド（20261113-221348）、**#625 は直しが入った後**（20261113-232643）＝「ずっと真っ暗」が「**一瞬だけ**」に変わって残った、という形。🔴 残りの正体は**見せる順番**だった——`board-3d-on` が付いた瞬間に CSS 側は盤面の絵を剥がすので、WebGL が最初の1コマを描き終えるまでの数コマは**何も無い盤面**になる。⇒ **クラスを付けるのは最初に描けた後**にした（`pendingShowAfterDraw`）。それまでは今までどおり CSS が描くので、欠ける瞬間が無くなる。⚠ WebGL の canvas は盤面DOMより奥なので、両方出ている間も二重には見えない。⚠ 万一ずっと描けない端末では**クラスが付かないまま＝CSSの絵が出たまま**になる（安全側）。実測: 畳んで戻した後 1.5/7.5/15.5秒とも `board-3d-on` あり・画素 25/25・光源あり。",
+      "🔴 **#623「カメラが正位置に戻らない」。** `scheduleCameraHome` は「演出の最中なら戻らずに待ち直す」作りで、**待ち直しに上限が無かった**。演出中の印（`isBoardAnimationPlaying`）が何かの拍子に下りないと**永久に待ち続ける**＝カメラは寄ったまま二度と戻らない。⇒ 待ち直しに **6秒**の上限を置き、超えたら戻す。⚠ ふつうの演出は長くても2〜3秒なので、割り込むことはまずない。⚠ 超えた時だけ `diag-camera-home-forced` を残す——**報告の行動ログ（1002行）にカメラの手がかりが1行も無く、読みだけでは決められなかった**ため。",
+      "🔴 **#620 / #624「CPUが賄賂／やり直しの鍵を使ってこなかった」。** どちらも `handEffectValueFor` に登録が無く **default の 0** に落ちていた＝**使える場面でも一度も選ばれない**（#501 で CPU の席はモーダルを出さずこの評価で決めるようにしたので、0 だと必ず見送る）。⇒ 相手のロック色数で重みを付けた: **6色（次で勝たれる）なら 4／4色以上なら 2／それ未満は 0**（手札を1枚払うので序盤は温存。紫はロックの種にもなる）。⚠ この2枚は『相手がロックを宣言した時』の窓でしか使えないので、窓の外では走らない。",
       "🔴 **#616「画面が真っ暗になってしまう」（#590/#601/#614 と同じ、4回目）の真の原因が割れた。** 行動ログに `diag-board3d-suspend {on:1}` →1秒後に `{on:0, ok:1}`＝続き683 で入れた「勝利演出の間だけ WebGL を畳む」が走り、戻して「成功した」ことになっている。ところが報告時の状態は `canvasOk: null`（健康）・`wantDrawMs: 0`（描けている扱い）・`quads: 98`・`textures: 44` なのに、続き698 で足した画素の計器が **色あり0＝真っ黒**と答えた。⇒ **畳んで戻す経路を本物の関数で再現したら、1.5秒後も7.5秒後も真っ黒のまま**だった。覗き窓を足して差を1つに絞り込んだ: **`scene.children` が 2 → 1**＝**光源が無い**。🔴 `applyLightRig()` は `if (want && !lightRig)` で判断するが、`disposeRenderer()` は `scene` を捨てても **`lightRig` の参照はモジュールに残す**ので、作り直した新しい scene に**光源を1つも足さないまま「もう置いてある」と判断していた**。「盤面に光を当てる」がONだと材質は光が要るもの（MeshStandardMaterial）なので、光源ゼロ＝**全部真っ黒**。⇒ ①`disposeRenderer()` で光源の参照も捨てる ②`applyLightRig()` が**別の場面に残っている光源を「在る」と数えない**（`lightRig.parent !== scene` なら作り直す）。**教訓: 場面（scene）を作り直すなら、その場面に足したものへの参照も全部捨てる。**",
       "🔴 **見張りも足した（保険）。** 既存の見張りは「キャンバスの健康」と「描きたいのに描けていない時間」しか見ないので、**今回の形（健康・描けている扱い・でも絵は真っ黒）は絶対に捕まらない**。⇒ **2秒に1回だけ画素を25点読み**、2回続けて色が無ければ、まず**1回だけ作り直して粘り**、それでも黒ければ CSS描画へ落とす（**真っ暗より今までの見た目**）。⚠ 空振りしない条件を付けた: 板が4枚以上・テクスチャが2枚以上ある時だけ見る（起動直後・2D表示では真っ黒が正常）。🔴 **実測で作りの穴を1つ潰した**——最初は作り直した直後も画素を見ていたが、**その瞬間はカメラの同期も板の作り直しもこれから**なので必ず黒く見え、「作り直す→やっぱり黒い→落とす」と一直線になっていた（＝粘るために入れた作り直しが、落ちるまでを早めるだけ）。⇒ 作り直した直後と動き始めた直後は**6秒見ない**。A/B: わざと黒くすると +8.9s に作り直し・+22.6s に CSS描画へ、ふつうの盤面では6秒経っても落ちない（空振り0）。",
       "🔴 **#616 の前半「ゴメンナサイ！で相手の勝利を防いだのにもかかわらず負けた時の処理が進んだ」は、不具合ではなかった。** 行動ログの `attackerLocksBefore` に **`6:rainbow-shard` が2つ**並んでおり、奪った後（`afterSteal`）も1つ残っている＝**紫のスロットは埋まったまま**で7色成立。⇒ Cの勝ちは正しい。🔴 **ただし画面は「7色が揃わない」と言い切っていた**ので、防げたように見えてしまっていた。⇒ 7色勝利とまったく同じ数え方（`isColorSlotStillFilled`、`lockedColorIndexes` を使い回す＝条件を2か所に書かない）で、**そのスロットがまだ埋まっている時は別の文**を出すようにした。",
@@ -111,6 +120,7 @@ export const CHANGELOG = [
       "⚠ **#576 のもとの問い「CPUのいるマスが虹色にてかってるのはなぜ？」自体は不具合ではない。** あれは**なないろの欠片のキラ加工**（実物のトレーディングカードのホロ加工を真似たもの）で、そのマスの一番上が欠片だと光る。報告時の行動ログにも `topCardId: \"rainbow-shard\"` が残っていた。CPUとは関係ない。",
     ],
     devItemsEn: [
+
 ],
   },
 

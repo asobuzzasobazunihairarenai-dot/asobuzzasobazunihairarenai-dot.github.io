@@ -1335,6 +1335,8 @@ let blankRecoverTried = false;
 //   そのまま数えると「作り直した→やっぱり黒い→CSSへ落とす」と一直線になり、
 //   **粘るために入れた作り直しが、落ちるまでを早めるだけ**になっていた。
 let pixelCheckPausedUntil = 0;
+// 【#618/#625】最初の1コマを描き終えるまで board-3d-on を付けない（CSSの絵を出したままにする）。
+let pendingShowAfterDraw = false;
 const BLANK_PIXEL_WARMUP_MS = 6000;
 function canvasHealth() {
   if (!canvasEl) return "canvasなし";
@@ -1484,6 +1486,11 @@ function frame() {
     return;
   }
   wantDrawSince = 0; // 【#590/#601】描けた＝「描きたいのに描けていない」の計測をやめる
+  // 【#618/#625】描けたので、ここではじめて CSS 側の絵を引っ込める（上の pendingShowAfterDraw）。
+  if (pendingShowAfterDraw) {
+    pendingShowAfterDraw = false;
+    try { document.body.classList.add("board-3d-on"); } catch (err) {}
+  }
   lastDrawMs = lastDrawMs * 0.8 + (performance.now() - t1) * 0.2;
   // 描き終えた。DOM に書かれた変形に追いついたなら、待たせた時間がズレの長さ。
   if (pendingTransformKey !== null) {
@@ -1747,8 +1754,16 @@ function reconcileBoard3dActive() {
   if (on) {
     if (!ensureRenderer()) return false;
     active = true;
-    document.body.classList.add("board-3d-on");
+    // 🔴【#618/#625・2026-11-14】**「描けてから見せる」。**
+    //   `board-3d-on` が付いた瞬間から CSS 側は盤面の絵を剥がすので、WebGL が最初の1コマを
+    //   描き終えるまでの数コマは**何も無い盤面**になる。#616 を直すまでは「ずっと真っ暗」
+    //   だったものが、直った後は「**一瞬だけ真っ暗**」として残った（報告そのまま）。
+    //   ⇒ クラスを付けるのは**最初に描けた後**（下の frame() の描画成功の所）。
+    //   ⚠ それまでは今までどおり CSS が盤面を描くので、見た目が欠ける瞬間が無くなる。
+    //   ⚠ WebGL の canvas は盤面DOMより奥なので、両方出ている間も二重には見えない。
+    pendingShowAfterDraw = true;
     needsRebuild = true;
+    needsDraw = true;
     // 【#616】動き始めた直後も画素は見ない（上の BLANK_PIXEL_WARMUP_MS の理由と同じ）。
     //   勝利演出から戻った時（setBoard3dSuspended(false)）もここを通る。
     blackStrikes = 0;
@@ -1790,6 +1805,7 @@ function reconcileBoard3dActive() {
     rafId = requestAnimationFrame(frame);
   } else {
     active = false;
+    pendingShowAfterDraw = false; // 【#618/#625】待ちを残さない
     document.body.classList.remove("board-3d-on");
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;

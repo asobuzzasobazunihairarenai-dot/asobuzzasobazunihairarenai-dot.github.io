@@ -14921,6 +14921,13 @@ window.addEventListener("so7:preview-final-lock", () => {
 // **withBoardAnimation で包まれた演出すべて**で立つので、1か所でまとめて守れる。
 // 止まらない心配は無い——あちらは取り残されたフラグを自力で下ろす（anim-gate.js の STUCK_MS）。
 const CAMERA_HOME_RETRY_MS = 150; // 演出中だった時に、もう一度見に来る間隔
+// 🔴【#623・2026-11-14】報告「カメラが正位置に戻らない」。**待ち直しに上限が無かった。**
+//   下の scheduleCameraHome は「演出の最中なら戻らずに待ち直す」作りで、
+//   **演出中の印（isBoardAnimationPlaying）が何かの拍子に下りないと永久に待ち続ける**
+//   ＝カメラは寄ったまま二度と戻らない。⇒ 上限を置き、超えたら戻す。
+//   ⚠ ふつうの演出は長くても2〜3秒なので、6秒まで待てば割り込むことはまずない。
+//   ⚠ 超えた時だけ行動ログに1行残す（報告のログにカメラの手がかりが1つも無かったため）。
+const CAMERA_HOME_RETRY_MAX_MS = 6000;
 let cameraHomeTimer = null;
 function cancelScheduledCameraHome() {
   if (cameraHomeTimer) {
@@ -14931,15 +14938,19 @@ function cancelScheduledCameraHome() {
 // onDone（省略可）: 実際に元の視点へ戻り切った時に1回だけ呼ぶ。【#510】お知らせを
 //   「カメラが戻ってから」出すために、戻り終わりを知る必要がある（下の
 //   waitForCardOpenCameraHome）。待ち直しが挟まっても引き継ぐ。
-function scheduleCameraHome(delay = 700, ms = 420, onDone = null) {
+function scheduleCameraHome(delay = 700, ms = 420, onDone = null, 待った = 0) {
   cancelScheduledCameraHome();
   cameraHomeTimer = setTimeout(() => {
     cameraHomeTimer = null;
     // 演出の最中なら戻らずに待ち直す（上の説明）。新しい寄りが来れば取り消されるので、
     // 待ち直しが残り続けることはない。
     if (isBoardAnimationPlaying()) {
-      scheduleCameraHome(CAMERA_HOME_RETRY_MS, ms, onDone);
-      return;
+      if (待った < CAMERA_HOME_RETRY_MAX_MS) {
+        scheduleCameraHome(CAMERA_HOME_RETRY_MS, ms, onDone, 待った + CAMERA_HOME_RETRY_MS);
+        return;
+      }
+      // 上限を超えた＝演出中の印が下りていない。待ち続けると二度と戻らないので、戻す。
+      try { logAction("diag-camera-home-forced", { 待ったms: 待った }); } catch (err) {}
     }
     void Promise.resolve(cameraHome(ms)).finally(() => {
       try {

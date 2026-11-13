@@ -563,6 +563,26 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "前半は不具合ではありませんでした。奪った紫のスロットには「なないろの欠片」がもう1枚残っていたので、7色は揃ったままでした。ただし画面が「7色が揃わない」と出していて紛らわしかったので、スロットがまだ埋まっている時はそう出すようにしました。後半の「画面が真っ暗」は直しました。",
     en: "The first half was not a bug: the purple slot still held a second Rainbow Shard, so the seven colours were still complete. The message wrongly said \"not seven colours any more\", so it now says when the slot is still filled. The black screen is fixed.",
   },
+  618: {
+    ja: "直しました。報告をいただいた時のアプリにはまだ入っていなかった直し（光源が消えていた件）が入り、さらに「最初の1コマが描けてから見せる」ようにしたので、一瞬の暗転も出なくなりました。",
+    en: "Fixed. The light-rig fix was not yet in the build you reported from, and the board now waits for its first frame before hiding the fallback art, so the brief flash is gone too.",
+  },
+  620: {
+    ja: "直しました。CPUの評価表に「裏貴族の賄賂」が載っておらず、使える場面でも一度も選ばれませんでした。相手のロック色数が多いほど使うようにしました。",
+    en: "Fixed. The CPU had no value entry for Noble Bribe, so it never chose it. It now uses it when an opponent is close to winning.",
+  },
+  623: {
+    ja: "直しました。カメラを戻す処理が「演出の最中なら待ち直す」形で、上限がありませんでした。演出中の印が下りないと永久に待ち続けるので、6秒で切り上げて戻すようにしました。",
+    en: "Fixed. The camera return waited for animations to finish with no upper bound, so a stuck animation flag kept it zoomed forever. It now gives up after 6 seconds and returns.",
+  },
+  624: {
+    ja: "直しました（#620 と同じ原因です）。CPUの評価表に「やり直しのカギ」が載っていませんでした。",
+    en: "Fixed - the same cause as #620. The CPU had no value entry for Redo Key.",
+  },
+  625: {
+    ja: "直しました（#618 と同じ）。盤面は最初の1コマを描き終えてから見せるようにしたので、一瞬の暗転も出なくなりました。",
+    en: "Fixed - same as #618. The board now waits for its first rendered frame before hiding the fallback art.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。
