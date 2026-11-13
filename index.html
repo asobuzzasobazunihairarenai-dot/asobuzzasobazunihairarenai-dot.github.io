@@ -145,6 +145,10 @@
      参照）。今はDOM解析ライブラリを使わず、Canvas 2D APIで直接サマリー画像を
      自作する方式に切り替えたため、html2canvas(-pro)のCDN読み込みは不要になった。 -->
 <link rel="stylesheet" href="src/style.css">
+  <!-- 【2026-11-13・続き699】新しい見た目（UI v2）の層。中身はすべて `body.ui-v2` の下に
+       書いてあるので、**クラスが付かない限り1行も効かない**（既定は今までの見た目）。
+       付け外しは src/ui-v2.js（住所に ?ui=v2 / ?ui=0）。 -->
+  <link rel="stylesheet" href="src/ui-v2.css">
   <!-- カード面のフォント（src/card-renderer.js）。印刷物のマティス/ヒラギノは市販・OS付属で
        Windows/Android には無いため、全員が同じ見た目になるようオープンソースの2書体を読み込む。
        display=swap: 読み込み中は手元のフォントで表示し、届いたら差し替える（文字が消えない）。 -->

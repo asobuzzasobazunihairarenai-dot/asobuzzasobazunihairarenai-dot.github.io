@@ -477,6 +477,9 @@ import { invalidateBoard3d, flushBoard3d, noteBoard3dTransform, trackBoard3dAnim
 import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, isCinematicCameraHome, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
 import { showCardFace } from "./card-face-display.js";
 import { onLangChange } from "./i18n.js";
+// 【2026-11-13・続き699】新しい見た目（UI v2）の切り替え。読み込んだ時点で body へ
+//   クラスを付けるだけ（admin.js の applyThemeMode と同じ作法）。既定は今までの見た目。
+import "./ui-v2.js";
 import { t } from "./ui-text.js";
 import {
   COLORS,
