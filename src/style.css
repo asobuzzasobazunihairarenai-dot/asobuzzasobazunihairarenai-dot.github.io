@@ -25254,3 +25254,12 @@ body.is-phone-device,
 body.is-tablet-device {
   --turn-event-stock-bottom: 20rem;
 }
+
+/* 🔴【#576・2026-11-13】重なったマスで「下に埋まった札」のキラ加工を消す。
+   なないろの欠片のキラは絵のファイル名を目印にしているので、2枚目以降の欠片にも当たる。
+   重なった札はまったく同じ箱に置かれ、WebGL描画中は DOM の背景が剥がされて透明なので、
+   埋まった欠片のキラが「上に乗っている別の札」の絵の上に出てしまっていた（実測）。
+   ⚠ 印は main.js の renderBoardTokens が付ける（getCardStackGroups の最後の1枚以外）。 */
+.board-card.is-buried-card::after {
+  content: none !important;
+}

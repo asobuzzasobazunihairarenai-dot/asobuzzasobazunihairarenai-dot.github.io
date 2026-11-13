@@ -13992,6 +13992,17 @@ function renderBoardTokens(table) {
   // （updateHover/updatePreviewが.stack-badgeを特別扱いする）。
   for (const tokens of getCardStackGroups().values()) {
     if (tokens.length < 2) continue;
+    // 🔴【#576・2026-11-13】重なっているマスでは、**下に埋まった札にも印を付ける**。
+    //   なないろの欠片のキラ加工は `[style*="rainbow-shard.webp"]::after` で**絵の名前**を
+    //   目印にしているので、2枚目以降の欠片にも当たる。重なった札は**まったく同じ箱**に
+    //   置かれ、しかも WebGL 描画中は DOM の背景が剥がされて透明なので、
+    //   **埋まった欠片のキラが、上に乗っている別の札の絵の上に出てしまう**（実測）。
+    //   ⇒ 埋まった札のキラは消す。上に出ている1枚だけが光る。
+    //   ⚠ 手札・ロックの単独の札・拡大プレビューは重なりが無いので今までどおり。
+    for (let i = 0; i < tokens.length - 1; i++) {
+      const el = table.querySelector(`[data-token-id="${tokens[i].id}"]`);
+      if (el) el.classList.add("is-buried-card");
+    }
     const topToken = tokens[tokens.length - 1];
     const topEl = table.querySelector(`[data-token-id="${topToken.id}"]`);
     if (!topEl) continue;

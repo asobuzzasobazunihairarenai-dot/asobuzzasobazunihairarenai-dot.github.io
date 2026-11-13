@@ -77,11 +77,13 @@ export const CHANGELOG = [
       "CPU戦で「自分にも持ち時間」を入れた時に、延長ロープが出ないのを直しました",
       "盤面拡大ボタンがターン履歴と重なることがあったのを直しました",
       "色寄せの笛で「なないろの欠片」を選べなかったのを直しました",
+      "重なったマスで、下に埋まった「なないろの欠片」のきらめきが上の札に出ていたのを直しました",
     ],
     fixesEn: [
       "Fixed the extension rope not appearing in CPU matches when your own clock is turned on",
       "Fixed the board zoom button overlapping the turn history",
       "Fixed the colour flute not being able to target the Rainbow Shard",
+      "Fixed a buried Rainbow Shard's holo shimmer showing on top of the card above it",
     ],
     devItems: [
       "🔴 **#612「タイマーの数字やロープが表示されていない」は、続き696 の直し漏れ。** #598 で `updateBaseClock` の「CPU戦では数字を見せない」に `isCpuSelfTimerEnabled()` を足したが、**まったく同じ門番が `updateRope` にもあった**のを見落としていた。しかもあの回の記録に「延長ロープ・砂時計の側は元からこの設定を見ている」と書いたが、それは**時間切れの扱い**（`isSelfTimeLimitExempt`）の話で、**表示を隠すこの1行**とは別だった。**教訓: 同じ理由で書かれた門番は、直す前に grep でまとめて数える。**",
@@ -95,7 +97,8 @@ export const CHANGELOG = [
       "#569: 「はい」「いいえ」は接触の承認モーダルと**クラスを共用**しているので、`#cell-confirm-modal` の中だけに限って大きくした（共用の方を触ると関係ないモーダルまで変わる）。実測で**スマホ 13.6px → 27.2px**・**PCと接触の承認は 13.6px のまま**。",
       "#570: アバターは `applyAvatarContent` で貼る（既定で小さい版＝256px角なので重くならない／絵を持たない人は同じ関数がそのまま文字を置く）。地と文字色はボタン側が持っているので**新しい規則では色を指定していない**（明暗2テーマがあるため＝教訓15）。",
       "#574: 指の座標は実画面のものなので `stageClientToLocal` でステージ座標へ直してから置く。指そのものに重ねると手で隠れるので**少し上**に出し、当たり判定は持たせない（指の下に出るので拾うと操作を食う）。",
-      "⚠ **#576「CPUのいるマスが虹色にてかってるのはなぜ？」は不具合ではない。** あれは**なないろの欠片のキラ加工**（実物のトレーディングカードのホロ加工を真似たもの）で、そのマスの一番上が欠片だと光る。報告時の行動ログにも `topCardId: \"rainbow-shard\"` が残っていた。CPUとは関係ない。",
+      "🔴 **#576 の追加の問い「2枚目以降の欠片でもちゃんと光らない仕様になってる？」——なっていなかった。** 欠片のキラ加工は `[style*=\"rainbow-shard.webp\"]::after` ＝**絵のファイル名**を目印にしているので、**重なって下に埋まった欠片にも当たる**。しかも重なった札は**まったく同じ箱**に置かれ、WebGL描画が既定なので**DOMの背景は剥がされて透明**（実測: 2枚とも `background-image: none`・箱 565,285,46,38 で一致）。⇒ **埋まった欠片のキラが、上に乗っている別の札の絵の上に出ていた**。⇒ `renderBoardTokens` が `getCardStackGroups` の**最後の1枚以外**に `is-buried-card` を付け、CSS で `::after { content: none }`。実測で埋まった方だけ `content` が `none` になり、一番上はそのまま光る。**教訓: 絵のファイル名で当てるセレクタは、同じ絵が「見えない場所」にもあることを必ず数える。**",
+      "⚠ **#576 のもとの問い「CPUのいるマスが虹色にてかってるのはなぜ？」自体は不具合ではない。** あれは**なないろの欠片のキラ加工**（実物のトレーディングカードのホロ加工を真似たもの）で、そのマスの一番上が欠片だと光る。報告時の行動ログにも `topCardId: \"rainbow-shard\"` が残っていた。CPUとは関係ない。",
     ],
     devItemsEn: [],
   },
