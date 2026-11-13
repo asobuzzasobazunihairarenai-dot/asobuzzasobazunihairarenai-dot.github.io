@@ -1745,6 +1745,41 @@ export function getBoard3dMemoryInfo() {
   };
 }
 
+// 【#590 / #601 / #614「盤面（画面）が真っ暗」】3回とも**板もテクスチャもあり、canvas も健康で、
+//   描画も速い**のに真っ暗、という同じ形だった。読める数字が全部「正常」なので決められない。
+//   ⇒ 🔴 **canvas の画素そのものを読む**（続き622「時間が測れない時は、決まった値で語る」）。
+//   ⚠ preserveDrawingBuffer: false なので**コマが終わると中身が消える**（続き677 で踏んだ）。
+//     だから「その場で1回描いてから」読む。
+//   ⚠ 全画素を読むと 23MB 動かすことになるので、**25点だけ**読む（#441 の教訓）。
+export function probeBoard3dPixels() {
+  try {
+    if (!active || board3dSuspended || !renderer || !scene || !camera) return null;
+    const gl = renderer.getContext?.();
+    if (!gl || gl.isContextLost?.() === true) return { 読めた: false, 理由: "文脈が無い" };
+    renderer.render(scene, camera);
+    const W = renderer.domElement.width;
+    const H = renderer.domElement.height;
+    if (!W || !H) return { 読めた: false, 理由: "画素が0" };
+    const px = new Uint8Array(4);
+    let 標本 = 0;
+    let 色あり = 0;
+    let 最大 = 0;
+    let 合計 = 0;
+    for (let iy = 1; iy <= 5; iy++) {
+      for (let ix = 1; ix <= 5; ix++) {
+        gl.readPixels(Math.floor((W * ix) / 6), Math.floor((H * iy) / 6), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        const v = Math.max(px[0], px[1], px[2]);
+        標本 += 1;
+        合計 += v;
+        if (v > 最大) 最大 = v;
+        if (v > 12 && px[3] > 12) 色あり += 1;
+      }
+    }
+    return { 読めた: true, 標本, 色あり, 最大, 平均: Math.round(合計 / Math.max(1, 標本)) };
+  } catch (err) {
+    return { 読めた: false, 理由: String(err).slice(0, 60) };
+  }
+}
 export function getBoard3dStats() {
   return {
     active,

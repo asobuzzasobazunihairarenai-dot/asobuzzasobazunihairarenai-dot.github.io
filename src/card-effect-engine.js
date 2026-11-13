@@ -1409,6 +1409,17 @@ function countFaceDownCardsAtCell(row, col) {
 //   埋まっていても取れない（取れるのは一番上の1枚だけ）。
 // ⚠ オンラインでは裏向きのカードの cardId がマスクされて null になるので、null は飛ばす
 //   （裏向きはそもそも対象外なので、取りこぼしにはならない）。
+// 🔴【#613・2026-11-13】「笛の手札効果で七色の欠片を対象にできなかった」。
+//   なないろの欠片は **★これはすべての色である** ので、どの色の笛からも取れるのが正しい。
+//   ところがここは色の文字列を素で突き合わせていて、欠片の色は "rainbow" なので
+//   **どの色にも一致しなかった**。同じ取り違えは card-effect-engine.js:4104 のコメントでも
+//   注意されていた所（宣言色の判定で先に踏んでいる）。
+//   教訓: **色を突き合わせる所を足したら、必ず欠片の例外を書く。**
+function cardMatchesColor(cardId, color) {
+  if (!cardId || !color) return false;
+  if (cardId === "rainbow-shard") return true; // ★これはすべての色である
+  return getCardDefinition(cardId)?.color === color;
+}
 function getFaceUpCellCandidatesOfColor(color) {
   if (!color) return [];
   const candidates = [];
@@ -1416,7 +1427,7 @@ function getFaceUpCellCandidatesOfColor(color) {
     for (let col = 0; col <= 6; col++) {
       const top = findTopCardAtCell(row, col);
       if (!top || !top.faceUp || !top.cardId) continue;
-      if (getCardDefinition(top.cardId)?.color !== color) continue;
+      if (!cardMatchesColor(top.cardId, color)) continue;
       candidates.push({ zone: "cell", row, col });
     }
   }
@@ -3014,6 +3025,11 @@ async function runAction(action, ctx, helpers) {
       await helpers.moveAndSync(ctx.pieceTokenId, dest, undefined, !!action.noArrival);
       ctx.pieceLocation = dest;
       if (!action.noArrival) ctx.arrivedAt = dest;
+      // 🔴【#577・2026-11-13】「移動先のカードはオープンしない」は**裏の札をめくらない**
+      //   という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。
+      //   同じ一文を持つ札は4枚（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、
+      //   **貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形にそろえた。
+      else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
       return true;
     }
     case VERBS.DISCARD_ONE_LOCKED_CARD: {
@@ -3199,6 +3215,11 @@ async function runAction(action, ctx, helpers) {
       helpers.recordMoveVisited?.(dest);
       ctx.pieceLocation = dest;
       if (!action.noArrival) ctx.arrivedAt = dest;
+      // 🔴【#577・2026-11-13】「移動先のカードはオープンしない」は**裏の札をめくらない**
+      //   という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。
+      //   同じ一文を持つ札は4枚（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、
+      //   **貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形にそろえた。
+      else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
       return true;
     }
     case VERBS.STEAL_RANDOM_FROM_MOST_LOCKED: {
@@ -4937,9 +4958,14 @@ async function runAction(action, ctx, helpers) {
         const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
         if (!piece) continue;
         if (piece.location.zone === "cell" && piece.location.row === row && piece.location.col === col) continue;
-        // 第4引数 true ＝到達させない（＝移動先のカードはオープンしない）。
+        // 第4引数 true ＝めくらない（＝移動先のカードはオープンしない）。
+        // 🔴【#577・2026-11-13】「移動先のカードはオープンしない」は**裏の札をめくらない**
+        //   という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。
+        //   同じ一文を持つ札は4枚（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、
+        //   **貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形にそろえた。
         await helpers.moveAndSync(piece.id, { zone: "cell", row, col }, undefined, true);
         helpers.recordMoveVisited?.({ zone: "cell", row, col });
+        await helpers.triggerArrivalAtIfFaceUp?.({ zone: "cell", row, col }, p);
         if (p === ctx.player) ctx.pieceLocation = { zone: "cell", row, col };
         動いた9++;
       }

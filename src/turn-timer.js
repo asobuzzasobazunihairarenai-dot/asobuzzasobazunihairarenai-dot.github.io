@@ -759,7 +759,12 @@ function getHourglassIconPath(color) {
 // tick()から高頻度に呼ばれる、DOM更新だけを行う軽量な部分（stateへのdispatchは行わない）。
 function updateRope(state) {
   // CPU戦では基本時間・延長ロープの表示は隠す（updateBaseClockと同じ理由）。
-  if (isCpuBattleActive()) {
+  // 🔴【#612・2026-11-13】続き696 で #598 を直した時、**数字の側（updateBaseClock）だけ**を
+  //   直して**ここを見落とした**。しかもあの回の記録に「延長ロープ・砂時計の側は元から
+  //   この設定を見ている」と書いたが、それは**時間切れの扱い**（isSelfTimeLimitExempt）の話で、
+  //   **表示を隠すこの1行**とは別だった。⇒ 入れている時はロープも見せる。
+  //   教訓: 同じ理由で書かれた門番は**まとめて grep してから直す**（片方だけ直すと必ず再発する）。
+  if (isCpuBattleActive() && !isCpuSelfTimerEnabled()) {
     setDisplayIfChanged(ropeEl, "none");
     return;
   }

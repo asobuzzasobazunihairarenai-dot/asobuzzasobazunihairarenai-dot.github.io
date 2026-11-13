@@ -52,6 +52,55 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-13",
+    summary: [
+      "「このマスでいいですか？」のボタンが、スマホで大きくなりました",
+      "相手を選ぶ画面に、アバターの絵が並ぶようになりました",
+      "カードを長押しした時の案内が、押している指の所に出るようになりました",
+    ],
+    summaryEn: [
+      "The Yes/No buttons on the square confirmation are now larger on phones",
+      "The player picker now shows each player's avatar",
+      "The long-press hint now appears right at your finger",
+    ],
+    items: [
+      "「このマスでいいですか？」の「はい」「いいえ」が、スマホ・タブレットで約2倍の大きさになりました。これまでは実際の画面で6px ほどしかなく、押し間違えやすい大きさでした。パソコンの見た目はこれまでと同じです。",
+      "相手を1人選ぶ画面に、名前だけでなくアバターの絵も並ぶようになりました。盤面のアバターを直接押して選ぶ今までのやり方も、そのまま使えます。",
+      "カードを長押しした時の「補足を見る」の案内を、押している指の所に出すようにしました。上向きの矢印と「補足」の2語だけの小さな案内です。これまでは拡大したカードの上に出していましたが、拡大は押した指と反対側に出る作りなので、案内だけが画面の逆側にありました。",
+    ],
+    itemsEn: [
+      "The Yes and No buttons on the \"Move here?\" confirmation are now about twice as large on phones and tablets. They used to render at roughly 6 real pixels, which was easy to mistap. The desktop layout is unchanged.",
+      "The screen for choosing an opponent now shows each player's avatar alongside their name. You can still pick by tapping an avatar on the board, exactly as before.",
+      "The long-press hint for opening a card's notes now appears right where your finger is, as a small badge with an up arrow and the word \"Details\". It used to sit above the zoomed card, but the zoom opens on the opposite side of your finger, so the hint ended up across the screen.",
+    ],
+    fixes: [
+      "CPU戦で「自分にも持ち時間」を入れた時に、延長ロープが出ないのを直しました",
+      "盤面拡大ボタンがターン履歴と重なることがあったのを直しました",
+      "色寄せの笛で「なないろの欠片」を選べなかったのを直しました",
+    ],
+    fixesEn: [
+      "Fixed the extension rope not appearing in CPU matches when your own clock is turned on",
+      "Fixed the board zoom button overlapping the turn history",
+      "Fixed the colour flute not being able to target the Rainbow Shard",
+    ],
+    devItems: [
+      "🔴 **#612「タイマーの数字やロープが表示されていない」は、続き696 の直し漏れ。** #598 で `updateBaseClock` の「CPU戦では数字を見せない」に `isCpuSelfTimerEnabled()` を足したが、**まったく同じ門番が `updateRope` にもあった**のを見落としていた。しかもあの回の記録に「延長ロープ・砂時計の側は元からこの設定を見ている」と書いたが、それは**時間切れの扱い**（`isSelfTimeLimitExempt`）の話で、**表示を隠すこの1行**とは別だった。**教訓: 同じ理由で書かれた門番は、直す前に grep でまとめて数える。**",
+      "🔴 **#613「笛で七色の欠片を対象にできなかった」。** `getFaceUpCellCandidatesOfColor` が色の文字列を素で突き合わせていて、欠片の色は `\"rainbow\"` なので**どの色にも一致しなかった**。なないろの欠片は ★これはすべての色である ので、どの色の笛からも取れるのが正しい。⇒ `cardMatchesColor()` に切り出して欠片の例外を入れた。⚠ **同じ取り違えは engine の別の所のコメントが既に警告していた**（宣言色の判定で先に踏んでいる）。**教訓: 色を突き合わせる所を足したら、必ず欠片の例外を書く。** テスト1件（候補数2＝赤は入らない）で固定した。",
+      "🔴 **#577「マックールで表向きのカードの上に乗っても到達効果を得なかった」。** 「移動先のカードはオープンしない」は**裏の札をめくらない**という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。同じ一文を持つ札は**4枚**（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、**貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形（既定の到達は止めたまま `triggerArrivalAtIfFaceUp` を自分で呼ぶ）にそろえた。",
+      "🔴 **#611「バスストップを使用するとき効果欄のテキストがなくなっていた。総点検を！」の原因。** 0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**（文字はアプリが描く＝そうしないと英語に切り替えられない）。ところが**画像モード**を選んでいると `showCardFace` は絵をそのまま敷く道へ行き、`getCardImagePath` が文字なしの下地（`cards-blank`）を返す＝**文字が1字も出ない**。⇒ そういうカードは画像モードでも必ず文字を描くようにした。**総点検**として、4セット（リメイク／0th拡張／1st／まぜる）の**99種すべて**でカード面を組み立て、効果欄が空になるものが**0件**であることを機械で確認した。⚠ **霧散演出（canvas）だけは今も文字が乗らない**——あちらは絵を1枚読んで粒子にする作りで、DOMの文字を焼き込む道が無い。使った後の右上のモーダルには文が出るので、読む機会は残っている。",
+      "🔴 **#614「画面が真っ暗」は #590 / #601 と同じ形で3回目**（板190・テクスチャ34・描画28.6ms・canvasは健康、なのに真っ暗）。しかも**ビルドが3つとも違う**ので、テクスチャを256pxへ縮めた変更が原因ではない。⇒ 続き696 で `getBoard3dStats()` へ足した `canvasOk` / `wantDrawMs` を**不具合報告に載せ忘れていた**ので載せ（続き643 の「数えているのに報告に出ない」穴をまた踏んでいた）、さらに **canvas の画素を25点だけ読む計器**（`probeBoard3dPixels`）を足した。`preserveDrawingBuffer: false` なのでコマが終わると中身が消える（続き677 で踏んだ）から、**その場で1回描いてから**読む。これで「WebGLが黒い絵を描いている」のか「絵は描けていて別の何かが覆っている」のかを**二分できる**。⚠ 0しか出さない計器でないことを確認済み（実測で 色あり25/25・平均199）。",
+      "🔴 **#610「CPUがジャンプ台を取れたはずなのにオープンを選んだ」は、行動ログで色寄せの笛（赤）と確定**（報告の『増殖』はカード名の記憶違い）。この2択は `OPTION_RANK` に登録が無く、#120 のコメントどおり**コイン投げ**になっていた。⇒ 「同色の表向きを手札に得る」を上に置いた（取るのは確実な1枚、オープンは裏向きを1枚めくるだけで相手にも情報を与える）。⚠ 強いマイナスにはしない——場に同色の表向きが無い時は『取る』が使えないので、オープンが正しく残る。",
+      "🔴 **#572「盤面拡大ボタンがターン履歴とかぶってます！」。** 実測（iPhone 932x430・既定の配置）で**隙間は実画面7pxしかなかった**（履歴の下端 y304／拡大ボタンの上端 y311）。アイコンは動かせる作りなので、少しでも上へ寄せた人は必ず当たる。⇒ スマホ・タブレットだけ履歴の帯を上へ逃がして**隙間34px**にした（実測）。⚠ 左へ動かす案（ユーザー提案）は採らなかった——右下のボタン列は「よく押すものを親指の近くに」という並びなので、1つだけ逆側へ出すと探す所が2つになる。",
+      "🔴 **#573「接触された瞬間に一瞬だけジュエルがキューブになった」。** ゲートへ戻る飛翔は**2Dの影武者**（`flyGhost`）を飛ばし、本物の駒は隠す作りだった。宝石の駒は WebGL の立体なので、影武者（スキンの絵を貼った平たい四角）に化けて見える。⇒ #545/#549 と同じ道（`playJewelHopInBoard`＝**盤面の中で本物を動かす**）を通すようにした。⚠ 通らなかった時（WebGLが止まっている・宝石でない）は今までどおり影武者。",
+      "#569: 「はい」「いいえ」は接触の承認モーダルと**クラスを共用**しているので、`#cell-confirm-modal` の中だけに限って大きくした（共用の方を触ると関係ないモーダルまで変わる）。実測で**スマホ 13.6px → 27.2px**・**PCと接触の承認は 13.6px のまま**。",
+      "#570: アバターは `applyAvatarContent` で貼る（既定で小さい版＝256px角なので重くならない／絵を持たない人は同じ関数がそのまま文字を置く）。地と文字色はボタン側が持っているので**新しい規則では色を指定していない**（明暗2テーマがあるため＝教訓15）。",
+      "#574: 指の座標は実画面のものなので `stageClientToLocal` でステージ座標へ直してから置く。指そのものに重ねると手で隠れるので**少し上**に出し、当たり判定は持たせない（指の下に出るので拾うと操作を食う）。",
+      "⚠ **#576「CPUのいるマスが虹色にてかってるのはなぜ？」は不具合ではない。** あれは**なないろの欠片のキラ加工**（実物のトレーディングカードのホロ加工を真似たもの）で、そのマスの一番上が欠片だと光る。報告時の行動ログにも `topCardId: \"rainbow-shard\"` が残っていた。CPUとは関係ない。",
+    ],
+    devItemsEn: [],
+  },
+
+  {
     date: "2026-11-12",
     summary: [
       "ランク戦の「相手を探し中」が、画面の左上の小さな表示になりました",

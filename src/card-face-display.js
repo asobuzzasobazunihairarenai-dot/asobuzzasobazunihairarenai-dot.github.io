@@ -11,7 +11,7 @@
 // ドラッグ中のゴースト・飛翔演出・canvas（victory-summary / card-dissolve）は DOM スロットでは
 // ないため対象外（常に画像/canvasのまま）。
 import { buildCardFace } from "./card-renderer.js";
-import { hasBakedCardFace, getCardImagePath, getCardDefinition } from "./cards-data.js";
+import { hasBakedCardFace, hasNoPrintedFace, getCardImagePath, getCardDefinition } from "./cards-data.js";
 import { getLang } from "./i18n.js";
 
 const STORE_KEY = "so7-card-face-mode";
@@ -77,7 +77,13 @@ export function showCardFace(el, cardId, imageUrl) {
   // 🔴 絵に文字が焼き込まれているカード（1st EDITION の Fカード7種＝暫定で印刷データを
   //   当てている）は、テキストモードでも**画像のまま**出す。上から文字を描くと二重になる。
   //   正式な絵ができたら hasBakedCardFace が空になり、自動でテキストモードに戻る。
-  if (isCardFaceTextMode() && cardId && !hasBakedCardFace(cardId)) {
+  // 🔴【#611・2026-11-13】「バスストップを使用するとき…効果欄のテキストがなくなっていた。総点検を！」。
+  //   0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**（文字はアプリが描く）。
+  //   ところが**画像モード**を選んでいると、ここは絵をそのまま敷く道へ行き、
+  //   getCardImagePath が文字なしの下地（cards-blank）を返す＝**文字が1字も出ない**。
+  //   ⇒ そういうカードは、画像モードでも**必ず文字を描く**（画像モードには出せる絵が無い）。
+  //   教訓: 「絵が無いので下地で代用する」を足したら、**絵をそのまま出す経路**も必ず見る。
+  if ((isCardFaceTextMode() || hasNoPrintedFace(cardId)) && cardId && !hasBakedCardFace(cardId)) {
     el.style.backgroundImage = "none";
     // マウントは inset:0 の絶対配置なので、スロットが包含ブロック（positioned）である必要がある。
     // 【重要】未挿入(detached)の要素は getComputedStyle が常に position:static を返す（スタイルが

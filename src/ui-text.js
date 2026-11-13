@@ -1806,6 +1806,9 @@ const UI = {
     "game.cellConfirm.moveHint": "このマスへ移動します",
     "game.cellConfirm.moveHintDir": "{dir}のマスへ移動します",
     "game.cardPeek.noteHint": "↑ 上へスワイプで補足を見る",
+    // 【#574】指の所に出す短い方（矢印は別の要素で出すので、ここは言葉だけ）。
+    "game.cardPeek.noteHintShort": "補足",
+    "game.cardPeek.noteReleaseShort": "離すと開く",
     "game.turnHint.lock": "ロックフェイズ：手札をロックエリアへ（しなくてもOK）",
     "game.turnHint.hand": "ハンドフェイズ：手札効果を使うなら今（使わなくてもOK）",
     "game.turnHint.move": "ムーブフェイズ：光っているマスをタップして移動",
@@ -3967,6 +3970,8 @@ const UI = {
     "game.cellConfirm.moveHint": "Your piece will move to this square",
     "game.cellConfirm.moveHintDir": "Your piece will move {dir}",
     "game.cardPeek.noteHint": "↑ Swipe up for card details",
+    "game.cardPeek.noteHintShort": "Details",
+    "game.cardPeek.noteReleaseShort": "Release",
     "game.turnHint.lock": "Lock phase: drag a card to your lock area (optional)",
     "game.turnHint.hand": "Hand phase: use a hand effect now if you want to (optional)",
     "game.turnHint.move": "Move phase: tap a highlighted square to move",

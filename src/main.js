@@ -9048,8 +9048,19 @@ function buildPlayerPickModal(entries, hint, onPick) {
   for (const entry of entries) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "contact-approval-approve";
-    btn.textContent = getPlayerName(entry.player);
+    btn.className = "contact-approval-approve player-pick-btn";
+    // 【#570・2026-11-13】ユーザー要望「プレイヤー選択モーダルではアバターも一緒に
+    //   表示されてるといいかも!」。盤面のアバターを押す道と**同じ絵**を並べる。
+    //   ⚠ applyAvatarContent は既定で小さい版（256px角）を貼る＝重くならない（#505）。
+    //   ⚠ 絵を持たない人（文字アバター）でも同じ関数がそのまま文字を置くので分岐は要らない。
+    const face = document.createElement("span");
+    face.className = "player-pick-avatar";
+    applyAvatarContent(face, getPlayerAvatar(entry.player));
+    btn.appendChild(face);
+    const nameEl = document.createElement("span");
+    nameEl.className = "player-pick-name";
+    nameEl.textContent = getPlayerName(entry.player);
+    btn.appendChild(nameEl);
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       onPick(entry.player);
@@ -12274,7 +12285,33 @@ async function playContactLunge__inner({ attackerEl, defenderFromRect, attackerR
 async function playContactFlight(...args) {
   return withBoardAnimation(() => playContactFlight__inner(...args));
 }
-async function playContactFlight__inner(defenderPieceId, defenderFromRect) {
+async function playContactFlight__inner(defenderPieceId, defenderFromRect, defenderFromLocation) {
+  // 🔴【#573・2026-11-13】「接触された瞬間に一瞬だけジュエルがキューブになった！」。
+  //   この飛翔は **2Dの影武者（flyGhost）** を飛ばす作りで、本物の駒は
+  //   setSetupPendingTokenIds で隠していた。宝石の駒は WebGL の立体なので、
+  //   影武者（スキンの絵を貼った平たい四角）に化けて見える。
+  //   ⇒ 宝石の席は #545/#549 と同じ道（playJewelHopInBoard＝**盤面の中で本物を動かす**）を通す。
+  //   ⚠ あちらは駒を隠さない（隠すと WebGL が描く相手が消える）ので、ここでも先に隠さない。
+  //   ⚠ 通らなかった時（WebGLが止まっている・宝石でない・座標が取れない）は今までどおり。
+  if (defenderFromLocation) {
+    const 飛んだ = await playJewelHopInBoard(
+      defenderPieceId,
+      defenderFromLocation,
+      getContactAnimSeconds("--contact-anim-flight-duration", 2) * 1000,
+      "hop"
+    );
+    if (飛んだ) {
+      const tbl = document.getElementById("game-table");
+      const el = tbl?.querySelector(`.piece[data-token-id="${defenderPieceId}"]`);
+      const tok = getState().tokens.find((t) => t.id === defenderPieceId);
+      const host = el ? el.closest(".cell") : null;
+      if (host && tok) {
+        spawnPieceLandingRing(host, tok.color);
+        playSound("piecePlace");
+      }
+      return;
+    }
+  }
   setSetupPendingTokenIds(new Set([defenderPieceId]));
   render();
   const table = document.getElementById("game-table");
@@ -12337,7 +12374,7 @@ export async function playScriptedContact({ attackerPieceId, defenderPieceId, ap
   // 状態変化（tutorial-battle.jsが渡す: 相手の手札を1枚奪う＋相手をゲートへ強制移動）。
   applyStateChange?.();
   if (tackle) {
-    await playContactFlight(defenderPieceId, tackle.defenderFromRect);
+    await playContactFlight(defenderPieceId, tackle.defenderFromRect, tackle.defenderFromLocation);
     suppressGenericRenderForContactTackle = false;
   } else {
     playSound("piecePlace");
@@ -13307,7 +13344,7 @@ async function respondToContactInner(approve) {
 
   if (tackle) {
     logAction("diag-contact-tackle", { phase: "flight-start" });
-    await playContactFlight(defenderPieceId, tackle.defenderFromRect);
+    await playContactFlight(defenderPieceId, tackle.defenderFromRect, tackle.defenderFromLocation);
     suppressGenericRenderForContactTackle = false;
     logAction("diag-contact-tackle", { phase: "flight-end" });
   } else if (approve) {
@@ -13864,7 +13901,7 @@ async function playContactTackleForBystander__inner({ attackerPieceId, defenderP
     // から飛ばす（待っている間は上のフラグで盤面の描き直しを止めてある）。それでも
     // 届かなければ諦めて render() だけで最新状態に追従する。
     await waitForTokenLocationChange(defenderPieceId, defenderFromLocation, 45000);
-    await playContactFlight(defenderPieceId, defenderFromRect);
+    await playContactFlight(defenderPieceId, defenderFromRect, defenderFromLocation);
   } finally {
     suppressGenericRenderForContactTackle = false;
     render();
@@ -15793,21 +15830,37 @@ let previewCardId = null;
 //   ⚠ 出すのは**指で長押ししている間だけ**（previewFollowsTouch）。マウスのホバーには
 //     出さない——あちらは右クリックで補足を開けるし、スワイプもできない。
 //   ⚠ 補足が無いカードには出さない（押しても何も出ないものを案内しない）。
-function applyPreviewSwipeHint(preview, cardId, state) {
-  let el = preview.querySelector(":scope > .card-preview-swipe-hint");
+// 🔴【#574・2026-11-13】ユーザー要望「タップしてるまさにその指のところに、
+//   上方向の矢印と『補足』の文字で案内でいいと思う」。
+//   それまでは**拡大カードの上**に長い文で出していたが、拡大は #358 で
+//   **押した指と反対側**に出す作りなので、案内だけが画面の逆側にあった。
+//   ⇒ 指の座標そのものに小さく出す。body 直下に置く（拡大の箱とは別の場所に出すため）。
+//   ⚠ 指の座標は実画面のもの。ステージは縮めて描くので stageClientToLocal で直してから使う。
+//   ⚠ 指そのものに重ねると隠れるので、**指の少し上**に出す。
+let peekHintEl = null;
+function applyPreviewSwipeHint(preview, cardId, state, clientX, clientY) {
+  // 旧版が拡大カードの中に案内を入れていたので、残っていれば取り除く（作りを2つ残さない）。
+  preview?.querySelector(":scope > .card-preview-swipe-hint")?.remove();
   const 要る = !!cardId && previewFollowsTouch && !!cardNoteTextFor(cardId);
   if (!要る) {
-    el?.remove();
+    peekHintEl?.remove();
+    peekHintEl = null;
     return;
   }
-  if (!el) {
-    el = document.createElement("div");
-    el.className = "card-preview-swipe-hint";
-    preview.appendChild(el);
+  if (!peekHintEl || !peekHintEl.isConnected) {
+    peekHintEl = document.createElement("div");
+    peekHintEl.className = "card-peek-note-hint";
+    peekHintEl.innerHTML = '<span class="card-peek-note-arrow">↑</span><span class="card-peek-note-label"></span>';
+    document.body.appendChild(peekHintEl);
   }
   const 構え = state === "ready";
-  el.classList.toggle("is-ready", 構え);
-  el.textContent = t(構え ? "game.cardPeek.noteRelease" : "game.cardPeek.noteHint");
+  peekHintEl.classList.toggle("is-ready", 構え);
+  peekHintEl.querySelector(".card-peek-note-label").textContent = t(構え ? "game.cardPeek.noteReleaseShort" : "game.cardPeek.noteHintShort");
+  if (Number.isFinite(clientX) && Number.isFinite(clientY)) {
+    const p = stageClientToLocal(clientX, clientY);
+    peekHintEl.style.left = p.x + "px";
+    peekHintEl.style.top = p.y + "px";
+  }
 }
 
 // 補足の本文（無ければ null）。案内を出すかどうかの判定と、モーダルの中身で同じものを見る。
@@ -15857,7 +15910,7 @@ function updatePreview(el, clientX, clientY) {
   // テキストモードならカード面を合成して被せ、画像モードなら従来通り背景画像を敷く。
   showCardFace(preview, cardId, getCardImagePath(cardId));
   applyPreviewNote(preview, getPreviewNoteFor(el));
-  applyPreviewSwipeHint(preview, cardId, "hint"); // 【B-1】スマホの長押し中だけ案内を出す
+  applyPreviewSwipeHint(preview, cardId, "hint", clientX, clientY); // 【B-1】スマホの長押し中だけ案内を出す
   positionPreviewPanel(preview, clientX, clientY);
   preview.style.display = "block";
 }
@@ -16841,7 +16894,7 @@ function startTouchHoldOrDrag(e, hit) {
       const 構え = 上へ >= PEEK_NOTE_SWIPE_PX && 上へ > 横へ; // 横に流れた時は構えない
       if (構え === peekWantsNote) return;
       peekWantsNote = 構え;
-      applyPreviewSwipeHint(getPreviewEl(), previewCardId, 構え ? "ready" : "hint");
+      applyPreviewSwipeHint(getPreviewEl(), previewCardId, 構え ? "ready" : "hint", ev.clientX, ev.clientY);
       return;
     }
     if (settled) return;

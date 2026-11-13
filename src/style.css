@@ -22533,6 +22533,20 @@ body.is-phone-device .cell-confirm-hint,
 body.is-tablet-device .cell-confirm-hint { font-size: 1.5rem; }
 body.is-phone-device .cell-confirm-dontshow,
 body.is-tablet-device .cell-confirm-dontshow { font-size: 1.3rem; padding: 0.3rem 0.6rem; }
+/* 🔴【#569・2026-11-13】「このマスでいいですか？のはいといいえボタンを大きくしたくない？」。
+   既定は 0.85rem で、スマホ（ステージ倍率0.478）だと**実画面で約6.5px**しかない（#453 と同じ罠）。
+   ⚠ この2つのクラスは接触の承認モーダルと**共用**なので、必ず #cell-confirm-modal の中だけに
+     限って大きくする（共用の方を触ると、関係ないモーダルまで変わる）。 */
+body.is-phone-device #cell-confirm-modal .contact-approval-approve,
+body.is-phone-device #cell-confirm-modal .contact-approval-reject,
+body.is-tablet-device #cell-confirm-modal .contact-approval-approve,
+body.is-tablet-device #cell-confirm-modal .contact-approval-reject {
+  font-size: 1.7rem;
+  padding: 0.75rem 1.9rem;
+  border-radius: 0.7rem;
+}
+body.is-phone-device #cell-confirm-modal .contact-approval-buttons,
+body.is-tablet-device #cell-confirm-modal .contact-approval-buttons { gap: 1rem; }
 /* 確認中のマスを強く光らせる（どのマスの話か一目で分かるように）。 */
 .cell-confirm-target {
   outline: 0.22rem solid #fbbf24 !important;
@@ -25149,3 +25163,94 @@ body.is-phone-device #ranked-waiting .ranked-waiting-hint { font-size: 1.8rem; }
 body.is-phone-device .ranked-waiting-info { width: 3.4rem; height: 3.4rem; font-size: 2rem; }
 body.is-phone-device #ranked-waiting .ranked-waiting-spinner { width: 3.4rem; height: 3.4rem; }
 
+
+/* 【#570・2026-11-13】プレイヤー選択モーダルのボタンに、盤面と同じアバターの絵を並べる。
+   ⚠ 地と文字色は .contact-approval-approve が持っているので**ここでは指定しない**
+     （明暗2テーマあるので決め打ちすると片方で読めなくなる＝教訓15）。 */
+#player-pick-modal .player-pick-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.9rem;
+}
+#player-pick-modal .player-pick-avatar {
+  width: 3.2rem;
+  height: 3.2rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0.35rem;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 2rem;
+  line-height: 1;
+}
+#player-pick-modal .player-pick-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#player-pick-modal .player-pick-name { white-space: nowrap; }
+body.is-phone-device #player-pick-modal .player-pick-avatar,
+body.is-tablet-device #player-pick-modal .player-pick-avatar { width: 4.6rem; height: 4.6rem; }
+
+/* 🔴【#574・2026-11-13】長押し中の案内を**指の所**に出す（ユーザー指定: 上向きの矢印＋「補足」）。
+   ⚠ 指そのものに重ねると手で隠れるので、指の少し上に出す（translate の -140%）。
+   ⚠ 文字色を継承に任せない。このアプリは明暗2テーマあるので自分の色を全部持つ（教訓15）。
+   ⚠ 当たり判定は持たない（pointer-events: none）——指の下に出るので、拾うと操作を食う。 */
+.card-peek-note-hint {
+  position: fixed;
+  z-index: 10050;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  transform: translate(-50%, -140%);
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.8rem;
+  background: rgba(24, 20, 14, 0.94);
+  border: 2px solid rgba(148, 163, 184, 0.75);
+  color: #e2e8f0;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.card-peek-note-arrow { font-size: 1.5rem; font-weight: 700; }
+.card-peek-note-label { font-size: 1rem; font-weight: 700; }
+.card-peek-note-hint.is-ready {
+  background: rgba(250, 204, 21, 0.96);
+  border-color: rgba(250, 204, 21, 0.96);
+  color: #1c1917;
+}
+body.theme-light .card-peek-note-hint {
+  background: #fdfbf5;
+  border-color: rgba(176, 141, 63, 0.7);
+  color: #3a3326;
+}
+body.theme-light .card-peek-note-hint.is-ready {
+  background: rgba(176, 141, 63, 0.96);
+  border-color: rgba(176, 141, 63, 0.96);
+  color: #fdfbf5;
+}
+/* ステージは実画面へ 0.478 倍で縮むので、スマホでは大きく出さないと読めない（#453 と同じ罠）。 */
+body.is-phone-device .card-peek-note-hint,
+body.is-tablet-device .card-peek-note-hint { padding: 0.8rem 1.4rem; border-width: 3px; }
+body.is-phone-device .card-peek-note-arrow,
+body.is-tablet-device .card-peek-note-arrow { font-size: 3.2rem; }
+body.is-phone-device .card-peek-note-label,
+body.is-tablet-device .card-peek-note-label { font-size: 2.1rem; }
+
+/* 🔴【#572・2026-11-13】「盤面拡大ボタンが、ターン履歴とかぶってます！」。
+   実測（iPhone 932x430・既定の配置）: 履歴の下端 y304／拡大ボタンの上端 y311 ＝
+   **隙間は実画面で7pxしかない**。アイコンは動かせる作り（icon-rearrange-mode・
+   管理者モードのつまみ）なので、少しでも上へ寄せた人は必ず当たる。
+   ⇒ 履歴の帯を上へ逃がして、実画面で30px以上の隙間を作る。
+   ⚠ PCは触らない（あちらは画面が広く、報告もスマホから）。
+   ⚠ 左へ動かす案（ユーザー提案）は採らなかった——右下のボタン列は
+     「よく押すものを親指の近くに」という並びで、1つだけ逆側へ出すと探す所が2つになる。 */
+body.is-phone-device,
+body.is-tablet-device {
+  --turn-event-stock-bottom: 20rem;
+}

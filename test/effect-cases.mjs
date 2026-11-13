@@ -1647,6 +1647,32 @@ export const CASES = [
       { kind: "called", name: "pickLocationAvoidCell", arg: "6,3" },
     ],
   },
+  // 🔴【#613・2026-11-13】「笛の手札効果で七色の欠片を対象にできなかった」。
+  //   なないろの欠片は ★これはすべての色である ので、どの色の笛からも取れる。
+  //   ⚠ 色の突き合わせを素の文字列でやると欠片の色は "rainbow" なので**どれにも当たらない**。
+  {
+    name: "色寄せの笛(到達): なないろの欠片は何色の笛でも取れる（★すべての色）",
+    kind: "arrival",
+    cardId: "ex0-flute-blue",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "flute", kind: "card", cardId: "ex0-flute-blue", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+        { id: "shard", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "redCard", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-flute-blue", cardTokenId: "flute", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { option: ["ex0-flute-pickup"], location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "tokenZone", id: "shard", zone: "hand", player: "A" },
+      { kind: "tokenZone", id: "redCard", zone: "cell" },
+      // 候補は「欠片のマス」と「笛自身のマス（青）」の2つ＝赤は入らない
+      { kind: "called", name: "pickLocationCandidates", arg: "2" },
+    ],
+  },
   {
     name: "色寄せの笛(到達): ②任意の1マスをオープンする",
     kind: "arrival",

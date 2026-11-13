@@ -38,7 +38,7 @@ import { buildCardFace } from "./card-renderer.js";
 // 【2026-10-11】「今の画面を伝える」用。盤面の絵をWebGLが実際に何枚描いているかを読む
 // （#369「盤面が真っ白」はこの数字が0かどうかで一発で切り分けられた）。board-3d.js は
 // main.js より下位のモジュールで、ここを import しても循環しない。
-import { getBoard3dStats } from "./board-3d.js";
+import { getBoard3dStats, probeBoard3dPixels } from "./board-3d.js";
 
 // ---- コンソールログの簡易リングバッファ（起動時にconsoleをフックして直近を保持する） ----
 const CONSOLE_BUFFER_MAX = 300;
@@ -521,7 +521,13 @@ function gatherScreenSnapshot() {
     //   WebGL を畳む**（GPU側の持ち物を返す）ようにしたばかりなので、まずそこを疑えるように
     //   「畳んでいたか」を残す。⚠ 畳んでいる間は CSS が盤面を描くので、ここが 1 なら
     //   「畳んだまま」ではなく「畳んだあと CSS でも描けていない」という別の話になる。
-    out.board = { webglActive: s.active, suspended: s.suspended ? 1 : 0, quads: s.quads, textures: s.textures, rebuildMs: s.rebuildMs, frameMs: s.frameMs };
+    // 🔴 canvasOk / wantDrawMs は続き696 で board-3d 側に足したのに**ここへ載せ忘れていた**
+    //    ので、#614 でもまた読めなかった（続き643 の「数えているのに報告に出ない」穴）。
+    out.board = { webglActive: s.active, suspended: s.suspended ? 1 : 0, quads: s.quads, textures: s.textures, rebuildMs: s.rebuildMs, frameMs: s.frameMs, canvasOk: s.canvasOk, wantDrawMs: s.wantDrawMs };
+    // 🔴 #590 / #601 / #614 は3回とも「読める数字は全部正常なのに真っ暗」だった。
+    //    ⇒ canvas の画素を25点だけ読む。色あり:0 なら **WebGLが黒い絵を描いている**、
+    //      色あり>0 なら **絵は描けていて、別の何かが覆っている**——ここで二分できる。
+    out.board.pixels = probeBoard3dPixels();
   } catch (e) {
     out.board = { error: clip(e, 80) };
   }
