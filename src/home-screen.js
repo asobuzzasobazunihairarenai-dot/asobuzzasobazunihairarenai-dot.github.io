@@ -120,7 +120,9 @@ const TILES = [
   // ⚠ 絵のアイコンがまだ無いので線画（V2_ICON.cpu）を使う。絵文字（🤖）は、他のタイルが
   //   水彩の線画なのに**1つだけ立体の色物**になって明らかに浮いた（撮って分かった）。
   //   水彩のアイコンができたら image: を足すだけで切り替わる。
-  { icon: "🤖", svgKey: "cpu", key: "cpu", labelKey: "home.tile.cpu", status: "ready", onOpen: () => void startCpuBattleFromHome() },
+  // ⚠ **いきなり始めない。** 強さ・人数・ルールの設定はこのモーダルの中にしか無いので、
+  //   直接 startCpuBattleFromHome() を呼ぶと設定を触る場所が消える（#647 の直し漏れ）。
+  { icon: "🤖", svgKey: "cpu", key: "cpu", labelKey: "home.tile.cpu", status: "ready", onOpen: () => openMatchChoiceModal({ mode: "cpu" }) },
   {
     icon: "🤝",
     image: "assets/home-icons/friend-match.webp",
@@ -272,8 +274,17 @@ async function startCpuBattleFromHome() {
   }
 }
 
-function openMatchChoiceModal() {
+// 🔴【#647 の直し漏れ・2026-11-14（続き716）】ユーザー報告「**CPU戦を押すとすぐに CPU戦が
+//   始まってしまいます。CPUの詳細を切れないまま始まっちゃいます。**」
+//   ⇒ **私がホームのタイルを分けた時に壊した。** 強さ・人数・黒白・ブースト・マイデッキ・
+//     持ち時間の設定は**この2択モーダルの中にだけ**在ったので、タイルから直接始めると
+//     設定を触る場所が無くなっていた（#437・#507 で積み上げた「詳細」が丸ごと素通し）。
+//   ⇒ このモーダルに **CPU だけの形**（mode: "cpu"）を足す: 2択は出さず、詳細と
+//     「はじめる」だけを出す。フレンドリーは今までどおり部屋のパネルへ直行。
+//   🔴 **教訓: 入口を分ける時は、まとめて置いてあった設定がどこへ行くかを必ず数える。**
+function openMatchChoiceModal(opts = {}) {
   if (!overlayEl || matchChoiceEl) return;
+  const cpuだけ = opts.mode === "cpu";
   const back = document.createElement("div");
   back.id = "home-match-choice";
 
@@ -282,7 +293,7 @@ function openMatchChoiceModal() {
 
   const title = document.createElement("div");
   title.className = "home-match-choice-title";
-  title.textContent = t("home.matchChoice.title");
+  title.textContent = cpuだけ ? t("home.matchChoice.cpu") : t("home.matchChoice.title");
   panel.appendChild(title);
 
   const options = document.createElement("div");
@@ -307,16 +318,17 @@ function openMatchChoiceModal() {
     return btn;
   };
 
-  makeOption("🤝", t("home.matchChoice.friendly"), t("home.matchChoice.friendlyDesc"), () => {
-    closeMatchChoiceModal();
-    openOnlinePanel(); // 既存の部屋モーダルへ（ホームは背後に残り、対局開始で自動で閉じる）
-  });
-  makeOption("🤖", t("home.matchChoice.cpu"), t("home.matchChoice.cpuDesc"), async () => {
-    closeMatchChoiceModal();
-    await startCpuBattleFromHome();
-  });
-
-  panel.appendChild(options);
+  if (!cpuだけ) {
+    makeOption("🤝", t("home.matchChoice.friendly"), t("home.matchChoice.friendlyDesc"), () => {
+      closeMatchChoiceModal();
+      openOnlinePanel(); // 既存の部屋モーダルへ（ホームは背後に残り、対局開始で自動で閉じる）
+    });
+    makeOption("🤖", t("home.matchChoice.cpu"), t("home.matchChoice.cpuDesc"), async () => {
+      closeMatchChoiceModal();
+      await startCpuBattleFromHome();
+    });
+    panel.appendChild(options);
+  }
 
   // 🔴 【#437・2026-11-03】ユーザー要望「このモーダルではまずCPUかフレンドリーかの2択だけで
   //   いい気がします！CPUを選んだ後に細かい設定のがいいかも！」＋「CPU戦の方は『詳細を
@@ -544,6 +556,21 @@ function openMatchChoiceModal() {
   cancel.addEventListener("click", closeMatchChoiceModal);
   panel.appendChild(details);
   refreshDetailsToggle(); // 文言と「設定を変えています」の1行を、開く前に一度そろえる
+  // 【#647 の直し】CPU だけの形では、ここに「はじめる」を置く（2択の代わり）。
+  // ⚠ 二度押しで2回始まらないように、押したら無効にする。
+  if (cpuだけ) {
+    const start = document.createElement("button");
+    start.type = "button";
+    start.className = "home-match-choice-start";
+    start.textContent = t("home.matchChoice.cpuStart");
+    start.addEventListener("click", async () => {
+      if (start.disabled) return;
+      start.disabled = true;
+      closeMatchChoiceModal();
+      await startCpuBattleFromHome();
+    });
+    panel.appendChild(start);
+  }
   panel.appendChild(cancel);
 
   // 背景クリックでも閉じる（パネル内クリックは伝播させない）。

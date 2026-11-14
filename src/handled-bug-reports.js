@@ -318,6 +318,18 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  637: {
+    ja: "入れました。マイデッキの箱の「装い」（駒・ペット・カード裏）が、平らに並ぶのをやめてデッキの手前に立っているようになりました（両端は少し外を向き、足元に影が付きます）。デッキそのものを囲む大きな見せ方は、まだ試作のままです。",
+    en: "Done. A deck's attire now stands in front of the deck box instead of sitting in a flat row. The larger stage-style view is still only a mockup.",
+  },
+  638: {
+    ja: "入れました。設定していない所は破線の ＋ にして「空いている」と分かるようにし、見本の下に「装い（押して変える）」と書きました。箱を押すと編集画面で変えられます。",
+    en: "Done. Unset slots now show a dashed +, and a line below says you can tap to change them.",
+  },
+  648: {
+    ja: "整理しました。見出しの絵文字をやめて小さな英字の肩書きを付け、長かった注意書きを短くし、押してほしいボタン（部屋を作成）だけを目立つ色にしました。文字の色も、明るいテーマで読めるように直しています（これまでは暗いテーマ用の灰色が直接書かれていました）。できることは1つも変わっていません。",
+    en: "Tidied up. Emoji headings became small lettered labels, the long note is shorter, only the main action is highlighted, and the text colours now follow the theme (they were hard-coded for the dark theme before). Nothing you can do has changed.",
+  },
   647: {
     ja: "分けました。ホーム画面の「CPUマッチ＆フレンドリーマッチ」を「CPU戦」と「フレンドリーマッチ」の2つのタイルにしたので、どちらも1回押すだけで始まります。タイルが9つになったので、PCでは5列の並びになりました。CPU戦のアイコンはまだ仮の線画です。",
     en: "Done. The combined tile is now two tiles, so each starts with a single tap. The grid is 5 columns on desktop, and the CPU icon is a placeholder for now.",

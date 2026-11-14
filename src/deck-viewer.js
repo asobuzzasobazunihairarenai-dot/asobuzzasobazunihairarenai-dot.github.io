@@ -4,7 +4,15 @@
 // カードの拡大画像とルール補足テキストをまとめたモーダルが開く。管理者モードと同様、
 // ゲーム本編のUIではなく開発用ツール。
 
-import { NORMAL_CARDS, FIRST_CARDS, getEternalCards, getCardImagePath, getCardDefinition } from "./cards-data.js";
+import {
+  NORMAL_CARDS,
+  FIRST_CARDS,
+  getEternalCards,
+  getCardImagePath,
+  getCardDefinition,
+  // 【#660】「文字を焼き込んだ絵を持たない」札（0th拡張・1st EDITION）の判定。
+  hasNoPrintedFace,
+} from "./cards-data.js";
 // 0th拡張（管理者だけのテストモード）。どちらも import を持たない葉なので循環しない。
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js";
@@ -61,12 +69,29 @@ function buildCardTile(def) {
     font-family: sans-serif; color: #e2e8f0; text-align: center;
   `;
 
-  const img = document.createElement("img");
-  img.src = getCardImagePath(def.id);
-  img.alt = cardDisplayName(def.id);
-  img.loading = "lazy";
-  img.style.cssText = "width: 4.2rem; height: 4.2rem; object-fit: cover; border-radius: 0.25rem;";
-  tile.appendChild(img);
+  // 🔴【#660 の続き・2026-11-14（続き716）】ユーザー報告「**拡張と1stの効果文テキストが
+  //   表示されてないです**」（山札一覧の画像つき）。
+  //   0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**ので、`getCardImagePath` が返す
+  //   のは**文字なしの下地**。通常カードだけ文字が焼かれているため、**並ぶと拡張だけ空っぽ**に見える。
+  //   🔴 続き714 でここは「サムネは小さくて読めないから」と**見送ったが、それは判断違いだった**
+  //     ——読めるかどうかではなく、**隣と見た目が揃っているか**の問題だった。
+  //   ⇒ そういう札は `<img>` ではなく **showCardFace でカード面を組み立てる**
+  //     （カード面は入れ物に対する割合で組まれているので、小さくしても崩れない）。
+  //   ⚠ 文字を焼き込んだ絵を持つ札（リメイク34種）は**今までどおり img**
+  //     ＝一覧に DOM のカード面を大量に作らない（99種ぶん作ると重い）。
+  const face = document.createElement("div");
+  face.style.cssText = "position: relative; width: 4.2rem; height: 4.2rem; border-radius: 0.25rem; overflow: hidden;";
+  if (hasNoPrintedFace(def.id)) {
+    showCardFace(face, def.id, null); // アプリが文字を描く
+  } else {
+    const img = document.createElement("img");
+    img.src = getCardImagePath(def.id);
+    img.alt = cardDisplayName(def.id);
+    img.loading = "lazy";
+    img.style.cssText = "width: 100%; height: 100%; object-fit: cover; display: block;";
+    face.appendChild(img);
+  }
+  tile.appendChild(face);
 
   const countBadge = document.createElement("div");
   countBadge.textContent = `×${def.count ?? 1}`;

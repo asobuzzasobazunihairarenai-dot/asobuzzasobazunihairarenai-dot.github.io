@@ -130,6 +130,16 @@ function buildDeckBox(deck) {
   box.appendChild(meta);
 
   // 選択中のスキン（駒・ペット・裏面）を画像で並べる（ユーザー要望2026-08-11）。
+  // 🔴【#637・#638・2026-11-14（続き716）】ユーザー要望2つ:
+  //   #637「下のキューブ紋様やペットカード裏面も**下に小さく表示ではなくデッキと一緒に
+  //        かっこよく立体的に**？デッキの周りに並んでいるとかっこいいと思います。」
+  //   #638「駒スキンやペットなど**設定できることにユーザーが気づきにくい**かも！」
+  //   ⇒ ①平らな列をやめ、**デッキの箱の手前に並んで立っている**見た目にする
+  //      （両端は少し外を向き、影を敷く。箱に少し重ねる）
+  //     ②**「装い」と書いて、押せる所だと分かるようにする**
+  //     ③持っていない／既定のままの枠は**破線の ＋**にして「ここは空いている」と見せる
+  //   ⚠ 位置は transform だけで作る（レイアウトに影響しない＝教訓11）。
+  //     絶対配置にすると箱の大きさが変わって一覧の並びが崩れる。
   const cos = document.createElement("div");
   cos.className = "mdl-deck-cosmetics";
   const pieceCos = document.createElement("div");
@@ -152,10 +162,13 @@ function buildDeckBox(deck) {
       im.alt = "";
       petCos.appendChild(im);
     } else {
-      petCos.textContent = opt?.emoji ?? "🚫";
+      // 【#638】「なし」は黙った枠ではなく**破線の ＋**にする（空き枠だと分かる）。
+      petCos.classList.add("is-empty");
+      petCos.textContent = "＋";
     }
   } else {
-    petCos.textContent = "🐾";
+    petCos.classList.add("is-empty");
+    petCos.textContent = "＋";
   }
   const backCos = document.createElement("div");
   backCos.className = "mdl-cos";
@@ -167,6 +180,12 @@ function buildDeckBox(deck) {
   backCos.appendChild(backImg);
   cos.append(pieceCos, petCos, backCos);
   box.appendChild(cos);
+  // 【#638】ここが「装いを変える入口」だと分かる一行。箱を押すと編集画面が開き、
+  //   そこに駒・ペット・カード裏の設定ボタンが並んでいる（仕組みは足していない）。
+  const cosLabel = document.createElement("div");
+  cosLabel.className = "mdl-deck-cosmetics-label";
+  cosLabel.textContent = t("mdl.cosmetics.hint");
+  box.appendChild(cosLabel);
 
   // 箱クリックで編集。
   box.addEventListener("click", () => editDeck(deck.id));

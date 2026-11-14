@@ -750,7 +750,7 @@ function buildRoomRow(room) {
 // 後でも都度チェックし、自分が既に古い世代なら追記せず中断するようにした。
 async function renderRoomChoice(user, myGeneration) {
   const title = document.createElement("div");
-  title.style.cssText = "font-weight: bold; margin-bottom: 0.6rem;";
+  title.className = "online-panel-title"; // 【#648】
   // 配信時にメールアドレスが画面に映るのを避けるため、getAccountDisplayLabelで
   // 名前 or 伏せ字メール（匿名は「ゲスト」）を表示する（ユーザー要望）。
   title.textContent = t("oui.onlineWith", { label: getAccountDisplayLabel(user) });
@@ -830,7 +830,9 @@ async function renderRoomChoice(user, myGeneration) {
   // 出しているのに『＋部屋を作成』ボタンがあるのは変」）。以前は畳んでおくトグルだったが、
   // トグルは廃止し、見出しの下にフォームを常に表示する。左カラムに入れる。
   const createLabel = document.createElement("div");
-  createLabel.style.cssText = "font-weight: bold; font-size: 0.9rem; margin: 0 0 0.4rem;";
+  // 【#648】見出しは共通のクラスへ（絵文字をやめ、小さな英字の肩書きを CSS が付ける）。
+  createLabel.className = "online-section-title is-first";
+  createLabel.dataset.eyebrow = "CREATE";
   createLabel.textContent = t("oui.L726");
   leftCol.appendChild(createLabel);
   const createForm = document.createElement("div");
@@ -862,6 +864,8 @@ async function renderRoomChoice(user, myGeneration) {
   const createStatus = document.createElement("div");
   createStatus.style.cssText = "font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.3rem; min-height: 1.2em;";
   const createConfirmBtn = textButton(t("oui.L756"));
+  // 【#648】この画面でいちばん押してほしいもの＝主役の見た目にする。
+  createConfirmBtn.className = (createConfirmBtn.className || "") + " online-primary-btn";
   createConfirmBtn.style.cssText = "display: block; width: 100%; box-sizing: border-box;";
   createConfirmBtn.addEventListener("click", async () => {
     createConfirmBtn.disabled = true;
@@ -890,12 +894,13 @@ async function renderRoomChoice(user, myGeneration) {
   // 右カラム（参加できる部屋＋観戦できる対局）。2カラム時は左の作成セクションと分ける上の
   // 区切り線は不要なので、右カラム先頭の見出しからは border-top を外す。
   const listLabel = document.createElement("div");
-  listLabel.style.cssText = "font-weight: bold; font-size: 0.9rem; margin: 0 0 0.4rem;";
+  listLabel.className = "online-section-title is-first";
+  listLabel.dataset.eyebrow = "JOIN";
   listLabel.textContent = t("oui.L786");
   rightCol.appendChild(listLabel);
 
   const listStatus = document.createElement("div");
-  listStatus.style.cssText = "font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.3rem; min-height: 1.2em;";
+  listStatus.className = "online-note"; // 【#648】色は CSS が継ぐ（教訓15）
   rightCol.appendChild(listStatus);
 
   const listContainer = document.createElement("div");
@@ -917,7 +922,8 @@ async function renderRoomChoice(user, myGeneration) {
   // 公開ロビー（so7_games_list, not is_ranked）に出ないため、相手から共有された部屋コードで
   // 参加する経路が必要。通常の部屋にも使える（パスワード付き部屋も、下のパスワード欄で参加可）。
   const codeJoinLabel = document.createElement("div");
-  codeJoinLabel.style.cssText = "font-weight: bold; font-size: 0.9rem; margin: 0.8rem 0 0.4rem; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 0.6rem;";
+  codeJoinLabel.className = "online-section-title";
+  codeJoinLabel.dataset.eyebrow = "ROOM CODE";
   codeJoinLabel.textContent = t("oui.L813");
   rightCol.appendChild(codeJoinLabel);
   const codeJoinForm = document.createElement("div");
@@ -927,8 +933,9 @@ async function renderRoomChoice(user, myGeneration) {
   const codePassInput = textInput(t("oui.L819"));
   codePassInput.type = "password";
   const codeJoinStatus = document.createElement("div");
-  codeJoinStatus.style.cssText = "font-size: 0.8rem; color: #94a3b8; margin: 0.3rem 0; min-height: 1.2em;";
+  codeJoinStatus.className = "online-note";
   const codeJoinBtn = textButton(t("oui.L823"));
+  codeJoinBtn.className = (codeJoinBtn.className || "") + " online-second-btn";
   codeJoinBtn.style.cssText = "display: block; width: 100%; box-sizing: border-box;";
   codeJoinBtn.addEventListener("click", async () => {
     const code = (codeInput.value || "").trim().toUpperCase();
@@ -958,14 +965,14 @@ async function renderRoomChoice(user, myGeneration) {
   // --- 観戦（進行中の対局を後から見る、ユーザー要望） ---
   // 「参加できる部屋」とはっきり分けるため、区切り線＋太字見出しの独立セクションにする。
   const specLabel = document.createElement("div");
-  specLabel.style.cssText =
-    "font-weight: bold; font-size: 0.9rem; margin: 1.1rem 0 0.4rem; padding-top: 0.8rem; border-top: 1px solid rgba(148, 163, 184, 0.25);";
+  specLabel.className = "online-section-title";
+  specLabel.dataset.eyebrow = "WATCH";
   specLabel.textContent = t("oui.L854");
   rightCol.appendChild(specLabel);
 
   // 見え方モード（公開＝手札等は見えない / すべて＝全手札も丸見えのgod-view）。
   const specModeRow = document.createElement("label");
-  specModeRow.style.cssText = "display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #cbd5e1; margin-bottom: 0.4rem; cursor: pointer;";
+  specModeRow.className = "online-check-row"; // 【#648】色は CSS が継ぐ
   const specAllCheckbox = document.createElement("input");
   specAllCheckbox.type = "checkbox";
   const specModeText = document.createElement("span");

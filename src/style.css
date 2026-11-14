@@ -19664,31 +19664,91 @@ body.is-tablet-device .mds-action {
 }
 
 /* ── マイデッキ一覧: 各デッキの選択スキン（駒・ペット・裏面）を画像で表示 ───────── */
+/* 🔴【#637・#638・2026-11-14（続き716）】「下に小さく並べるのではなく、**デッキの周りに
+   立体的に**並んでいるとかっこいい」＋「設定できることに気づきにくい」への対応。
+   ⚠ 位置は **transform だけ**で作る（レイアウトに影響しない＝教訓11）。絶対配置にすると
+     箱の高さが変わって一覧の並びが崩れる。
+   ⚠ 箱に少し重ねる（margin-top が負）ので、**重なり順を明示**する（教訓3）。 */
 .mdl-deck-cosmetics {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center; /* 中央ぞろえ（ユーザー要望2026-08-12） */
-  gap: 0.35rem;
-  padding: 0 0.7rem 0.65rem;
+  gap: 0.55rem;
+  padding: 0 0.7rem 0.25rem;
+  margin-top: -1.1rem; /* デッキの箱の手前に立っているように見せる */
+  perspective: 420px;
 }
 .mdl-cos {
-  width: 1.7rem;
-  height: 1.7rem;
+  width: 1.9rem;
+  height: 1.9rem;
   border-radius: 0.3rem;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.3);
+  overflow: visible;
+  background: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 0;
+  position: relative;
+  /* 卓の上に立っている影（楕円）。box-shadow で作る＝filter を使わない（教訓1）。 */
+  filter: none;
+}
+.mdl-cos::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.22rem;
+  width: 86%;
+  height: 0.3rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.42);
+}
+/* 両端は少し外を向く＝デッキを囲んで立っているように見える。 */
+.mdl-deck-cosmetics .mdl-cos:first-child {
+  transform: rotateY(26deg) translateZ(-6px);
+}
+.mdl-deck-cosmetics .mdl-cos:last-child {
+  transform: rotateY(-26deg) translateZ(-6px);
+}
+.mdl-deck-cosmetics .mdl-cos:nth-child(2) {
+  width: 2.2rem;
+  height: 2.2rem;
 }
 .mdl-cos img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  /* 明るい地でも輪郭が出るように（画像そのものには枠を描かない）。 */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 .mdl-cos.mdl-cos-pet {
   font-size: 1rem;
+}
+/* 【#638】「なし／既定のまま」は、黙った枠ではなく**破線の ＋**（空き枠だと分かる）。
+   🔴 **色を決め打ちしない**（教訓15）。このアプリは明暗2テーマで、マイデッキの箱は
+     明テーマではクリーム色の地になる——最初 `rgba(203,213,225,…)` と書いたら
+     **明テーマでは文字も破線もほぼ見えなかった**（撮って分かった）。
+     ⇒ `currentColor`（箱が持っている文字色）に不透明度を掛けるだけにする。 */
+.mdl-cos.is-empty {
+  border: 1px dashed currentColor;
+  border-radius: 0.3rem;
+  opacity: 0.55;
+  font-size: 1rem;
+  line-height: 1;
+}
+.mdl-cos.is-empty::after {
+  display: none;
+}
+/* 【#638】ここが「装いを変える入口」だと分かる一行。 */
+.mdl-deck-cosmetics-label {
+  text-align: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: inherit;
+  opacity: 0.72;
+  padding: 0 0.7rem 0.6rem;
 }
 
 /* アプリ内スモークテスト（ユーザー要望2026-08-14）。タイトル画面(opening-screen-active)で
@@ -25440,4 +25500,76 @@ body.is-phone-device #ranked-practice-banner,
 body.is-tablet-device #ranked-practice-banner {
   left: 0.6rem;
   right: auto;
+}
+
+/* ===================== オンライン対戦のパネルの整理（#648・2026-11-14 続き716） =====================
+   ユーザー指摘「このUI気に入ってません。もっとスタイリッシュにかっこよくできませんか？」
+   ＋画像つきで「**このウィンドウがごちゃごちゃしてるのですっきりかっこよくできる？**」。
+   🔴 **仕組みは1つも変えていない。** 部屋を作る／一覧／部屋コード／観戦の4つはそのまま。
+     変えたのは**見出しの出し方・文字の色・余白・ボタンの強弱**だけ。
+   🔴 **色を決め打ちしない**（教訓15）。元は #94a3b8 / #cbd5e1 という**暗いテーマ用の灰色**が
+     直接書かれていて、明るいテーマのクリーム地では**ほとんど読めなかった**。
+     ⇒ `color: inherit` ＋ `opacity` にして、パネルが持っている文字色を継ぐ。 */
+.online-panel-title {
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.9rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+}
+/* 見出し。絵文字をやめ、小さな英字の肩書き（data-eyebrow）を上に付ける。 */
+.online-section-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  margin: 1.15rem 0 0.5rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+.online-section-title.is-first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.online-section-title::before {
+  content: attr(data-eyebrow);
+  display: block;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-variant-numeric: lining-nums;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  opacity: 0.55;
+  margin-bottom: 0.18rem;
+}
+/* 説明・状態の1行。 */
+.online-note {
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: inherit;
+  opacity: 0.62;
+  margin: 0.25rem 0 0.4rem;
+  min-height: 1.2em;
+  white-space: pre-line; /* 文言の改行をそのまま見せる（長い注意書きを2行に割った） */
+}
+.online-check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: inherit;
+  opacity: 0.8;
+  margin-bottom: 0.45rem;
+  cursor: pointer;
+}
+/* いちばん押してほしいもの（部屋を作る）だけを強くする。残りは控えめ。 */
+.online-primary-btn {
+  border-color: rgba(199, 154, 71, 0.75) !important;
+  background: linear-gradient(100deg, rgba(199, 154, 71, 0.95), rgba(176, 129, 47, 0.95)) !important;
+  color: #1b1408 !important;
+  font-weight: 700;
+}
+.online-second-btn {
+  font-weight: 600;
 }
