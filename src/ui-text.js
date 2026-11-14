@@ -52,7 +52,7 @@ const UI = {
     "home.matchChoice.friendlyDesc": "オンラインで対戦（部屋を作る／参加する）",
     "home.matchChoice.cpu": "CPU戦（1人用）",
     // 【#647 の直し・2026-11-14】ホームの「CPU戦」からは、いきなり始めずに設定を見せる。
-    "home.matchChoice.cpuStart": "この設定ではじめる",
+    "home.matchChoice.cpuStart": "はじめる",
     "home.matchChoice.cpuDesc": "この端末でCPUと対戦（ログイン不要）",
     "home.matchChoice.difficultyLabel": "🤖 CPUの強さ（CPU戦のみ）",
     "home.matchChoice.difficultyHint": "新人＝ランダム／中級・上級＝賢い思考／最強＝伏せカードののぞき見あり",
@@ -2272,7 +2272,7 @@ const UI = {
     "home.matchChoice.friendly": "Friendly Match",
     "home.matchChoice.friendlyDesc": "Play online (create or join a room)",
     "home.matchChoice.cpu": "CPU Match (solo)",
-    "home.matchChoice.cpuStart": "Start with these settings",
+    "home.matchChoice.cpuStart": "Start",
     "home.matchChoice.cpuDesc": "Play against the CPU on this device (no login)",
     "home.matchChoice.difficultyLabel": "🤖 CPU strength (CPU match only)",
     "home.matchChoice.difficultyHint": "Rookie = random / Intermediate & Advanced = smart AI / Master = peeks at face-down cards",

@@ -1226,11 +1226,18 @@ body.ui-v2 #home-v2-subtitle {
    ＝やるのは「地の色・枠・角・書体」だけ。
    =========================================================================== */
 
-/* 席の名札（CPU 1 / CPU 2 …）。黒い半透明の角丸 → 象牙の紙＋金の細罫。 */
+/* 席の名札（CPU 1 / CPU 2 …）。
+   🔴【続き719】**象牙の紙をやめて、金の薄い膜にした。**
+     試作の対局画面（project/Board3D.dc.html）は**暗い卓（#14120e）＋金**で出来ていて、
+     パネルは「枠 rgba(216,178,76,.5) ／ 地 rgba(216,178,76,.08)」＝**金の薄い膜**。
+     続き710 で私が当てたのは**他のページと同じアイボリーの紙**で、
+     **暗い卓の上に白い札だけが浮いていた**（ユーザー指摘「試作の感じになってない」）。
+   ⚠ 全画面ページ（ホーム・図鑑…）のアイボリーは**そのまま**。
+     試作は「明るい紙の本」と「暗い卓」の2つの世界で出来ている。 */
 body.ui-v2 .zone .label {
-  background: rgba(253, 251, 245, 0.92);
-  color: #241f1a;
-  border: 1px solid rgba(176, 141, 63, 0.55);
+  background: rgba(216, 178, 76, 0.08);
+  color: #f6eddc;
+  border: 1px solid rgba(216, 178, 76, 0.5);
   border-radius: 0;
   font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
   font-weight: 700;
@@ -1249,9 +1256,9 @@ body.ui-v2 .zone .label.is-turn-player {
       対局中ずっと2枚生きていて、象牙の地なら「後ろをぼかして読みやすくする」必要が無い。 */
 body.ui-v2 .self-status-name,
 body.ui-v2 .self-status-hand-count {
-  background: rgba(253, 251, 245, 0.92);
-  color: #241f1a;
-  border: 1px solid rgba(176, 141, 63, 0.5);
+  background: rgba(216, 178, 76, 0.08);
+  color: #f6eddc;
+  border: 1px solid rgba(216, 178, 76, 0.5);
   border-radius: 0;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -1262,11 +1269,11 @@ body.ui-v2 .self-status-hand-count {
    ⚠ 駒の見本は丸いまま（物が丸いので、四角くすると別の物に見える）。 */
 body.ui-v2 .self-status-card-back-thumb,
 body.ui-v2 .self-status-playmat-thumb {
-  border: 1px solid rgba(176, 141, 63, 0.55);
+  border: 1px solid rgba(216, 178, 76, 0.5);
   border-radius: 0;
 }
 body.ui-v2 .self-status-piece-thumb {
-  border: 1px solid rgba(176, 141, 63, 0.55);
+  border: 1px solid rgba(216, 178, 76, 0.5);
 }
 
 /* 右下・右上の丸いアイコンボタン。丸のまま、真鍮の縁を付けて墨の地に。
@@ -1287,7 +1294,9 @@ body.ui-v2 .icon-action-button-caption {
 
 /* ターン表示（「CPU 3のターンです」）。ここは元から象牙なので、枠と角と書体だけ。 */
 body.ui-v2 #phase-automation-turn-status {
-  border: 1px solid rgba(176, 141, 63, 0.55);
+  background: rgba(216, 178, 76, 0.08);
+  color: #f6eddc;
+  border: 1px solid rgba(216, 178, 76, 0.5);
   border-radius: 0;
   font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
   font-weight: 700;
@@ -1420,4 +1429,19 @@ body.ui-v2 .changelog-date {
   color: var(--v2-gold-deep, #8a6729);
   font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
   letter-spacing: 0.08em;
+}
+
+/* 🔴【続き719】対局画面の中では、上で全体に当てた「紙の装丁」を**金 on 暗い**へ戻す。
+   試作の対局画面（Board3D）は暗い卓なので、対局中に出るモーダルまで真っ白だと
+   盤面から浮く。⚠ 全画面ページ（ホーム・図鑑…）は今までどおりアイボリー。
+   ⚠ 当て方: body.in-game（対局中にだけ付く印）が無いので、**盤面の中に出るものだけ**を
+     名指しする。増えたら足す（語尾でまとめられない所なので）。 */
+body.ui-v2 #phase-hint-line {
+  background: rgba(216, 178, 76, 0.08);
+  color: #f6eddc;
+  border: 1px solid rgba(216, 178, 76, 0.5);
+}
+/* 卓の地。試作は #14120e（暗い温かい黒）。続き714 で入れた麻布の上に、その色を薄く重ねる。 */
+body.ui-v2 {
+  background-color: #14120e;
 }

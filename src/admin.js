@@ -211,6 +211,24 @@ function previewSmokeTestBtn() {
 // pos-x/pos-yは中心からのずれ。どちらもtransform: scale/translateなので、拡大しても見切れない。
 const GROUPS = [
   {
+    // 🔴【2026-11-15・続き719】ユーザー指摘「**装いの位置サイズがあなたに伝わってないみたい**」。
+    //   ⇒ 言葉で往復せず、**本物のタイルを見ながら動かして「出力をコピー」**してもらう
+    //     （このプロジェクトの既定の運用。CLAUDE.md の作業ルール参照）。
+    //   調整中は**マイデッキ一覧を開いておく**と反映が見える。
+    //   ⚠ 既定値は style.css の var() のフォールバックと**必ず一致**させること。
+    //   ⚠ 重なり（--mdl-cos-overlap）は負の margin-top。**大きくするほどデッキの絵に食い込む**。
+    title: "マイデッキ：装い（駒・ペット・カード裏）の大きさと重なり",
+    category: "position-ui",
+    controls: [
+      { key: "--mdl-cos-size", label: "装いの大きさ（両端）", unit: "rem", min: 1, max: 6, step: 0.1, default: 2.7 },
+      { key: "--mdl-cos-size-mid", label: "装いの大きさ（真ん中）", unit: "rem", min: 1, max: 7, step: 0.1, default: 3.2 },
+      { key: "--mdl-cos-overlap", label: "デッキへの重なり（大きいほど食い込む）", unit: "rem", min: 0, max: 7, step: 0.1, default: 2.5 },
+      { key: "--mdl-cos-gap", label: "装いどうしの間隔", unit: "rem", min: 0, max: 3, step: 0.05, default: 0.75 },
+      { key: "--mdl-cos-turn", label: "両端の振り向き", unit: "deg", min: 0, max: 60, step: 1, default: 26 },
+      { key: "--mdl-cos-lift", label: "上下の位置（＋で下へ）", unit: "rem", min: -4, max: 4, step: 0.1, default: 0 },
+    ],
+  },
+  {
     title: "カメラ（3D視点）の位置調整",
     category: "position-board",
     controls: [

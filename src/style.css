@@ -19675,18 +19675,19 @@ body.is-tablet-device .mds-action {
   display: flex;
   align-items: flex-end;
   justify-content: center; /* 中央ぞろえ（ユーザー要望2026-08-12） */
-  gap: 0.75rem;
+  gap: var(--mdl-cos-gap, 0.75rem);
   padding: 0 0.6rem 0.25rem;
   /* 🔴【2026-11-14・続き717】ユーザー指示「**もっとそれぞれを大きく、デッキのビジュの手前に
      重なるくらいの感じ**がいいです」⇒ 1.9rem → 2.7rem、重なりも -1.1rem → -2.5rem。
      ⚠ 重ねるので `z-index: 2`（上の .mdl-deck-cosmetics）が要る＝教訓3。
      ⚠ 箱の高さは変えない（transform と負の margin だけ＝教訓11）。 */
-  margin-top: -2.5rem;
+  margin-top: calc(-1 * var(--mdl-cos-overlap, 2.5rem));
+  transform: translateY(var(--mdl-cos-lift, 0rem));
   perspective: 520px;
 }
 .mdl-cos {
-  width: 2.7rem;
-  height: 2.7rem;
+  width: var(--mdl-cos-size, 2.7rem);
+  height: var(--mdl-cos-size, 2.7rem);
   border-radius: 0.3rem;
   overflow: visible;
   background: none;
@@ -19711,14 +19712,14 @@ body.is-tablet-device .mds-action {
 }
 /* 両端は少し外を向く＝デッキを囲んで立っているように見える。 */
 .mdl-deck-cosmetics .mdl-cos:first-child {
-  transform: rotateY(26deg) translateZ(-6px);
+  transform: rotateY(var(--mdl-cos-turn, 26deg)) translateZ(-6px);
 }
 .mdl-deck-cosmetics .mdl-cos:last-child {
-  transform: rotateY(-26deg) translateZ(-6px);
+  transform: rotateY(calc(-1 * var(--mdl-cos-turn, 26deg))) translateZ(-6px);
 }
 .mdl-deck-cosmetics .mdl-cos:nth-child(2) {
-  width: 3.2rem;
-  height: 3.2rem;
+  width: var(--mdl-cos-size-mid, 3.2rem);
+  height: var(--mdl-cos-size-mid, 3.2rem);
 }
 .mdl-cos img {
   width: 100%;
@@ -25598,10 +25599,10 @@ body.is-tablet-device #ranked-practice-banner {
   transform: translateY(-0.18rem) scale(1.06);
 }
 .mdl-deck-cosmetics .mdl-cos:first-child.is-pickable:hover {
-  transform: rotateY(26deg) translateZ(-6px) translateY(-0.18rem) scale(1.06);
+  transform: rotateY(var(--mdl-cos-turn, 26deg)) translateZ(-6px) translateY(-0.18rem) scale(1.06);
 }
 .mdl-deck-cosmetics .mdl-cos:last-child.is-pickable:hover {
-  transform: rotateY(-26deg) translateZ(-6px) translateY(-0.18rem) scale(1.06);
+  transform: rotateY(calc(-1 * var(--mdl-cos-turn, 26deg))) translateZ(-6px) translateY(-0.18rem) scale(1.06);
 }
 
 /* 🔴【続き717】山札一覧の「← 戻る」の見た目を、他の全画面ページと同じにする。
@@ -25684,4 +25685,35 @@ body.theme-light #deck-viewer-back {
 .home-match-choice-info.is-on {
   opacity: 1;
   box-shadow: inset 0 0 0 2px currentColor;
+}
+
+/* 🔴【#666 の直し漏れ・2026-11-15（続き719）】ユーザー指摘「**この設定ではじめる がボタンに
+   見えない**」。続き716 でこのボタンを JS で足した時、**CSS を1行も書いていなかった**
+   （素の <button> ＝ 枠も地も無い文字のまま）。
+   🔴 昨日の「カード一覧の戻る」（続き717）と**まったく同じ形のミスを2日続けて**踏んだ。
+     ⇒ **新しいボタンを足したら、その場で見た目も書く。**
+   ⚠ この画面でいちばん押してほしいものなので、主役の見た目（金の地）にする。
+   ⚠ 文字色は地に合わせて自分で持つ（明暗2テーマで地が変わらない＝教訓15 の逆向きの注意）。 */
+.home-match-choice-start {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.2rem 0 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid rgba(199, 154, 71, 0.85);
+  border-radius: 0.4rem;
+  background: linear-gradient(100deg, #c79a47, #b0812f);
+  color: #1b1408;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.home-match-choice-start:hover {
+  filter: brightness(1.08);
+}
+.home-match-choice-start:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
