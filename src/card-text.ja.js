@@ -15,7 +15,7 @@ export const CARD_TEXT_JA = {
   "green-growing-trees": { flavor: "一つの森は、一つの種から始まる。", titleRuby: "ぞうしょく　きぎ", basic: "", subtitle: "", arrival: "２マス以内の何もない全てのマスに山札から１枚ずつ裏向きで置く。", hand: "任意の３マスに山札から１枚ずつ裏向きで置く。" },
   "blue-slum-official": { flavor: "昨日の貧民が、今日の法を作る。", titleRuby: "あ　やくにん", basic: "", subtitle: "", arrival: "全員は手札が３枚になるように捨てる。", hand: "あなたの手札が１枚以下なら２枚ドロー。このフェイズを終了する。" },
   "blue-choosable-trap": { flavor: "選択肢があるように見える。それが罠だ。", titleRuby: "えら　わな", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・あなたの手札を半分捨てる。\n・あなたのゲートに強制移動する。\n・あなたのロックしている１枚を捨てる。", hand: "これを任意のマスに裏向きで置く。" },
-  "pink-party": { flavor: "宴の終わりには、誰もが笑っていてほしい。", titleRuby: "", basic: "", subtitle: "", arrival: "全員は以下の効果のうち１つ得る。\n・１マス移動し、移動先の到達効果は得ない。\n・場の任意の１枚をあなたの手札に加える。\n・場の任意の２枚をオープンする。", hand: "これを任意のマスに裏向きで置く。" },
+  "pink-party": { flavor: "宴の終わりには、誰もが笑っていてほしい。", titleRuby: "", basic: "", subtitle: "", arrival: "全員は以下の効果のうち１つ得る。\n・１マス移動し、移動先の到達効果は得ない。\n・場の任意の１枚をあなたの手札に加える。\n・相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。", hand: "これを任意のマスに裏向きで置く。" },
   "pink-present": { flavor: "与える喜びは、受け取る喜びより深い。", titleRuby: "", basic: "", subtitle: "", arrival: "１番少なくロックしている全員は、１枚ドロー。", hand: "これを相手の隣に裏向きで置く。１枚ドロー。" },
   "purple-trial-ritual": { flavor: "真実へ至る道は、試練だけが知っている。", titleRuby: "しれん　ぎしき", basic: "", subtitle: "", arrival: "色を３色宣言する。あなたの隣に山札から１枚表向きで置く。そのマスに移動し、移動先の到達効果は得ない。置いたカードが宣言色ならこの効果を繰り返す。", hand: "上記の到達効果を得る。" },
   "purple-sorry": { flavor: "頭を下げながら歩む。「ごめん」で済めば、戦争は起きない。", titleRuby: "", basic: "", subtitle: "", arrival: "１マス移動する。", hand: "【追色１】相手が最後のロックを宣言した時に使える。相手のロックしている１枚をあなたの手札に加える。" },

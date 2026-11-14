@@ -895,7 +895,7 @@ export const CARD_EFFECTS = {
 
   // パーティー（桃、通常カード） 到達効果: 「全員は以下の効果のうち１つ得る。
   // ・１マス移動し、移動先の到達効果は得ない。・場の任意の１枚をあなたの手札に加える。
-  // ・場の任意の２枚をオープンする。」合同建設と同じdelegateToPlayerパターンだが、
+  // ・相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。」合同建設と同じdelegateToPlayerパターンだが、
   // 各プレイヤーが委任された先でさらに3択から1つ選ぶ（main.js側で選べる罠と同じ
   // showHandEffectOptionPickerを流用）。
   "pink-party": {
@@ -2557,7 +2557,7 @@ function renderAction(action, context) {
     case VERBS.ALL_PLAYERS_DISCARD_TO_THREE:
       return "全員は手札が３枚になるように捨てる。";
     case VERBS.ALL_PLAYERS_CHOOSE_PARTY_OPTION:
-      return "全員は以下の効果のうち１つ得る。・１マス移動し、移動先の到達効果は得ない。・場の任意の１枚をあなたの手札に加える。・場の任意の２枚をオープンする。";
+      return "全員は以下の効果のうち１つ得る。・１マス移動し、移動先の到達効果は得ない。・場の任意の１枚をあなたの手札に加える。・相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。";
     case VERBS.END_CURRENT_PHASE:
       return "このフェイズを終了する。";
     case VERBS.PLACE_SELF_ADJACENT_TO_CHOSEN_OPPONENT:
@@ -2853,7 +2853,7 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
   console.log("[パーティー 到達効果]");
   console.log("  生成: " + generateEffectText(CARD_EFFECTS["pink-party"].arrival));
   console.log(
-    "  実際: 全員は以下の効果のうち１つ得る。・１マス移動し、移動先の到達効果は得ない。・場の任意の１枚をあなたの手札に加える。・場の任意の２枚をオープンする。\n"
+    "  実際: 全員は以下の効果のうち１つ得る。・１マス移動し、移動先の到達効果は得ない。・場の任意の１枚をあなたの手札に加える。・相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。\n"
   );
 
   console.log("[パーティー 手札効果]");

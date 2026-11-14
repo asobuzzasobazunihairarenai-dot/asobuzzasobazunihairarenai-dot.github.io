@@ -47,6 +47,10 @@ import { isTrialEntry, clearTrialParam, forgetTrialEntry, rememberTrialEntry } f
 // フェードアウトのCSSトランジション時間と合わせる（style.cssの#opening-screen.is-closing、
 // .opening-start-gate.is-closing参照）。
 const CLOSE_TRANSITION_MS = 600;
+// 【2026-11-14・試作】HUERISE の「燃え広がる」演出の長さ。ui-v2.css の
+// huerise-burn-hole / huerise-burn-ember の 1.2s と**同じ値**にする（片方だけ変えると
+// 「炎の途中で画面が切り替わる」か「燃え終わってから待たされる」のどちらかになる）。
+const BURN_TRANSITION_MS = 1200;
 
 // ユーザー要望「1画面で複数人が遊べるモードは、実際にはそういう遊び方をさせる予定が
 // 無いので『テストモード』画面とし、ログインカードからは削除して右下に小さいボタンだけを
@@ -786,7 +790,33 @@ export function initOpeningScreen() {
   startBtnImg.alt = "START";
   startBtn.appendChild(startBtnImg);
   startGate.appendChild(startBtn);
+  // 🔴【2026-11-14・試作】HUERISE の「燃え広がる」演出（`?ui=v2` の時だけ）。
+  //   ユーザー案（続き696 で受けたもの）: 「押すと紙が中心から全方位に燃え広がり、次のページが
+  //   現れる。炎の色は起動のたびにランダム」。見た目は全部 ui-v2.css が決める。
+  //   ⚠ **既定の画面は1行も変わらない**（ここは isUiV2() の中だけ。既定は今までどおり
+  //     is-closing の 0.6秒フェード）。
+  //   ⚠ **既定に昇格させたくなったら `燃える` の右辺を true にするだけ**。ただし HUERISE は
+  //     「押しても進まない」の報告が過去に4回ある場所（#277 / #424 / #455 / #460）なので、
+  //     まず v2 で実機を見てから決めたい。
+  let 燃えぎわ = null;
+  const 燃える = isUiV2();
+  if (燃える) {
+    startGate.classList.add("is-burn");
+    // 炎の色は起動のたびにランダム（ユーザー案）。このゲームの7色から1つ選ぶ
+    // （新しい色を作らない＝世界の色のままにする）。
+    const 炎の色 = ["#c70025", "#ee781f", "#fabe00", "#22ac38", "#1bb8ce", "#f19ec2", "#915da3"];
+    const その回の色 = 炎の色[Math.floor(Math.random() * 炎の色.length)];
+    startGate.style.setProperty("--burn-color", その回の色);
+    // 燃えぎわ（炎のリング）。1枚だけ。
+    // 🔴 **紙の中に入れない。** 紙にはマスクを掛けるので、子にすると
+    //   **穴より内側＝炎のいちばん明るい芯が毎コマ消される**（実測でそうなっていた＝
+    //   「炎が見えない」という形で出た）。紙の兄弟にして、紙の上（z 11）に重ねる。
+    燃えぎわ = document.createElement("div");
+    燃えぎわ.className = "opening-burn-ember";
+    燃えぎわ.style.setProperty("--burn-color", その回の色);
+  }
   overlay.appendChild(startGate);
+  if (燃えぎわ) overlay.appendChild(燃えぎわ);
 
   document.body.appendChild(overlay);
   // ユーザー要望「オプションマークはタイトル画面から常に表示させてほしい（BGM音量など
@@ -867,6 +897,7 @@ export function initOpeningScreen() {
     stopAuras();
     playOpeningBgm();
     startGate.style.display = "none";
+    燃えぎわ?.remove(); // 飛ばした時も残骸を置いていかない
     storyCrawl.style.display = "none";
     overlay.classList.add("stage-title", "stage-content");
   }
@@ -898,12 +929,17 @@ export function initOpeningScreen() {
     if (startPressed) return;
     startPressed = true;
     playOpeningBgm();
-    startGate.classList.add("is-closing");
+    // 【2026-11-14・試作】v2 は「燃え広がる」、既定は今までどおりのフェード。
+    startGate.classList.add(燃える ? "is-burning" : "is-closing");
+    燃えぎわ?.classList.add("is-burning");
     stopAuras();
+    // 🔴 **効かない端末でも必ず消える**: この setTimeout は mask が動くかどうかに関係なく
+    //   走る（CSS 側の keyframes も終わりの3割で opacity を 0 にしてある＝二重の保険）。
     setTimeout(() => {
       startGate.style.display = "none";
+      燃えぎわ?.remove(); // 残骸を置いていかない
       beginTitleSequence();
-    }, CLOSE_TRANSITION_MS);
+    }, 燃える ? BURN_TRANSITION_MS : CLOSE_TRANSITION_MS);
   };
   startBtn.addEventListener("click", beginFromStart);
   startBtn.addEventListener("pointerup", beginFromStart);

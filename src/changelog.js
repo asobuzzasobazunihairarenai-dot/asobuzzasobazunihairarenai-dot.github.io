@@ -54,22 +54,27 @@ export const CHANGELOG = [
   {
     date: "2026-11-14",
     summary: [
+      "パーティーの3つ目の効果を「相手を１マス移動させる」に変えてみました（お試し）",
       "CPU戦では、右下のタイマーを押してその場で止められるようになりました",
       "試練の儀式の間、カメラが行き来しなくなりました",
     ],
     summaryEn: [
+      "Party's third option is now \"move one opponent\" (a trial)",
       "In CPU battles you can now stop the timer right from the bottom-right readout",
       "The camera no longer swings back and forth during the Trial Ritual",
     ],
     items: [
+      "**パーティー（桃）の到達効果の3つ目**が「場の任意の２枚をオープンする。」から**「相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。」**に変わりました。選んだ相手の駒と、その行き先（隣の4マスのうち、カードがあって誰もいないマス）を順に選びます。移動先が裏向きならその札はオープンしますが、**到達効果は起きません**。⚠ **お試しです。** 遊んでみて合わなければ元に戻します。⚠ **実物のカードの印刷文は「２枚をオープンする」のまま**なので、しばらくの間はアプリと紙で文が違います。",
       "CPU戦でタイマーを使っている時、右下のタイマーの数字を押すと「⏳ タイマーをOFFにする」が出て、その場で切れるようになりました。オンライン対戦のタイマーは相手の承認が要るので今までどおりですが、CPU戦には承認する相手がいないので、押せばすぐ止まります。切った設定はそのまま残るので、次のCPU戦もタイマーなしで始まります（戻したい時はホーム画面の「⚙ 詳細を設定する」から）。",
       "試練の儀式は「色を宣言 → 隣のマスへ札を置いて進む → 中央で札をめくる」を、当たり続ける限り何度でも繰り返します。これまでは1回進むたびにカメラが寄って、すぐ元の位置へ戻っていたので、繰り返しの間ずっと画面が行き来していました。これからは、繰り返している間は寄ったまま札から札へ滑っていき、儀式が終わってから1回だけ元の位置へ戻ります。カメラが寄るのを好まない場合は、これまでどおり⚙オプションの「決め所でカメラが寄る」を切れば寄りません。",
     ],
     itemsEn: [
+      "**Party (pink), third arrival option** changed from \"Flip any 2 cards on the field face-up\" to **\"Move 1 opponent 1 space; that player does not gain the Arrival Effect of the destination.\"** You pick the opponent's piece, then the destination (an adjacent space that has a card and no piece). A face-down card there is still turned face-up, but no Arrival Effect triggers. ⚠ This is a trial and may be reverted. ⚠ The printed cards still show the old wording for now.",
       "When a CPU battle is using the timer, tapping the timer readout at the bottom right now offers “turn the timer off” and switches it off immediately. Online timers still need every player's approval, but a CPU battle has nobody to approve, so it just stops. The choice is remembered, so your next CPU battle starts without the timer too (turn it back on from “detailed settings” on the home screen).",
       "The Trial Ritual repeats \"declare colors, place a card on an adjacent square and step onto it, then flip it in the center\" for as long as you keep hitting. Until now the camera zoomed in on every step and immediately returned, so the view kept swinging back and forth. Now it stays in close and glides from card to card, returning to the normal view only once, after the ritual ends. If you would rather it never zoomed, the \"zoom in on key moments\" option still turns it off.",
     ],
     fixes: [
+      "リトルマウスで、選べる相手が1人しかいない時も「誰を選んでいるか」が見えるようにしました",
       "同じ試合が2回記録されることがあり、対戦数と勝率がずれていたのを直しました",
       "観戦中、相手の駒があなたの駒の見た目になっていたのを直しました",
       "観戦中、試練の儀式などで宣言した色が見えなかったのを直しました",
@@ -88,6 +93,7 @@ export const CHANGELOG = [
       "ランク戦を待っている間のCPU練習のつまみを、右上から左上へ移しました（右上に出るカードの拡大と重なっていました）",
     ],
     fixesEn: [
+      "Little Mouse now always shows the target picker, even when there is only one candidate",
       "Fixed a match sometimes being recorded twice, which skewed match counts and win rates",
       "While spectating, other players' pieces no longer show your own piece skin",
       "While spectating, you can now see which colours a player declared",
@@ -106,6 +112,8 @@ export const CHANGELOG = [
       "The ranked-wait practice chip moved from the top-right to the top-left, where it no longer overlaps the zoomed arrival card",
     ],
     devItems: [
+      "🔴 **パーティーの3つ目の差し替え（ユーザー要望・お試し）。** 「２枚オープン」→「相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。」。候補は **`getMoveCandidates(駒の位置, 1, false)`** ＝**自分が動く選択肢とまったく同じ数え方**（カードがあって駒がいない隣の4マス）なので、**接触は起きない**（駒がいるマスは候補に入らない）。移動は `moveAndSyncForEffect(…, true)` ＝ **arrivalSuppressed を立てる**——立てないと、位置の差分だけを見ている中継側（remote-move-animator.js）が「到達した」と判断して**相手の到達効果が勝手に走る**（続き59 と同じ罠）。「移動」の定義にはオープンが含まれる（rulebook）ので、移動先が裏向きならめくるが、到達は呼ばない。⚠ **元に戻せる形にしてある**: ラベル `game.party.openTwo` と CPU の評価 `\"open-two\"` は**消さずに残した**。⚠ **実物の印刷文とは食い違う**ので、アートディレクターへの報告控えに1行足した。",
+      "🔴 **#639「リトルマウスを使ったのに使えなかった」。** 行動ログでは**撃てていて、奪えなかっただけ**だった（自分が単独で1番多くロック＝自分しか選べない）。ユーザー判断「**自分を含みます。対象を選ぶモーダルを1人でも出すようにする**」⇒ 候補が1人でも必ず `helpers.pickPlayer` を通す。⚠ **誰が1番多いかは公開情報**（ロックエリアは全員に見えている）なので、見せても隠し事の漏れにならない。⚠ CPU・持ち時間切れの代行は `isCpuSelectingNow` を見てモーダルを出さずに自動で解決するので、「必ず聞く」にしても自動の席は止まらない。テスト1件で固定（候補1人でも pickPlayer が1回呼ばれる）。",
       "🔴 **ユーザー報告「ぺてぃっとさんが2戦しかちゃんとやっていないのに勝率が33%」。** 実データを見たら **同じ試合が2行**在った（`m_1794642547829` と `m_1794642557873`＝**10秒差・同じ顔ぶれ・同じ勝者・同じ所要時間**）。⇒ 1勝1敗（50%）であるべきところが 1勝2敗（33%）。🔴 **二重を防ぐ守りは「バックアップ経路」にしか無かった**——普通の経路の守りは「この gameId で登録済みか」だけなので、**『もう一度遊ぶ』で gameId が変わると同じ勝利をもう一度書ける**（報告どおり、その試合はキャンセルされている）。⇒ 普通の経路でも**DBを見てから**書く（窓は3分＝同じ顔ぶれの本物の連戦を消さない長さ）。⚠ 既に入ってしまった重複の行は**消していない**（消すかはユーザー判断）。",
       "🔴 **#652 と #655 は同じ原因だった。** 観戦中 `getSelfSeat()` は **`spectateViewSeat`（＝実在するプレイヤーの席）**を返す——盤面をどの向きで描くかに使っているため。そのため「自分か？」の判定が全部ずれ、①その席の駒に**観戦者自身のスキン**が当たり（#652）②中継の『自分の操作ならローカルで再生済みなので出さない』門番が**その席の操作だけ素通し**になって宣言色が出なかった（#655）。⇒ `isSelfAction()` を1つ作って**観戦中は必ず false**にし、中継の門番5か所をそれに寄せた。",
       "🔴 **#657「ゲート侵攻されたら盤面が更新されない」は、行動ログで決着した**（`diag-gate-invasion-skipped {via:スキップ, 残り:4}`）。列が尽きた時の描き直しは**条件が揃った時だけ**で、どちらも当てはまらない経路では**1回も描き直さずに終わる**。侵攻は盤面を変える（奪う・エターナル・帰還）ので、飛ばした時だけ古い絵が残る。⇒ **列が尽きたら必ず1回描き直す。** スキップは「演出を省くもの」であって「結果を省くもの」ではない。",

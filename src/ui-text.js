@@ -1934,6 +1934,8 @@ const UI = {
     "game.pick.cellWithCardToHand": "手札に加えるカードのあるマスを選択してください",
     "game.pick.openCell1": "オープンするカードのあるマスを選択してください（1/2）",
     "game.pick.openCell2": "オープンするカードのあるマスを選択してください（2/2）",
+    "game.pick.opponentToMove": "移動させる相手の駒を選択してください",
+    "game.pick.moveOpponentTo": "その相手を移動させるマスを選択してください",
     "game.pick.placeFromHand": "そのマスに置くカードを手札から選択してください",
     "game.pick.cannotPickCell": "そのマスは選べません。",
     "game.pick.thisCard": "このカードを選びますか？",
@@ -1958,6 +1960,11 @@ const UI = {
     "game.party.move": "１マス移動し、移動先の到達効果は得ない。",
     "game.party.pickup": "場の任意の１枚をあなたの手札に加える。",
     "game.party.openTwo": "場の任意の２枚をオープンする。",
+    // 🔴【2026-11-14・試作】ユーザー要望「パーティーの２枚オープン効果を
+    //   『相手を移動させる、到達効果は得ない』的な効果にしてみてテストしてみたい」。
+    //   openTwo は**消さずに残してある**（戻す時はこの1行を使う側＝main.js の
+    //   runPartyOptionTask を元に戻すだけでよい）。
+    "game.party.moveOpponent": "相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。",
     "game.declare.viewBoard": "盤面を見る",
     // 【#487】覗いている間は同じボタンが「戻す」になる（押す所を探さなくてよいように）。
     "game.declare.restoreModal": "戻す",
@@ -4111,6 +4118,8 @@ const UI = {
     "game.pick.cellWithCardToHand": "Choose the square with the card to add to your hand",
     "game.pick.openCell1": "Choose a square with a card to reveal (1/2)",
     "game.pick.openCell2": "Choose a square with a card to reveal (2/2)",
+    "game.pick.opponentToMove": "Choose the opponent piece to move",
+    "game.pick.moveOpponentTo": "Choose the square to move that opponent to",
     "game.pick.placeFromHand": "Choose a card from your hand to place there",
     "game.pick.cannotPickCell": "You can't choose that square.",
     "game.pick.thisCard": "Choose this card?",
@@ -4135,6 +4144,7 @@ const UI = {
     "game.party.move": "Move 1 square; you do not gain the Arrival Effect there.",
     "game.party.pickup": "Add any one card on the board to your hand.",
     "game.party.openTwo": "Reveal any two cards on the board.",
+    "game.party.moveOpponent": "Move one opponent 1 square; that player does not gain the Arrival Effect there.",
     "game.declare.viewBoard": "View the board",
     "game.declare.restoreModal": "Put it back",
     "game.declare.viewingBoard": "Viewing the board… click to go back to the choices",

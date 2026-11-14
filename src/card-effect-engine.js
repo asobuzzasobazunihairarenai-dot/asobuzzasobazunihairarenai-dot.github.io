@@ -3243,8 +3243,17 @@ async function runAction(action, ctx, helpers) {
       for (const p of players) 最大 = Math.max(最大, countLockedCardsFor(p));
       const cands = players.filter((p) => countLockedCardsFor(p) === 最大);
       if (cands.length === 0) return false;
-      const target =
-        cands.length === 1 && !ctx.forcePrompt ? cands[0] : await helpers.pickPlayer(cands, t("ce.ex0PickMostLocked"));
+      // 🔴【#639・2026-11-14】ユーザー判断「自分を含みます。対象を選ぶモーダルを1人でも出す」。
+      //   報告「リトルマウスを使ったのに使えなかった」の正体は**撃てたが奪えなかった**
+      //   （自分が単独で1番多い＝自分しか選べない＝奪う相手が居ない）。
+      //   ⚠ 以前は候補が1人なら**黙って自動で決めて**いたので、画面には結果（奪えません）
+      //     しか出ず、「カードが効かなかった」と見えた。
+      //   ⇒ **1人でも必ず選ばせる**。誰が1番多くロックしているかは**公開情報**（ロックエリアは
+      //     全員に見えている）なので、見せても隠し事の漏れにはならない。
+      //   ⚠ CPU・持ち時間切れの代行はモーダルを出さずに自動で解決する
+      //     （requestPlayerChoiceForEffect が isCpuSelectingNow を見ている）ので、
+      //     ここを「必ず聞く」にしても自動の席は止まらない。
+      const target = await helpers.pickPlayer(cands, t("ce.ex0PickMostLocked"));
       if (!target) return false;
       if (target === ctx.player) {
         await helpers.announceEffectReason?.(ctx.cardId, t("ce.ex0SelfIsMostLocked"));

@@ -4488,16 +4488,23 @@ async function runPartyOptionTask(player) {
   // 「そのカードがまだ盤面に残っている場合だけ」動かすので、別プレイヤーがパーティー自身を
   // 取っても手番プレイヤーが奪い返さない。よってここでは何も除外しない。
   const boardCardCells = getAnyCellWithCardCandidates();
-  const faceDownBoardCells = boardCardCells.filter((loc) => {
-    const token = getState().tokens.find(
-      (t) => t.kind === "card" && t.location.zone === "cell" && t.location.row === loc.row && t.location.col === loc.col
-    );
-    return token && !token.faceUp;
-  });
+  // 🔴【2026-11-14・試作】ユーザー要望「パーティーの２枚オープン効果を『相手を移動させる、
+  //   到達効果は得ない』的な効果にしてみてテストしてみたい」。
+  //   ⇒ 3択目を **「相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。」** に差し替えた。
+  //   ⚠ 戻す時はこの塊と下の move-opponent の枝を元に戻すだけ（ラベル `game.party.openTwo` と
+  //     CPU の `"open-two"` の評価は**消さずに残してある**）。
+  //   ⚠ **1マス・4方向**で、カードがあり駒がいないマスだけ（getMoveCandidates が既にそう数える）
+  //     ＝自分が動く選択肢とまったく同じ数え方。接触は起きない（駒がいるマスは候補に入らない）。
+  const opponentMoveTargets = getState()
+    .tokens.filter(
+      (t) => t.kind === "piece" && t.player !== player && t.location.zone === "cell" && getState().activePlayers.includes(t.player)
+    )
+    .map((t) => ({ piece: t, cell: { zone: "cell", row: t.location.row, col: t.location.col }, dests: getMoveCandidates(t.location, 1, false) }))
+    .filter((x) => x.dests.length > 0);
   const options = [
     { id: "move", label: t("game.party.move"), usable: moveCandidates.length > 0 },
     { id: "pickup", label: t("game.party.pickup"), usable: boardCardCells.length > 0 },
-    { id: "open-two", label: t("game.party.openTwo"), usable: faceDownBoardCells.length >= 2 },
+    { id: "move-opponent", label: t("game.party.moveOpponent"), usable: opponentMoveTargets.length > 0 },
   ];
   if (!options.some((o) => o.usable)) return false;
   const chosen = await pickOptionForEffect("pink-party", options);
@@ -4554,18 +4561,43 @@ async function runPartyOptionTask(player) {
     onEffectCardAcquiredToHand(token.id, acquired?.cardId ?? token.cardId, wasFaceUp, player);
     return true;
   }
-  // open-two: 2枚選んでオープンする（手札に加えず、その場でめくるだけ）。
-  const firstDest = await requestCellChoiceForEffect(faceDownBoardCells, t("game.pick.openCell1"));
-  if (!firstDest) return false;
-  const firstToken = findTopCardAt(firstDest);
-  if (firstToken) await flipToFaceUpForEffect(firstToken.id);
-  const remaining = faceDownBoardCells.filter((c) => !(c.row === firstDest.row && c.col === firstDest.col));
-  if (remaining.length === 0) return true;
-  const secondDest =
-    remaining.length === 1 ? remaining[0] : await requestCellChoiceForEffect(remaining, t("game.pick.openCell2"));
-  if (!secondDest) return true;
-  const secondToken = findTopCardAt(secondDest);
-  if (secondToken) await flipToFaceUpForEffect(secondToken.id);
+  // move-opponent【2026-11-14・試作】: 相手1人を1マス移動させる（その相手は移動先の到達効果を得ない）。
+  // 🔴 相手は**駒で選ばせる**（ユーザー要望「場に関する効果で相手を選ぶ時はアバターではなく駒を
+  //   選ぶ形に」）。pickTarget: "piece" は確認の文を「このマスでいいですか？」ではなく相手向けの
+  //   言い方に切り替えるため（#207）。
+  // ⚠ 相手が1人（＝動かせる駒が1つ）しかない時は聞かない（選ぶ余地が無い＝プレゼント等と同じ作法）。
+  const 相手のマス =
+    opponentMoveTargets.length === 1
+      ? opponentMoveTargets[0].cell
+      : await requestCellChoiceForEffect(
+          opponentMoveTargets.map((x) => x.cell),
+          t("game.pick.opponentToMove"),
+          { pickTarget: "piece" }
+        );
+  if (!相手のマス) return false;
+  const 相手 = opponentMoveTargets.find((x) => x.cell.row === 相手のマス.row && x.cell.col === 相手のマス.col);
+  if (!相手) return false;
+  const 行き先 =
+    相手.dests.length === 1 ? 相手.dests[0] : await requestCellChoiceForEffect(相手.dests, t("game.pick.moveOpponentTo"));
+  if (!行き先) return false;
+  // 第4引数 true ＝ arrivalSuppressed を立てる。自分が動く選択肢とまったく同じ理由で必要
+  // （remote-move-animator.js は駒の位置の差分だけを見て「到達した」と判断し、この印を見て
+  //  初めて抑制する＝立てないと再同期時に相手の到達効果が勝手に走る）。
+  await moveAndSyncForEffect(相手.piece.id, 行き先, undefined, true);
+  // 「移動」の定義にオープンが含まれる（docs/rulebook.md）ので、移動先が裏向きならめくる。
+  // 到達効果（triggerCardArrival）は呼ばない＝「到達効果は得ない」。
+  const 移動先の札 = findTopCardAt(行き先);
+  // 🔴 めくる前に控える。トークンは生きた参照なので、めくった後に faceUp を読むと必ず true になる
+  //   （「めくったかどうか」が行動ログに残らなくなる）。
+  const めくった = !!(移動先の札 && !移動先の札.faceUp);
+  if (めくった) await flipToFaceUpForEffect(移動先の札.id);
+  logAction("diag-party-move-opponent", {
+    player,
+    target: 相手.piece.player,
+    from: { row: 相手のマス.row, col: 相手のマス.col },
+    to: { row: 行き先.row, col: 行き先.col },
+    flipped: めくった,
+  });
   return true;
   })();
   await announced;

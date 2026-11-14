@@ -318,6 +318,10 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  639: {
+    ja: "直しました。ログを見ると、実はカードは撃てていて「奪えなかった」だけでした——１番多くロックしているのがあなただけだと、選べる相手があなた１人になり、自分からは奪えないためです。これまでは相手が１人しかいない時に黙って自動で決めていたので、結果の文しか出ず「効かなかった」ように見えていました。１人でも必ず選ぶ画面を出すようにしたので、何が起きているか分かります。",
+    en: "Fixed. The card was actually used; it just had nothing to take, because you alone had the most locked cards and you cannot steal from yourself. Previously a single candidate was chosen silently, so only the result message appeared. The picker is now always shown, even for one candidate.",
+  },
   640: {
     ja: "直しました。表の中で紅の鉄拳だけ番号が無く末尾に足してあったため、白と黒の後ろに出ていました。表そのものは並べ替えず（サーバー側の写しとズレるため）、出す時だけ色で並べ直すようにしたので、赤の場所に戻ります。",
     en: "Fixed. Crimson Iron Fist was appended to the end of the table without a number, so it listed after the white and black cards. The list is now sorted by colour at display time; the table itself is untouched.",

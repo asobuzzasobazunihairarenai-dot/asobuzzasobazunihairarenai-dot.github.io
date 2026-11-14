@@ -2566,6 +2566,31 @@ export const CASES = [
       { kind: "handHasCard", player: "A", cardId: "red-jump-pad", n: 1 },
     ],
   },
+  // 🔴【#639・2026-11-14】「1人でも対象を選ぶモーダルを出す」（ユーザー判断）。
+  //   自分が単独で1番多くロックしている時、以前は**黙って自動で決めて**いたので、画面には
+  //   「奪えません」しか出ず「カードが効かなかった」と見えた。**1人でも必ず選ばせる**。
+  //   ⚠ 誰が1番多いかは公開情報（ロックエリアは全員に見えている）なので隠し事の漏れにならない。
+  {
+    name: "リトルマウス(到達): 自分が単独で1番多い時も対象を1人選ばせる（1人でも必ず聞く）",
+    kind: "arrival",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-little-mouse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "lockA", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "bh1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-little-mouse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["A"] },
+    expect: [
+      { kind: "called", name: "pickPlayer", n: 1 }, // 候補が1人でも必ず聞く
+      { kind: "handCount", player: "B", n: 1 }, // 自分からは奪えない＝相手の手札は減らない
+      { kind: "handCount", player: "A", n: 1 }, // 到達した自分自身だけ
+    ],
+  },
   // ピーターフッド（到達）。「あなたの隣に山札から３枚ずつ裏向きで置く。」
   {
     name: "ピーターフッド(到達): 隣の4マスに山札から3枚ずつ裏向きで置く（計12枚）",

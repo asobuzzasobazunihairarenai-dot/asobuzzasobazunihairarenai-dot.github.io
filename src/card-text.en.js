@@ -82,7 +82,7 @@ export const CARD_TEXT_EN = {
   "pink-party": {
     note: "As a rule, an effect that targets several players is resolved starting from the player who used it and continuing clockwise (the resolution order principle). Because the Arrival Effect of the space you move to “does not trigger”, no effect is resolved and that card is not added to your hand.",
     name: "Party", titleRuby: "", basic: "", subtitle: "",
-    arrival: "Each player gains one of the following effects:\n・Move 1 space; do not gain the Arrival Effect at the destination.\n・Add any 1 card on the field to your hand.\n・Flip any 2 cards on the field face-up.",
+    arrival: "Each player gains one of the following effects:\n・Move 1 space; do not gain the Arrival Effect at the destination.\n・Add any 1 card on the field to your hand.\n・Move 1 opponent 1 space; that player does not gain the Arrival Effect of the destination.",
     hand: "Place this face-down on any space.",
     flavor: "When the feast ends, may everyone be smiling.",
   },
