@@ -182,8 +182,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #000;
-      color: #e8edf5;
+      background: #14120e; /* 試作の卓と同じ暖かい黒（真っ黒だと「消えている」ように見える） */
+      color: #f6eddc;
       font-family: sans-serif;
       text-align: center;
       pointer-events: none; /* 何も邪魔しない（保険①） */
@@ -191,26 +191,55 @@
     }
     #boot-loading.is-gone { opacity: 0; }
     .boot-loading-inner { padding: 1.5rem; max-width: 86vw; }
-    .boot-loading-spinner {
-      width: 2.6rem;
-      height: 2.6rem;
-      margin: 0 auto 1rem;
-      border-radius: 50%;
-      border: 0.26rem solid rgba(232, 237, 245, 0.22);
-      border-top-color: #ffd54a;
-      animation: boot-loading-spin 900ms linear infinite;
+    /* 🔴 ぐるぐる回る輪をやめて、**7色の正方形が1つずつ灯る**形にした。
+       このゲームの印は 7色 と 正方形のカードで、勝つ条件も「7色をロックする」。
+       ＝**読み込みの間に、このゲームが何なのかが伝わる絵**にしたかった。
+       ⚠ 画像も webfont も使わない（ここは「まだ何も読めていない」時間なので）。 */
+    .boot-loading-cubes {
+      display: flex;
+      justify-content: center;
+      gap: 0.34rem;
+      margin: 0 auto 1.15rem;
     }
-    @keyframes boot-loading-spin { to { transform: rotate(360deg); } }
+    .boot-loading-cubes > i {
+      width: 0.86rem;
+      height: 0.86rem;
+      background: var(--c);
+      opacity: 0.18;
+      /* ほんのり浮かせる（カードが卓に置かれている感じ）。 */
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+      animation: boot-loading-lock 2.45s linear infinite;
+      animation-delay: var(--d);
+    }
+    /* 1色ぶん灯って、7色そろったら消えてまた最初から。 */
+    @keyframes boot-loading-lock {
+      0%, 4% { opacity: 0.18; transform: none; }
+      10% { opacity: 1; transform: translateY(-0.12rem); }
+      72% { opacity: 1; transform: none; }
+      86%, 100% { opacity: 0.18; transform: none; }
+    }
+    /* 上に細い七色の線（タイトル画面と同じ印）。 */
+    .boot-loading-rule {
+      width: 9.4rem;
+      height: 2px;
+      margin: 0 auto 1.4rem;
+      opacity: 0.55;
+      background: linear-gradient(90deg, #c70025, #ee781f 17%, #fabe00 33%, #22ac38 50%, #1bb8ce 67%, #f19ec2 83%, #915da3);
+    }
     .boot-loading-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.08em; }
     .boot-loading-sub { margin-top: 0.6rem; font-size: 0.82rem; line-height: 1.7; opacity: 0.8; }
     .boot-loading-en { margin-top: 0.35rem; font-size: 0.74rem; line-height: 1.6; opacity: 0.6; }
     @media (prefers-reduced-motion: reduce) {
-      .boot-loading-spinner { animation-duration: 2.4s; }
+      /* 点滅が苦手な人には動かさない。7色はそのまま見える（印として成立する）。 */
+      .boot-loading-cubes > i { animation: none; opacity: 0.85; }
     }
   </style>
   <div id="boot-loading" aria-hidden="true">
     <div class="boot-loading-inner">
-      <div class="boot-loading-spinner"></div>
+      <div class="boot-loading-rule"></div>
+      <div class="boot-loading-cubes">
+        <i style="--c:#c70025;--d:0s"></i><i style="--c:#ee781f;--d:.1s"></i><i style="--c:#fabe00;--d:.2s"></i><i style="--c:#22ac38;--d:.3s"></i><i style="--c:#1bb8ce;--d:.4s"></i><i style="--c:#f19ec2;--d:.5s"></i><i style="--c:#915da3;--d:.6s"></i>
+      </div>
       <div class="boot-loading-title">読み込み中…</div>
       <div class="boot-loading-sub">最初の読み込みに10秒ほどかかることがあります。<br>そのままお待ちください。</div>
       <div class="boot-loading-en">Loading. The first load can take about ten seconds.</div>

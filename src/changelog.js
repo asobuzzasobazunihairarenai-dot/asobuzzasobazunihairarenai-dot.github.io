@@ -54,24 +54,28 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "読み込み中の画面を、7色が1つずつ灯る形にしました",
       "CPU戦の設定を、最初から開いた形にしました",
       "マイデッキの「装い」を、見本を押すだけで変えられるようにしました",
       "図鑑の「山札一覧」を「カード一覧」に改めました",
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "The loading screen now lights up the seven colours one by one",
       "The CPU battle settings now open expanded",
       "Change a deck's attire by tapping the samples",
       "The codex’s \"deck list\" is now the card list",
       "The online match window is better arranged",
     ],
     items: [
+      "**読み込み中の画面**を、ぐるぐる回る輪から**7色の正方形が1つずつ灯る**形にしました。このゲームの印（7色の正方形のカード）であり、勝つ条件（7色をロックする）そのものの絵です。⚠ 画像は1枚も足していないので、読み込みは1バイトも増えていません。",
       "**CPU戦の設定を最初から開いた形**にして、説明文は各項目の **i マーク**の中へ畳みました（押した時だけ出ます）。設定を変えずに始めたい人は、そのまま「この設定ではじめる」を押せます。",
       "**マイデッキの「装い」（駒・ペット・カード裏）を、見本を押すだけで変えられる**ようにしました。これまでは編集画面を開いてから設定を探す必要がありました。見本はデッキの箱の手前に大きく並び、設定していない所は**破線の ＋**で空き枠だと分かります。",
       "**図鑑の「山札一覧」を「カード一覧」に改めました。** カードの枚数（×7 など）の表示も外しています（ここは山の中身ではなく、カードそのものの一覧なので）。⚠ 対局中の「山札一覧を見る」は今までどおりです。",
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "**The loading screen** now lights the seven coloured squares one by one instead of spinning a ring — the game’s own mark, and its win condition. No images were added, so nothing extra is downloaded.",
       "**The CPU battle settings now open expanded**, and each explanation is folded behind an i mark. If you do not want to change anything, just press Start with these settings.",
       "**You can now change a deck's attire (piece, pet, card back) by tapping the samples** instead of opening the editor and hunting for the settings. Unset slots show a dashed +.",
       "**The codex's “deck list” is now the card list**, and the per-card counts are gone (this is a list of cards, not of what is in the draw pile). The in-game deck list is unchanged.",
@@ -88,6 +92,7 @@ export const CHANGELOG = [
       "The card list's back button now looks like the one on every other page",
     ],
     devItems: [
+      "**「これももっとセブンっぽくしたい」（起動中の覆い）。** ⇒ 輪をやめて**7色の正方形が1つずつ灯る**形へ（勝利条件そのものの絵）。上に細い七色の線、地は試作の卓と同じ暖かい黒（#14120e。真っ黒だと「消えている」ように見える）。🔴 **index.html のインラインのまま**（src のモジュールに書くと、待っている当人を待つことになる）。**画像も webfont も使わない。** ⚠ 既存の三重の保険（pointer-events:none ／ 出たら消す ／ 25秒で強制）には一切触っていない。⚠ 点滅が苦手な人（prefers-reduced-motion）には**動かさず7色を静かに並べる**。実測: 正方形7つ・色はゲームの7色と一致・濃さが 0.18 → 1.00 と動く・当たり判定 none・例外0。",
       "🔴 **#664「ピュアバーガーの到達効果でカード置くとき表向きか裏向きか選べなかった」。** 札の文は「自分の手札から１枚をそのマスの１番上に置く。」で**向きを書いていない**のに、手札→マスの移動は state の既定が**裏向き**なので、黙って裏向きに置かれていた。⇒ 本人に聞く。⚠ CPU・持ち時間切れの代行はモーダルを出さずに自動で選ぶ（`pickOptionForEffect` が`isCpuSelectingNow` を見ている）ので、自動の席は止まらない。",
       "🔴 **#665「ノクスアエルの効果文が実際と異なります」の正体: 【色者】の一文が、カードに1文字も載っていなかった。** `card-effects.js` の**コメントには本文が書いてあった**のに、表示用の `card-text-ex0.ja.js` には入っていなかった（basic は『これは他のカードの効果の対象にならない。』だけ）。⇒ subtitle へ入れた。⚠ 「色者の効果が発動していない」の方は、**処理（`resolveShikijaAtTurnEnd`）は在ってターンの切り替わりから呼ばれている**。条件は「表向き・マスの上」。次の報告で行動ログを見る。",
       "**#666「設定値を最初からこのモーダルに出した方が良い。テキストはほぼ無しにして、必要な情報はそれぞれの項目に i マークで隠そう」。** ⇒ CPU だけの形では詳細を**最初から開き**、開閉のボタン自体を出さない。4つの説明文（強さ・人数・ルール・カードセット）は**見出しの i マークの中へ畳む**（押した時だけ出る）。⚠ 文そのものは消さない——知りたい人は押せば読める。⚠ 2択の画面（フレンドリーと並ぶ形）は今までどおり畳む（#437 の経緯）。",
