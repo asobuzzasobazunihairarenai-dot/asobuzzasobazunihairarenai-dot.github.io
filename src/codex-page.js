@@ -43,10 +43,12 @@ export function openCodexPage(onClose) {
   deckBtn.type = "button";
   deckBtn.className = "codex-open-deck-btn";
   deckBtn.textContent = t("cdx.deckBtn");
-  deckBtn.style.cssText =
-    "display: block; margin: 0.4rem 0 0.4rem; padding: 0.6rem 1.2rem; background: rgba(125,211,252,0.12); " +
-    "border: 1px solid rgba(125,211,252,0.5); border-radius: 0.5rem; color: #e2e8f0; cursor: pointer; " +
-    "font-family: sans-serif; font-size: 0.95rem;";
+  // 🔴【2026-11-15・続き721】ここに書いていた style.cssText（じか書き）を style.css の
+  //   `.codex-open-deck-btn` へ移した。**見た目の値は1つも変えていない。**
+  //   じか書きは普通の規則では勝てないので、ライトテーマの直しが `!important` を
+  //   3つ使う羽目になっていた（style.css の body.theme-light .codex-open-deck-btn の
+  //   コメント「インラインで白文字＝白地で見えない」がその跡）。
+  //   見た目は CSS 側で持つ方が、テーマや ?ui=v2 から素直に上書きできる。
   deckBtn.addEventListener("click", () => openDeckViewer());
   content.appendChild(deckBtn);
 

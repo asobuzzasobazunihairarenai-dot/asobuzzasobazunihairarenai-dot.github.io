@@ -17474,6 +17474,22 @@ body.theme-light .online-lobby-waiting {
   color: #a67c1a;
 }
 
+/* 図鑑の「カード一覧を開く」ボタン。
+   🔴【続き721】codex-page.js のじか書き（style.cssText）をここへ移した。
+   **値は1つも変えていない**＝既定の見た目はそのまま。 */
+.codex-open-deck-btn {
+  display: block;
+  margin: 0.4rem 0 0.4rem;
+  padding: 0.6rem 1.2rem;
+  background: rgba(125, 211, 252, 0.12);
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  border-radius: 0.5rem;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-family: sans-serif;
+  font-size: 0.95rem;
+}
+
 /* ---- ライトテーマ：図鑑の「山札一覧を開く」ボタン（インラインで白文字＝白地で見えない）。 ---- */
 body.theme-light .codex-open-deck-btn {
   background: rgba(176, 141, 63, 0.12) !important;
