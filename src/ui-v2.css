@@ -612,3 +612,176 @@ body.ui-v2 #home-v2-rail .home-screen-tile-new-badge {
   transform: scale(0.72);
   transform-origin: top right;
 }
+
+/* ═══════════ 【2026-11-14・続き705】v2 の線画アイコン・七色の印・ランクの置き場 ═══════════
+   ユーザー判断「ホーム画面の既存のメニューアイコンも流用しなくていいよ！」＋
+   ユーザー指摘「文字とランクバッチが被ってます」。 */
+
+/* ① 線画アイコン（インラインSVG）。色は親から継ぐので、場所ごとに金の濃さを変えられる。
+   ⚠ 画像ファイルは1枚も増やしていない（画像は幅×高さ×4バイトでメモリを食う＝#223・#607）。 */
+body.ui-v2 .home-screen-tile-icon.is-v2-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--v2-gold-deep, #8a6729);
+}
+body.ui-v2 .home-screen-tile-icon.is-v2-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* 場所ごとの大きさ（もとの画像の大きさの指定は .home-screen-tile-icon-img 宛てなので効かない）。 */
+body.ui-v2 #home-v2-rail .home-screen-tile-icon.is-v2-icon {
+  width: 3.1rem;
+  height: 3.1rem;
+}
+body.ui-v2 .home-screen-tile.is-card .home-screen-tile-icon.is-v2-icon {
+  width: 6rem;
+  height: 6rem;
+  flex: none;
+}
+body.ui-v2 .home-screen-tile.is-wide .home-screen-tile-icon.is-v2-icon {
+  width: 3.6rem;
+  height: 3.6rem;
+  flex: none;
+}
+/* 主役の札は、絵を大きく薄く敷いて「地模様」にする。 */
+body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-icon.is-v2-icon {
+  position: absolute;
+  right: 4rem;
+  top: 46%;
+  transform: translateY(-50%);
+  width: 17rem;
+  height: 17rem;
+  opacity: 0.2;
+}
+body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-icon.is-v2-icon svg {
+  stroke-width: 0.9;
+}
+
+/* ② 左の列の天の印。七色の点（押せるものではない）。 */
+body.ui-v2 #home-v2-rail-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  font-size: 0;
+  width: 6.4rem;
+  padding-bottom: 0.9rem;
+}
+body.ui-v2 .home-v2-rail-dot {
+  display: block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(36, 31, 26, 0.12);
+}
+
+/* ③ 🔴【ユーザー指摘「文字とランクバッチが被ってます」】
+   ランクの表示は縦に長い（「あなたのランク」＋バッジ＋段位名）ので、左下から積むと
+   **上の英字の肩書き（RANKED MATCH）まで届いて重なっていた**（報告の画像で確認）。
+   ⇒ **右上へ置き直す**（肩書きは左上、題は左下、絵は中央＝どれとも当たらない）。
+   ⚠ 大きさも抑える（元のバッジは管理者モードの位置調整を持っているので、親を縮める形にする）。 */
+body.ui-v2 #home-screen-rank.is-v2-hero {
+  position: absolute;
+  left: auto;
+  right: 1.6rem;
+  top: 1.4rem;
+  bottom: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  transform: scale(0.82);
+  transform-origin: top right;
+  z-index: 2;
+}
+body.ui-v2 #home-screen-rank.is-v2-hero .home-rank-label,
+body.ui-v2 #home-screen-rank.is-v2-hero .home-rank-name {
+  text-shadow: none;
+  color: var(--v2-ink, #241f1a);
+}
+body.ui-v2 #home-screen-rank.is-v2-hero .home-rank-label {
+  font-size: 1.2rem;
+  letter-spacing: 0.12em;
+  color: var(--v2-gold-deep, #8a6729);
+}
+body.ui-v2 #home-screen-rank.is-v2-hero .home-rank-name {
+  font-size: 1.5rem;
+}
+
+/* ═══════════ 【2026-11-14・続き705】図鑑・ショップ・マイデッキ・マイページ・ランキング ═══════════
+   ホームに続き、全画面ページも試作の作りへ寄せる。
+   🔴 **ここは CSS だけ**（組み立てには触らない）。地・金の罫・四隅の線画・縦書きロゴは
+     続き701 で既に当たっているので、残っていたのは次の2つ:
+       ① 見出しの上の**英字の肩書き**（試作はどのページも持っている）
+       ② 中身の札が**紙＋金の細枠＋大きめの影**になっていない
+   ⚠ **大きさ・余白・並べ方には触らない**（各ページで実測して詰めてあるものを壊さない）。
+   ⚠ 肩書きは**飾り**なので CSS が文字を持つ（言語を切り替えても変わらない＝意図どおり）。 */
+
+/* 🔴 続き701 で入れた肩書きは**全ページ「0TH EDITION」**だった（試作の文字をそのまま
+   写したため）。どのページでも同じ文字が出るのは案内として意味が無いので、
+   **ページの名前**に替える（体裁は上の ⑥-4 のまま。文言だけ上書きする）。 */
+/* 一覧に無かった #mds-title（デッキ編成）にだけ体裁も足す。 */
+body.ui-v2 #mds-title::before {
+  display: block;
+  font-family: "Cormorant Garamond", serif;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  line-height: 1;
+  margin-bottom: 6px;
+  color: var(--v2-gold-deep, #8a6729);
+}
+body.ui-v2 #codex-page-title::before { content: "CODEX"; }
+body.ui-v2 #shop-panel-title::before { content: "SHOP"; }
+body.ui-v2 #mdl-title::before { content: "MY DECKS"; }
+body.ui-v2 #mds-title::before { content: "DECK BUILD"; }
+body.ui-v2 #profile-page-title::before { content: "MY PAGE"; }
+body.ui-v2 #ranking-page-title::before { content: "RANKING"; }
+
+/* ② 中身の札を「紙＋金の細枠＋大きめの影」に。
+   🔴 **地（background）には触らない。** ショップの札は中に絵の層（.shop-item-bg）を持ち、
+     マイデッキの札は箱の絵を持っているので、地を塗ると**その絵を消してしまう**。
+     枠・角・影だけで試作の額装に寄せる（これだけでも見た目は大きく変わる）。 */
+body.ui-v2 .shop-item-card,
+body.ui-v2 .mdl-deck,
+body.ui-v2 .codex-open-deck-btn {
+  border: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  border-radius: 0;
+  box-shadow: 0 10px 26px rgba(36, 31, 26, 0.12);
+}
+body.ui-v2 .shop-item-card:hover,
+body.ui-v2 .mdl-deck:hover,
+body.ui-v2 .codex-open-deck-btn:hover {
+  box-shadow: 0 16px 34px rgba(36, 31, 26, 0.18);
+}
+/* 節の見出しの罫は続き701 で金の箔にしてある。タブは下線だけ金に寄せる。 */
+body.ui-v2 #shop-panel-tabs {
+  border-bottom: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+}
+
+/* 🔴 肩書きが**題の左へ並んで**出ていた（ショップの実測の絵で確認）。題の行が flex なので、
+   display:block の ::before が**横に並ぶ flex の子**になっていたため。
+   ⇒ 行を折り返せるようにして、肩書きだけ1行占める（題の中の絵文字と文字は今までどおり横並び）。 */
+body.ui-v2 #codex-page-title,
+body.ui-v2 #shop-panel-title,
+body.ui-v2 #mdl-title,
+body.ui-v2 #mds-title,
+body.ui-v2 #profile-page-title,
+body.ui-v2 #ranking-page-title {
+  flex-wrap: wrap;
+}
+body.ui-v2 #codex-page-title::before,
+body.ui-v2 #shop-panel-title::before,
+body.ui-v2 #mdl-title::before,
+body.ui-v2 #mds-title::before,
+body.ui-v2 #profile-page-title::before,
+body.ui-v2 #ranking-page-title::before {
+  flex: 0 0 100%;
+}

@@ -544,6 +544,50 @@ function openMatchChoiceModal() {
 // 🔴 **文字の大きさは試作の値をそのまま使えない。** ステージ(1600x900)は画面に合わせて
 //   縮むので、スマホ横（932x430）では倍率 0.478 ＝ 試作の 12px は**実画面 5.7px**。
 //   ⇒ 読ませたい文字は **25px（1.56rem）以上**にしてある。英字の肩書きは飾りなので小さめ。
+// 🔴【2026-11-14・続き705】v2 専用の線画アイコン（ユーザー判断「ホーム画面の既存の
+//   メニューアイコンも流用しなくていいよ！」）。
+//   既定のアイコンは**水彩の絵**で、試作のアイボリー＋金の線画とは別の世界のもの。
+//   ⇒ 四隅の線画（assets/ui-v2/corner-*.svg）と同じ**金の細い線**で描き直す。
+//   ⚠ **画像ファイルを1枚も増やさない**（画像は「幅×高さ×4バイト」でメモリを食う＝#223・#607）。
+//     インラインSVGなので、大きさを変えてもぼけないし、色は currentColor で親から継ぐ。
+//   ⚠ 既定の見た目では使わない（v2 の組み立てからしか呼ばない）。
+const V2_ICON = {
+  // ランク戦＝王冠
+  ranked:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.2 17.4 5 7.2l4 4.6 3-6.4 3 6.4 4-4.6 1.8 10.2z"/><path d="M4.6 20.2h14.8"/></svg>',
+  // CPU＆フレンドリー＝向かい合う2つのキューブ
+  match:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.6 8.6 6 6.8l3.4 1.8v4L6 14.4l-3.4-1.8z"/><path d="M14.6 11.4 18 9.6l3.4 1.8v4L18 17.2l-3.4-1.8z"/><path d="M9.8 11.6h4.4"/></svg>',
+  // 物語チュートリアル＝案内（方位磁針）
+  tutorial:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M15.4 8.6 13.4 13.4 8.6 15.4l2-4.8z"/></svg>',
+  // ショップ＝手提げ袋
+  shop:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.8 7.8h14.4l-1.2 12.4H6z"/><path d="M8.8 7.8a3.2 3.2 0 0 1 6.4 0"/></svg>',
+  // マイページ＝人
+  mypage:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.4"/><path d="M4.8 20.4a7.2 7.2 0 0 1 14.4 0"/></svg>',
+  // 図鑑＝開いた本
+  codex:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.4C9.6 4.9 7 4.4 4 4.4v13.2c3 0 5.6.5 8 2 2.4-1.5 5-2 8-2V4.4c-3 0-5.6.5-8 2z"/><path d="M12 6.4v13.2"/></svg>',
+  // ランキング＝表彰台
+  ranking:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 20.4v-4.8h5v4.8z"/><path d="M9.6 20.4V9.6h5v10.8z"/><path d="M15.6 20.4v-7.2h5v7.2z"/></svg>',
+  // お知らせ＝巻いた紙
+  news:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 4.8h12.8v14.6H3.6z"/><path d="M6.4 8.6h7.2M6.4 11.8h7.2M6.4 15h4.4"/><path d="M16.4 8.6h4v8.6a2.2 2.2 0 0 1-4 .6"/></svg>',
+};
+
+// v2 のタイルの絵を線画へ差し替える。絵が無い key はそのまま（既定の絵が出る）。
+function applyV2Icon(el, key) {
+  const svg = V2_ICON[key];
+  if (!svg) return;
+  const host = el.querySelector(".home-screen-tile-icon");
+  if (!host) return;
+  host.innerHTML = svg;
+  host.classList.add("is-v2-icon");
+}
+
 function buildHomeV2(overlayEl, parts) {
   const tileByKey = new Map();
   for (const tile of TILES) tileByKey.set(tile.key, tile);
@@ -555,14 +599,23 @@ function buildHomeV2(overlayEl, parts) {
   // ── 左の縦のアイコン列（見る所へ行く道）
   const rail = document.createElement("div");
   rail.id = "home-v2-rail";
+  // 🔴【ユーザーの問い「添付１のこれは何？」】ここには試作にならってロゴの印を置いていたが、
+  //   "S:7" という略号は**何のことか分からない**という指摘。⇒ このゲームそのものの印＝
+  //   **七色の点**に替えた（押せるものではなく、列の天を締めるだけの飾り）。
   const mark = document.createElement("div");
   mark.id = "home-v2-rail-mark";
-  mark.textContent = "S:7";
+  for (const c of ["red", "orange", "yellow", "green", "blue", "pink", "purple"]) {
+    const dot = document.createElement("span");
+    dot.className = "home-v2-rail-dot";
+    dot.style.background = "var(--color-" + c + ")";
+    mark.appendChild(dot);
+  }
   rail.appendChild(mark);
   for (const key of ["mypage", "codex", "ranking", "news"]) {
     const el = 作る(key);
     if (el) {
       el.classList.add("is-rail");
+      applyV2Icon(el, key);
       // 🔴 列の幅は狭い（実測でスマホは実画面47px）。「マイページ／マイデッキ編集」のような
       //   長い名前は入らないので、**列の中だけ短い名前**にする（押した先は同じ）。
       const lab = el.querySelector(".home-screen-tile-label");
@@ -610,6 +663,7 @@ function buildHomeV2(overlayEl, parts) {
   const heroTile = 作る("ranked");
   if (heroTile) {
     heroTile.classList.add("is-hero");
+    applyV2Icon(heroTile, "ranked");
     hero.appendChild(heroTile);
   }
   // 現ランク表示は、試作のヒーローの中の「次のランクまで」の位置へ入れる。
@@ -619,6 +673,7 @@ function buildHomeV2(overlayEl, parts) {
   const shopTile = 作る("shop");
   if (shopTile) {
     shopTile.classList.add("is-wide");
+    applyV2Icon(shopTile, "shop");
     colL.appendChild(shopTile);
   }
   body.appendChild(colL);
@@ -635,6 +690,7 @@ function buildHomeV2(overlayEl, parts) {
     const el = 作る(key);
     if (el) {
       el.classList.add("is-card");
+      applyV2Icon(el, key);
       colR.appendChild(el);
     }
   }
