@@ -318,6 +318,18 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  664: {
+    ja: "直しました。カードの文には向きが書かれていないのに、手札から置く時の既定が裏向きだったため、黙って裏向きに置かれていました。表向きか裏向きかを選べるようにしました。",
+    en: "Fixed. The card text does not say which way up, but placing from hand defaults to face-down, so it always went face-down silently. You can now choose.",
+  },
+  665: {
+    ja: "直しました（文の方）。我忘れの白き龍の【色者】の一文が、カードに1文字も載っていませんでした。載せています。効果そのものはターンの切り替わりから呼ばれる作りになっているので、もし次に起きなかったら、その時の行動ログで追わせてください。",
+    en: "Fixed (the text). The dragon's standing effect was missing from the card entirely; it is now shown. The effect itself is wired to run at the turn change — if it fails again, the action log will show why.",
+  },
+  666: {
+    ja: "入れました。CPU戦の設定は最初から開いた形にして、説明文は各項目の i マークの中へ畳みました（押した時だけ出ます）。設定を変えない人は、そのまま「この設定ではじめる」を押せます。",
+    en: "Done. The CPU settings now open expanded, and each explanation is folded behind an i mark.",
+  },
   601: {
     ja: "直しました。盤面が真っ暗になるのは、勝利演出の間だけ立体表示を畳んで戻す時に、光源がどこにも付いていない状態になっていたためでした。戻した時に光を付け直すようにし、さらに「描けているのに真っ黒」を見張る仕組みも足しました。",
     en: "Fixed. The board went black because the lights were not re-attached when 3D rendering resumed after the victory celebration. They are now restored, and a watchdog checks for an all-black board.",

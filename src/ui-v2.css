@@ -1042,6 +1042,20 @@ body.ui-v2 #opening-screen.is-v2 .opening-no-account-btn { order: 2; }
      こちらで塗ると**片方のテーマで文字が読めなくなる**（教訓15）。 */
 
 body.ui-v2 [id$="-modal"]:not(#victory-modal):not(#sleight-ritual-modal),
+/* 🔴【2026-11-15・続き718】ユーザー指示「**対局画面を含めた全ページ、全モーダルについて
+   試作デザインを適用しておいてください**」。続き707 で当てたのは **-modal で終わるもの**だけで、
+   **パネル（-panel）がまるごと残っていた**（オンライン対戦・ショップ・ヘルプ・基本設定・
+   行動ログ・カード一覧・デッキ編成・管理者ツール…）。語尾でまとめて当てる。
+   ⚠ **外すもの**（名指し）:
+     ・#eidos-dialogue-panel … 物語の語り。自前の絵と形を持っているので触らない。
+     ・#admin-panel / #card-dev-mode-panel … 開発用の道具。遊ぶ人には出ない（当ててもよいが、
+       触る必要がないものは触らない方が事故が少ない）。
+   ⚠ 大きさ・位置・余白・地には触らない（各画面で実測して詰めてある／明暗2テーマ＝教訓15）。 */
+body.ui-v2 [id$="-panel"]:not(#eidos-dialogue-panel):not(#admin-panel):not(#card-dev-mode-panel),
+/* 語尾が -modal でも -panel でもない一枚物（名前で当てるしかないもの）。 */
+body.ui-v2 .home-match-choice-panel,
+body.ui-v2 #emote-picker,
+body.ui-v2 #ranking-choice-menu,
 body.ui-v2 .generic-confirm-modal,
 body.ui-v2 .game-intro-modal,
 body.ui-v2 .phase-skip-modal,
@@ -1353,4 +1367,57 @@ body.ui-v2 {
   background-size: auto, auto, 190px 190px;
   background-repeat: no-repeat, no-repeat, repeat;
   background-position: center center, center center, center center;
+}
+
+/* ═══════ 【2026-11-15・続き718】全ページ・全モーダルへの仕上げ ═══════
+   ユーザー指示「対局画面を含めた全ページ、全モーダルについて試作デザインを適用しておいて」。
+   上の語尾でまとめた当て方に加えて、**中の部品**も試作の装丁へそろえる。
+   ⚠ どれも「角・枠・書体」だけ。**地・大きさ・位置には触らない**（明暗2テーマ＝教訓15／
+     各画面で実測して詰めた値＝教訓11）。 */
+
+/* 入力欄・選択欄・テキスト欄。紙に書き込む形（角を立てて、金の細い下罫）。 */
+body.ui-v2 input[type="text"],
+body.ui-v2 input[type="password"],
+body.ui-v2 input[type="email"],
+body.ui-v2 input[type="number"],
+body.ui-v2 input[type="search"],
+body.ui-v2 textarea,
+body.ui-v2 select {
+  border-radius: 0;
+  border-color: rgba(176, 141, 63, 0.45);
+}
+/* パネルの中の見出し（-title で終わる id を持つもの）。 */
+body.ui-v2 [id$="-panel-title"],
+body.ui-v2 [id$="-page-title"],
+body.ui-v2 [class$="-panel-title"] {
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  letter-spacing: 0.1em;
+}
+/* タブ（ショップ・ランキング）。選んでいるものは金の下線で示す（箱で囲わない）。 */
+body.ui-v2 #shop-panel-tabs > *,
+body.ui-v2 #ranking-page-tabs > * {
+  border-radius: 0;
+}
+/* 画面いっぱいの覆い（ピッカー類の後ろ）も墨色へ。 */
+body.ui-v2 #emote-picker-backdrop,
+body.ui-v2 #admin-panel-backdrop,
+body.ui-v2 #card-note-modal-backdrop,
+body.ui-v2 #deck-card-modal-backdrop {
+  background: rgba(36, 31, 26, 0.55) !important;
+}
+/* 対局画面の中で、まだ角が丸かった小物（上端の帯・右下の列・案内）。 */
+body.ui-v2 #home-match-choice .home-match-choice-option,
+body.ui-v2 .home-match-choice-segment-btn,
+body.ui-v2 .home-match-choice-details-toggle,
+body.ui-v2 .home-match-choice-cancel,
+body.ui-v2 .home-match-choice-start {
+  border-radius: 0;
+}
+
+/* お知らせの日付だけが青いまま＝アイボリーと金の中で1色だけ浮いていた（撮って分かった）。
+   ⚠ 色だけ。大きさ・余白は触らない。 */
+body.ui-v2 .changelog-date {
+  color: var(--v2-gold-deep, #8a6729);
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  letter-spacing: 0.08em;
 }

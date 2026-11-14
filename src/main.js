@@ -4794,7 +4794,23 @@ async function runPlaceHandCardAtCellTask(player, taskArg) {
   if (handTokens.length === 0) return false; // 善処の原則: 置く札が無ければ何もしない
   const token = await requestHandCardChoiceForEffect(player, t("ce.ex0PlaceAtCell"), new Set(handTokens.map((tk) => tk.id)));
   if (!token || isDelegationExpired()) return false;
+  // 🔴【#664・2026-11-15】ユーザー報告「**ピュアバーガーの到達効果でカード置くとき
+  //   表向きか裏向きか選べなかった**」。
+  //   札の文は「自分の手札から１枚をそのマスの１番上に置く。」で**向きを書いていない**のに、
+  //   手札→マスの移動は state の既定が**裏向き**なので、黙って裏向きに置かれていた。
+  //   ⇒ 本人に聞く（ユーザーの期待どおり）。
+  //   ⚠ CPU・持ち時間切れの代行はモーダルを出さずに自動で選ぶ（pickOptionForEffect が
+  //     isCpuSelectingNow を見ている）ので、自動の席は止まらない。
+  const 向き = await pickOptionForEffect("ex0-white-pure-burger", [
+    { id: "face-up", label: t("ce.ex0PlaceFaceUp"), usable: true },
+    { id: "face-down", label: t("ce.ex0PlaceFaceDown"), usable: true },
+  ]);
+  if (isDelegationExpired()) return false;
   await moveAndSyncForEffect(token.id, { zone: "cell", row, col });
+  if (向き?.id === "face-up") {
+    const 置いた = getState().tokens.find((tk) => tk.id === token.id);
+    if (置いた && !置いた.faceUp) await flipToFaceUpForEffect(token.id);
+  }
   return true;
 }
 

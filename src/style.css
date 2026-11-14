@@ -25656,3 +25656,32 @@ body.theme-light #deck-viewer-back {
   padding-top: 0;
   border-top: 0;
 }
+
+/* 【#666・2026-11-15】CPU戦の設定で、説明文を畳む「i」マーク。
+   ⚠ 色は決め打ちしない（教訓15。明暗2テーマ）＝文字色を継いで不透明度で差を付ける。 */
+.home-match-choice-info {
+  margin-left: 0.4rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 0.68rem;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.home-match-choice-info:hover {
+  opacity: 0.9;
+}
+/* 開いている間の印。🔴 地を currentColor にすると**文字と同じ色で塗りつぶして i が消える**
+   （書いた直後に気づいた）。不透明度と内側の輪だけにする。 */
+.home-match-choice-info.is-on {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px currentColor;
+}

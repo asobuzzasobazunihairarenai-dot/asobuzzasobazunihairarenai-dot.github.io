@@ -54,32 +54,44 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "CPU戦の設定を、最初から開いた形にしました",
       "マイデッキの「装い」を、見本を押すだけで変えられるようにしました",
       "図鑑の「山札一覧」を「カード一覧」に改めました",
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "The CPU battle settings now open expanded",
       "Change a deck's attire by tapping the samples",
       "The codex’s \"deck list\" is now the card list",
       "The online match window is better arranged",
     ],
     items: [
+      "**CPU戦の設定を最初から開いた形**にして、説明文は各項目の **i マーク**の中へ畳みました（押した時だけ出ます）。設定を変えずに始めたい人は、そのまま「この設定ではじめる」を押せます。",
       "**マイデッキの「装い」（駒・ペット・カード裏）を、見本を押すだけで変えられる**ようにしました。これまでは編集画面を開いてから設定を探す必要がありました。見本はデッキの箱の手前に大きく並び、設定していない所は**破線の ＋**で空き枠だと分かります。",
       "**図鑑の「山札一覧」を「カード一覧」に改めました。** カードの枚数（×7 など）の表示も外しています（ここは山の中身ではなく、カードそのものの一覧なので）。⚠ 対局中の「山札一覧を見る」は今までどおりです。",
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "**The CPU battle settings now open expanded**, and each explanation is folded behind an i mark. If you do not want to change anything, just press Start with these settings.",
       "**You can now change a deck's attire (piece, pet, card back) by tapping the samples** instead of opening the editor and hunting for the settings. Unset slots show a dashed +.",
       "**The codex's “deck list” is now the card list**, and the per-card counts are gone (this is a list of cards, not of what is in the draw pile). The in-game deck list is unchanged.",
       "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
     ],
     fixes: [
+      "ピュアバーガーで置くカードを、表向きか裏向きか選べるようにしました",
+      "我忘れの白き龍（ノクスアエル）のカードに【色者】の効果文が載っていなかったのを直しました",
       "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
     ],
     fixesEn: [
+      "Pure Burger now lets you choose whether the card you place is face-up or face-down",
+      "The Self-Forgetting White Dragon's standing effect text was missing from the card",
       "The card list's back button now looks like the one on every other page",
     ],
     devItems: [
+      "🔴 **#664「ピュアバーガーの到達効果でカード置くとき表向きか裏向きか選べなかった」。** 札の文は「自分の手札から１枚をそのマスの１番上に置く。」で**向きを書いていない**のに、手札→マスの移動は state の既定が**裏向き**なので、黙って裏向きに置かれていた。⇒ 本人に聞く。⚠ CPU・持ち時間切れの代行はモーダルを出さずに自動で選ぶ（`pickOptionForEffect` が`isCpuSelectingNow` を見ている）ので、自動の席は止まらない。",
+      "🔴 **#665「ノクスアエルの効果文が実際と異なります」の正体: 【色者】の一文が、カードに1文字も載っていなかった。** `card-effects.js` の**コメントには本文が書いてあった**のに、表示用の `card-text-ex0.ja.js` には入っていなかった（basic は『これは他のカードの効果の対象にならない。』だけ）。⇒ subtitle へ入れた。⚠ 「色者の効果が発動していない」の方は、**処理（`resolveShikijaAtTurnEnd`）は在ってターンの切り替わりから呼ばれている**。条件は「表向き・マスの上」。次の報告で行動ログを見る。",
+      "**#666「設定値を最初からこのモーダルに出した方が良い。テキストはほぼ無しにして、必要な情報はそれぞれの項目に i マークで隠そう」。** ⇒ CPU だけの形では詳細を**最初から開き**、開閉のボタン自体を出さない。4つの説明文（強さ・人数・ルール・カードセット）は**見出しの i マークの中へ畳む**（押した時だけ出る）。⚠ 文そのものは消さない——知りたい人は押せば読める。⚠ 2択の画面（フレンドリーと並ぶ形）は今までどおり畳む（#437 の経緯）。",
+      "🔴 **「対局画面を含めた全ページ、全モーダルに試作デザインを適用」（ユーザー指示）。** 続き707 で当てたのは **id が -modal で終わるもの**だけで、**パネル（-panel）がまるごと残っていた**（オンライン対戦・ショップ・ヘルプ・基本設定・行動ログ・カード一覧・デッキ編成…）。⇒ `[id$=\"-panel\"]` で語尾からまとめて当て、名前が -modal でも -panel でもない数枚（`.home-match-choice-panel` / `#emote-picker` / `#ranking-choice-menu`）だけ名指しで足した。あわせて**入力欄・見出し・タブ・覆い**もそろえた。⚠ **外したのは3つ**: 物語の語り（`#eidos-dialogue-panel`＝自前の絵と形を持つ）、管理者ツールとカード開発モード（遊ぶ人には出ない）。**実測**（10画面を本物の経路で開いて既定/v2 を比べた）: オンライン対戦 8px→**0px**、ヘルプ 9.6px→**0px**、どれも金の細枠（rgba(176,141,63,.5)）。**いちばん手前の要素は既定と v2 で同じ＝操作を1つも奪っていない。例外0・404 0。**⚠ 撮って1つ直した: **お知らせの日付だけ青いまま**で、アイボリーと金の中で1色だけ浮いていた。",
       "🔴 **ユーザーの問い「装いってどうやって変更する？？」が、そのまま #638 の答えだった。** 続き716 で見本の下に「装い（押して変える）」と書いたのに、**押すとデッキの編集画面が開くだけ**で、そこからさらに「駒」「ペット」「カード裏」のボタンを探す必要があった。⇒ **見本そのものを押したらその場でピッカーが開く**ようにした（選んだらそのデッキに保存して描き直す）。⚠ 箱のクリック（編集画面へ）に伝播させない。⚠ ピッカーは**動的 import**（静的にすると循環で起動が死ぬ）。あわせて大きさを 1.9rem → 2.7rem、重なりを -1.1rem → -2.5rem（ユーザー指示「デッキのビジュの手前に重なるくらい」）。",
       "🔴🔴 **「左上の戻るボタンがページによって統一されていません。総点検。」——1つだけ CSS が1行も当たっていなかった。** 8ページを本物の経路で開いて、文言・位置・大きさ・枠・角・色を全部数えた（`scratchpad/p717back.mjs`）。他は **61×29・1px の枠・角 6.4px** なのに、**カード一覧だけ 36×16・枠なし・角0**。原因は**続き712（#641）でこのボタンを足した時に共通の一覧へ加え忘れた**こと。🔴 **その一覧のコメントには「新しく『戻る』を足す時はこの一覧へ加える」と書いてあった**（続き640 の自分の文）。⇒ 大きさの一覧2つと見た目・明テーマの上書きをそろえ、実測で一致。⚠ お知らせ（x=51）は**モーダル**なので左端の基準が違うだけ。**ショップとヘルプは左上に戻るが見つからなかった**（別の場所にある可能性。実機で確認したい）。",
       "🔴 **#648 の続き「なんかレイアウト、並びがしっくりこない」の正体は『左1つ・右3つ』だった。** 左＝「部屋を作成」だけで短く終わり、右＝「参加できる部屋」「部屋コードで参加」「観戦」が縦に積まれる＝**左右が『作る／入る』の対になっていない**ので下端も揃わない。⇒ ①観戦を2列の外（下の帯）へ ②列を同じ高さにして主役のボタン2つを下端にそろえる（`margin-top: auto`）③空の一覧の説明を2行→1行。",

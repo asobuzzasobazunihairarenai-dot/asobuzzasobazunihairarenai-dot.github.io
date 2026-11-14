@@ -339,12 +339,41 @@ function openMatchChoiceModal(opts = {}) {
   //   ⚠ **設定を変えた人の選択は捨てない。** 一度いじった人は次もその設定で始まるので、
   //     既定と違う時だけ**畳んだ状態でも分かるように1行で出す**（黙って別の設定で
   //     始まるのがいちばん困る）。
+  // 🔴【#666・2026-11-15】説明文は **i マークの中へ畳む**（ユーザー要望
+  //   「わかりやすくテキストはほぼ無しにして。必要な情報はそれぞれの項目に i マークで隠そう」）。
+  //   ⚠ 文そのものは消さない——**知りたい人は押せば読める**（消すと、設定の意味が分からない
+  //     人の逃げ道が無くなる）。
+  //   ⚠ 色は決め打ちしない（教訓15。明暗2テーマ）。見た目は style.css の .home-match-choice-info。
+  const 説明を畳む = (見出し, 説明) => {
+    if (!見出し || !説明) return;
+    説明.hidden = true;
+    const info = document.createElement("button");
+    info.type = "button";
+    info.className = "home-match-choice-info";
+    info.textContent = "i";
+    info.setAttribute("aria-label", t("home.matchChoice.infoLabel"));
+    info.title = t("home.matchChoice.infoLabel");
+    info.addEventListener("click", (e) => {
+      e.stopPropagation();
+      説明.hidden = !説明.hidden;
+      info.classList.toggle("is-on", !説明.hidden);
+    });
+    見出し.appendChild(info);
+  };
+
   const details = document.createElement("div");
   details.className = "home-match-choice-details";
-  details.hidden = true;
+  // 🔴【#666・2026-11-15】ユーザー要望「**こうなっては設定値を最初からこのモーダルに出した方が
+  //   良いです。わかりやすくテキストはほぼ無しにして。必要な情報はそれぞれの項目に i マークで
+  //   隠そう。**」＝ CPU だけの形になったのだから、**畳んでおく意味がもう無い**。
+  //   ⇒ CPU の画面では**最初から開く**。2択の画面（フレンドリーと並ぶ形）では今までどおり畳む
+  //     ——あちらは「まずどちらか選ぶ」のが主役で、設定はその後なので（#437 の経緯）。
+  details.hidden = !cpuだけ;
   const detailsToggle = document.createElement("button");
   detailsToggle.type = "button";
   detailsToggle.className = "home-match-choice-details-toggle";
+  // CPU だけの形では、開閉のボタン自体が要らない（最初から開いている）。
+  if (cpuだけ) detailsToggle.hidden = true;
   const detailsNote = document.createElement("div");
   // 【#507・2026-11-11】ユーザー「ここでの詳細設定はCPUに関することだけな気がします！
   //   なのでボタンは右側にあった方がいい？？」⇒ 2択は 🤝フレンドリー（左）／🤖CPU戦（右）の
@@ -419,6 +448,7 @@ function openMatchChoiceModal(opts = {}) {
   diffHint.className = "home-match-choice-difficulty-hint";
   diffHint.textContent = t("home.matchChoice.difficultyHint");
   diff.appendChild(diffHint);
+  説明を畳む(diffLabel, diffHint);
   refreshSeg();
   details.appendChild(diff);
 
@@ -458,6 +488,7 @@ function openMatchChoiceModal(opts = {}) {
   cntHint.className = "home-match-choice-difficulty-hint";
   cntHint.textContent = t("home.matchChoice.countHint");
   cnt.appendChild(cntHint);
+  説明を畳む(cntLabel, cntHint);
   refreshCnt();
   details.appendChild(cnt);
 
@@ -499,6 +530,7 @@ function openMatchChoiceModal(opts = {}) {
   rulesHint.className = "home-match-choice-difficulty-hint";
   rulesHint.textContent = t("home.matchChoice.rulesHint");
   rules.appendChild(rulesHint);
+  説明を畳む(rulesLabel, rulesHint);
   details.appendChild(rules);
 
   // 🔴 管理者だけに出す「テストモード」。0th拡張（0th EDITION 拡張）の33種で遊ぶための入口。
@@ -545,6 +577,7 @@ function openMatchChoiceModal(opts = {}) {
     setHint.className = "home-match-choice-difficulty-hint";
     setHint.textContent = t("home.matchChoice.cardSetHint");
     setBox.appendChild(setHint);
+    説明を畳む(setLabel, setHint);
     refreshSet();
     details.appendChild(setBox);
   }
