@@ -44,6 +44,21 @@ jobs:
         run: node tools/check-css.mjs
       - name: お知らせ（日本語と英語の件数）
         run: node tools/check-changelog.mjs
+      - name: エンジンのヘルパーが両側にそろっているか
+        run: node tools/check-effect-helpers.mjs
+      - name: 共有ステートの欄が hydrateState へ全部渡っているか
+        run: node tools/check-hydrate-fields.mjs
+      - name: Service Worker のキャッシュ名
+        run: node tools/check-sw.mjs
+      - name: 音（登録・ファイル・呼び出しの名前）
+        run: node tools/check-sounds.mjs
+      - name: 小さい版の絵（焼き忘れ・置き去り）
+        run: node tools/check-thumbs.mjs
+      - name: まぜるの山札（クライアントとサーバーの写し）
+        run: node tools/check-mixed-deck.mjs
+      # 🔴 これ自身が「手元とCIのズレ」を見張る（続き711）。ここが抜けるとまた静かに離れる。
+      - name: 手元の検査とCIの検査がズレていないか
+        run: node tools/check-ci-steps.mjs
 
   # カード効果のテストとスモーク。Playwright のブラウザを入れるので時間がかかる。
   browser:
@@ -60,7 +75,12 @@ jobs:
       # Chromium だけ入れる（このリポジトリのテストは Chromium しか使わない）。
       - name: Chromium を入れる
         run: npx playwright install --with-deps chromium
-      - name: カード効果のテスト（63件）
-        run: npm test
+      # 🔴【続き711】**1回だけやり直す。** ブラウザを使う検査は、アプリの不具合ではない
+      #   理由で転ぶことがある（起動の途中でページが読み込み直される＝
+      #   Resulting promise was garbage collected / page.goto の時間切れ。続き638・668・
+      #   673・693 で何度も踏んだ）。1回で赤にすると**赤を信じなくなる**方が高くつくので、
+      #   やり直して通ればそれでよしとする。2回とも落ちたら本物として赤にする。
+      - name: カード効果のテスト
+        run: npm test || (echo '1回目が転んだのでやり直す' && npm test)
       - name: スモーク（2人CPU戦を8ターン回す）
-        run: node test/smoke.mjs 2
+        run: node test/smoke.mjs 2 || (echo '1回目が転んだのでやり直す' && node test/smoke.mjs 2)
