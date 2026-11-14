@@ -232,8 +232,19 @@ function buildPanel(close) {
   const titleEl = document.createElement("div");
   titleEl.textContent = t("deckviewer.title");
   titleEl.style.cssText = "font-weight: bold; margin-bottom: 0.6rem; padding-right: 1.6rem;";
+  // 🔴【#641】左上に名前のある戻る口を置く（✕ だけだと『見当たらない』という報告になる）。
+  const backBtn = document.createElement("button");
+  backBtn.id = "deck-viewer-back";
+  backBtn.textContent = t("common.back");
+  backBtn.style.cssText = "margin-bottom: 0.6rem;";
+  backBtn.addEventListener("click", close);
+  panel.appendChild(backBtn);
   panel.appendChild(titleEl);
-  panel.appendChild(createModalCloseX(close));
+  const closeX = createModalCloseX(close);
+  // 🔴【#641】この一覧は全画面＋縦スクロール。✕ を中の要素のままにすると
+  //   **下へスクロールした時に画面の外へ流れて見えなくなる**。貼り付けたままにする。
+  closeX.style.position = "fixed";
+  panel.appendChild(closeX);
 
   panel.appendChild(buildDeckSections());
 
@@ -243,6 +254,20 @@ function buildPanel(close) {
 // 山札一覧の中身（3セクション）だけを組み立てて返す。図鑑／ルールブックの全画面版
 // （codex-page.js）からも使う。カードのクリック→拡大のモーダルは初めて押された時に
 // 作られるので（続き624）、initDeckViewer より先に呼んでも構わない。
+// 🔴【#640】**出す時だけ**色で並べ直す（表そのものは触らない＝サーバー側の写しと
+//   ズレない）。同じ色の中の順は変えない（安定）ので、既に色で揃っている一覧は
+//   1枚も動かない。動くのは**表の末尾に足された札**（紅の鉄拳）だけ。
+const 色の順 = ["red", "orange", "yellow", "green", "blue", "pink", "purple", "rainbow", "white", "black"];
+function 色でそろえる(defs) {
+  return (defs || [])
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => {
+      const x = 色の順.indexOf(a.c.color);
+      const y = 色の順.indexOf(b.c.color);
+      return (x < 0 ? 99 : x) - (y < 0 ? 99 : y) || a.i - b.i;
+    })
+    .map((o) => o.c);
+}
 export function buildDeckSections() {
   const wrap = document.createElement("div");
   // 0th拡張を選んでいる時は、その33種を先に出す（いま山札に入っているものが上に来るように）。
@@ -254,13 +279,13 @@ export function buildDeckSections() {
   const セット = getCardSet();
   const 混ぜる = セット === CARD_SETS.MIXED;
   if (セット === CARD_SETS.EX0 || 混ぜる) {
-    wrap.appendChild(buildSection(t("deckviewer.ex0"), EX0_NORMAL_CARDS));
+    wrap.appendChild(buildSection(t("deckviewer.ex0"), 色でそろえる(EX0_NORMAL_CARDS)));
   }
   if (セット === CARD_SETS.FIRST_ED || 混ぜる) {
-    wrap.appendChild(buildSection(t("deckviewer.firstEd"), FIRST_ED_NORMAL_CARDS));
+    wrap.appendChild(buildSection(t("deckviewer.firstEd"), 色でそろえる(FIRST_ED_NORMAL_CARDS)));
   }
   if (セット === CARD_SETS.REMAKE || 混ぜる) {
-    wrap.appendChild(buildSection(t("deckviewer.normal"), NORMAL_CARDS));
+    wrap.appendChild(buildSection(t("deckviewer.normal"), 色でそろえる(NORMAL_CARDS)));
   }
   // エターナル。🔴 1st EDITION を選んでいる時は**その対局で実際に出てくるのは1st のEカード**
   //   なので、そちらを出す（getEternalCards と同じ判断。ズレると「一覧に無い札が出てくる」）。

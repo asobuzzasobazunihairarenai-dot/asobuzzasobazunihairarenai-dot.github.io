@@ -31,9 +31,22 @@ registerProfileLayoutHelpers({
 
 async function renderProfileBody() {
   if (!bodyEl) return;
-  await renderMyPageBody(bodyEl, closeProfilePage);
-  applyProfileLayout(bodyEl); // PROFILE_LAYOUT適用＋編集モードなら移動/リサイズ配線
-  fitProfilePageContent();
+  // 🔴【#649・2026-11-14】ユーザー報告「マイページを開いた直後、全体が大きく端が見切れた
+  //   状態になります。すぐにいい感じになります」。
+  //   原因は**順番**: ここは中身を作るのを待つ（await）あいだ画面は既に出ており、
+  //   縮めるのは `fitProfilePageContent()`＝**全部作り終わった後**。だから
+  //   「等倍のはみ出した姿 → 縮む」が必ず一瞬見える。
+  //   ⇒ 収まりを決めるまで**見せない**。`visibility` なので**大きさは測れる**
+  //     （`display: none` にすると測れず、縮め方が決まらない）。
+  bodyEl.style.visibility = "hidden";
+  try {
+    await renderMyPageBody(bodyEl, closeProfilePage);
+    applyProfileLayout(bodyEl); // PROFILE_LAYOUT適用＋編集モードなら移動/リサイズ配線
+    fitProfilePageContent();
+  } finally {
+    // 途中で失敗しても必ず見せる（白いままにしない方が実害が小さい）。
+    bodyEl.style.visibility = "";
+  }
 }
 
 // 【#326・2026-09-07】マイページの下が見切れる。ユーザー指示は「スクロールはなしにしたい」。

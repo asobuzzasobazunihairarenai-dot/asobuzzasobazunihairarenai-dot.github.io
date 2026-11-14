@@ -3158,6 +3158,9 @@ const STATS_BACKUP_DELAY_MS = 20000;
 // 「今終わった試合が既に登録されているか」を確かめる窓。連戦で前の試合を誤って
 // 「登録済み」と判定しないよう短くする（1試合はどんなに短くてもこれより長くかかる）。
 const STATS_RECENT_WINDOW_MS = 5 * 60 * 1000;
+// 🔴【2026-11-14】同じ試合が二重に登録されるのを防ぐ窓（上の実害の記録を参照）。
+//   短くしてあるのは、同じ顔ぶれの**本物の連戦**を消さないため。
+const STATS_DUPLICATE_WINDOW_MS = 3 * 60 * 1000;
 export async function ensureStatsMatchRecorded({ activePlayers, winnerSeat, asBackup = false }) {
   if (!client || !currentGameId) {
     logAction("diag-stats-abort", { reason: "no-game-id", asBackup });
@@ -3177,6 +3180,23 @@ export async function ensureStatsMatchRecorded({ activePlayers, winnerSeat, asBa
         return existing;
       }
       logAction("diag-stats-backup-record", { winnerSeat });
+    } else {
+      // 🔴【2026-11-14】ユーザー報告「ぺてぃっとさんが2戦しかしていないのに勝率33%」。
+      //   実データを見ると **同じ試合が2行**在った（m_1794642547829 と m_1794642557873＝
+      //   **10秒差・同じ顔ぶれ・同じ勝者・同じ所要時間**）。
+      //   ⇒ 1勝1敗（50%）であるべきところが 1勝2敗（33%）になっていた。
+      //
+      //   🔴 二重を防ぐ仕組みは**「バックアップ経路」にしか無かった**。普通の経路の守りは
+      //   「この gameId で登録済みか」だけなので、**「もう一度遊ぶ」で gameId が変わると
+      //   同じ勝利をもう一度書ける**（報告どおり、その試合はキャンセルされている）。
+      //   ⇒ 普通の経路でも**DBを見てから**書く。窓は短くする（連戦を消さないため）。
+      // ⚠ 窓を長くすると、同じ顔ぶれの**本物の連戦**を消してしまう。対局は数十分かかるので
+      //   3分あれば「今終わった試合の二重」だけを捕まえられる。
+      const dup = await fetchMyRecentMatchId(STATS_DUPLICATE_WINDOW_MS);
+      if (dup) {
+        logAction("diag-stats-duplicate-skip", { matchId: dup, winnerSeat });
+        return dup;
+      }
     }
     logAction("diag-stats-submit-start", { activePlayers, winnerSeat, asBackup });
     const id = (await submitStatsMatchResult({ activePlayers, winnerSeat, feedback: "" })) || null;

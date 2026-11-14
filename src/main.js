@@ -2665,8 +2665,21 @@ onCardReceivedEvents(({ targetPlayer, cardId, subtitle }) => {
 // 自分を含め何のカードの使用が宣言されたか全員にわかるように表示してほしい」。
 // 使った本人（fromPlayer）は既にannounceHandEffectUseForEffect内でローカル表示済み
 // なので、ここでは自分以外からの通知だけを表示する。
+// 🔴【#652 / #655・2026-11-14】「この中継は自分がやったことか？」の判定。
+//   ⚠ getSelfSeat() は**観戦中も実在する席を返す**（spectateViewSeat。盤面をどの向きで
+//     描くかに使っているため）。そのまま比べると、**その席の操作だけ観戦者に出なくなる**
+//     ——報告「観戦時、試練の儀式などでの何色宣言したがわからない」がこれ。
+//   ⇒ 観戦中は自分の操作が1つも無いので、**必ず false** を返す。
+function isSelfAction(fromPlayer) {
+  try {
+    if (isSpectatingGame()) return false;
+  } catch (e) {
+    /* 判定できない時は従来どおり席で比べる */
+  }
+  return fromPlayer === getSelfSeat();
+}
 onHandEffectUseEvents(({ fromPlayer, cardId, optionLabel, mode, costCardId }) => {
-  if (fromPlayer === getSelfSeat()) return;
+  if (isSelfAction(fromPlayer)) return;
   // 🔴【#621・#622】1st EDITION の【状況】カードの合図。**「使った」のではない**ので、
   //   霧散演出（canvas）も、割り込みの窓も出さない——出すと「相手が手札効果を宣言した」
   //   という別の意味になってしまう。波紋と右上の札だけを、送り手と同じ形で出す。
@@ -2689,20 +2702,20 @@ onHandEffectUseEvents(({ fromPlayer, cardId, optionLabel, mode, costCardId }) =>
 // 教えてあげてください」。使った本人は既にannounceEffectReasonForEffect内で
 // ローカル表示済みなので、ここでは自分以外からの通知だけを表示する。
 onEffectReasonEvents(({ fromPlayer, cardId, text }) => {
-  if (fromPlayer === getSelfSeat()) return;
+  if (isSelfAction(fromPlayer)) return;
   showEffectReasonModal(cardId, text);
 });
 // 試練の儀式「踏んだカード」の中央じらしフリップ演出を、実行者以外の全プレイヤーにも再生する
 // （ユーザー要望2026-08-08。踏んだカードは公開情報。本人はannounceSteppedCardForEffect内で
 // ローカル再生済みなので、ここでは自分以外からの通知だけを再生する）。
 onSteppedCardRevealEvents(({ fromPlayer, cardId, labelText }) => {
-  if (fromPlayer === getSelfSeat()) return;
+  if (isSelfAction(fromPlayer)) return;
   playCenterCardFlipReveal(cardId, { labelText: labelText || t("game.label.stepped") });
 });
 // 不具合#43: マスチェンジの入れ替え電撃演出を、実行者以外の全プレイヤーでも再生する。
 // （実行者はswapPiecesForEffect内でローカル再生済み。受信側は入れ替え前の元位置間にアークを描く。）
 onMassChangeSwapEvents(({ fromPlayer, pieceAId, pieceBId }) => {
-  if (fromPlayer === getSelfSeat()) return; // 実行者本人はローカル再生済み
+  if (isSelfAction(fromPlayer)) return; // 実行者本人はローカル再生済み
   playMassChangeArcForRemote(pieceAId, pieceBId);
 });
 // ユーザー要望「試練の儀式やザ・ギャンブルなどで色宣言するとき相手が何色を宣言したかを
@@ -2711,7 +2724,7 @@ onMassChangeSwapEvents(({ fromPlayer, pieceAId, pieceBId }) => {
 // 呼んでいるため、ここでは自分以外からの通知だけを表示する（onHandEffectUseEventsと
 // 同じ考え方）。
 onColorsDeclaredEvents(({ fromPlayer, colors }) => {
-  if (fromPlayer === getSelfSeat()) return;
+  if (isSelfAction(fromPlayer)) return;
   showDeclaredColorsIndicator(fromPlayer, colors);
 });
 // 続き65: 色宣言の結果が判明した合図。自分自身の操作で判明した場合は
@@ -9986,14 +9999,25 @@ function showAnytimeInterruptModal(player, tokens) {
   optOutRow.id = "anytime-interrupt-modal-optout";
   const optOutCheckbox = document.createElement("input");
   optOutCheckbox.type = "checkbox";
-  optOutCheckbox.addEventListener("change", () => {
-    if (optOutCheckbox.checked) setAnytimeInterruptOptedOut(true);
-  });
   const optOutLabel = document.createElement("span");
   optOutLabel.textContent = t("game.anytime.never");
   optOutRow.appendChild(optOutCheckbox);
   optOutRow.appendChild(optOutLabel);
   modal.appendChild(optOutRow);
+  // 🔴【#643・2026-11-14】ユーザー報告「『今後表示しない』はずっと表示されなくなっちゃい
+  //   そうで不安」。戻る道（右下の「割り込み」）は #495 で作ってあるのに、**押す前には
+  //   どこにも書いていなかった**。⇒ ①チェックの文言そのものに書く（上の game.anytime.never）
+  //   ②押した直後にもう一度、この場で言う。**仕組みは足していない。**
+  const optOutDone = document.createElement("div");
+  optOutDone.id = "anytime-interrupt-modal-optout-done";
+  optOutDone.style.display = "none";
+  modal.appendChild(optOutDone);
+  optOutCheckbox.addEventListener("change", () => {
+    if (!optOutCheckbox.checked) return;
+    setAnytimeInterruptOptedOut(true);
+    optOutDone.textContent = t("game.anytime.neverDone");
+    optOutDone.style.display = "";
+  });
 
   document.body.appendChild(modal);
   anytimeInterruptModalEl = modal;
@@ -21638,6 +21662,14 @@ registerOnGateInvasionQueueDrained(() => {
   // 見た目の据え置き（gate-invasion-stage.js）も、案内が終わったら必ず全部戻す
   // （途中で閉じた・飛ばした・演出が使えない設定、どの経路でもここを通る）。
   if (clearGateInvasionStage()) render();
+  // 🔴【#657・2026-11-14】ユーザー報告「ゲート侵攻されたら、盤面が更新されない」。
+  //   行動ログを読むと **スキップを押していた**（diag-gate-invasion-skipped via:"スキップ"
+  //   残り:4）。ところが上の render() は**条件が揃った時だけ**で、どちらも当てはまらない
+  //   経路では**1回も描き直さずに終わる**。侵攻は盤面を変える（奪う・エターナル・帰還）ので、
+  //   飛ばした時だけ古い絵が残ることになる。
+  //   ⇒ **列が尽きたら必ず1回描き直す。** スキップは「演出を省くもの」であって
+  //     「結果を省くもの」ではない。render() はふだんから何度も走るので費用は無視できる。
+  render();
 });
 buildGameTitle();
 buildSpotlightOverlay();

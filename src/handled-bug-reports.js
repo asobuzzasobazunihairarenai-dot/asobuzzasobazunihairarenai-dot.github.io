@@ -318,6 +318,38 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  640: {
+    ja: "直しました。表の中で紅の鉄拳だけ番号が無く末尾に足してあったため、白と黒の後ろに出ていました。表そのものは並べ替えず（サーバー側の写しとズレるため）、出す時だけ色で並べ直すようにしたので、赤の場所に戻ります。",
+    en: "Fixed. Crimson Iron Fist was appended to the end of the table without a number, so it listed after the white and black cards. The list is now sorted by colour at display time; the table itself is untouched.",
+  },
+  641: {
+    ja: "直しました。あの一覧は全画面＋縦スクロールで、✕ は中の要素だったので少し下へスクロールすると画面の外へ流れていました。✕ を貼り付けたままにし、左上に「← 戻る」も置きました。",
+    en: "Fixed. The list is a full-screen scrolling panel and the X scrolled away with the content. It now stays put, and there is a labelled back button at the top left.",
+  },
+  643: {
+    ja: "入れました。戻し方（右下の「割り込み」）は作ってあったのに、押す前にはどこにも書いていませんでした。チェックの文言に書き、押した直後にもその場でもう一度お知らせします。",
+    en: "Added. The way back existed but was never mentioned before you ticked the box. The label now says it, and it is repeated right after you tick.",
+  },
+  646: {
+    ja: "直しました。実物のアイコンは白い虫と金の警告マークの自前の絵で、絵文字とは別物でした。絵文字で指すのをやめ、名前で指すようにしました。",
+    en: "Fixed. The real icon is a custom drawing, not the emoji the notice used. It now refers to the button by name.",
+  },
+  649: {
+    ja: "直しました。画面を先に出して、収まりを決めるのが中身を作り終えた後だったので、必ず一瞬だけ大きい姿が見えていました。収まりが決まるまで見せないようにしました。",
+    en: "Fixed. The page was shown before it was sized, so the oversized state always flashed. It is now hidden until the fit is computed.",
+  },
+  652: {
+    ja: "直しました。観戦中は「自分の席」が無いのに、盤面をどの向きで描くかに使っている席番号をそのまま「自分」と見なしていたため、その席の駒にあなたのスキンが当たっていました。",
+    en: "Fixed. While spectating there is no own seat, but the seat used for board orientation was treated as yours, so that player's piece took your skin.",
+  },
+  655: {
+    ja: "直しました。駒の件と同じ原因です。中継の「自分の操作なら出さない」判定が、観戦中はその席の操作だけ素通ししていました。",
+    en: "Fixed. Same cause as the piece skin issue: the broadcast guard treated one seat as you, so its declarations were skipped.",
+  },
+  657: {
+    ja: "直しました。案内をスキップした時だけ盤面を描き直していませんでした。スキップは演出を省くもので、結果を省くものではないので、列が尽きたら必ず描き直します。",
+    en: "Fixed. Skipping the notices skipped the redraw as well. Skipping now only skips the animation, never the result.",
+  },
   604: {
     ja: "こちらは不具合ではありませんでした。ロックエリアに置いてあるファーストカードは、手札が1枚ちょうどの時に使えるようになるので、手札が賄賂だけでもハンドフェイズは止まります（使えるカードが残っているため）。",
     en: "This one is working as intended. The First card in your lock area becomes usable when your hand is exactly one card, so the Hand phase waits even when the bribe is your only card in hand.",

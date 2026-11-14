@@ -22,7 +22,7 @@
 import { getState } from "./state.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ10
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
-import { getSelfSeat, isOnlineMode, getSyncedIdentity, updateMyIdentity, isItemUnlocked, openShop } from "./online.js";
+import { getSelfSeat, isOnlineMode, getSyncedIdentity, updateMyIdentity, isItemUnlocked, openShop, isSpectatingGame } from "./online.js";
 import { COLORS, SEAT_TO_SIDE } from "./board-layout.js";
 import { getSeatLoadout } from "./cpu-battle-state.js";
 
@@ -169,7 +169,12 @@ export function getSkinImagePath(color, seat) {
     const li = loadout.pieceSkinIndex;
     return li === 0 ? `assets/pieces/${color}.webp` : `assets/pieces/${color}-${li}.webp`;
   }
-  const isSelf = !seat || seat === getSelfSeat();
+  // 🔴【#652・2026-11-14】観戦中は「自分の席」を持たない。getSelfSeat() は観戦中でも
+  //   spectateViewSeat（実在するプレイヤーの席）を返す——盤面をどの向きで描くかに
+  //   使っているため——ので、そのまま信じるとその席の駒に**観戦者のスキン**が当たる。
+  //   報告「観戦時にプレイヤーの駒のデザインが私の駒のデザインになってしまっている」。
+  const 観戦中 = (() => { try { return !!isSpectatingGame(); } catch (e) { return false; } })();
+  const isSelf = !観戦中 && (!seat || seat === getSelfSeat());
   let idx = 0;
   if (isSelf && hasLocalPreference) {
     idx = preferredSkinIndex;
