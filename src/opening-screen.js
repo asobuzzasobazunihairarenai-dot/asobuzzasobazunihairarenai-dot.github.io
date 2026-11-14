@@ -37,6 +37,7 @@ import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { startTitlePetWalk } from "./title-pet.js";
 import { t } from "./ui-text.js";
+import { isUiV2 } from "./ui-v2.js"; // 【続き706】タイトル画面の v2 の構図
 import { getLang, setLangWithNotice, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
 import { RULE_VIDEO_SHORT_ID, ruleVideoUrl } from "./rule-videos.js";
 import { isTrialEntry, clearTrialParam, forgetTrialEntry, rememberTrialEntry } from "./trial-entry.js";
@@ -473,6 +474,7 @@ export function initOpeningScreen() {
     return BASE + (Date.now() >= LAUNCH.getTime() ? "/view" : "/idea");
   }
   const trialTexts = [];
+  const openingV2Texts = []; // 【続き706】v2 の左の列の文字（言語切替で入れ替える）
   // 試遊パネルの「ログイン中かどうか」の行を描き直す関数（言語切替・ログイン状態の変化で呼ぶ）。
   let refreshTrialAuth = null;
   // 【#420・2026-10-18】**試遊のパネルは「?trial で来た時」だけでなく、常に組み立てておく。**
@@ -1243,6 +1245,59 @@ export function initOpeningScreen() {
     }
   }
 
+  // ═══════════ 【2026-11-14・続き706】タイトル画面を試作の構図へ（?ui=v2 の時だけ）═══════════
+  // ユーザー判断「**試作の構図に変えます。…今の既存のレイアウトや絵は尊重しなくてもいいです。**」
+  // 試作（project/Title.dc.html）の構図:
+  //   左＝英字の肩書き＋ロゴ＋一行コピー＋説明＋仕様の札3つ／右＝入口のパネル（紙＋金の枠）
+  // 🔴 **既定の画面は1行も変わらない**（この塊は isUiV2() の時しか走らない）。
+  // ⚠ 文言は**実際に公開している言葉**を使う（会社HPの題と説明文・2〜4人/約30分/10歳〜）。
+  //   作り話のコピーは置かない。
+  // ⚠ 右は**既にあるログインのカードをそのまま使う**（作り直すと、ゲスト・メール・
+  //   テストモード・試遊の入口など、積み上げてきた経路を全部移し替えることになる）。
+  //   最初から開いた形にするだけ（試作もパネルが開いている）。
+  if (isUiV2()) {
+    overlay.classList.add("is-v2");
+    const left = document.createElement("div");
+    left.id = "opening-v2-left";
+
+    const eyebrow = document.createElement("div");
+    eyebrow.className = "opening-v2-eyebrow";
+    eyebrow.textContent = "0TH EDITION";
+    left.appendChild(eyebrow);
+
+    const logo = document.createElement("img");
+    logo.className = "opening-v2-logo";
+    logo.src = "assets/ui-v2/logo.webp";
+    logo.alt = "7 SHADES OF S:EVEN";
+    left.appendChild(logo);
+
+    const lead = document.createElement("div");
+    lead.className = "opening-v2-lead";
+    lead.textContent = t("opening.v2.lead");
+    left.appendChild(lead);
+
+    const desc = document.createElement("div");
+    desc.className = "opening-v2-desc";
+    desc.textContent = t("opening.v2.desc");
+    left.appendChild(desc);
+
+    const specs = document.createElement("div");
+    specs.className = "opening-v2-specs";
+    for (const key of ["opening.v2.players", "opening.v2.time", "opening.v2.age"]) {
+      const chip = document.createElement("span");
+      chip.className = "opening-v2-chip";
+      chip.textContent = t(key);
+      specs.appendChild(chip);
+      openingV2Texts.push([chip, key]);
+    }
+    left.appendChild(specs);
+    openingV2Texts.push([lead, "opening.v2.lead"], [desc, "opening.v2.desc"]);
+
+    overlay.insertBefore(left, content);
+    // 試作と同じく、入口のパネルは最初から開いた形にする。
+    showCard();
+  }
+
   if (isOnlineAvailable()) {
     getCurrentUser().then(maybeAutoAdvanceForLoggedInUser);
     onAuthChange(maybeAutoAdvanceForLoggedInUser);
@@ -1256,6 +1311,7 @@ export function initOpeningScreen() {
     updateOpeningLangToggle();
     loginToggleBtn.textContent = t("opening.loginToggle");
     for (const [el, key] of trialTexts) el.textContent = t(key);
+    for (const [el, key] of openingV2Texts) el.textContent = t(key);
     refreshTrialAuth?.(); // ログイン中の行とボタンの文字は trialTexts の後に上書きする
     testModeBtn.textContent = t("opening.testMode");
     testModeBtn.title = t("opening.testMode.tip");

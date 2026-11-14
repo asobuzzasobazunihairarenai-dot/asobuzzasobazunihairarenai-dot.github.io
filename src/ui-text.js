@@ -221,6 +221,13 @@ const UI = {
     "phase.autoSkip.titleOff": "フェイズ自動送り: OFF（自分でスキップを押すまでフェイズを送りません。ロックできる手札が無いこと等を相手に悟られません）",
 
     // --- オープニング/ログイン画面（opening-screen.js） ---
+    // 【続き706】タイトル画面の v2 の構図（左の列）。文言は**実際に公開している言葉**を使う
+    //   （会社HPの題と説明文・2〜4人／約30分／10歳〜）。作り話のコピーは置かない。
+    "opening.v2.lead": "カードが、そのまま盤面になる",
+    "opening.v2.desc": "49枚の正方形カードがそのまま盤面になり、その上を七色のキューブが駆け巡る。",
+    "opening.v2.players": "2〜4人",
+    "opening.v2.time": "約30分",
+    "opening.v2.age": "10歳〜",
     "opening.loginToggle": "ログイン",
     // 【#420・2026-10-18】通常のタイトル画面からも試遊へ入れる導線（opening-screen.js）。
     "trial.noAccount": "アカウントを作らずに試す",
@@ -2408,6 +2415,11 @@ const UI = {
     "phase.autoSkip.titleOff": "Phase auto-advance: OFF (phases don't advance until you press skip; opponents can't tell you have no lockable cards, etc.)",
 
     // --- Opening / login screen ---
+    "opening.v2.lead": "The cards are the board",
+    "opening.v2.desc": "49 square cards become the board itself, and seven colours of cubes race across them.",
+    "opening.v2.players": "2-4 PLAYERS",
+    "opening.v2.time": "ABOUT 30 MIN",
+    "opening.v2.age": "AGE 10+",
     "opening.loginToggle": "Log in",
     "trial.noAccount": "Try it without an account",
     "game.spectate.oneHandOn": "👁 Viewed player only",
