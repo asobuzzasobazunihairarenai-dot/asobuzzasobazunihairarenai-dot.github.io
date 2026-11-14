@@ -318,6 +318,50 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  601: {
+    ja: "直しました。盤面が真っ暗になるのは、勝利演出の間だけ立体表示を畳んで戻す時に、光源がどこにも付いていない状態になっていたためでした。戻した時に光を付け直すようにし、さらに「描けているのに真っ黒」を見張る仕組みも足しました。",
+    en: "Fixed. The board went black because the lights were not re-attached when 3D rendering resumed after the victory celebration. They are now restored, and a watchdog checks for an all-black board.",
+  },
+  602: {
+    ja: "直しました。ランク戦の「相手を探しています」の帯を、左上の小さなつまみに畳みました。出た直後の5秒だけ開いて、そのあと自動で畳みます（つまみを押せば開き直せます）。",
+    en: "Fixed. The ranked matchmaking banner is now a small tab at the top left. It opens for five seconds and then folds away; tap it to reopen.",
+  },
+  603: {
+    ja: "直しました。カードをオープンしてから次のマスへカメラが動くよう、順番を整えました。",
+    en: "Fixed. The camera now waits until the card has finished flipping before moving on.",
+  },
+  605: {
+    ja: "直しました。CPUが、何も得られないマスをわざわざ選ぶことが減るように評価を直しました。",
+    en: "Fixed. The CPU no longer favours spaces where it would gain nothing.",
+  },
+  606: {
+    ja: "直しました。CPUの番に出る選択のモーダルが、あなたの画面に出ないようにしました。",
+    en: "Fixed. Choice dialogs for the CPU's turn no longer appear on your screen.",
+  },
+  608: {
+    ja: "直しました。ピーターフッドのように同じマスへ何枚も置く効果は、2枚目以降の飛ぶ演出を省いて短くしました（音は鳴ります）。",
+    en: "Fixed. When several cards go to the same space, the flight animation is skipped from the second card on (the sound still plays).",
+  },
+  609: {
+    ja: "直しました（#606 と同じ原因です）。CPUの番の選択モーダルが、あなたの画面に出ないようにしました。",
+    en: "Fixed (same cause as #606). The CPU's choice dialogs no longer appear on your screen.",
+  },
+  610: {
+    ja: "直しました。CPUが色寄せの笛で「取る」より「オープン」を選びがちだったのを直しました（取れる相手が笛しかない時は今までどおりオープンを選びます）。",
+    en: "Fixed. The CPU now prefers taking a card over flipping one with the colour flute, except when the only card it could take is the flute itself.",
+  },
+  611: {
+    ja: "直しました。拡張と 1st EDITION のカードは文字が絵に焼き込まれていないため、画像をそのまま出す場所では効果欄が空になっていました。そういうカードは必ず文字を描くようにし、4つのカードセット99種すべてで効果欄が空にならないことを確かめました。",
+    en: "Fixed. Expansion and 1st EDITION cards have no text baked into the artwork, so places that showed the raw image had an empty effect box. Those now always draw the text; all 99 cards across the four sets were checked.",
+  },
+  612: {
+    ja: "直しました。CPU戦で自分の持ち時間を使う設定にしていても、タイマーの数字とロープが出ないままでした。",
+    en: "Fixed. The timer digits and rope now appear in CPU battles when you have the self-timer turned on.",
+  },
+  613: {
+    ja: "直しました。なないろの欠片は「すべての色」なので、笛のように色で対象を選ぶ効果の対象に入るようにしました。",
+    en: "Fixed. The rainbow shard counts as every colour, so effects that pick targets by colour can now target it.",
+  },
   637: {
     ja: "入れました。マイデッキの箱の「装い」（駒・ペット・カード裏）が、平らに並ぶのをやめてデッキの手前に立っているようになりました（両端は少し外を向き、足元に影が付きます）。デッキそのものを囲む大きな見せ方は、まだ試作のままです。",
     en: "Done. A deck's attire now stands in front of the deck box instead of sitting in a flat row. The larger stage-style view is still only a mockup.",
