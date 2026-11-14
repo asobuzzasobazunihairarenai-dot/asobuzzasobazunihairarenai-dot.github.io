@@ -231,12 +231,11 @@ function buildDeckBox(deck) {
   });
   cos.append(pieceCos, petCos, backCos);
   box.appendChild(cos);
-  // 【#638】ここが「装いを変える入口」だと分かる一行。箱を押すと編集画面が開き、
-  //   そこに駒・ペット・カード裏の設定ボタンが並んでいる（仕組みは足していない）。
-  const cosLabel = document.createElement("div");
-  cosLabel.className = "mdl-deck-cosmetics-label";
-  cosLabel.textContent = t("mdl.cosmetics.hint");
-  box.appendChild(cosLabel);
+  // 🔴【続き720・ユーザー判断】「**装い 押して変える のテキストはいらないかも**」。
+  //   ⇒ 外した。見本そのものが押せて、触ると持ち上がる（.is-pickable）ので、
+  //     文が無くても押せると分かる。**説明は各見本の title に残っている**ので、
+  //     しばらく置けば「駒のすがた」等が出る。
+  //   ⚠ 文言 mdl.cosmetics.hint は**消していない**（戻したくなった時のため）。
 
   // 箱クリックで編集。
   box.addEventListener("click", () => editDeck(deck.id));

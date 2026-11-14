@@ -1304,7 +1304,8 @@ body.ui-v2 #phase-automation-turn-status {
 }
 
 /* 上端の1行案内（続き687 で足したもの）と、行動ログの窓。 */
-body.ui-v2 #phase-hint-line,
+/* ⚠【続き719 で気づいた】#phase-hint-line は**どこにも無い要素**だった（続き710 で
+   自分が書いた死に規則）。外した。行動ログの窓だけが本物。 */
 body.ui-v2 #action-log-panel {
   border-radius: 0;
 }
@@ -1436,12 +1437,41 @@ body.ui-v2 .changelog-date {
    盤面から浮く。⚠ 全画面ページ（ホーム・図鑑…）は今までどおりアイボリー。
    ⚠ 当て方: body.in-game（対局中にだけ付く印）が無いので、**盤面の中に出るものだけ**を
      名指しする。増えたら足す（語尾でまとめられない所なので）。 */
-body.ui-v2 #phase-hint-line {
-  background: rgba(216, 178, 76, 0.08);
-  color: #f6eddc;
-  border: 1px solid rgba(216, 178, 76, 0.5);
-}
 /* 卓の地。試作は #14120e（暗い温かい黒）。続き714 で入れた麻布の上に、その色を薄く重ねる。 */
 body.ui-v2 {
   background-color: #14120e;
+}
+
+/* ═══════ 【2026-11-15・続き720】対局画面の組み立てを試作へ ①上端の帯 ═══════
+   試作（project/Board3D.dc.html）では、いまのフェイズと手番が**画面の上端の中央**に
+   金の枠の帯で出る（「あなたの番です ／ ムーブフェイズ：光っているマスをタップして移動」）。
+   いまのアプリは**右下の案内板の真上**に小さく出ていて、盤面を見ている目線から遠い。
+   ⇒ v2 のときだけ**上端の中央**へ移す。
+   🔴 **位置だけ変える。中身・大きさ・出る条件には触らない**（display:none の出し分けは
+     main.js が持っている＝ここで display を書くと、出てはいけない時に出る）。
+   ⚠ 上端の帯（#option-area）は z 2700 なのでその下に潜らせない。帯の高さぶん下げる。
+   ⚠ 当たり判定は持たせない（elementsFromPoint の自前判定に拾われないように＝教訓4）。 */
+body.ui-v2 #phase-automation-turn-status {
+  position: fixed;
+  top: calc(var(--option-area-band-height, 3rem) + 0.5rem);
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2710;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 92vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* スマホ・タブレットは元の規則が transform-origin と scale を持っているので、
+   中央寄せと一緒に書き直す（片方だけ上書きすると位置がずれる）。 */
+body.ui-v2.is-phone-device #phase-automation-turn-status,
+body.ui-v2.is-tablet-device #phase-automation-turn-status {
+  transform-origin: top center;
+  /* ⚠ 変数名は本物に合わせる（--phase-turn-status-scale-phone）。
+     🔴 最初 --turn-status-phone-scale と書いた＝**存在しない名前**で、既定の1倍に
+       落ちていた（style.css を見て気づいた）。 */
+  transform: translateX(-50%) scale(var(--phase-turn-status-scale-phone, 1));
 }

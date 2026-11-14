@@ -19675,19 +19675,19 @@ body.is-tablet-device .mds-action {
   display: flex;
   align-items: flex-end;
   justify-content: center; /* 中央ぞろえ（ユーザー要望2026-08-12） */
-  gap: var(--mdl-cos-gap, 0.75rem);
+  gap: var(--mdl-cos-gap, 0rem);
   padding: 0 0.6rem 0.25rem;
   /* 🔴【2026-11-14・続き717】ユーザー指示「**もっとそれぞれを大きく、デッキのビジュの手前に
      重なるくらいの感じ**がいいです」⇒ 1.9rem → 2.7rem、重なりも -1.1rem → -2.5rem。
      ⚠ 重ねるので `z-index: 2`（上の .mdl-deck-cosmetics）が要る＝教訓3。
      ⚠ 箱の高さは変えない（transform と負の margin だけ＝教訓11）。 */
-  margin-top: calc(-1 * var(--mdl-cos-overlap, 2.5rem));
-  transform: translateY(var(--mdl-cos-lift, 0rem));
+  margin-top: calc(-1 * var(--mdl-cos-overlap, 5.2rem));
+  transform: translateY(var(--mdl-cos-lift, -3.2rem));
   perspective: 520px;
 }
 .mdl-cos {
-  width: var(--mdl-cos-size, 2.7rem);
-  height: var(--mdl-cos-size, 2.7rem);
+  width: var(--mdl-cos-size, 4.3rem);
+  height: var(--mdl-cos-size, 4.3rem);
   border-radius: 0.3rem;
   overflow: visible;
   background: none;
@@ -19712,14 +19712,14 @@ body.is-tablet-device .mds-action {
 }
 /* 両端は少し外を向く＝デッキを囲んで立っているように見える。 */
 .mdl-deck-cosmetics .mdl-cos:first-child {
-  transform: rotateY(var(--mdl-cos-turn, 26deg)) translateZ(-6px);
+  transform: rotateY(var(--mdl-cos-turn, 36deg)) translateZ(-6px);
 }
 .mdl-deck-cosmetics .mdl-cos:last-child {
-  transform: rotateY(calc(-1 * var(--mdl-cos-turn, 26deg))) translateZ(-6px);
+  transform: rotateY(calc(-1 * var(--mdl-cos-turn, 36deg))) translateZ(-6px);
 }
 .mdl-deck-cosmetics .mdl-cos:nth-child(2) {
-  width: var(--mdl-cos-size-mid, 3.2rem);
-  height: var(--mdl-cos-size-mid, 3.2rem);
+  width: var(--mdl-cos-size-mid, 4.4rem);
+  height: var(--mdl-cos-size-mid, 4.4rem);
 }
 .mdl-cos img {
   width: 100%;
@@ -25599,10 +25599,10 @@ body.is-tablet-device #ranked-practice-banner {
   transform: translateY(-0.18rem) scale(1.06);
 }
 .mdl-deck-cosmetics .mdl-cos:first-child.is-pickable:hover {
-  transform: rotateY(var(--mdl-cos-turn, 26deg)) translateZ(-6px) translateY(-0.18rem) scale(1.06);
+  transform: rotateY(var(--mdl-cos-turn, 36deg)) translateZ(-6px) translateY(-0.18rem) scale(1.06);
 }
 .mdl-deck-cosmetics .mdl-cos:last-child.is-pickable:hover {
-  transform: rotateY(calc(-1 * var(--mdl-cos-turn, 26deg))) translateZ(-6px) translateY(-0.18rem) scale(1.06);
+  transform: rotateY(calc(-1 * var(--mdl-cos-turn, 36deg))) translateZ(-6px) translateY(-0.18rem) scale(1.06);
 }
 
 /* 🔴【続き717】山札一覧の「← 戻る」の見た目を、他の全画面ページと同じにする。

@@ -224,12 +224,12 @@ const GROUPS = [
     title: "マイデッキ：装い（駒・ペット・カード裏）の大きさと重なり",
     category: "position-ui",
     controls: [
-      { key: "--mdl-cos-size", label: "装いの大きさ（両端）", unit: "rem", min: 1, max: 10, step: 0.1, default: 2.7 },
-      { key: "--mdl-cos-size-mid", label: "装いの大きさ（真ん中）", unit: "rem", min: 1, max: 12, step: 0.1, default: 3.2 },
-      { key: "--mdl-cos-overlap", label: "デッキへの重なり（大きいほど食い込む）", unit: "rem", min: -4, max: 18, step: 0.1, default: 2.5 },
-      { key: "--mdl-cos-gap", label: "装いどうしの間隔", unit: "rem", min: 0, max: 8, step: 0.05, default: 0.75 },
-      { key: "--mdl-cos-turn", label: "両端の振り向き", unit: "deg", min: 0, max: 60, step: 1, default: 26 },
-      { key: "--mdl-cos-lift", label: "上下の位置（＋で下へ）", unit: "rem", min: -14, max: 14, step: 0.1, default: 0 },
+      { key: "--mdl-cos-size", label: "装いの大きさ（両端）", unit: "rem", min: 1, max: 10, step: 0.1, default: 4.3 },
+      { key: "--mdl-cos-size-mid", label: "装いの大きさ（真ん中）", unit: "rem", min: 1, max: 12, step: 0.1, default: 4.4 },
+      { key: "--mdl-cos-overlap", label: "デッキへの重なり（大きいほど食い込む）", unit: "rem", min: -4, max: 18, step: 0.1, default: 5.2 },
+      { key: "--mdl-cos-gap", label: "装いどうしの間隔", unit: "rem", min: 0, max: 8, step: 0.05, default: 0 },
+      { key: "--mdl-cos-turn", label: "両端の振り向き", unit: "deg", min: 0, max: 60, step: 1, default: 36 },
+      { key: "--mdl-cos-lift", label: "上下の位置（＋で下へ）", unit: "rem", min: -14, max: 14, step: 0.1, default: -3.2 },
     ],
   },
   {
