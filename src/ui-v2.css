@@ -1075,3 +1075,100 @@ body.ui-v2 .modal-close-x {
 body.ui-v2.theme-light .modal-close-x {
   background: rgba(255, 253, 248, 0.9);
 }
+
+/* ═══════════ 【2026-11-14・続き708】残りの全画面ページも試作の装丁へ ═══════════
+   ユーザー指示「**対局画面以外はすべてやって！！**」。
+   ホーム・タイトル・図鑑・ショップ・マイデッキ一覧は済んでいるので、ここでは
+   **マイページ／ランキング／デッキ編成／デッキ選択／基本設定（⚙）／オンラインの部屋**を揃える。
+
+   🔴 **当て方は3つだけ**（試作の装丁の正体がこの3つだから）:
+     ① 囲みは**角を立てて金の細枠**（紙が置いてある形）
+     ② 並ぶ行は**金の細い罫**で分ける（箱で囲まない）
+     ③ 見出しは**明朝＋字間**、節の罫は**金**
+
+   ⚠ **地（background）には触らない。** 明暗2テーマの文字色は style.css のまとめが
+     持っているので、ここで塗ると**片方のテーマで読めなくなる**（教訓15）。
+   ⚠ **大きさ・位置・余白にも触らない**（各ページで実測して詰めてある）。 */
+
+/* ① 囲み ───────────────────────────────────────────────── */
+body.ui-v2 .profile-page-card,
+body.ui-v2 .profile-maindeck,
+body.ui-v2 #ranking-page-card,
+body.ui-v2 .ranking-page-column,
+body.ui-v2 #options-menu-panel,
+body.ui-v2 #online-panel,
+body.ui-v2 #mdb-deck-panel,
+body.ui-v2 #mdb-collection,
+body.ui-v2 #mds-panel,
+body.ui-v2 .mds-deck,
+body.ui-v2 .mdb-deck-entry,
+body.ui-v2 .options-menu-details {
+  border-radius: 0;
+  border-color: rgba(176, 141, 63, 0.45);
+  box-shadow: 0 14px 32px -24px rgba(60, 48, 24, 0.8);
+}
+
+/* ② 並ぶ行は罫で分ける（箱で囲まない＝試作の一覧の作り） ───── */
+body.ui-v2 .ranking-page-row,
+body.ui-v2 .options-menu-item,
+body.ui-v2 .options-menu-basic-row,
+body.ui-v2 .options-menu-checkbox-row {
+  border-radius: 0;
+}
+body.ui-v2 .ranking-page-row + .ranking-page-row {
+  border-top: 1px solid rgba(176, 141, 63, 0.28);
+}
+body.ui-v2 .options-menu-divider {
+  background: rgba(176, 141, 63, 0.3);
+  border-color: rgba(176, 141, 63, 0.3);
+}
+
+/* ③ 見出し・節の罫 ───────────────────────────────────────── */
+body.ui-v2 .ranking-page-column-heading,
+body.ui-v2 .options-menu-section-title,
+body.ui-v2 .options-menu-details-title,
+body.ui-v2 #mdb-deck-panel-title,
+body.ui-v2 .mds-subtitle,
+body.ui-v2 .profile-maindeck-name,
+body.ui-v2 .ranking-choice-title {
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  letter-spacing: 0.1em;
+}
+body.ui-v2 .ranking-page-column-heading,
+body.ui-v2 .options-menu-section-title {
+  border-bottom-color: rgba(176, 141, 63, 0.45);
+}
+
+/* ④ タブ・分割ボタン・行き先のボタンは、角を立てて金の枠に ───── */
+body.ui-v2 .ranking-page-tab,
+body.ui-v2 .ranking-choice-item,
+body.ui-v2 .options-menu-segment-btn,
+body.ui-v2 .options-menu-demo-btn,
+body.ui-v2 .options-menu-reset-btn,
+body.ui-v2 .options-menu-section-reset-btn,
+body.ui-v2 .mds-action,
+body.ui-v2 .mds-action-new,
+body.ui-v2 .mds-action-random,
+body.ui-v2 .mds-action-home,
+body.ui-v2 .profile-maindeck-edit,
+body.ui-v2 #shop-panel-tabs > button,
+body.ui-v2 .mdl-deck-actions > button {
+  border-radius: 0;
+  border-color: rgba(176, 141, 63, 0.45);
+}
+/* 選ばれているタブは金で塗る（試作の「いまここ」の見せ方）。 */
+body.ui-v2 .ranking-page-tab.is-active,
+body.ui-v2 .options-menu-segment-btn.is-active,
+body.ui-v2 .options-menu-segment-btn.is-selected {
+  border-color: rgba(176, 141, 63, 0.9);
+  box-shadow: inset 0 -2px 0 0 var(--v2-gold, #b08d3f);
+}
+
+/* ⑤ カードの小さな札（デッキ編成の一覧）は角だけ立てる。
+   ⚠ 絵を持っているので地も枠も触らない（消してしまうため）。 */
+body.ui-v2 .mdb-col-card,
+body.ui-v2 .mdb-col-card-art,
+body.ui-v2 .mds-deck-art,
+body.ui-v2 .mdl-deck-art {
+  border-radius: 0;
+}
