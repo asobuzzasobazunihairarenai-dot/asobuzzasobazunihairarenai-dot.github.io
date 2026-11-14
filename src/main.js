@@ -2654,6 +2654,13 @@ onCardReceivedEvents(({ targetPlayer, cardId, subtitle }) => {
 // なので、ここでは自分以外からの通知だけを表示する。
 onHandEffectUseEvents(({ fromPlayer, cardId, optionLabel, mode, costCardId }) => {
   if (fromPlayer === getSelfSeat()) return;
+  // 🔴【#621・#622】1st EDITION の【状況】カードの合図。**「使った」のではない**ので、
+  //   霧散演出（canvas）も、割り込みの窓も出さない——出すと「相手が手札効果を宣言した」
+  //   という別の意味になってしまう。波紋と右上の札だけを、送り手と同じ形で出す。
+  if (mode === "situation") {
+    void playSituationCardEffect(cardId);
+    return;
+  }
   // 続き218: 相手の手札使用も、Canvas霧散演出→右の使用モーダルで見せる。追色使用(mode:v5)は
   // 追色カードの吸い込みも見せる（受信側は正確な手札位置が無いのでカード左下から吸い込む既定）。
   if (mode === "v5" && costCardId) playHandEffectUseV5(cardId, optionLabel, costCardId, null);
@@ -4955,6 +4962,18 @@ async function resolvePeaceWishesAtTurnStart(player) {
 //   ⚠ 出せなかった時は何も待たない（待つと「何も起きないのに固まった」ように見える）。
 async function playSituationCardEffect(cardId) {
   if (isArrivalEffectDisabled()) return;
+  // 🔴🔴【2026-11-14・#621 を測って見つけた】**この演出は一度も見えていなかった。**
+  //   ここは「ターンが変わった」の subscribe の中から呼ばれるが、**その後ろに render() の
+  //   リスナーが並んでいる**（下の方の subscribe）。render() は `table.innerHTML = ""` で
+  //   盤面のDOMを丸ごと作り直すので、**同期のうちに貼った輪は数ミリ秒後に捨てられる。**
+  //   ⇒ 実測（`scratchpad/p621.mjs`）: 輪は確かに3枚作られるのに、次のコマで読むと
+  //     `getComputedStyle` が空・箱が 0x0 ＝**盤面から外れていた**。
+  //   ⓘ **カメラは無事だった**（寄りの計算は同期で、render() より先に走り切るため。
+  //     実測でも 1.205 → 2.164 と寄っていた）。消えていたのは**輪・滲み・オーラ**だけ。
+  //   ⇒ **1回だけ待ってから掴む**（setTimeout(0)＝同期のリスナーが全部終わった後）。
+  //     ⚠ rAF にしないのは、画面が見えていない間 rAF が進まないため（#360 の実害）。
+  //   ⚠ **掴むのは待った後**（待つ前に掴むと、掴んだ要素が捨てられる＝続き638・644 と同じ）。
+  await new Promise((r) => setTimeout(r, 0));
   const table = document.getElementById("game-table");
   if (!table) return;
   const cellEl = findLocationElement(table, BOARD_CENTER);
@@ -4962,17 +4981,41 @@ async function playSituationCardEffect(cardId) {
   const color = getCardDefinition(cardId)?.color ?? null;
   const css = color && color !== "rainbow" ? "var(--color-" + color + ")" : "#f6c945";
   try {
+    // 🔴【#621・2026-11-14】ユーザー要望「そのカードの色の**幻想的な**波紋が場の中央から
+    //   広がるのはどう？」。#592 の「硬い輪が2枚」から、**輪3枚＋中央から滲む光1枚**へ。
+    //   輪だけだと的（マト）に見えるので、縁を持たない光を底に敷いて水面の波紋に寄せる。
+    //   ⚠ 片付けまでの時間は CSS の animation-duration（2.2s）＋ delay より長く取る
+    //     （短いと出切る前に消える）。
+    const bloom = document.createElement("div");
+    bloom.className = "situation-bloom";
+    bloom.style.setProperty("--situation-color", css);
+    appendEffectHost(cellEl, bloom, 2400);
     const ring = document.createElement("div");
     ring.className = "situation-ring";
     ring.style.setProperty("--situation-color", css);
-    appendEffectHost(cellEl, ring, 1500);
+    appendEffectHost(cellEl, ring, 2400);
     const ring2 = document.createElement("div");
     ring2.className = "situation-ring is-delayed";
     ring2.style.setProperty("--situation-color", css);
-    appendEffectHost(cellEl, ring2, 1800);
+    appendEffectHost(cellEl, ring2, 2900);
+    const ring3 = document.createElement("div");
+    ring3.className = "situation-ring is-delayed2";
+    ring3.style.setProperty("--situation-color", css);
+    appendEffectHost(cellEl, ring3, 3400);
     spawnArrivalBurst(cellEl, color);
   } catch (err) {
     console.error("playSituationCardEffect failed", err);
+  }
+  // 🔴【#622・2026-11-14】ユーザー要望「状況効果発動時に右にカードの拡大出すといいかも！」。
+  //   【状況】カードは**誰も何も押していないのに勝手に効く**ので、どの札が効いたのかを
+  //   文より先に「札そのもの」で見せる。右上に出す部品は手札使用のものをそのまま使う
+  //   （大きさ・位置・消え方・「消えないようにする」設定を1つの変数で共有しているため、
+  //   ここで別の箱を作ると設定が効かない＝--card-arrival-modal-size）。
+  //   ⚠ await しない。あちらは「見せるだけ」で、閉じるまで効果を止める意味が無い。
+  try {
+    void showHandEffectUseModal(cardId, null, { label: t("heu.situation") });
+  } catch (err) {
+    console.error("playSituationCardEffect modal failed", err);
   }
   // カメラは最後（輪とオーラを出してから寄る＝寄った先で始まるのではなく、
   // 起きていることへ寄っていくように見える）。寄れない設定なら何もしない。
@@ -4980,6 +5023,12 @@ async function playSituationCardEffect(cardId) {
     try {
       const tu = getCinematicTuning();
       await focusCameraOnElement(cellEl, { zoom: tu.openZoom, ms: 380, yaw: tu.openYaw, tilt: tu.openTilt });
+      // 🔴【2026-11-14・測って見つけた】**#592 は戻りの予約を忘れていた。**
+      //   実測で、寄ったあと5.2秒たっても倍率が 2.164 のまま＝盤面の中央へ寄りっぱなし。
+      //   他の寄り（カードのオープン・ゲート侵攻・ロック）はどれも戻りを予約しているのに、
+      //   ここだけ無かった。⇒ 1.6秒後に戻す（続くお知らせを読む間は寄ったまま）。
+      //   ⚠ 選択を聞く効果なら `cameraHomeForPicking` が先に戻すので、二重でも害は無い。
+      scheduleCameraHome(1600);
     } catch (err) {
       console.error("playSituationCardEffect camera failed", err);
     }
@@ -5047,6 +5096,13 @@ async function resolveSituationAtTurnStart__inner(cardId, player) {
   // 【#588・2026-11-12】ユーザー要望「行動ログに状況カードの選択も残したい」。
   //   状況カードは**ターン開始時に勝手に効く**ので、何が起きたのか画面から追いにくい。
   logAction("situation", { player, cardId });
+  // 🔴【#621・#622・2026-11-14】**他の人の画面にも同じ演出を出す。**
+  //   【状況】カードを走らせるのは**その席の本人のクライアントだけ**なので、何もしないと
+  //   他の人の画面には文のお知らせしか出ない＝「何が起きたか追えない」という #592 の訴えが
+  //   そのまま残る（演出を足した本人だけが見られる、という半端な形になる）。
+  //   ⚠ 状態は1つも変えない**見た目だけの合図**。hand_effect_use に相乗りさせたので、
+  //     新しい通信路もサーバー側の変更も要らない（受け側は mode で振り分ける）。
+  if (isOnlineMode()) broadcastHandEffectUse({ fromPlayer: getSelfSeat(), cardId, mode: "situation" });
   try {
     // 【#592】お知らせの**前**に演出（何が起きたかを見せてから文で言う）。
     await playSituationCardEffect(cardId);
@@ -8585,7 +8641,7 @@ function requestBoardCardsOrderedForEffect(player, hint, tokens, options = {}) {
 // 【#384】「盤面を見る」も同じ理由で原点へ戻してから見せる（寄ったままの盤面を覗いても
 // 見たい所が入っていない）。
 function attachPeekBoardButton(modal, backdrop) {
-  void cameraHomeForPicking();
+  void cameraHomeForPicking({ respectHold: false }); // 【#619】プレイヤーが自分で押した時は必ず戻す
   let returnBtn = null;
   // 背景の覆いは createBackdrop が**インラインstyle**で背景色を書いているので、CSSのクラスでは
   // 上書きできない。ここで直接付け外しする（要素自体は残すので、盤面のタップは今までどおり
@@ -8785,8 +8841,15 @@ let cellPickAutoResolved = false;
 // 戻す。こうすると、今後どの効果から呼ばれても同じ事故が起きない（続き549・552・557 と
 // 同じ考え方＝入口を1か所にする）。モーダルの中で押して選ぶ画面は画面全体に重なるので
 // 対象外だが、その「盤面を見る」ボタンだけは同じ理由で戻す。
-async function cameraHomeForPicking() {
+// 🔴【#619】respectHold=true（既定）: 繰り返す効果がカメラを抱えている間は戻さない。
+//   試練の儀式が聞くのは**隣の4マス**だけで、寄ったままでも必ず画面に入っている。
+//   抱えていない時は今までどおり戻る（#384 の理由＝寄ったままの盤面を覗くと見たい所が
+//   入っていないことがある）。
+//   ⚠ 「盤面を見る」ボタンからは **respectHold=false** で呼ぶ——あちらは
+//     プレイヤーが自分で「全体を見せて」と押した時なので、抱えていても必ず戻す。
+async function cameraHomeForPicking({ respectHold = true } = {}) {
   if (isCinematicCameraHome()) return;
+  if (respectHold && cameraHoldDepth > 0) return;
   cancelScheduledCameraHome(); // 予約されていた戻りは要らなくなる
   await cameraHome(260);
 }
@@ -10465,6 +10528,9 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         //   見せてからおきましょう」）。⇒ 沈める前に**全員へ1回見せる**。
         //   ⓘ revealCenterCardForAll は**配信する**（playCenterCardFlipReveal 単体は本人だけ）。
         revealCardToAll: (cardId) => revealCenterCardForAll(cardId, t("game.label.reveal")),
+        // 【#619】繰り返す効果（試練の儀式）の間、カメラを元の視点へ戻さずに抱えておく。
+        // 呼ぶのは効果エンジン側（回数で区切れるのはあちらだけ）。必ず finally で解く。
+        holdCamera: (on) => (on ? beginCameraHold() : endCameraHold()),
         startSuspenseSound: startHeartbeat,
         stopSuspenseSound: stopHeartbeat,
         delay: (ms) => wait(ms),
@@ -10626,6 +10692,9 @@ function buildArrivalEffectHelpers(player) {
       gambleReveal: (cardId) => revealCenterCardForAll(cardId, t("game.label.gambleReveal")),
       // 【#502】足下の隠し財産（手札効果の側）。理由は到達側の同じ行のコメント参照。
       revealCardToAll: (cardId) => revealCenterCardForAll(cardId, t("game.label.reveal")),
+      // 【#619】繰り返す効果（試練の儀式）の間、カメラを元の視点へ戻さずに抱えておく。
+      // 呼ぶのは効果エンジン側（回数で区切れるのはあちらだけ）。必ず finally で解く。
+      holdCamera: (on) => (on ? beginCameraHold() : endCameraHold()),
       startSuspenseSound: startHeartbeat,
       stopSuspenseSound: stopHeartbeat,
       delay: (ms) => wait(ms),
@@ -14625,6 +14694,7 @@ async function focusCameraOnElement(el, { zoom = 1.3, ms = 500, yaw = 0, tilt = 
   const LIMIT = 24; // rem。寄せすぎて盤面が画面の外へ飛ばないように
   const clamp = (v) => Math.max(-LIMIT, Math.min(LIMIT, v));
   cancelScheduledCameraHome(); // 新しく寄るので、予約されていた戻りは取り消す
+  cameraHoldPending = null; // 【#619】抱えている間に保留していた戻りも同じ理由で捨てる
   await cameraTo({ zoom, panX: clamp(cur.panX + dx), panY: clamp(cur.panY + dy), yaw, tilt }, ms);
 }
 
@@ -14935,11 +15005,59 @@ function cancelScheduledCameraHome() {
     cameraHomeTimer = null;
   }
 }
+
+// 🔴【#619・2026-11-14】ユーザー要望「試練の儀式のときに、**いちいちカメラを元の位置に
+//   戻さなくてもいい**かも！」。試練は「色を宣言 → 隣へ置いて移動 → 中央でじらしフリップ」を
+//   当たり続ける限り繰り返す。移動のたびに寄り、1200ms 後に戻る予約が入るが、**次の移動までは
+//   5秒ほどある**（フリップ演出と色宣言が挟まるため）ので毎回きっちり戻ってしまう。
+//   ⇒ 繰り返している**間だけ戻りを保留**し、終わってから1回だけ戻す。
+//   ⚠ 「次の寄りが予約を取り消す」仕組み（#485/#499）は 1.2秒以内に次が来る時しか効かない。
+//     時間を延ばす形で合わせるのは不安定（ユーザー指摘「一定時間に1回とかは不安定すぎませんか？」）
+//     なので、**回数で区切れる側＝効果エンジン**から明示的に抱えさせる。
+//   ⚠ **必ず解く。** 効果側は finally で解くが、取り残しに備えて上限（90秒）と、
+//     ターンが変わった時の強制解除も置いてある（抱えたままだと二度と戻らない＝#623 と同じ形）。
+const CAMERA_HOLD_MAX_MS = 90000;
+let cameraHoldDepth = 0;
+let cameraHoldPending = null; // 保留した戻りの引数
+let cameraHoldSafetyTimer = null;
+function beginCameraHold() {
+  cameraHoldDepth++;
+  clearTimeout(cameraHoldSafetyTimer);
+  cameraHoldSafetyTimer = setTimeout(() => {
+    if (cameraHoldDepth > 0) {
+      try { logAction("diag-camera-hold-forced", { depth: cameraHoldDepth }); } catch (err) {}
+      cameraHoldDepth = 0;
+      releaseCameraHoldPending();
+    }
+  }, CAMERA_HOLD_MAX_MS);
+}
+function releaseCameraHoldPending() {
+  clearTimeout(cameraHoldSafetyTimer);
+  cameraHoldSafetyTimer = null;
+  const p = cameraHoldPending;
+  cameraHoldPending = null;
+  if (p) scheduleCameraHome(p.delay, p.ms, p.onDone);
+}
+function endCameraHold() {
+  cameraHoldDepth = Math.max(0, cameraHoldDepth - 1);
+  if (cameraHoldDepth === 0) releaseCameraHoldPending();
+}
+// 対局の進行が次のターンへ移ったのに抱えたままなら、そこで必ず解く（保険）。
+function forceReleaseCameraHold() {
+  if (cameraHoldDepth === 0 && !cameraHoldPending) return;
+  cameraHoldDepth = 0;
+  releaseCameraHoldPending();
+}
 // onDone（省略可）: 実際に元の視点へ戻り切った時に1回だけ呼ぶ。【#510】お知らせを
 //   「カメラが戻ってから」出すために、戻り終わりを知る必要がある（下の
 //   waitForCardOpenCameraHome）。待ち直しが挟まっても引き継ぐ。
 function scheduleCameraHome(delay = 700, ms = 420, onDone = null, 待った = 0) {
   cancelScheduledCameraHome();
+  // 【#619】繰り返す効果の最中は戻らない（抱えている間は最後の1件だけ覚えておく）。
+  if (cameraHoldDepth > 0) {
+    cameraHoldPending = { delay, ms, onDone };
+    return;
+  }
   cameraHomeTimer = setTimeout(() => {
     cameraHomeTimer = null;
     // 演出の最中なら戻らずに待ち直す（上の説明）。新しい寄りが来れば取り消されるので、
@@ -22085,6 +22203,8 @@ subscribe(() => {
     // 引っ込める（仕組みはモーダル自身が元から持っているものをそのまま使う）。
     hideCardArrivalModalImmediately({ fade: true });
     hideHandEffectUseModalImmediately({ fade: true });
+    // 【#619】繰り返す効果がカメラを抱えたままターンが変わったら、そこで必ず解く（保険）。
+    forceReleaseCameraHold();
     // 0th拡張: ターンが切り替わった瞬間を使う2つの処理。
     // 🔴 オンラインでは**1つのクライアントだけ**が走らせる（二重に効かせない）。新しい手番の
     //   本人を選ぶ（確実に在席している側）。ローカル・CPU戦は1クライアントで全席を見る。

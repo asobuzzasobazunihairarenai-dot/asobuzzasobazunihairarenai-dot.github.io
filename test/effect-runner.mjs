@@ -347,6 +347,8 @@ export async function runOneCase(spec) {
     maybeTriggerArrivalForPlacedCard: async () => {}, onCardAcquiredToHand: () => {},
     playAdditionalColorUse: () => {}, recordMoveVisited: () => {}, startSuspenseSound: () => {},
     stopSuspenseSound: () => {},
+    // 【#619】本物は main.js の beginCameraHold/endCameraHold。見た目だけなので何もしない。
+    holdCamera: () => {},
     // 【#333】「そのマスの到達効果を、この人に起こす」の呼び出しを記録する。空スタブのままだと
     // 到達を起こし忘れてもテストが通ってしまう（コノハナサクヤで実際に起きた）。
     // 🔴 既定はログだけ（今までどおり）。spec.realArrivalChain を立てた時だけ、本物と同じく

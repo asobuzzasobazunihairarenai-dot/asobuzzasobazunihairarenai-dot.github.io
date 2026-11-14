@@ -4225,6 +4225,16 @@ async function runAction(action, ctx, helpers) {
       // 不具合#46: 到達効果の二重発火で儀式が2つ同時に走らないようにする（再入ガード）。
       if (ritualPlaceMoveInProgress) return false;
       ritualPlaceMoveInProgress = true;
+      // 🔴【#619・2026-11-14】ユーザー要望「試練の儀式のときに、いちいちカメラを元の位置に
+      //   戻さなくてもいいかも！」。試練は「色を宣言→隣へ置いて移動→中央でじらしフリップ」を
+      //   当たり続ける限り繰り返す。移動のたびにカメラが寄り、1200ms 後に戻る予約が入るが、
+      //   **次の移動までは5秒ほどある**（フリップ演出と色宣言が挟まる）ので毎回きっちり戻る。
+      //   ⇒ 繰り返している間だけ戻りを抱えてもらい、終わってから1回だけ戻す。
+      //   🔴 **回数で区切れるのはここだけ**なので、時間まかせ（#485/#499 の「1.2秒以内に次が
+      //     来れば取り消す」）ではなくエンジンから明示的に抱えさせる
+      //     （ユーザー指摘「一定時間に1回とかは不安定すぎませんか？」と同じ理由）。
+      //   ⚠ 必ず finally で解く（抱えたままだとカメラが二度と戻らない＝#623 と同じ形）。
+      helpers.holdCamera?.(true);
       try {
       let placedAny = false;
       let successCount = 0; // 宣言色に当たった回数（試練は必ずハズレで終わるので、最後にまとめて祝う）
@@ -4339,6 +4349,7 @@ async function runAction(action, ctx, helpers) {
       return placedAny;
       } finally {
         ritualPlaceMoveInProgress = false;
+        helpers.holdCamera?.(false); // 【#619】抱えていたカメラを解く（ここで1回だけ元へ戻る）
       }
     }
     case VERBS.ALL_PLAYERS_PLACE_ONE_CARD_IN_EMPTY_CELL: {

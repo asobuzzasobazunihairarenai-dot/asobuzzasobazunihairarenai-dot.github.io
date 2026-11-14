@@ -1520,6 +1520,8 @@ const UI = {
     "md.myDeck": "マイデッキ",
     "md.copyOf": "{name} のコピー",
     "heu.use": "使用",
+    // 【#622】右上に出す札の見出し。【状況】カードは誰も使っていないのに勝手に効くので別の文言。
+    "heu.situation": "【状況】",
     "heu.pin": "📌 消えないようにする",
     "heu.received": "受け取った",
     "heu.hiddenCard": "非公開のカード",
@@ -3685,6 +3687,7 @@ const UI = {
     "md.myDeck": "My deck",
     "md.copyOf": "Copy of {name}",
     "heu.use": "Use",
+    "heu.situation": "Situation",
     "heu.pin": "📌 Keep this open",
     "heu.received": "Received",
     "heu.hiddenCard": "A hidden card",

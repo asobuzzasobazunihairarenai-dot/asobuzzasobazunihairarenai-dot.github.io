@@ -583,6 +583,22 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "直しました（#618 と同じ）。盤面は最初の1コマを描き終えてから見せるようにしたので、一瞬の暗転も出なくなりました。",
     en: "Fixed - same as #618. The board now waits for its first rendered frame before hiding the fallback art.",
   },
+  617: {
+    ja: "直しました。おっしゃるとおり、あの帯は画面の端まで広がっていて、しかも効果のボタンより手前に出ていたので「見えないだけでなく押せない」状態でした。🏆 の小さなつまみに畳むようにして、出た直後の5秒だけ開くようにしました（つまみを押せばいつでも開き直せます）。左上へ移す案もいただきましたが、左上は題字・右上はアイコン列で埋まっているので、小さくして今の場所に残しました。",
+    en: "Fixed. You were right - the bar stretched to the edge of the screen and sat above the effect buttons, so it was not just hiding them but blocking taps. It now folds into a small trophy chip, staying open only for the first 5 seconds (tap the chip to reopen). You also suggested moving it to the top left, but the title is there and the icon row is on the right, so it stays put and just gets smaller.",
+  },
+  619: {
+    ja: "そうしました。試練の儀式の間はカメラを元の位置へ戻さず、繰り返している間は寄ったまま札から札へ滑って、儀式が終わってから1回だけ戻ります。",
+    en: "Done. During the Trial Ritual the camera no longer returns between steps - it stays in close, glides from card to card, and returns once when the ritual ends.",
+  },
+  621: {
+    ja: "入れました。輪を3枚に増やして間隔をずらし、中央から色が滲む光を1枚足しました（輪だけだと的に見えたので）。あわせて、それまで効いている本人の画面にしか出ていなかったのを、オンラインでも全員の画面に出るようにしました。",
+    en: "Added. Three staggered rings instead of two, plus a soft colored bloom spreading from the center. The effect also now shows on everyone's screen online, not just the player whose turn it is.",
+  },
+  622: {
+    ja: "入れました。状況効果が起きた瞬間に、そのカードを右上に大きく出します（大きさ・表示時間は⚙オプションの「右上に出るカードの大きさ」と同じ設定です）。",
+    en: "Added. The situation card is now shown enlarged in the top right when the effect fires, using the same size and duration setting as the other top-right cards.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

@@ -269,13 +269,64 @@ async function stopPractice() {
   }
 }
 
+// 🔴【#617・2026-11-14】報告「スマホのランク戦待ちのCPU練習の時の、右上の
+//   『対戦相手を待っています』モーダルが**大きすぎる**。奥の対戦相手の情報が見えなかったり、
+//   サフランの『ここでやめる』ボタンが押せなかったりする」。
+//   実際そのとおりで、#436 で**字を大きくした**（スマホ 1.7rem・ボタンが押せなかったため）あと、
+//   この帯は**幅いっぱい近くまで広がる**ようになっていた。しかも z-index 40000 ＝
+//   効果のスキップボタン（#card-effect-skip-button・z 3201）より上なので、
+//   重なると**見えないだけでなく押せない**（当たり判定は elementsFromPoint の自前判定＝教訓4）。
+//   ⇒ **小さなつまみ（🏆）に畳む。** 出た直後の5秒だけ開いて「何が起きているか」を見せ、
+//     そのあと自動で畳む。つまみを押せばいつでも開き直せる（止める口は消さない）。
+//   ⚠ 畳む／開くは**つまみ自身が兼ねる**（✕を別に置かない）。#565 で「✕ は『いま出ている
+//     ものを閉じる』と読まれる」と学んだので、**練習をやめる**ボタンと紛れる口を増やさない。
+//   ⚠ 左上へ移す案（ユーザー提案）は採らなかった——左上は題字、右上はアイコン列で、
+//     どちらも既に埋まっている。**小さくすれば場所を変えなくても当たらない**（実測で確認）。
+const PRACTICE_BANNER_AUTO_COLLAPSE_MS = 5000;
+let practiceBannerCollapseTimer = null;
+
+function setPracticeBannerCollapsed(collapsed) {
+  if (!practiceBannerEl) return;
+  practiceBannerEl.classList.toggle("is-collapsed", !!collapsed);
+  const chip = practiceBannerEl.querySelector(".ranked-practice-chip");
+  if (chip) chip.setAttribute("aria-expanded", collapsed ? "false" : "true");
+}
+
 function showPracticeBanner() {
   if (practiceBannerEl) return;
   practiceBannerEl = document.createElement("div");
   practiceBannerEl.id = "ranked-practice-banner";
+
+  // 畳んでいる間、画面に残るのはこのつまみだけ。押すと開く／閉じる。
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "ranked-practice-chip";
+  chip.textContent = "🏆";
+  chip.title = t("rm.L204");
+  chip.setAttribute("aria-label", t("rm.L204"));
+  chip.addEventListener("click", () => {
+    clearTimeout(practiceBannerCollapseTimer);
+    practiceBannerCollapseTimer = null;
+    const 畳む = !practiceBannerEl.classList.contains("is-collapsed");
+    setPracticeBannerCollapsed(畳む);
+    // 🔴 手で開いた時も、放っておけば**また畳む**。開いている間は幅が画面の半分を超え、
+    //   実測で効果のスキップボタンに重なる（まさに #617 の訴え）ので、
+    //   開いたままにしておける形にはしない。もう一度押せばすぐ畳める。
+    if (!畳む) {
+      practiceBannerCollapseTimer = setTimeout(() => {
+        practiceBannerCollapseTimer = null;
+        setPracticeBannerCollapsed(true);
+      }, PRACTICE_BANNER_AUTO_COLLAPSE_MS);
+    }
+  });
+  practiceBannerEl.appendChild(chip);
+
+  // 開いている時だけ見える中身（文言と「練習をやめて待機に戻る」）。
+  const body = document.createElement("div");
+  body.className = "ranked-practice-body";
   const label = document.createElement("span");
   label.textContent = t("rm.L204");
-  practiceBannerEl.appendChild(label);
+  body.appendChild(label);
   const stopBtn = document.createElement("button");
   stopBtn.type = "button";
   stopBtn.textContent = t("rm.L208");
@@ -284,11 +335,20 @@ function showPracticeBanner() {
     showWaitingScreen();
     setWaitingStatus(t("rm.L100"));
   });
-  practiceBannerEl.appendChild(stopBtn);
+  body.appendChild(stopBtn);
+  practiceBannerEl.appendChild(body);
+
   document.body.appendChild(practiceBannerEl);
+  clearTimeout(practiceBannerCollapseTimer);
+  practiceBannerCollapseTimer = setTimeout(() => {
+    practiceBannerCollapseTimer = null;
+    setPracticeBannerCollapsed(true);
+  }, PRACTICE_BANNER_AUTO_COLLAPSE_MS);
 }
 
 function removePracticeBanner() {
+  clearTimeout(practiceBannerCollapseTimer);
+  practiceBannerCollapseTimer = null;
   practiceBannerEl?.remove();
   practiceBannerEl = null;
 }

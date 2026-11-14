@@ -52,7 +52,10 @@ function removeFadingUseModals() {
   fadingUseModals.clear();
 }
 
-export async function showHandEffectUseModal(cardId, optionLabel) {
+// label（省略可）: 見出しの文言。既定は「このカードを使用します」。
+//   【#622・2026-11-14】1st EDITION の【状況】カードは**誰も使っていないのに勝手に効く**ので、
+//   そこだけ「【状況】の効果が起きています」に差し替える（箱・大きさ・消え方は同じものを使う）。
+export async function showHandEffectUseModal(cardId, optionLabel, { label: labelText = null } = {}) {
   if (isCelebrationActive()) return;
   await waitForNoticeSlot();
   if (isCelebrationActive()) return;
@@ -76,7 +79,7 @@ export async function showHandEffectUseModal(cardId, optionLabel) {
 
   const label = document.createElement("div");
   label.className = "hand-effect-use-modal-label";
-  label.textContent = t("heu.use");
+  label.textContent = labelText || t("heu.use");
   modal.appendChild(label);
 
   const box = buildCardBox(cardId, getCardImagePath(cardId));
