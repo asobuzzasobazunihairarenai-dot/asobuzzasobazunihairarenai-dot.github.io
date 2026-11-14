@@ -187,6 +187,31 @@ try {
   process.exit(2);
 }
 
+// 🔴【2026-11-14・#634】backdrop-filter の宣言の数を見張る。
+//   墜落（10回）を別の角度から測って分かったこと: **全画面の backdrop-filter は
+//   「後ろを写し取ってから掛ける」ので、どの計器にも写らないバッファを数枚持つ**
+//   （実測で名目11.3MB・iOS の実費はその2〜3倍）。
+//   crash-blackbox.js の BACKDROP_SELECTORS は**要素を名指しで**数えているので、
+//   CSS に新しい backdrop-filter が増えると**黙って数え落とす**。
+//   ⇒ 宣言の行数が変わったら落として、一覧の更新を促す。
+{
+  const 宣言 = [];
+  for (const [i, line] of src.split(/\r?\n/).entries()) {
+    if (!/backdrop-filter:/.test(line)) continue;
+    if (/:\s*none/.test(line)) continue; // 打ち消しは数えない
+    if (/@supports/.test(line)) continue; // 機能の問い合わせは宣言ではない
+    宣言.push(i + 1);
+  }
+  const 想定 = 6; // 5か所（うち -webkit- 付きで2行になるものが1つ）
+  if (宣言.length !== 想定) {
+    problems.push(
+      SHOW + ": backdrop-filter の宣言が " + 宣言.length + " 行（想定 " + 想定 + "）。"
+        + "行 " + 宣言.join(",") + "。src/crash-blackbox.js の BACKDROP_SELECTORS と"
+        + " この想定値を一緒に直すこと（#634 の計器が数え落とす）"
+    );
+  }
+}
+
 if (problems.length) {
   console.error("❌ CSS に問題 " + problems.length + " 件");
   for (const p of problems) console.error("  ・" + p);

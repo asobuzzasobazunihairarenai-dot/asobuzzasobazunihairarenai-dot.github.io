@@ -1196,3 +1196,92 @@ body.ui-v2 #home-v2-title,
 body.ui-v2 #home-v2-subtitle {
   text-wrap: balance;
 }
+
+/* ===========================================================================
+   対局画面（ユーザー指示「対局画面も試作版適用しよう！」・2026-11-14）
+   ---------------------------------------------------------------------------
+   🔴 当てるのは**盤面の周りの札だけ**。49マス・カード・駒・ロックエリア・手札には
+      1行も触らない——あそこは 3D と自前の当たり判定（教訓4）と `preserve-3d`（教訓1）の
+      territory で、見た目のために触ると「押せない」「潰れる」が出る。
+   🔴 **filter も backdrop-filter も使わない。**
+      ① `filter` は preserve-3d を平坦化する（教訓1・2回踏んでいる）
+      ② backdrop-filter は「後ろを写し取ってから掛ける」ので、**どの計器にも写らない
+         バッファを数枚**持つ。#634（勝利演出の後に落ちる・10回）を別角度から測って
+         見つけたばかりの疑い。**増やさない。むしろ減らす**（下の self-status）。
+   ⚠ 大きさ・位置・余白は触らない（教訓11。管理者モードのつまみで詰めてある値）。
+   ＝やるのは「地の色・枠・角・書体」だけ。
+   =========================================================================== */
+
+/* 席の名札（CPU 1 / CPU 2 …）。黒い半透明の角丸 → 象牙の紙＋金の細罫。 */
+body.ui-v2 .zone .label {
+  background: rgba(253, 251, 245, 0.92);
+  color: #241f1a;
+  border: 1px solid rgba(176, 141, 63, 0.55);
+  border-radius: 0;
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow: none;
+}
+/* 手番の人は金の板に（いまは字が琥珀色になるだけで、地は同じだった）。 */
+body.ui-v2 .zone .label.is-turn-player {
+  background: linear-gradient(100deg, #c79a47, #b0812f);
+  color: #fffdf8;
+  border-color: transparent;
+}
+
+/* 自分の名前・手札枚数。
+   🔴 ここは **backdrop-filter を外す**のが本題（v2 の見た目はついで）。
+      対局中ずっと2枚生きていて、象牙の地なら「後ろをぼかして読みやすくする」必要が無い。 */
+body.ui-v2 .self-status-name,
+body.ui-v2 .self-status-hand-count {
+  background: rgba(253, 251, 245, 0.92);
+  color: #241f1a;
+  border: 1px solid rgba(176, 141, 63, 0.5);
+  border-radius: 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+}
+
+/* 装いの見本（駒・カード裏・ペット・マット・背景）。角だけ立てて金の細罫に。
+   ⚠ 駒の見本は丸いまま（物が丸いので、四角くすると別の物に見える）。 */
+body.ui-v2 .self-status-card-back-thumb,
+body.ui-v2 .self-status-playmat-thumb {
+  border: 1px solid rgba(176, 141, 63, 0.55);
+  border-radius: 0;
+}
+body.ui-v2 .self-status-piece-thumb {
+  border: 1px solid rgba(176, 141, 63, 0.55);
+}
+
+/* 右下・右上の丸いアイコンボタン。丸のまま、真鍮の縁を付けて墨の地に。
+   ⚠ 丸を四角にはしない——指で押す的なので、形を変えると狙いがずれる。 */
+body.ui-v2 .icon-action-button-icon-wrap {
+  background: rgba(36, 31, 26, 0.88);
+  border: 1px solid rgba(176, 141, 63, 0.5);
+}
+
+/* 上端のピル（オンライン・通貨）とアイコンの見出し → 墨の板＋金の細罫。 */
+body.ui-v2 #self-status-online.icon-action-button,
+body.ui-v2 #currency-display,
+body.ui-v2 .icon-action-button-caption {
+  background: rgba(36, 31, 26, 0.86);
+  border: 1px solid rgba(176, 141, 63, 0.42);
+  border-radius: 0;
+}
+
+/* ターン表示（「CPU 3のターンです」）。ここは元から象牙なので、枠と角と書体だけ。 */
+body.ui-v2 #phase-automation-turn-status {
+  border: 1px solid rgba(176, 141, 63, 0.55);
+  border-radius: 0;
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* 上端の1行案内（続き687 で足したもの）と、行動ログの窓。 */
+body.ui-v2 #phase-hint-line,
+body.ui-v2 #action-log-panel {
+  border-radius: 0;
+}
