@@ -1878,3 +1878,71 @@ body.ui-v2 #mdl-grid {
   margin: 0 auto;
   box-sizing: border-box;
 }
+
+/* ⑤ お知らせ（試作 News の左の一覧）。
+   試作の一覧は「**1件＝1枚の紙**・日付は Oswald の金・いちばん新しい1枚だけ天に七色の罫」。
+   アプリの既定は**灰色の細い罫で区切るだけ**なので、紙に分ける。
+   ⚠ 中身（要約・詳細の開閉・不具合の畳み方）には触らない。
+     あれは続き535／544 でユーザーと決めた見せ方そのもの。
+   ⚠ 試作の右側（このビルドの数字・アナログ版の案内）は**置かない**——
+     数字を出すには新しい組み立てが要るし、アナログ版の案内はホームに既にある。 */
+body.ui-v2 .changelog-entry {
+  border-top: none;
+  border: 1px solid rgba(176, 141, 63, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1.1rem 1.4rem 1.2rem;
+  margin-bottom: 1rem;
+}
+body.ui-v2.theme-light .changelog-entry {
+  background: rgba(255, 253, 248, 0.72);
+}
+/* いちばん新しい1件だけ強く（紙を白く・影・天に七色の罫）。 */
+body.ui-v2 .changelog-list > .changelog-entry:first-child {
+  position: relative;
+  border-color: var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  box-shadow: 0 22px 46px -32px rgba(120, 96, 48, 0.7);
+}
+body.ui-v2.theme-light .changelog-list > .changelog-entry:first-child {
+  background: var(--v2-paper, #fffdf8);
+}
+body.ui-v2 .changelog-list > .changelog-entry:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #cc5b52, #d98b45 16%, #d8b24c 33%, #7fa86f 50%, #6fa2a8 66%, #ce7f90 83%, #9183b5);
+}
+/* 日付は試作と同じ Oswald（桁がそろう）。色は上の規則のまま。 */
+body.ui-v2 #changelog-modal .changelog-date {
+  font-family: Oswald, "Shippori Mincho B1", sans-serif;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0.14em;
+}
+/* 「詳細」のつまみは角を立てた金の細枠に。 */
+body.ui-v2 .changelog-fixes-toggle {
+  border-radius: 0;
+  border-color: var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  background: transparent;
+  color: var(--v2-gold-deep, #8a6729);
+}
+body.ui-v2 .changelog-fixes-toggle:hover {
+  background: rgba(199, 154, 71, 0.1);
+}
+/* 不具合の行は破線で囲って、良いニュースと見た目で分ける（試作と同じ）。 */
+body.ui-v2 .changelog-fixes-row {
+  padding: 0.5rem 0.8rem;
+  border: 1px dashed rgba(176, 141, 63, 0.45);
+  margin-top: 0.8rem;
+}
+/* 見出しは一覧の上に中央で乗せる（試作は見出しと一覧が同じ縦の線でそろっている。
+   アプリの既定は見出しだけ左端・一覧は中央＝つながって見えない）。
+   ⚠ 「戻る」は左上のまま（他のページと同じ場所）。 */
+body.ui-v2 .changelog-modal-title {
+  width: min(50rem, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  padding-right: 0;
+}
