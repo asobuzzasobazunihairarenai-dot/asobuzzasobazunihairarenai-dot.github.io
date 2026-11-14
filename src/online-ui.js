@@ -865,7 +865,7 @@ async function renderRoomChoice(user, myGeneration) {
   createStatus.style.cssText = "font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.3rem; min-height: 1.2em;";
   const createConfirmBtn = textButton(t("oui.L756"));
   // 【#648】この画面でいちばん押してほしいもの＝主役の見た目にする。
-  createConfirmBtn.className = (createConfirmBtn.className || "") + " online-primary-btn";
+  createConfirmBtn.className = (createConfirmBtn.className || "") + " online-primary-btn online-col-end";
   createConfirmBtn.style.cssText = "display: block; width: 100%; box-sizing: border-box;";
   createConfirmBtn.addEventListener("click", async () => {
     createConfirmBtn.disabled = true;
@@ -935,7 +935,7 @@ async function renderRoomChoice(user, myGeneration) {
   const codeJoinStatus = document.createElement("div");
   codeJoinStatus.className = "online-note";
   const codeJoinBtn = textButton(t("oui.L823"));
-  codeJoinBtn.className = (codeJoinBtn.className || "") + " online-second-btn";
+  codeJoinBtn.className = (codeJoinBtn.className || "") + " online-second-btn online-col-end";
   codeJoinBtn.style.cssText = "display: block; width: 100%; box-sizing: border-box;";
   codeJoinBtn.addEventListener("click", async () => {
     const code = (codeInput.value || "").trim().toUpperCase();
@@ -968,7 +968,12 @@ async function renderRoomChoice(user, myGeneration) {
   specLabel.className = "online-section-title";
   specLabel.dataset.eyebrow = "WATCH";
   specLabel.textContent = t("oui.L854");
-  rightCol.appendChild(specLabel);
+  // 🔴【#648 の続き】観戦は「作る／入る」の対から外して、**2列の下の帯**へ置く。
+  //   右の列に3つ積むと、左（1つ）と釣り合わず、下端も揃わない＝「しっくりこない」の正体。
+  const watchWrap = document.createElement("div");
+  watchWrap.className = "online-watch-row";
+  contentEl.appendChild(watchWrap);
+  watchWrap.appendChild(specLabel);
 
   // 見え方モード（公開＝手札等は見えない / すべて＝全手札も丸見えのgod-view）。
   const specModeRow = document.createElement("label");
@@ -979,13 +984,13 @@ async function renderRoomChoice(user, myGeneration) {
   specModeText.textContent = t("oui.L863");
   specModeRow.appendChild(specAllCheckbox);
   specModeRow.appendChild(specModeText);
-  rightCol.appendChild(specModeRow);
+  watchWrap.appendChild(specModeRow);
 
   const specStatus = document.createElement("div");
   specStatus.style.cssText = "font-size: 0.8rem; color: #94a3b8; min-height: 1.2em;";
-  rightCol.appendChild(specStatus);
+  watchWrap.appendChild(specStatus);
   const specContainer = document.createElement("div");
-  rightCol.appendChild(specContainer);
+  watchWrap.appendChild(specContainer);
 
   try {
     const games = await listSpectatableGames();

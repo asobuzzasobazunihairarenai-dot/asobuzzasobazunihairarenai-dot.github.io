@@ -5,7 +5,7 @@
 import { syncFullScreenPageActive } from "./option-area.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ10
 import { getCardImagePath, getCardIllustPath } from "./cards-data.js";
-import { getAllDecks, createDeck, deleteDeck, duplicateDeck, validateDeck, deckTotal, maxDeckSlots, getSelectedDeckId, setSelectedDeckId } from "./my-deck.js";
+import { getAllDecks, createDeck, deleteDeck, duplicateDeck, validateDeck, deckTotal, maxDeckSlots, getSelectedDeckId, setSelectedDeckId, saveDeck } from "./my-deck.js";
 import { openMyDeckBuilder } from "./my-deck-builder.js";
 import { isItemUnlocked } from "./online.js";
 
@@ -178,6 +178,57 @@ function buildDeckBox(deck) {
   backImg.alt = "";
   backImg.loading = "lazy";
   backCos.appendChild(backImg);
+  // 🔴【#638・2026-11-14（続き717）】ユーザーの問い「**装いってどうやって変更する？？**」
+  //   ⇒ **その問い自体が答え**だった。見本を押しても編集画面が開くだけで、そこから
+  //     さらに「駒」「ペット」「カード裏」のボタンを探す必要があった（＝#638 そのもの）。
+  //   ⇒ **見本そのものを押したら、その場でその装いを選べる**ようにする。
+  //   ⚠ 箱のクリック（編集画面へ）に伝播させない（stopPropagation）。
+  //   ⚠ ピッカーは**動的 import**（my-deck-builder.js と同じ作法。静的にすると循環で起動が死ぬ）。
+  const 装いを選ぶ = (el, 開く) => {
+    el.classList.add("is-pickable");
+    el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await 開く();
+      } catch (err) {
+        console.error("cosmetic picker failed", err);
+      }
+    });
+  };
+  装いを選ぶ(pieceCos, async () => {
+    const { openPieceSkinPicker } = await import("./piece-skins.js");
+    openPieceSkinPicker({
+      previewColor: deck.firstColor || undefined,
+      selectedIndex: deck.pieceSkinIndex ?? 0,
+      onSelect: (idx) => {
+        deck.pieceSkinIndex = idx;
+        saveDeck(deck);
+        renderGrid();
+      },
+    });
+  });
+  装いを選ぶ(petCos, async () => {
+    const { openPetPicker } = await import("./pet-skins.js");
+    openPetPicker({
+      selectedIndex: deck.petIndex ?? 0,
+      onSelect: (idx) => {
+        deck.petIndex = idx;
+        saveDeck(deck);
+        renderGrid();
+      },
+    });
+  });
+  装いを選ぶ(backCos, async () => {
+    const { openCardBackSkinPicker } = await import("./card-back-skins.js");
+    openCardBackSkinPicker({
+      selectedIndex: deck.cardBackSetIndex ?? 0,
+      onSelect: (idx) => {
+        deck.cardBackSetIndex = idx;
+        saveDeck(deck);
+        renderGrid();
+      },
+    });
+  });
   cos.append(pieceCos, petCos, backCos);
   box.appendChild(cos);
   // 【#638】ここが「装いを変える入口」だと分かる一行。箱を押すと編集画面が開き、

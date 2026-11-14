@@ -52,6 +52,41 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-15",
+    summary: [
+      "マイデッキの「装い」を、見本を押すだけで変えられるようにしました",
+      "図鑑の「山札一覧」を「カード一覧」に改めました",
+      "オンライン対戦のウィンドウの並びを整えました",
+    ],
+    summaryEn: [
+      "Change a deck's attire by tapping the samples",
+      "The codex’s \"deck list\" is now the card list",
+      "The online match window is better arranged",
+    ],
+    items: [
+      "**マイデッキの「装い」（駒・ペット・カード裏）を、見本を押すだけで変えられる**ようにしました。これまでは編集画面を開いてから設定を探す必要がありました。見本はデッキの箱の手前に大きく並び、設定していない所は**破線の ＋**で空き枠だと分かります。",
+      "**図鑑の「山札一覧」を「カード一覧」に改めました。** カードの枚数（×7 など）の表示も外しています（ここは山の中身ではなく、カードそのものの一覧なので）。⚠ 対局中の「山札一覧を見る」は今までどおりです。",
+      "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
+    ],
+    itemsEn: [
+      "**You can now change a deck's attire (piece, pet, card back) by tapping the samples** instead of opening the editor and hunting for the settings. Unset slots show a dashed +.",
+      "**The codex's “deck list” is now the card list**, and the per-card counts are gone (this is a list of cards, not of what is in the draw pile). The in-game deck list is unchanged.",
+      "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
+    ],
+    fixes: [
+      "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
+    ],
+    fixesEn: [
+      "The card list's back button now looks like the one on every other page",
+    ],
+    devItems: [
+      "🔴 **ユーザーの問い「装いってどうやって変更する？？」が、そのまま #638 の答えだった。** 続き716 で見本の下に「装い（押して変える）」と書いたのに、**押すとデッキの編集画面が開くだけ**で、そこからさらに「駒」「ペット」「カード裏」のボタンを探す必要があった。⇒ **見本そのものを押したらその場でピッカーが開く**ようにした（選んだらそのデッキに保存して描き直す）。⚠ 箱のクリック（編集画面へ）に伝播させない。⚠ ピッカーは**動的 import**（静的にすると循環で起動が死ぬ）。あわせて大きさを 1.9rem → 2.7rem、重なりを -1.1rem → -2.5rem（ユーザー指示「デッキのビジュの手前に重なるくらい」）。",
+      "🔴🔴 **「左上の戻るボタンがページによって統一されていません。総点検。」——1つだけ CSS が1行も当たっていなかった。** 8ページを本物の経路で開いて、文言・位置・大きさ・枠・角・色を全部数えた（`scratchpad/p717back.mjs`）。他は **61×29・1px の枠・角 6.4px** なのに、**カード一覧だけ 36×16・枠なし・角0**。原因は**続き712（#641）でこのボタンを足した時に共通の一覧へ加え忘れた**こと。🔴 **その一覧のコメントには「新しく『戻る』を足す時はこの一覧へ加える」と書いてあった**（続き640 の自分の文）。⇒ 大きさの一覧2つと見た目・明テーマの上書きをそろえ、実測で一致。⚠ お知らせ（x=51）は**モーダル**なので左端の基準が違うだけ。**ショップとヘルプは左上に戻るが見つからなかった**（別の場所にある可能性。実機で確認したい）。",
+      "🔴 **#648 の続き「なんかレイアウト、並びがしっくりこない」の正体は『左1つ・右3つ』だった。** 左＝「部屋を作成」だけで短く終わり、右＝「参加できる部屋」「部屋コードで参加」「観戦」が縦に積まれる＝**左右が『作る／入る』の対になっていない**ので下端も揃わない。⇒ ①観戦を2列の外（下の帯）へ ②列を同じ高さにして主役のボタン2つを下端にそろえる（`margin-top: auto`）③空の一覧の説明を2行→1行。",
+      "ⓘ **統合の相談のために事実を確認した**: `https://seven.asobuzz.net/BATTLE-log/` は **200**、`…github.io/BATTLE-log/` は **301 でそこへ**。⇒ 戦績システムは**アプリと同じオリジン**なので**ログインは今も共有されている**（独自ドメイン移行後も CLAUDE.md の記述は有効だった）。",
+    ],
+  },
+  {
     date: "2026-11-14",
     summary: [
       "オンライン対戦のウィンドウを整理しました",

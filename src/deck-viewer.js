@@ -93,13 +93,11 @@ function buildCardTile(def) {
   }
   tile.appendChild(face);
 
-  const countBadge = document.createElement("div");
-  countBadge.textContent = `×${def.count ?? 1}`;
-  countBadge.style.cssText = `
-    position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem;
-    background: rgba(15, 23, 32, 0.85); border-radius: 0.5rem; font-size: 0.6rem;
-  `;
-  tile.appendChild(countBadge);
+  // 🔴【2026-11-14・続き717】ユーザー指示「**図鑑のここは山札一覧ではなくカード一覧に
+  //   しよう。なので中のカードも枚数表示は不要です。**」
+  //   ⇒ 「山札に何枚入っているか」の札（×N）は外す。ここは**カードの一覧**であって、
+  //     山の中身の話ではない。
+  //   ⚠ def.count 自体は残す（山札の構成を作る側＝cards-data.js が使っている）。
 
   const name = document.createElement("div");
   name.textContent = cardDisplayName(def.id);

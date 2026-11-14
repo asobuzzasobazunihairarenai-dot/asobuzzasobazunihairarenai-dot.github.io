@@ -19675,14 +19675,18 @@ body.is-tablet-device .mds-action {
   display: flex;
   align-items: flex-end;
   justify-content: center; /* 中央ぞろえ（ユーザー要望2026-08-12） */
-  gap: 0.55rem;
-  padding: 0 0.7rem 0.25rem;
-  margin-top: -1.1rem; /* デッキの箱の手前に立っているように見せる */
-  perspective: 420px;
+  gap: 0.75rem;
+  padding: 0 0.6rem 0.25rem;
+  /* 🔴【2026-11-14・続き717】ユーザー指示「**もっとそれぞれを大きく、デッキのビジュの手前に
+     重なるくらいの感じ**がいいです」⇒ 1.9rem → 2.7rem、重なりも -1.1rem → -2.5rem。
+     ⚠ 重ねるので `z-index: 2`（上の .mdl-deck-cosmetics）が要る＝教訓3。
+     ⚠ 箱の高さは変えない（transform と負の margin だけ＝教訓11）。 */
+  margin-top: -2.5rem;
+  perspective: 520px;
 }
 .mdl-cos {
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2.7rem;
+  height: 2.7rem;
   border-radius: 0.3rem;
   overflow: visible;
   background: none;
@@ -19698,9 +19702,9 @@ body.is-tablet-device .mds-action {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -0.22rem;
-  width: 86%;
-  height: 0.3rem;
+  bottom: -0.26rem;
+  width: 84%;
+  height: 0.38rem;
   transform: translateX(-50%);
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.42);
@@ -19713,8 +19717,8 @@ body.is-tablet-device .mds-action {
   transform: rotateY(-26deg) translateZ(-6px);
 }
 .mdl-deck-cosmetics .mdl-cos:nth-child(2) {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 3.2rem;
+  height: 3.2rem;
 }
 .mdl-cos img {
   width: 100%;
@@ -25028,6 +25032,10 @@ a.opening-trial-video::after {
    ⚠ 画面の低い端末（932x320・ステージ倍率0.356）では 1.7rem が実画面9.7pxになる。
    お知らせは元からその大きさで運用できているので、ここでは追加の上げ方はしていない。 */
 #changelog-back,
+/* 🔴【続き717】山札一覧の戻る。続き712 で足した時にこの一覧へ加え忘れ、
+   **この1つだけ CSS が1行も当たっていなかった**（枠なし・36x16・明るいテーマでほぼ白）。
+   ユーザー指摘「左上の戻るボタンだけどページによって統一されていません」はこれ。 */
+#deck-viewer-back,
 #codex-page-back,
 #profile-page-back,
 #ranking-page-back,
@@ -25043,6 +25051,8 @@ a.opening-trial-video::after {
    箱は 67x33 になり、押すものの目安（28px以上）を満たす。 */
 body.is-phone-device #changelog-back,
 body.is-tablet-device #changelog-back,
+body.is-phone-device #deck-viewer-back,
+body.is-tablet-device #deck-viewer-back,
 body.is-phone-device #codex-page-back,
 body.is-tablet-device #codex-page-back,
 body.is-phone-device #profile-page-back,
@@ -25572,4 +25582,77 @@ body.is-tablet-device #ranked-practice-banner {
 }
 .online-second-btn {
   font-weight: 600;
+}
+
+/* 【#638・2026-11-14 続き717】見本そのものが押せる＝装いをその場で選べる。
+   「押せる」と分かるように、触れると少し持ち上がる。
+   ⚠ 当たり判定を広げるために padding は足さない（並びが崩れるため）。 */
+.mdl-cos.is-pickable {
+  cursor: pointer;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+.mdl-cos.is-pickable:hover {
+  filter: brightness(1.12);
+}
+.mdl-deck-cosmetics .mdl-cos.is-pickable:hover {
+  transform: translateY(-0.18rem) scale(1.06);
+}
+.mdl-deck-cosmetics .mdl-cos:first-child.is-pickable:hover {
+  transform: rotateY(26deg) translateZ(-6px) translateY(-0.18rem) scale(1.06);
+}
+.mdl-deck-cosmetics .mdl-cos:last-child.is-pickable:hover {
+  transform: rotateY(-26deg) translateZ(-6px) translateY(-0.18rem) scale(1.06);
+}
+
+/* 🔴【続き717】山札一覧の「← 戻る」の見た目を、他の全画面ページと同じにする。
+   ユーザー指摘「**左上の戻るボタンだけどページによって統一されていません。総点検。**」
+   実測（8ページを本物の経路で開いて数えた）で、**この1つだけ CSS が当たっていなかった**:
+     他 … 61x29・1px の枠・角 6.4px   ／   山札一覧 … 36x16・枠なし・角0
+   原因は、続き712 でこのボタンを足した時に**共通の一覧へ加え忘れた**こと
+   （その一覧のコメントに「新しく『戻る』を足す時はこの一覧へ加える」と書いてある）。
+   ⚠ 色は決め打ちしない（教訓15）。他のボタンと同じ `#e2e8f0` を置き、
+     明るいテーマのまとめがそれを上書きする（＝他と同じ扱いになる）。 */
+#deck-viewer-back {
+  background: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  cursor: pointer;
+}
+#deck-viewer-back:hover {
+  border-color: rgba(56, 189, 248, 0.7);
+  background: rgba(56, 189, 248, 0.12);
+}
+/* 明るいテーマでも他の「戻る」と同じ色に（教訓15。#mdl-back / #profile-page-back と同じ値）。 */
+body.theme-light #deck-viewer-back {
+  border-color: rgba(176, 141, 63, 0.5);
+  color: #6b5c3c;
+}
+
+/* 🔴【#648 の続き・2026-11-14 続き717】ユーザー指摘「なんかレイアウト、並びがしっくりこない」。
+   原因は**左1つ・右3つ**だったこと——左は「部屋を作成」だけで短く終わり、右に
+   「参加できる部屋」「部屋コードで参加」「観戦」が縦に積まれて、**左右が『作る／入る』の
+   対になっていなかった**。下端も揃わない。
+   ⇒ ①観戦を2列の外（下の帯）へ ②列を同じ高さにして主役のボタン2つを下端にそろえる。 */
+.online-room-columns {
+  align-items: stretch;
+}
+.online-room-col {
+  display: flex;
+  flex-direction: column;
+}
+/* 列の最後のボタンを下端へ押し出す＝左右のボタンの高さがそろう。 */
+.online-col-end {
+  margin-top: auto;
+}
+/* 観戦の帯（2列の下・横いっぱい）。 */
+.online-watch-row {
+  margin-top: 1.15rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+.online-watch-row .online-section-title {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
