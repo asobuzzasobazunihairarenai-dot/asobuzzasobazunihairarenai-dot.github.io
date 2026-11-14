@@ -1021,3 +1021,57 @@ body.ui-v2 #opening-screen.is-v2 .opening-screen-content {
 }
 body.ui-v2 #opening-screen.is-v2 .opening-login-card { order: 1; }
 body.ui-v2 #opening-screen.is-v2 .opening-no-account-btn { order: 2; }
+
+/* ═══════════ 【2026-11-14・続き707】モーダルの装丁を試作へそろえる ═══════════
+   ユーザー要望「**モーダルなども雰囲気やレイアウトをあなたのおすすめに変えてください！**」。
+
+   🔴 **おすすめの形はこうした**（理由つき）:
+     ① **角を立てる（border-radius: 0）** — 試作の装丁は「紙と罫」で出来ていて、丸い角は
+        1つも無い。ここが揃うだけで、別々に作られた49枚のモーダルが**同じ本の中の紙**に見える。
+     ② **枠は金の細線1本** — 色で主張せず、形で囲う。暗い地でも明るい地でも読める。
+     ③ **影は低く広く** — 浮かせるのではなく「紙が置いてある」感じ。
+     ④ **見出しは明朝＋字間** — 本文は既定のまま（読みやすさを壊さない）。
+     ⑤ **覆い（backdrop）は黒ではなく墨色＋わずかに温かい** — アイボリーの地と喧嘩しない。
+
+   🔴 **当て方**: `[id$="-modal"]` ＝ **id が -modal で終わるもの全部**（実測で49個ある）。
+     1つずつ書くと**必ず書き漏らす**し、新しいモーダルが増えた時に置いていかれる。
+   ⚠ **除外する2つ**: `#victory-modal` と `#sleight-ritual-modal` は**演出そのもの**で、
+     自前の地・光・角丸を持っている（ここで角を立てると演出が壊れる）。
+   ⚠ **大きさ・位置・余白には触らない**（各モーダルで実測して詰めてあるものを壊さない）。
+   ⚠ 地（background）も触らない——明暗2テーマのまとめ（style.css 末尾）が持っているので、
+     こちらで塗ると**片方のテーマで文字が読めなくなる**（教訓15）。 */
+
+body.ui-v2 [id$="-modal"]:not(#victory-modal):not(#sleight-ritual-modal),
+body.ui-v2 .generic-confirm-modal,
+body.ui-v2 .game-intro-modal,
+body.ui-v2 .phase-skip-modal,
+body.ui-v2 .card-arrival-modal,
+body.ui-v2 .hand-effect-use-modal,
+body.ui-v2 .effect-reason-modal,
+body.ui-v2 .card-received-modal,
+body.ui-v2 .hand-effect-option-picker {
+  border-radius: 0;
+  border-color: rgba(176, 141, 63, 0.5);
+  box-shadow: 0 22px 48px -30px rgba(60, 48, 24, 0.75);
+}
+/* 見出しは明朝＋字間（本文は触らない）。 */
+body.ui-v2 [class$="-modal-title"],
+body.ui-v2 [class*="-modal-title "],
+body.ui-v2 .generic-confirm-title,
+body.ui-v2 .game-intro-modal-title {
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  letter-spacing: 0.1em;
+}
+/* 覆いは黒ではなく墨色（アイボリーの地と喧嘩しない）。 */
+body.ui-v2 .so7-modal-backdrop {
+  background: rgba(36, 31, 26, 0.55) !important;
+}
+/* 共通の✕も角を立てて金に寄せる（大きさには触らない＝続き640 の実測を壊さない）。 */
+body.ui-v2 .modal-close-x {
+  border-radius: 0;
+  border: 1px solid rgba(176, 141, 63, 0.45);
+  color: var(--v2-gold-deep, #8a6729);
+}
+body.ui-v2.theme-light .modal-close-x {
+  background: rgba(255, 253, 248, 0.9);
+}
