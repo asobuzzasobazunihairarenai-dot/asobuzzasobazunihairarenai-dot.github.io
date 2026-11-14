@@ -473,7 +473,8 @@ function gatherScreenSnapshot() {
       });
     }
     layers.sort((a, b) => b.z - a.z);
-    out.layers = layers.slice(0, 14);
+    // 【2026-11-14】見取り図を描くので、取りこぼさないよう 14 → 24 へ（1件あたり数十バイト）。
+    out.layers = layers.slice(0, 24);
   } catch (e) {
     out.layers = [{ error: clip(e, 80) }];
   }
@@ -549,6 +550,46 @@ function gatherScreenSnapshot() {
       .slice(0, 16);
   } catch (e) {
     out.buttons = [clip(e, 80)];
+  }
+
+  // 🔴 ⑦【2026-11-14・#617 の教訓】**「押せるはずなのに押せない」を名指しする。**
+  //   #617（練習中の帯が「ここでやめる」に重なっていた）は、②の layers に箱も重なり順も
+  //   残っていたのに、**人が見比べないと分からなかった**。⇒ その場で機械に見比べさせる。
+  //   このアプリの当たり判定は `elementsFromPoint` の自前判定（教訓4）なので、
+  //   **同じ見方で**「ボタンの中心にいま何が居るか」を見ればそのまま答えになる。
+  //   ⚠ 出るのは覆われていた物だけ（ふだんは 0 件＝空振りしない計器かどうかは
+  //     「0しか出ない計器ではない」ことを #617 の再現で確かめてある）。
+  //   ⚠ 中心が隠れていても端が押せることはあるので、断定ではなく手がかりとして読む。
+  try {
+    const 名 = (el) =>
+      (el.tagName.toLowerCase() +
+        (el.id ? "#" + el.id : "") +
+        (el.className && typeof el.className === "string"
+          ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".")
+          : "")).slice(0, 56);
+    // 🔴 **覆っている物でまとめる。** 実測で、モーダルの覆い（backdrop）が出ていると
+    //   アイコン列の8個が一斉に挙がって一覧が埋まり、肝心の1件が押し出された。
+    //   「何が」「いくつ」覆っているかを1行にすれば、どちらも読める。
+    const 束 = new Map();
+    const 的 = [...document.querySelectorAll("button, [role='button']")].filter(shown).slice(0, 48);
+    for (const b of 的) {
+      const r = b.getBoundingClientRect();
+      const top = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)[0];
+      if (!top || top === b || b.contains(top)) continue;
+      // その要素が「ボタンの中身」なら覆いではない（子も自分の一部）。
+      if (top.closest && top.closest("button, [role='button']") === b) continue;
+      // 🔴 **親が子を覆うのは普通**（スクロールする入れ物など）。実測で
+      //   `#turn-event-stock-prev-list` が中のチップを覆っていると出て、誤報だった。
+      if (top.contains && top.contains(b)) continue;
+      const k = 名(top);
+      if (!束.has(k)) 束.set(k, { by: k, n: 0, els: [] });
+      const v = 束.get(k);
+      v.n++;
+      if (v.els.length < 3) v.els.push(名(b) + "（" + clip(b.textContent || b.getAttribute("aria-label"), 16) + "）");
+    }
+    out.covered = [...束.values()].sort((a, b) => a.n - b.n).slice(0, 6);
+  } catch (e) {
+    out.covered = [{ error: clip(e, 80) }];
   }
   return out;
 }

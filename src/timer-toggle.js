@@ -75,6 +75,17 @@ export function toggleTimerTogglePopover() {
   }
 }
 
+// 🔴【#626・2026-11-14】ユーザー提案「CPU戦でタイマーを適用している時、右下のタイマーボタンを
+//   押して停止できるようにする？」。オンラインの切り替えは**相手の承認**が要るのでこの仕組みだが、
+//   CPU戦には承認する相手がいない＝**その場で切ればよい**。
+//   ⚠ cpu-battle.js から登録してもらう（ここから cpu-battle-state.js を import すると
+//     依存の輪が増える＝続き573 の TDZ 対策。登録なら葉のままでいられる）。
+//   登録する形: { isAvailable: () => bool, isOn: () => bool, toggle: () => void }
+let localToggle = null;
+export function registerLocalTimerToggle(fn) {
+  localToggle = fn;
+}
+
 export function buildTimerToggleButton() {
   const bar = document.getElementById("phase-guide-bar");
   if (!bar) return;
@@ -84,6 +95,16 @@ export function buildTimerToggleButton() {
   bar.appendChild(buttonEl);
   buttonEl.addEventListener("click", () => {
     const state = getState();
+    // 【#626】CPU戦は承認が要らないので、その場で切り替える。
+    if (!isOnlineMode()) {
+      if (localToggle?.isAvailable?.()) {
+        localToggle.toggle();
+        popoverOpen = false;
+        clearTimeout(popoverAutoCloseTimer);
+        updateTimerToggleButton();
+      }
+      return;
+    }
     if (state.pendingTimerToggle) return; // 既に別の承認待ちが進行中
     const selfSeat = getSelfSeat();
     if (getTimerToggleRejectStreak(selfSeat) >= 3) return;
@@ -99,7 +120,19 @@ export function buildTimerToggleButton() {
 
 export function updateTimerToggleButton() {
   if (!buttonEl) return;
-  if (!isOnlineMode() || !getState().turnPlayer || !popoverOpen) {
+  // 【#626】CPU戦（ローカル）は、承認を待たずにその場で切り替えられる。
+  if (!isOnlineMode()) {
+    if (!getState().turnPlayer || !popoverOpen || !localToggle?.isAvailable?.()) {
+      buttonEl.style.display = "none";
+      return;
+    }
+    buttonEl.style.display = "";
+    buttonEl.disabled = false;
+    buttonEl.textContent = localToggle.isOn() ? t("tt.turnOff") : t("tt.turnOn");
+    buttonEl.title = t("tt.tipLocal");
+    return;
+  }
+  if (!getState().turnPlayer || !popoverOpen) {
     buttonEl.style.display = "none";
     return;
   }

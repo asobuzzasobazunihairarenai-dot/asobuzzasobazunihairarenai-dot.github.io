@@ -317,3 +317,298 @@ body.ui-v2 #option-area::before {
     rgba(40, 32, 20, 0) 100%
   );
 }
+
+/* ═══════════ 【2026-11-14・続き704】ホーム画面を試作のレイアウトへ（?ui=v2 の時だけ）═══════════
+   ユーザーの問い「以前描画提案してくれたやつとほぼ同じようにできる？今は既存のレイアウト
+   ありきで雰囲気を変えてるだけだよね？？」→ そのとおりだったので、組み立てから変えた。
+   組み立ては home-screen.js の buildHomeV2（そちらに対応表と判断の理由を書いてある）。
+
+   🔴 **寸法はステージ（1600x900）基準の rem で書く。** 1rem = 16px。試作の 104px＝6.5rem、
+     500px＝31.25rem。ステージは画面に合わせて縮むので、**画面の大きさで割り付けは変えない**
+     （ユーザー方針「スマホもPCも縦横比は同じで左右に余白が出る形でいい」）。
+   🔴 **文字は試作の値をそのまま使えない。** スマホ横（932x430）では倍率 0.478 なので、
+     試作の 12px は**実画面 5.7px**。読ませたい文字は **1.6rem（25px・実画面12px）以上**にする。
+     英字の肩書きだけは飾りなので小さめ（意味は下の日本語が担う）。
+   ⚠ 色は ui-v2.css の冒頭のトークン（--v2-ivory など）を使う。
+   ⚠ 既定の見た目には1行も効かない（全部 `body.ui-v2` の下）。 */
+
+body.ui-v2 #home-screen.is-v2 {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+/* 上の道具の帯（アイコン列）の下から始める。帯の高さは既存の変数を使う。 */
+body.ui-v2 #home-v2-rail {
+  position: absolute;
+  left: 0;
+  top: var(--option-area-band-height, 3rem);
+  bottom: 0;
+  width: 9.2rem;
+  box-sizing: border-box;
+  padding: 1.4rem 0 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  border-right: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  background: rgba(255, 253, 248, 0.55);
+}
+body.ui-v2 #home-v2-rail-mark {
+  font-family: "Cormorant Garamond", serif;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--v2-gold-deep, #8a6729);
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.4));
+  width: 2.6rem;
+  text-align: center;
+}
+/* 左の列のタイル。アイコンを小さくして縦に積む。
+   ⚠ 当たり判定の大きさは実画面で見る: 高さ 5.6rem ＝ スマホ(0.478)で約43px。 */
+body.ui-v2 #home-v2-rail .home-screen-tile {
+  width: 8rem;
+  gap: 0.25rem;
+  padding: 0.35rem 0.2rem;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  color: var(--v2-ink, #241f1a);
+}
+body.ui-v2 #home-v2-rail .home-screen-tile:hover {
+  transform: none;
+  border-color: var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  background: rgba(176, 141, 63, 0.09);
+}
+body.ui-v2 #home-v2-rail .home-screen-tile-icon-img {
+  width: 3.2rem;
+  height: 3.2rem;
+}
+body.ui-v2 #home-v2-rail .home-screen-tile-label {
+  /* 🔴 5文字（「マイページ」「ランキング」）が1行に収まる大きさにする。
+     実測で 1.5rem・札 6.4rem だと「マイペ／ージ」と割れていた。 */
+  font-size: 1.45rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: none;
+}
+
+body.ui-v2 #home-v2-main {
+  position: absolute;
+  left: 9.2rem;
+  right: 0;
+  top: var(--option-area-band-height, 3rem);
+  bottom: 0;
+  box-sizing: border-box;
+  padding: 1.5rem 2.4rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+body.ui-v2 #home-v2-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.4rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+}
+body.ui-v2 .home-v2-eyebrow {
+  font-family: "Cormorant Garamond", serif;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.46em;
+  color: var(--v2-gold-deep, #8a6729);
+}
+body.ui-v2 #home-v2-title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  color: var(--v2-ink, #241f1a);
+  text-shadow: none;
+}
+body.ui-v2 #home-v2-subtitle {
+  font-size: 1.6rem;
+  color: #6b6257;
+  text-shadow: none;
+}
+/* クラウドファンディングの帯を、見出しの行の右へ小さく収める（期限を過ぎたら出ない）。 */
+body.ui-v2 #home-screen-cf.is-v2-header {
+  position: static;
+  margin: 0;
+  max-width: 34rem;
+  flex: none;
+}
+
+body.ui-v2 #home-v2-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 31rem;
+  gap: 1.2rem;
+}
+body.ui-v2 .home-v2-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+  min-height: 0;
+  /* 🔴 親（#home-screen.is-v2）は overflow:hidden なので、ここが伸びると**黙って切れる**。
+     「はじめの一歩」の札が出ている時は右の列が3つになるので、**切るのではなく送る**。 */
+  overflow-y: auto; /* 704-safety */
+  overscroll-behavior: contain;
+}
+body.ui-v2 #home-v2-hero {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 共通の「紙の札」。試作の紙＋金の細枠＋大きめの影。 */
+body.ui-v2 #home-v2-body .home-screen-tile,
+body.ui-v2 #home-v2-hero .home-screen-tile {
+  box-sizing: border-box;
+  background: var(--v2-paper, #fffdf8);
+  border: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  border-radius: 0;
+  box-shadow: 0 10px 28px rgba(36, 31, 26, 0.1);
+  color: var(--v2-ink, #241f1a);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+body.ui-v2 #home-v2-body .home-screen-tile:hover,
+body.ui-v2 #home-v2-hero .home-screen-tile:hover {
+  transform: translateY(-0.25rem);
+  filter: none;
+  box-shadow: 0 16px 36px rgba(36, 31, 26, 0.16);
+}
+body.ui-v2 #home-v2-body .home-screen-tile-label,
+body.ui-v2 #home-v2-hero .home-screen-tile-label {
+  text-shadow: none;
+}
+
+/* ① ランク戦＝主役の札。絵を右に大きく敷き、題を左下に。 */
+body.ui-v2 .home-screen-tile.is-hero {
+  position: absolute;
+  inset: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 2rem 2.2rem;
+  overflow: hidden;
+}
+body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-icon {
+  position: absolute;
+  right: -1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+}
+body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-icon-img {
+  width: 22rem;
+  height: 22rem;
+}
+body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-label {
+  position: relative;
+  font-size: 3.4rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-align: left;
+  max-width: 26rem;
+}
+/* 題の上に英字の肩書き（飾り）。 */
+body.ui-v2 .home-screen-tile.is-hero::before {
+  content: "RANKED MATCH";
+  position: absolute;
+  left: 2.2rem;
+  top: 2rem;
+  font-family: "Cormorant Garamond", serif;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.46em;
+  color: var(--v2-gold-deep, #8a6729);
+}
+/* 現ランク表示は、試作の「次のランクまで」の位置（題の上）へ。 */
+body.ui-v2 #home-screen-rank.is-v2-hero {
+  position: absolute;
+  left: 2.2rem;
+  bottom: 9.5rem;
+  transform: none;
+  z-index: 2;
+}
+
+/* ② 右の列の札（CPU＆フレンドリー／物語チュートリアル）。絵を左、題を右。 */
+body.ui-v2 .home-screen-tile.is-card {
+  flex: 1;
+  min-height: 8rem; /* 「はじめの一歩」が出ている時に潰れすぎないように */
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.2rem;
+  padding: 1.4rem 1.6rem;
+  text-align: left;
+}
+body.ui-v2 .home-screen-tile.is-card .home-screen-tile-icon-img {
+  width: 6.5rem;
+  height: 6.5rem;
+}
+body.ui-v2 .home-screen-tile.is-card .home-screen-tile-label {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-align: left;
+}
+
+/* ③ 横長の札（ショップ）。 */
+body.ui-v2 .home-screen-tile.is-wide {
+  flex: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.9rem 1.5rem;
+}
+body.ui-v2 .home-screen-tile.is-wide .home-screen-tile-icon-img {
+  width: 4.4rem;
+  height: 4.4rem;
+}
+body.ui-v2 .home-screen-tile.is-wide .home-screen-tile-label {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+
+/* ④ はじめての人の「次にやること」。在る時だけ右の列の上に入る。 */
+body.ui-v2 #home-first-step.is-v2 {
+  position: static;
+  margin: 0;
+  transform: none;
+  flex: none;
+  /* 🔴 既定は width: min(46rem, 92vw)＝736px もあるので、31rem の右の列から**はみ出す**
+     （実測で PC は右端 1441px＝画面の外、スマホも 945px で外に出ていた）。
+     ⇒ 列に合わせる。あわせて角と色は v2 の紙に寄せる。 */
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+}
+
+/* 🔴 「NEW」の印が列の左へはみ出していた（実測の絵で確認）。列の中に収める。 */
+body.ui-v2 #home-v2-rail .home-screen-tile-new-badge {
+  left: auto;
+  right: 0.1rem;
+  top: 0.1rem;
+  transform: scale(0.72);
+  transform-origin: top right;
+}

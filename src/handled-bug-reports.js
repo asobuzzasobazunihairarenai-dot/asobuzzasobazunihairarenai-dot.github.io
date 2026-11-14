@@ -599,6 +599,22 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "入れました。状況効果が起きた瞬間に、そのカードを右上に大きく出します（大きさ・表示時間は⚙オプションの「右上に出るカードの大きさ」と同じ設定です）。",
     en: "Added. The situation card is now shown enlarged in the top right when the effect fires, using the same size and duration setting as the other top-right cards.",
   },
+  614: {
+    ja: "直りました（#616 と同じ原因です）。盤面を描き直す時に光源への参照を捨てていなかったので、作り直した盤面に光が1つも足されず、真っ暗になっていました。「盤面に光を当てる」を入れている人だけに出る不具合でした。",
+    en: "Fixed - same cause as #616. The renderer kept a stale reference to its light rig, so a recreated scene got no lights at all and rendered pure black. It only affected players with board lighting turned on.",
+  },
+  626: {
+    ja: "入れました。CPU戦で右下のタイマーの数字を押すと「⏳ タイマーをOFFにする」が出て、その場で切れます（オンライン対戦は相手の承認が要るので今までどおりです）。",
+    en: "Added. In CPU battles, tapping the timer readout at the bottom right now offers \"turn the timer off\" and switches it immediately (online still needs every player's approval).",
+  },
+  627: {
+    ja: "直しました。行き先が「移動前のマス」＝必ず1回通っているマスなので、CPUの無意味ループ防止（同じマスへ戻るのは1回まで）に毎回弾かれていました。この札だけ上限を2にしたので戻れます（2枚で往復するのは今までどおり止まります）。",
+    en: "Fixed. The destination is \"the square you came from\", which the piece has by definition already visited, so the CPU's anti-loop guard (one revisit) blocked it every time. That card now allows two, so it can step back while a genuine ping-pong is still stopped.",
+  },
+  628: {
+    ja: "重みを上げました。相手の隣で手番を終えるのは元から減点していたのですが、前進＋そのマスの札の価値に負けていました（実際の手を足すと +6 対 −4 で「行く」になっていました）。減点を −6 にしたので、割に合わない時は近づきません。",
+    en: "Re-weighted. Ending a turn next to an opponent was already penalised, but the advance plus the card's value outweighed it (+6 against -4 in the actual move). The penalty is now -6, so the CPU no longer walks into a bad trade.",
+  },
 };
 
 // 文面がある番号は、自動的に「対処済み」にも入れる（二度書きしなくてよいように）。

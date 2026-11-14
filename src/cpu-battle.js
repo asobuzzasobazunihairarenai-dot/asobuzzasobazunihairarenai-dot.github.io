@@ -32,7 +32,11 @@ import {
   isCpuBoostEnabled,
   isCpuMyDeckEnabled,
   isCpuSelfTimerEnabled,
+  setCpuSelfTimerEnabled,
+  isCpuBattleActive,
 } from "./cpu-battle-state.js";
+// 【#626】右下のタイマーボタンから、CPU戦のタイマーをその場で切れるようにする。
+import { registerLocalTimerToggle } from "./timer-toggle.js";
 import { resetGame, setupMyDeckMode, applySeatNoir } from "./state.js";
 // マイデッキ戦（本気エイドス戦）用。my-deck.jsはcards-data.jsだけに依存する葉モジュールなので
 // ここから安全にimportできる（online.js等は経由しない）。
@@ -55,6 +59,12 @@ function cpuSeatsFor(count) {
 const CPU_THINK_MS = 1300;
 // あなた(A)側の基本時間。実質“急かされない”ようにするための長め設定（15分）。
 const HUMAN_BASE_SECONDS = 900;
+
+// 「自分にも持ち時間を付ける」設定から基本時間を決める。**式はここ1か所だけ**にする
+// （#586: 入/切のどちらでも必ず書き直す。2か所に書くと片方を直して食い違う）。
+function applyCpuSelfTimerBase() {
+  setRopeBaseOverride(isCpuSelfTimerEnabled() ? null : HUMAN_BASE_SECONDS);
+}
 
 // オープニング画面の「CPU戦」ボタンから呼ぶ。設定を整え、盤面を空にして（オープニングの
 // 裏で）準備する。この後に呼び出し側が close() で盤面を見せ、続けて runCpuBattleSetup() を
@@ -84,7 +94,21 @@ export async function startCpuBattle(count = getCpuPlayerCount()) {
   //   次に「入」にしても 15分 のままで**時間切れが永遠に来なかった**
   //   （報告「CPU戦の詳細設定のタイマーが効いていない」）。
   //   入の時は null ＝ 管理者モードのスライダーの値（既定30秒）で普通に回る。
-  setRopeBaseOverride(isCpuSelfTimerEnabled() ? null : HUMAN_BASE_SECONDS);
+  applyCpuSelfTimerBase();
+  // 🔴【#626・2026-11-14】ユーザー提案「CPU戦でタイマーを適用している時、右下のタイマー
+  //   ボタンを押して停止できるようにする？」。オンラインの切り替えは**相手の承認**が要るが、
+  //   CPU戦には承認する相手がいない＝その場で切ってよい。
+  //   ⚠ **上の1行とまったく同じ式で基本時間を書き直す**（2か所に別々の式を書くと必ずズレる
+  //     ＝#586 で実際に起きた事故）。だから式を関数に括って両方から呼ぶ形にしてある。
+  //   ⚠ 切り替えた設定はそのまま保存される（次のCPU戦もその設定で始まる）。
+  registerLocalTimerToggle({
+    isAvailable: () => isCpuBattleActive(),
+    isOn: () => isCpuSelfTimerEnabled(),
+    toggle: () => {
+      setCpuSelfTimerEnabled(!isCpuSelfTimerEnabled());
+      applyCpuSelfTimerBase();
+    },
+  });
   // 人数切替で前回のCPU席の名前/アバターが残らないよう、まず相手席（A以外）をクリアする。
   // 【重要】自分(A)は消さない——マイページ等で設定した自分の名前・アバターを保持する
   // （ユーザー報告「マイページで名前変更→CPU戦開始→プレイヤーAに戻る」の修正。ローカルCPU戦の

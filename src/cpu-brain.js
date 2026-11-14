@@ -256,7 +256,15 @@ function scoreMove(c, seat, ctx) {
     if (!ctx.hasCounterLock && ctx.oppPieceCells.length > 0) {
       const adjToOpp = ctx.oppPieceCells.some((p) => Math.abs(p.row - here.row) + Math.abs(p.col - here.col) === 1);
       const landingOnOppGate = gateSeat && gateSeat !== seat && ctx.activePlayers.includes(gateSeat);
-      if (adjToOpp && !onMyGateHere && !landingOnOppGate) score -= 4;
+      // 🔴【#628・2026-11-14】報告「CPUがわざわざ接触されに私の前に来た」。**−4 では足りない。**
+      //   実際に起きた手を足し算すると: 前進1マス **+3** ／ そのマスの札（オレンジバス）**+2** ／
+      //   まだ要る色 **+1** ＝ +6 に対してペナルティ −4 ＝ **差し引き +2 で「行く」**になっていた。
+      //   （#59-② の時に −4 を入れたが、その後カードの価値付けが増えて追い抜かれた形。）
+      //   ⇒ **−6**。上の足し算は 0 になり、他の無難なマスに負ける。
+      //   ⚠ 止めるのではなく**重みで決める**ままにしてある（#458・#519・#605 と同じ方針）
+      //     ——前進が2マスぶん（+6）取れる手や、札の価値が高い手なら今までどおり行く。
+      //   ⚠ カウンターロックを持っている時は今までどおりペナルティ無し（守りがあるので）。
+      if (adjToOpp && !onMyGateHere && !landingOnOppGate) score -= 6;
     }
     // #218（ユーザー指摘2026-09-03「CPUが端を移動していっている。端は次の選択肢が少なくなり
     // がちだけど強い手か？」）: 端に寄るのは「相手ゲートへの最短ルート」を選んだ結果であって

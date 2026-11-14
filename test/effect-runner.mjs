@@ -33,6 +33,16 @@ export async function runOneCase(spec) {
   st.hydrateState(hydrated);
   if (spec.movedFrom) eng.notePieceLocationsForMovedFrom?.();
 
+  // 🔴【#627・2026-11-14】無意味ループ防止（#49）の「この連鎖で通ったマスの回数」。
+  //   本物は main.js が持つ Map で、`recordMoveVisited` が増やし `isLoopMoveDest` が見る。
+  //   スタブが `() => false` の素通りだったので、**この守りがテストで一度も効いていなかった**。
+  //   ⚠ 台本の `visited: [{row,col}, …]` で「もう通ったことにする」（移動前のマスは
+  //     本物では必ず通っているので、それを再現しないと CPU の枝を検査できない）。
+  const visitedCells = new Map();
+  for (const c of spec.visited || []) {
+    if (c && typeof c.row === "number") visitedCells.set(c.row + "," + c.col, (visitedCells.get(c.row + "," + c.col) || 0) + 1);
+  }
+
   // 0th拡張（バスストップ）: 「このターンにこれがオープンされたのなら」を筋書きから作る。
   // 🔴 これが無いと**その枝を一度も通せない**（記録はオープンした時にだけ付くもので、
   //   テストは state を直に置くので誰もオープンしない）。
@@ -304,8 +314,16 @@ export async function runOneCase(spec) {
       const want = nextPick("delegate");
       return want === undefined ? false : want;
     },
-    isLoopMoveDest: () => false,
-    isCpuDriving: () => false,
+    // 🔴【#627・2026-11-14】ここは `() => false` の素通りだったので、**無意味ループ防止が
+    //   テストで一度も効いていなかった**（本物より甘いスタブ＝続き479・657・668・690 と同じ形）。
+    //   実害: リーチキャンセルの到達効果が CPU の上限 1 に毎回弾かれていたのに、
+    //   テストは素通りして通り続けていた。⇒ 本物と同じ「通った回数を数える」形にする。
+    //   台本に `cpuDriving: true` と `visited: [{row,col}, …]` を書けば、CPU の枝も検査できる。
+    isLoopMoveDest: (cell, limit = 1) => {
+      if (!cell || typeof cell.row !== "number") return false;
+      return (visitedCells.get(cell.row + "," + cell.col) || 0) >= limit;
+    },
+    isCpuDriving: () => !!spec.cpuDriving,
     getPlayerName: (p) => p,
 
     // --- 演出/音/通知/その他（no-op）---
@@ -345,7 +363,7 @@ export async function runOneCase(spec) {
     },
     markDiscardAtTurnEnd: (player, ids) => { callLog.push(["markDiscardAtTurnEnd", player, ids]); }, markPlacedLocation: (location, options) => { callLog.push(["markPlacedLocation", location, options?.holdMs ?? null]); }, markPlacementTarget: () => {},
     maybeTriggerArrivalForPlacedCard: async () => {}, onCardAcquiredToHand: () => {},
-    playAdditionalColorUse: () => {}, recordMoveVisited: () => {}, startSuspenseSound: () => {},
+    playAdditionalColorUse: () => {}, recordMoveVisited: (cell) => { if (cell && typeof cell.row === "number") visitedCells.set(cell.row + "," + cell.col, (visitedCells.get(cell.row + "," + cell.col) || 0) + 1); }, startSuspenseSound: () => {},
     stopSuspenseSound: () => {},
     // 【#619】本物は main.js の beginCameraHold/endCameraHold。見た目だけなので何もしない。
     holdCamera: () => {},

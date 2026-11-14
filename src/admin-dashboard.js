@@ -337,6 +337,78 @@ function bugReportShotUrl(row) {
   return row.context && typeof row.context.shotUrl === "string" ? row.context.shotUrl : null;
 }
 
+// 🔴【2026-11-14】ユーザーの問い「今の画面のスクショを自動で保存される形にできない？」への答え。
+//   **本当の画素のスクショは、このアプリでは撮れない。**
+//     ・`getDisplayMedia` は毎回「共有しますか」を聞く（＝自動にならない）し、**iOSには無い**
+//       ——報告のほとんどが iPhone なので、ここで詰む。
+//     ・html2canvas 系は**このアプリで過去に壊れた**（3D合成と color-mix で色・柄が再現できず、
+//       しかも無限にハングした＝victory-summary-image.js 冒頭の経緯）。
+//   🔴 **ただし「画面に何がどこに出ていたか」は、ずっと前から自動で保存されている**
+//     （bug-report.js の `screen2.layers`＝body直下の見えている層を、箱・重なり順つきで）。
+//   ⇒ **その数字から、ここで見取り図を描く。** アプリ側は1行も足さずに、
+//     **過去の報告すべてに後からでも効く**（#617 のような「どの画面か分からない」はこれで消える）。
+//   ⚠ 画素ではないので、絵や文字の見た目そのものは分からない。分かるのは
+//     **どの部品が、どこに、どれだけの大きさで、どちらが手前にあったか**。
+function buildScreenMap(row, doc) {
+  const s = row?.context?.screen2 || row?.context?.screen;
+  const layers = Array.isArray(s?.layers) ? s.layers.filter((l) => l && typeof l.box === "string") : [];
+  if (!layers.length) return null;
+  const [vw, vh] = String(s?.view?.inner || "").split("x").map(Number);
+  if (!(vw > 0) || !(vh > 0)) return null;
+  const W = 760;
+  const k = W / vw;
+  const H = Math.round(vh * k);
+  const 色 = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed", "#0891b2", "#be185d", "#4d7c0f"];
+  const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // 重なり順の**奥から**描く（layers は手前が先に並んでいる）。
+  const 並び = layers.slice().reverse();
+  let svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '">' +
+    '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#f8fafc" stroke="#334155"/>';
+  並び.forEach((l, i) => {
+    const [x, y, w, h] = String(l.box).split(",").map(Number);
+    if (!(w > 0) || !(h > 0)) return;
+    const c = 色[i % 色.length];
+    const X = x * k;
+    const Y = y * k;
+    const Wd = w * k;
+    const Ht = h * k;
+    svg +=
+      '<rect x="' + X.toFixed(1) + '" y="' + Y.toFixed(1) + '" width="' + Wd.toFixed(1) + '" height="' + Ht.toFixed(1) +
+      '" fill="' + c + '" fill-opacity="0.10" stroke="' + c + '" stroke-width="1.5"/>' +
+      '<text x="' + (X + 4).toFixed(1) + '" y="' + (Y + 13).toFixed(1) + '" font-family="monospace" font-size="11" fill="' + c + '">' +
+      esc((l.el || "").slice(0, Math.max(6, Math.floor(Wd / 6.6))) + (l.z ? " z" + l.z : "")) +
+      "</text>";
+  });
+  svg += "</svg>";
+
+  const box = doc.createElement("div");
+  box.style.cssText = "margin: 1rem; font-family: sans-serif;";
+  const cap = doc.createElement("div");
+  cap.style.cssText = "font-size: 0.85rem; color: #475569; margin-bottom: 0.4rem;";
+  cap.textContent =
+    "画面の見取り図（" + vw + "x" + vh + "・倍率 " + (s?.view?.stageScale ?? "?") + "・" + (s?.view?.standalone ?? "?") +
+    "）※画素の写真ではなく、保存してある『どの部品がどこに在ったか』から描いたもの";
+  box.appendChild(cap);
+  const holder = doc.createElement("div");
+  holder.innerHTML = svg;
+  box.appendChild(holder);
+  // 覆われていたボタンがあれば、その場で名指しする（bug-report.js が記録している時だけ）。
+  if (Array.isArray(s?.covered) && s.covered.length) {
+    const ul = doc.createElement("ul");
+    ul.style.cssText = "margin: 0.6rem 0 0; color: #b91c1c; font-size: 0.9rem;";
+    for (const c of s.covered) {
+      const li = doc.createElement("li");
+      li.textContent = c.error
+        ? "覆いの検査に失敗: " + c.error
+        : (c.by || "?") + " が " + (c.n ?? "?") + " 個のボタンを覆っています: " + (c.els || []).join(" / ");
+      ul.appendChild(li);
+    }
+    box.appendChild(ul);
+  }
+  return box;
+}
+
 // 画像をクリップボードに載せるには PNG でなければならない（Chrome は image/webp を受け付けない）。
 // 保存してあるのは WebP なので、canvas を通して PNG に変換する。
 async function fetchShotAsPngBlob(url) {
@@ -638,6 +710,13 @@ function makeBugReportRow(row) {
     }
     const full = bugReportToText(row);
     if (w) {
+      // 【2026-11-14】画面の見取り図（保存済みの layers から描く。過去の報告にも効く）。
+      try {
+        const map = buildScreenMap(row, w.document);
+        if (map) w.document.body.appendChild(map);
+      } catch (err) {
+        console.error("buildScreenMap failed", err);
+      }
       if (shotUrl) {
         const shot = w.document.createElement("img");
         shot.src = shotUrl;

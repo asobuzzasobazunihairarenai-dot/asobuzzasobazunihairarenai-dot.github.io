@@ -28,6 +28,7 @@ import { openRankingPage } from "./ranking-page.js";
 import { getSelfRank, pollRanked, getCurrentUser, isAdminUser } from "./online.js";
 import { rankName } from "./rank-badge.js";
 import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
+import { isUiV2 } from "./ui-v2.js"; // 【2026-11-14】試作のレイアウト（?ui=v2 の時だけ使う）
 import { buildRankShowcase } from "./rank-showcase.js";
 import { showRankExplanationModal } from "./rank-explain.js";
 // チュートリアルCPU戦（台本化された練習試合）。完全ローカル機能。
@@ -100,7 +101,7 @@ const TILES = [
   {
     icon: "🎓",
     image: "assets/home-icons/tutorial.webp",
-    labelKey: "home.tile.tutorial",
+    key: "tutorial", labelKey: "home.tile.tutorial",
     status: "ready",
     onOpen: () => {
       // 案内人エイドスの物語オーケストレーターへ。初回は導入シーン→操作チュートリアルの順で進む。
@@ -110,11 +111,11 @@ const TILES = [
       startEidosStory({ openHome: () => openHomeScreen() });
     },
   },
-  { icon: "🤝", image: "assets/home-icons/friend-match.webp", labelKey: "home.tile.match", status: "ready", onOpen: () => openMatchChoiceModal() },
+  { icon: "🤝", image: "assets/home-icons/friend-match.webp", key: "match", labelKey: "home.tile.match", status: "ready", onOpen: () => openMatchChoiceModal() },
   {
     icon: "🏆",
     image: "assets/home-icons/rank-match.webp",
-    labelKey: "home.tile.ranked",
+    key: "ranked", labelKey: "home.tile.ranked",
     status: "ready",
     showWaitingCount: true, // 続き162: 今何人が対戦相手を募集中かをタイルに表示（コールドスタート対策）
     showNotifySuggest: true, // ユーザー要望2026-09-02: まだ通知をONにしていない人に勧めるバッジ
@@ -132,11 +133,11 @@ const TILES = [
       }
     },
   },
-  { icon: "🛒", image: "assets/home-icons/shop.webp", labelKey: "home.tile.shop", status: "ready", onOpen: () => openShopPanel() },
+  { icon: "🛒", image: "assets/home-icons/shop.webp", key: "shop", labelKey: "home.tile.shop", status: "ready", onOpen: () => openShopPanel() },
   {
     icon: "📊",
     image: "assets/home-icons/ranking.webp",
-    labelKey: "home.tile.ranking",
+    key: "ranking", labelKey: "home.tile.ranking",
     status: "ready",
     onOpen: () => {
       closeHomeScreen();
@@ -147,7 +148,7 @@ const TILES = [
     icon: "👤",
     image: "assets/home-icons/my-page.webp",
     // マイデッキ編集はマイページ内の大ボタンへ移設（ユーザー要望2026-08-11）。ラベルもそれに合わせる。
-    labelKey: "home.tile.mypage",
+    key: "mypage", labelKey: "home.tile.mypage",
     status: "ready",
     onOpen: () => {
       closeHomeScreen();
@@ -157,7 +158,7 @@ const TILES = [
   {
     icon: "📖",
     image: "assets/home-icons/rulebook.webp",
-    labelKey: "home.tile.codex",
+    key: "codex", labelKey: "home.tile.codex",
     status: "ready",
     onOpen: () => {
       // ユーザー要望「山札一覧＋ヘルプを全画面で並べて表示」。全画面の図鑑ページを開く。
@@ -167,7 +168,7 @@ const TILES = [
   },
   // 【続き621】押された時に本文を読む（動的 import）。ホーム画面の他のタイル
   // （デッキ構築・不具合のお礼）と同じやり方。
-  { icon: "📰", image: "assets/home-icons/news.webp", labelKey: "home.tile.news", status: "ready", onOpen: () => void openChangelogLazily(), showNewIfUnread: () => hasUnreadChangelog() },
+  { icon: "📰", image: "assets/home-icons/news.webp", key: "news", labelKey: "home.tile.news", status: "ready", onOpen: () => void openChangelogLazily(), showNewIfUnread: () => hasUnreadChangelog() },
 ];
 
 // クラウドファンディングの帯。期限を過ぎたら null を返す（＝出さない）。
@@ -523,10 +524,130 @@ function openMatchChoiceModal() {
   matchChoiceEl = back;
 }
 
+// ═══════════ 【2026-11-14・続き704】試作のレイアウトをホーム画面へ（?ui=v2 の時だけ）═══════════
+// ユーザーの問い「以前描画提案してくれたやつとほぼ同じようにできる？今は既存のレイアウトありきで
+// 雰囲気を変えてるだけだよね？？」→ そのとおりだったので、**組み立てから変える**。
+//
+// 🔴 **既定の画面は1行も変えない。** `isUiV2()` の時だけこちらを組み立て、
+//   v2 に決まったら古い方を消す（ユーザーと合意した段取り）。
+//
+// 試作（project/Main.dc.html）との対応:
+//   ・左に縦のアイコン列（試作 104px）→ **112px**（指で押せる方へ少し広げた）
+//   ・上に見出しの行（英字の肩書き＋「ホーム」＋右に告知）
+//   ・本体は2列（左＝ランク戦の大きな札／右＝遊ぶ入口の札）
+//
+// ⚠ **試作に在って、このアプリに無いもの**: 「パックを開ける」。タイルが無いので置かない
+//   （中身の無い札を並べるより、在る8つを意味のある場所へ割り振る）。
+// ⚠ **行き先は重複させない。** 左の列＝マイページ・図鑑・ランキング・お知らせ（見る所）、
+//   本体＝ランク戦・CPU＆フレンドリー・物語チュートリアル・ショップ（遊ぶ・買う所）。
+//   試作どおり左の列は**本当に押せる道**で、飾りではない。
+// 🔴 **文字の大きさは試作の値をそのまま使えない。** ステージ(1600x900)は画面に合わせて
+//   縮むので、スマホ横（932x430）では倍率 0.478 ＝ 試作の 12px は**実画面 5.7px**。
+//   ⇒ 読ませたい文字は **25px（1.56rem）以上**にしてある。英字の肩書きは飾りなので小さめ。
+function buildHomeV2(overlayEl, parts) {
+  const tileByKey = new Map();
+  for (const tile of TILES) tileByKey.set(tile.key, tile);
+  const 作る = (key) => {
+    const tile = tileByKey.get(key);
+    return tile ? buildTile(tile) : null;
+  };
+
+  // ── 左の縦のアイコン列（見る所へ行く道）
+  const rail = document.createElement("div");
+  rail.id = "home-v2-rail";
+  const mark = document.createElement("div");
+  mark.id = "home-v2-rail-mark";
+  mark.textContent = "S:7";
+  rail.appendChild(mark);
+  for (const key of ["mypage", "codex", "ranking", "news"]) {
+    const el = 作る(key);
+    if (el) {
+      el.classList.add("is-rail");
+      // 🔴 列の幅は狭い（実測でスマホは実画面47px）。「マイページ／マイデッキ編集」のような
+      //   長い名前は入らないので、**列の中だけ短い名前**にする（押した先は同じ）。
+      const lab = el.querySelector(".home-screen-tile-label");
+      if (lab) lab.textContent = t("home.rail." + key);
+      rail.appendChild(el);
+    }
+  }
+  overlayEl.appendChild(rail);
+
+  const main = document.createElement("div");
+  main.id = "home-v2-main";
+  overlayEl.appendChild(main);
+
+  // ── 見出しの行（英字の肩書き＋「ホーム」＋右に告知）
+  const header = document.createElement("div");
+  header.id = "home-v2-header";
+  const headLeft = document.createElement("div");
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "home-v2-eyebrow";
+  eyebrow.textContent = "HOME";
+  const h1 = document.createElement("div");
+  h1.id = "home-v2-title";
+  h1.textContent = "7 SHADES OF S:EVEN";
+  const sub = document.createElement("div");
+  sub.id = "home-v2-subtitle";
+  sub.textContent = t("home.subtitle");
+  headLeft.append(eyebrow, h1, sub);
+  header.appendChild(headLeft);
+  // クラウドファンディングの帯は、試作の「右の札」の位置へ（期限を過ぎたら parts.cf が null）。
+  if (parts.cf) {
+    parts.cf.classList.add("is-v2-header");
+    header.appendChild(parts.cf);
+  }
+  main.appendChild(header);
+
+  const body = document.createElement("div");
+  body.id = "home-v2-body";
+  main.appendChild(body);
+
+  // ── 左の列：ランク戦を主役に
+  const colL = document.createElement("div");
+  colL.className = "home-v2-col";
+  const hero = document.createElement("div");
+  hero.id = "home-v2-hero";
+  const heroTile = 作る("ranked");
+  if (heroTile) {
+    heroTile.classList.add("is-hero");
+    hero.appendChild(heroTile);
+  }
+  // 現ランク表示は、試作のヒーローの中の「次のランクまで」の位置へ入れる。
+  parts.rankArea.classList.add("is-v2-hero");
+  hero.appendChild(parts.rankArea);
+  colL.appendChild(hero);
+  const shopTile = 作る("shop");
+  if (shopTile) {
+    shopTile.classList.add("is-wide");
+    colL.appendChild(shopTile);
+  }
+  body.appendChild(colL);
+
+  // ── 右の列：遊ぶ入口
+  const colR = document.createElement("div");
+  colR.className = "home-v2-col is-right";
+  // はじめての人の「次にやること」は、在る時だけ右の列のいちばん上へ。
+  if (parts.firstStep) {
+    parts.firstStep.classList.add("is-v2");
+    colR.appendChild(parts.firstStep);
+  }
+  for (const key of ["match", "tutorial"]) {
+    const el = 作る(key);
+    if (el) {
+      el.classList.add("is-card");
+      colR.appendChild(el);
+    }
+  }
+  body.appendChild(colR);
+}
+
 function buildTile(tile) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = tile.status === "ready" ? "home-screen-tile" : "home-screen-tile is-soon";
+  // 【2026-11-14】v2 のレイアウトが「どのタイルをどこに置くか」を名前で決められるように。
+  // 既定の見た目では使わない（CSS 側で `body.ui-v2` の下だけが見る）。
+  if (tile.key) btn.dataset.tile = tile.key;
 
   const iconEl = document.createElement("div");
   iconEl.className = "home-screen-tile-icon";
@@ -641,16 +762,19 @@ export function openHomeScreen() {
     .catch(() => {});
   overlayEl = document.createElement("div");
   overlayEl.id = "home-screen";
+  // 【2026-11-14】試作のレイアウトを使うか。**ここで1回だけ決める**（途中で変わると半端になる）。
+  const uiV2 = isUiV2();
+  if (uiV2) overlayEl.classList.add("is-v2");
 
   const title = document.createElement("div");
   title.id = "home-screen-title";
   title.textContent = "7 SHADES OF S:EVEN";
-  overlayEl.appendChild(title);
+  if (!uiV2) overlayEl.appendChild(title);
 
   const subtitle = document.createElement("div");
   subtitle.id = "home-screen-subtitle";
   subtitle.textContent = t("home.subtitle");
-  overlayEl.appendChild(subtitle);
+  if (!uiV2) overlayEl.appendChild(subtitle);
 
   // ═══ クラウドファンディングの帯（2026-11-08・ユーザー要望「アプリのホーム画面に
   //     クラファンのリンク載せれる？」→「上に帯で出す」）═══
@@ -660,13 +784,13 @@ export function openHomeScreen() {
   // ⚠ 終わったらこのブロックごと消してよい（ui-text の home.cf.* と style.css の
   //   #home-screen-cf も一緒に）。
   const cf = buildCrowdfundingBanner();
-  if (cf) overlayEl.appendChild(cf);
+  if (cf && !uiV2) overlayEl.appendChild(cf);
 
   // 現ランク表示（ログイン済みかつランクデータがある時だけ非同期で出す）。押すとランキングへ。
   const rankArea = document.createElement("div");
   rankArea.id = "home-screen-rank";
   rankArea.style.display = "none";
-  overlayEl.appendChild(rankArea);
+  if (!uiV2) overlayEl.appendChild(rankArea);
   renderHomeRank(rankArea);
 
   // はじめての人の「次にやること」（first-steps.js）。3歩を終えた人・✕で消した人には出ない。
@@ -702,12 +826,16 @@ export function openHomeScreen() {
       }
     },
   });
-  if (firstStep) overlayEl.appendChild(firstStep);
+  if (firstStep && !uiV2) overlayEl.appendChild(firstStep);
 
-  const grid = document.createElement("div");
-  grid.id = "home-screen-grid";
-  for (const tile of TILES) grid.appendChild(buildTile(tile));
-  overlayEl.appendChild(grid);
+  if (uiV2) {
+    buildHomeV2(overlayEl, { cf, rankArea, firstStep });
+  } else {
+    const grid = document.createElement("div");
+    grid.id = "home-screen-grid";
+    for (const tile of TILES) grid.appendChild(buildTile(tile));
+    overlayEl.appendChild(grid);
+  }
 
   // ユーザー要望2026-09-02「ブラウザで開いた人にPWAを案内してボタン一つでホームに追加」。
   // 追加できる環境（Android Chrome等）ではボタンで即追加、iPhoneは手順を案内する。

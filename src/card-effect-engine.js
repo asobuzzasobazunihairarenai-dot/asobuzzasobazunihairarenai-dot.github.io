@@ -3854,7 +3854,16 @@ async function runAction(action, ctx, helpers) {
         return false;
       }
       // 無意味なループ防止（#49）。リーチキャンセルが2枚で往復するのを止める。
-      const revisitLimit = helpers.isCpuDriving?.(ctx.player) ? 1 : HUMAN_MOVE_REVISIT_LIMIT;
+      // 🔴【#627・2026-11-14】報告「CPUがリーチキャンセルの到達効果で戻らなかった」。
+      //   **CPUの上限 1 だと、この札の到達効果は原理的に一度も通らない。**
+      //   行き先は「移動前のマス」＝**この連鎖で必ず1回通っているマス**なので、
+      //   `回数 >= 1` が常に成り立って毎回ここで弾かれていた
+      //   （行動ログに `forced_move_to_previous_cell … result:false` がそのまま残っていた）。
+      //   ⇒ **この動詞だけ CPU の上限を 2 にする**。意味はこうなる:
+      //     1回目（来たばかり）＝戻れる／2回目（もう1度戻ろうとしている）＝止める
+      //     ＝「2枚で往復する」という元の心配はそのまま防げる。
+      //   ⚠ 人間は今までどおり（10回）。他の動詞の上限は1行も変えていない。
+      const revisitLimit = helpers.isCpuDriving?.(ctx.player) ? 2 : HUMAN_MOVE_REVISIT_LIMIT;
       if (helpers.isLoopMoveDest?.(dest, revisitLimit)) {
         await helpers.announceEffectReason?.(ctx.cardId, t("ce.L748"));
         return false;

@@ -3201,6 +3201,48 @@ export const CASES = [
   },
   // 🔴 記録が無い時は**不発**（＝効果が出ないだけ・安全側）。記録が無いのに勝手な
   //   マスへ動かすのが一番まずいので、動かないことを検査する。
+  // 🔴【#627・2026-11-14】報告「CPUがリーチキャンセルの到達効果で戻らなかった」。
+  //   行き先は「移動前のマス」＝**この連鎖で必ず1回通っているマス**なので、
+  //   CPUの無意味ループ防止の上限 1 に**毎回**弾かれていた（行動ログに
+  //   `forced_move_to_previous_cell … result:false` が残っていた）。
+  //   ⚠ `visited` に移動前のマスを入れて、本物と同じ条件を作る。
+  {
+    name: "リーチキャンセル(到達): CPUでも移動前のマスへ戻れる（#627）",
+    kind: "arrival",
+    cpuDriving: true,
+    movedFrom: { A: { row: 1, col: 2 } },
+    visited: [{ row: 1, col: 2 }],
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-reach-cancel", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-reach-cancel", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [{ kind: "pieceAt", player: "A", row: 1, col: 2 }],
+  },
+  // 🔴 ただし「2枚で往復する」は今までどおり止まる（同じマスへ2回目は戻らない）。
+  {
+    name: "リーチキャンセル(到達): CPUが同じマスへ2回目は戻らない（ループ防止は生きている）",
+    kind: "arrival",
+    cpuDriving: true,
+    movedFrom: { A: { row: 1, col: 2 } },
+    visited: [{ row: 1, col: 2 }, { row: 1, col: 2 }],
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", turnNumber: 5,
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "ex0-yellow-reach-cancel", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-yellow-reach-cancel", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: {},
+    expect: [{ kind: "pieceAt", player: "A", row: 2, col: 2 }],
+  },
   {
     name: "リーチキャンセル(到達): 移動前のマスが分からなければ動かない（不発でも手札には入る）",
     kind: "arrival",

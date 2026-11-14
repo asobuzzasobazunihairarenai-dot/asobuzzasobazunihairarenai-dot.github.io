@@ -159,12 +159,41 @@ for (const w of 壁) {
   }
   宝石照合++;
 }
+// 🔴【2026-11-14・続き704】**2枚目の CSS（src/ui-v2.css）も見る。**
+//   試作の見た目は全部あちらに書いており、**何も検査が当たっていなかった**。
+//   ブレースが1つ合わないだけで**そのファイルの規則が丸ごと効かなくなる**ので、
+//   平衡と `vh` だけは同じ目で見る（既定値の照合・宝石の式は style.css だけの話）。
+//   ⚠ 中身が増えても落ちない形にしてある（短すぎる時だけ「当たっていない疑い」で止める）。
+const V2 = path.join(HERE, "..", "src", "ui-v2.css");
+const V2SHOW = "src/ui-v2.css";
+let v2開 = 0;
+let v2閉 = 0;
+try {
+  const v2src = fs.readFileSync(V2, "utf8");
+  if (v2src.length < 2000) {
+    console.error("❌ " + V2SHOW + " が短すぎる（" + v2src.length + "文字）。検査が当たっていない疑い。");
+    process.exit(2);
+  }
+  const v2n = v2src.replace(/\/\*[\s\S]*?\*\//g, "");
+  v2開 = (v2n.match(/\{/g) || []).length;
+  v2閉 = (v2n.match(/\}/g) || []).length;
+  if (v2開 !== v2閉) problems.push(V2SHOW + ": { が " + v2開 + " 個・} が " + v2閉 + " 個で合っていない");
+  // ステージ（1600x900）は画面に合わせて縮むので、vh は「画面の高さ」ではない（続き613）。
+  for (const m of v2n.matchAll(/max-height:[^;}]*vh/g)) {
+    problems.push(V2SHOW + ": max-height に vh を使っている（" + m[0].trim().slice(0, 40) + "）");
+  }
+} catch (e) {
+  console.error("❌ " + V2SHOW + " を読めない: " + e.message);
+  process.exit(2);
+}
+
 if (problems.length) {
-  console.error("❌ " + SHOW + " に問題 " + problems.length + " 件");
+  console.error("❌ CSS に問題 " + problems.length + " 件");
   for (const p of problems) console.error("  ・" + p);
   process.exit(1);
 }
 console.log(
   "✅ 問題なし（" + SHOW + " / ブレース " + open + "対" + close + "・max-height の vh 0件・"
-    + "既定値の3か所照合 " + DEFAULT_TRIPLES.length + "件・宝石の陰影 " + 宝石照合 + "面）"
+    + "既定値の3か所照合 " + DEFAULT_TRIPLES.length + "件・宝石の陰影 " + 宝石照合 + "面"
+    + " ／ " + V2SHOW + " / ブレース " + v2開 + "対" + v2閉 + "）"
 );
