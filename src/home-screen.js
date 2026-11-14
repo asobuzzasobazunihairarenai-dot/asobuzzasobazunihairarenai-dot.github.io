@@ -111,7 +111,24 @@ const TILES = [
       startEidosStory({ openHome: () => openHomeScreen() });
     },
   },
-  { icon: "🤝", image: "assets/home-icons/friend-match.webp", key: "match", labelKey: "home.tile.match", status: "ready", onOpen: () => openMatchChoiceModal() },
+  // 🔴【#647・2026-11-14】ユーザー要望「CPU戦とフレンドリーマッチは**このホーム画面から
+  //   すでに分かれてて**もいいかもね！」。以前は1つのタイル（🤝 CPUマッチ＆フレンドリーマッチ）
+  //   を押すと2択のモーダルが出る形だった＝**遊び始めるまでに必ず1回よけいに押す**。
+  //   ⇒ ホームから直接それぞれへ。
+  //   ⚠ 2択のモーダル（openMatchChoiceModal）は**残してある**。戻す時はこの2行を元の1行に
+  //     戻すだけでよい。
+  // ⚠ 絵のアイコンがまだ無いので線画（V2_ICON.cpu）を使う。絵文字（🤖）は、他のタイルが
+  //   水彩の線画なのに**1つだけ立体の色物**になって明らかに浮いた（撮って分かった）。
+  //   水彩のアイコンができたら image: を足すだけで切り替わる。
+  { icon: "🤖", svgKey: "cpu", key: "cpu", labelKey: "home.tile.cpu", status: "ready", onOpen: () => void startCpuBattleFromHome() },
+  {
+    icon: "🤝",
+    image: "assets/home-icons/friend-match.webp",
+    key: "friendly",
+    labelKey: "home.tile.friendly",
+    status: "ready",
+    onOpen: () => openOnlinePanel(),
+  },
   {
     icon: "🏆",
     image: "assets/home-icons/rank-match.webp",
@@ -232,6 +249,29 @@ function closeMatchChoiceModal() {
   matchChoiceEl?.remove();
   matchChoiceEl = null;
 }
+// 【#647】CPU戦を始める一連。ホームのタイルからも、2択のモーダルからも、**同じ道**を通す。
+// 🔴 式を2か所に書かない（#586 で実際にズレた）。
+async function startCpuBattleFromHome() {
+  noteCpuBattlePlayed(); // 「次にやること」の段階を進める（first-steps.js）
+  try {
+    // 動的import（静的依存辺を作らないため。ファイル冒頭の import 撤去のコメント参照）。
+    const { startCpuBattle, runCpuBattleSetup } = await import("./cpu-battle.js");
+    const count = getCpuPlayerCount();
+    await startCpuBattle(count);
+    // ユーザー報告2026-09-03「セットアップ直前に一瞬セットアップされた盤面が映る」。
+    // 以前はここで先にホームを閉じていたため、上の動的importが解決するまでの間（初回は
+    // 数フレームかかる）、起動時の既定盤面（テスト用に4人が座った状態）が見えていた。
+    // 盤面を空にする resetGame は startCpuBattle の中にあるので、**閉じるのはその後**にする。
+    closeHomeScreen();
+    // 盤面が見えてからセットアップ演出（ファースト配布→盤面配置）を始める。
+    setTimeout(() => {
+      runCpuBattleSetup({ count }).catch((err) => console.error("runCpuBattleSetup failed", err));
+    }, 60);
+  } catch (err) {
+    console.error("CPU battle start failed", err);
+  }
+}
+
 function openMatchChoiceModal() {
   if (!overlayEl || matchChoiceEl) return;
   const back = document.createElement("div");
@@ -273,24 +313,7 @@ function openMatchChoiceModal() {
   });
   makeOption("🤖", t("home.matchChoice.cpu"), t("home.matchChoice.cpuDesc"), async () => {
     closeMatchChoiceModal();
-    noteCpuBattlePlayed(); // 「次にやること」の段階を進める（first-steps.js）
-    try {
-      // 動的import（静的依存辺を作らないため。上の import 撤去のコメント参照）。
-      const { startCpuBattle, runCpuBattleSetup } = await import("./cpu-battle.js");
-      const count = getCpuPlayerCount();
-      await startCpuBattle(count);
-      // ユーザー報告2026-09-03「セットアップ直前に一瞬セットアップされた盤面が映る」。
-      // 以前はここで先にホームを閉じていたため、上の動的importが解決するまでの間（初回は
-      // 数フレームかかる）、起動時の既定盤面（テスト用に4人が座った状態）が見えていた。
-      // 盤面を空にする resetGame は startCpuBattle の中にあるので、**閉じるのはその後**にする。
-      closeHomeScreen();
-      // 盤面が見えてからセットアップ演出（ファースト配布→盤面配置）を始める。
-      setTimeout(() => {
-        runCpuBattleSetup({ count }).catch((err) => console.error("runCpuBattleSetup failed", err));
-      }, 60);
-    } catch (err) {
-      console.error("CPU battle start failed", err);
-    }
+    await startCpuBattleFromHome();
   });
 
   panel.appendChild(options);
@@ -563,8 +586,14 @@ const V2_ICON = {
   // ランク戦＝王冠
   ranked:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.2 17.4 5 7.2l4 4.6 3-6.4 3 6.4 4-4.6 1.8 10.2z"/><path d="M4.6 20.2h14.8"/></svg>',
-  // CPU＆フレンドリー＝向かい合う2つのキューブ
+  // CPU＆フレンドリー＝向かい合う2つのキューブ（#647 で分ける前の1枚。残してある）
   match:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.6 8.6 6 6.8l3.4 1.8v4L6 14.4l-3.4-1.8z"/><path d="M14.6 11.4 18 9.6l3.4 1.8v4L18 17.2l-3.4-1.8z"/><path d="M9.8 11.6h4.4"/></svg>',
+  // 【#647】CPU戦＝キューブと、向かい合う四角い相手（機械）
+  cpu:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.6 8.6 6 6.8l3.4 1.8v4L6 14.4l-3.4-1.8z"/><rect x="14.4" y="8.4" width="7.2" height="7.2" rx="1.2"/><path d="M16.8 11.4h.01M19.2 11.4h.01M16.9 13.8h2.2"/><path d="M9.8 11.6h4.4"/></svg>',
+  // 【#647】フレンドリーマッチ＝2つのキューブが向かい合う（人と人）
+  friendly:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.6 8.6 6 6.8l3.4 1.8v4L6 14.4l-3.4-1.8z"/><path d="M14.6 11.4 18 9.6l3.4 1.8v4L18 17.2l-3.4-1.8z"/><path d="M9.8 11.6h4.4"/></svg>',
   // 物語チュートリアル＝案内（方位磁針）
   tutorial:
@@ -694,7 +723,8 @@ function buildHomeV2(overlayEl, parts) {
     parts.firstStep.classList.add("is-v2");
     colR.appendChild(parts.firstStep);
   }
-  for (const key of ["match", "tutorial"]) {
+  // 【#647】CPU戦とフレンドリーマッチは分かれたので、右の列は3つ並ぶ。
+  for (const key of ["cpu", "friendly", "tutorial"]) {
     const el = 作る(key);
     if (el) {
       el.classList.add("is-card");
@@ -725,6 +755,10 @@ function buildTile(tile) {
       iconEl.textContent = tile.icon;
     });
     iconEl.appendChild(img);
+  } else if (tile.svgKey && V2_ICON[tile.svgKey]) {
+    // 【#647】絵を持たないタイルは線画で描く（絵文字だと浮くため）。
+    iconEl.innerHTML = V2_ICON[tile.svgKey];
+    iconEl.classList.add("is-line-icon");
   } else {
     iconEl.textContent = tile.icon;
   }

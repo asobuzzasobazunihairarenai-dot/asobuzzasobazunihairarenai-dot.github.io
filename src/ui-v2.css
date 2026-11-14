@@ -1287,151 +1287,70 @@ body.ui-v2 #action-log-panel {
 }
 
 /* ===================== HUERISE の「燃え広がる」演出（2026-11-14・試作） =====================
-   ユーザー案（続き696 で受けたもの）: 「押すと紙が中心から全方位に燃え広がり、次のページが
-   現れる。炎の色は起動のたびにランダム」。
+   ユーザー案（続き696）「押すと紙が中心から全方位に燃え広がり、次のページが現れる。炎の色は
+   起動のたびにランダム」＋ 続き714 の指摘「**境界が不規則にいびつにじわじわ**広がってほしい」。
 
-   🔴 **canvas も新しい画像も使わない。** 全画面の canvas は1枚で約23MB（#441・#607 で実際に
-     iPhone が落ちている）。紙を食べる穴は mask、炎は1枚の放射グラデーションで作る。
-   🔴 **filter: blur() も使わない**（全画面のぼかしは #634 で見つけた「どの計器にも写らない量」
-     そのもの）。ぼけ味はグラデーションの色の止め位置だけで作る。
-   ⚠ 既定の画面は1行も変わらない（全部 body.ui-v2 の下＋JS 側も isUiV2() の中だけ）。
-   ⚠ **効かない端末でも必ず消える**: ①JS が 1.2秒後に display:none を必ず入れる
-     ②下の keyframes は終わりの3割で opacity も 0 にする（mask が動かない端末では
-       「少し遅れて消える」だけになる）。 */
+   🔴 **絵は SVG が描く**（opening-screen.js の buildHueriseBurn）。理由は1つで、
+     **CSS の radial-gradient は原理的に真円しか作れない**から。
+     続き713 で「円を2枚ずらす」「粒を重ねる」を試したが、どちらも**ネオンの輪**にしかならなかった。
+     いびつなふちは **feTurbulence（乱流）＋ feDisplacementMap（ふちを押しのける）**で作る。
+   🔴 **canvas も新しい画像も使わない**（全画面の canvas は1枚で約23MB＝#441・#607 の山）。
+   🔴 **フィルタは半分の解像度で焼く**（SVG を 800x450 で作って 2倍に拡大）。
+     feDisplacementMap は画素ごとの計算なので、全画面で毎コマ回すと重い（#634 で見つけた
+     「どの計器にも写らない量」と同じ家族）。半分なら費用は 1/4 で、**ふちの乱れはむしろ大きく出る**。
+   ⚠ 既定の画面は1行も変わらない（CSSは body.ui-v2 の下／JSは isUiV2() の中だけ）。
+   ⚠ **効かない端末でも必ず消える**: JS が終わりの時刻に display:none を必ず入れる。
+     SVG を作れなかった時は、今までどおりの 0.6秒フェード（is-closing）へ落ちる。 */
 
-/* 穴の半径。@property にしておくと**カスタムプロパティがアニメーションできる**
-   （Chrome 85+ / Safari 16.4+）。未対応の端末では動かないが、上の②で必ず消える。 */
-@property --huerise-burn-r {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-
-body.ui-v2 .opening-start-gate.is-burn {
-  /* 炎の色。JS（opening-screen.js）が起動のたびに7色から1つ入れる。 */
-  --burn-color: #ee781f;
-  --huerise-burn-r: 0%;
-}
-
-/* 紙（白いガード）を中心から食べる。mask は**要素いっぱいに敷いたまま**（mask-size: 100%）
-   半径だけを動かす——mask-size を 0 から広げる作りにすると、敷いていない所が透明になるので
-   **押した瞬間に画面ごと消える**（実装中に一度この形を書いて気づいた）。 */
-body.ui-v2 .opening-start-gate.is-burning {
-  -webkit-mask-image: radial-gradient(
-    circle at 50% 50%,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, 0) var(--huerise-burn-r),
-    rgba(0, 0, 0, 0.35) calc(var(--huerise-burn-r) + 2.5%),
-    #000 calc(var(--huerise-burn-r) + 6%)
-  );
-  mask-image: radial-gradient(
-    circle at 50% 50%,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, 0) var(--huerise-burn-r),
-    rgba(0, 0, 0, 0.35) calc(var(--huerise-burn-r) + 2.5%),
-    #000 calc(var(--huerise-burn-r) + 6%)
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  animation: huerise-burn-hole 1.2s ease-in forwards;
-  pointer-events: none;
-}
-
-@keyframes huerise-burn-hole {
-  0% {
-    --huerise-burn-r: 0%;
-    opacity: 1;
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    --huerise-burn-r: 105%;
-    opacity: 0;
-  }
-}
-
-/* 燃えぎわ。内から順に「焦げ（暗い）→ 炎（その回の色）→ 煙（透明）」の3重のリング1枚。
-   🔴 **穴とリングは基準が別物**なので、終わりの値を合わせないと**別々の速さで広がる**
-     （最初の実測で、リングだけ画面の外まで行って「ただの光の輪」に見えた）。
-     リングの明るい芯＝箱 2400px の 44% ＝ 1056px／穴＝対角の半分 918px の 105% ＝ 964px
-     ⇒ 倍率 0.91 でぴったり重なる。片方を触ったらもう片方も計算し直すこと。
-   ⚠ リングの太さは scale で一緒に広がる（＝広がるほど炎が太くなる）。実物の紙が燃える時も
-     ふちの炎は広がるほど太く見えるので、そのままにしてある。
-   ⚠ pointer-events は none（このアプリの当たり判定は elementsFromPoint の自前判定なので、
-     透明でも拾われると START が押せなくなる＝教訓4）。 */
-/* 🔴 炎は**紙（.opening-start-gate）の外**に置く。中に入れると、紙に掛けたマスクが
-   子にも効いて**穴より内側＝炎のいちばん明るい芯が毎コマ消される**（実測でそうなっていた）。
-   ⇒ 紙（z 10）の上（z 11）に重ねる兄弟にする。 */
-body.ui-v2 .opening-burn-ember {
+body.ui-v2 .huerise-burn-svg {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 150%;
-  /* 正方形にする（横長の画面でも円が楕円にならないように）。 */
-  aspect-ratio: 1 / 1;
-  margin: 0;
-  transform: translate(-50%, -50%) scale(0);
-  transform-origin: center;
-  border-radius: 50%;
-  /* 🔴 **円を2つ、ほんの少しだけずらして重ねる**。1つだけだと「完璧な円」＝ネオンの輪に
-     見えて、紙が燃えているようには見えなかった（実測の絵で分かった）。
-     ⚠ **ずらす量は帯の太さより小さく**する。一度 2.5% ずらしたら「輪が2本」に見えた
-       （帯の太さ約1.5% に対して大きすぎた）。いまは 0.6% ＝ 1本のふちが少し揺れて見える。
-     ⚠ DOM は増やさない（背景は何枚でも重ねられる）。canvas も画像も使わない。
-     ⓘ ここはまだ「きれいな円」寄り。もっとギザギザにするなら、粒のテクスチャを
-       mask に掛けるのが次の一手（assets/ui-v2/ の作り方＝tools/make-ui-v2-textures.mjs）。 */
-  background:
-    radial-gradient(
-      circle at 50.6% 49.5%,
-      rgba(0, 0, 0, 0) 0 41.4%,
-      rgba(255, 206, 130, 0.4) 42.6%,
-      rgba(255, 140, 35, 0.72) 43.4%,
-      rgba(42, 20, 8, 0.6) 44.3%,
-      var(--burn-color, #ee781f) 45.1%,
-      rgba(120, 70, 30, 0.3) 47.4%,
-      rgba(0, 0, 0, 0) 53%
-    ),
-    radial-gradient(
-      circle at 49.5% 50.5%,
-      rgba(0, 0, 0, 0) 0 41%,
-      rgba(255, 214, 140, 0.45) 42.2%,
-      rgba(255, 150, 40, 0.78) 43.1%,
-      rgba(42, 20, 8, 0.66) 44%,
-      var(--burn-color, #ee781f) 44.7%,
-      rgba(120, 70, 30, 0.32) 46.8%,
-      rgba(0, 0, 0, 0) 52%
-    );
-  opacity: 0;
+  left: 0;
+  top: 0;
+  /* 🔴 ステージ（1600x900）の**半分**で作って2倍に伸ばす＝フィルタの費用は 1/4。
+     ふちの乱れも2倍の大きさで出るので、むしろ「大きく破れた紙」に見えて都合がよい。 */
+  width: 800px;
+  height: 450px;
+  transform: scale(2);
+  transform-origin: top left;
+  /* 🔴 **紙（.opening-start-gate＝z 10）より下**に敷く。こうすると HUERISE のボタンと人魂は
+     燃えている紙の**上**に残り、押した瞬間に消えずに静かに薄れていく。
+     （上に重ねるとボタンが一瞬で隠れて「押した途端に消えた」ように見えた。） */
+  z-index: 9;
+  /* このアプリの当たり判定は elementsFromPoint の自前判定なので、透明でも拾われると事故る（教訓4）。 */
   pointer-events: none;
-  z-index: 11;
-}
-body.ui-v2 .opening-burn-ember.is-burning {
-  animation: huerise-burn-ember 1.2s ease-in forwards;
 }
 
-@keyframes huerise-burn-ember {
-  0% {
-    transform: translate(-50%, -50%) scale(0.02);
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  /* ちらつき（炎は一定の明るさでは燃えない）。 */
-  38% {
-    opacity: 0.82;
-  }
-  55% {
-    opacity: 1;
-  }
-  88% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(0.91);
-    opacity: 0;
-  }
+/* 燃えている間、本物の紙は**地の色だけ**を手放す（白は SVG が描く）。
+   子（HUERISE のボタン・人魂）はそのまま残し、ゆっくり薄れさせる。 */
+body.ui-v2 .opening-start-gate.is-burning {
+  background: transparent;
+  pointer-events: none;
+  animation: huerise-gate-fade 0.55s ease forwards;
+}
+@keyframes huerise-gate-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ===================== 盤面のまわり＝「卓の面」（2026-11-14・続き714） =====================
+   🔴 続き699 で作った**麻布のテクスチャが、ここまで1か所も使われていなかった**。
+     あれは元々「卓の面」用に作ったもので、使う場所はここ（盤面の後ろ）。
+   既定の地は青灰色の放射グラデ（`body` の background）で、試作のアイボリー＋真鍮の世界から
+   いちばん浮いていた。⇒ **暖かい暗色の麻布**にする。
+   ⚠ **盤面そのものには1行も触っていない**（49マス・カード・駒・ロックエリア・手札は
+     3D変形と自前の当たり判定の territory ＝教訓1・4・11）。ここは**後ろの地だけ**。
+   ⚠ **明るい地にはしない。** 盤面のカードと駒が主役なので、卓が明るいと主役が沈む
+     （実物の対局卓も暗い布を敷く）。
+   ⚠ 全画面ページ（ホーム・図鑑など）は自前の地を持っているので、ここは見えない。 */
+body.ui-v2 {
+  background-color: #241f1a;
+  background-image:
+    /* 卓の中央だけ、上からの照明がうっすら当たっているように */
+    radial-gradient(ellipse at 50% 44%, rgba(255, 234, 196, 0.11) 0%, rgba(255, 234, 196, 0) 58%),
+    /* 四隅を落として盤面に目を向ける */
+    radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.45) 100%),
+    url("../assets/ui-v2/linen.webp");
+  background-size: auto, auto, 190px 190px;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-position: center center, center center, center center;
 }

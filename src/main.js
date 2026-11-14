@@ -461,7 +461,14 @@ import {
   getDecodedSoundInfo,
 } from "./sound.js";
 import { initScreenWakeLock } from "./wake-lock.js";
-import { getCardDefinition, getCardImagePath, getCardBackImagePath, getCardIllustPath } from "./cards-data.js";
+import {
+  getCardDefinition,
+  getCardImagePath,
+  getCardBackImagePath,
+  getCardIllustPath,
+  // 【#660】「文字を焼き込んだ絵を持たない」札（0th拡張・1st EDITION）の判定。
+  hasNoPrintedFace,
+} from "./cards-data.js";
 import { getCardName, getCardNote, getCardText } from "./card-text.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
 
 // モーダル・行動ログ等に出す「表示用のカード名」。英語のカードテキストがあればその名前、
@@ -1443,6 +1450,25 @@ function getBoardCardImagePath(cardId) {
   return isBoardIllustOnly() ? getCardIllustPath(cardId) : getCardImagePath(cardId);
 }
 
+// 🔴【#660・2026-11-14】ユーザー報告「拡張カードが飛翔するとき**効果欄のテキストがブランク**に
+//   なってる。ほかにも効果欄のテキストがブランクになってるシーンが見受けられます。総点検を！」
+//   原因: 0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**（文字はアプリが描く）。
+//   `getCardImagePath` はそういう札に**文字なしの下地**（assets/cards-blank/）を返すので、
+//   **生のURLを背景に敷いている所**では「枠と絵はあるのに効果欄だけ真っ白」になる。
+//   #611（続き698）で `showCardFace` は直したが、**生のURLを使う所はそのまま残っていた**。
+//   ⇒ 表向きのカードを絵として敷く所は、この入口を通す。
+//   ⚠ **「イラストのみ表示」がONの時は今までどおり**（文字を出さないのがその設定の意図）。
+//   ⚠ 文字を焼き込んだ絵を持つ札（リメイク版の34種）も今までどおり絵のまま
+//     ＝**盤面に DOM のカード面を大量に作らない**（render() ごとに作り直すので重くなる）。
+function paintFaceUpCardArt(el, cardId) {
+  if (!el) return;
+  if (!cardId || isBoardIllustOnly() || !hasNoPrintedFace(cardId)) {
+    el.style.backgroundImage = cardId ? `url("${getBoardCardImagePath(cardId)}")` : "none";
+    return;
+  }
+  showCardFace(el, cardId, null); // 文字をアプリが描く
+}
+
 // ゲート侵攻のエターナル獲得演出中、そのエターナルが「こっそり先にロックエリアに入っている」
 // ように見えないよう、演出が⑥（ロックスロットへ着地）を終えるまで実際のロックカードの描画だけを
 // 隠す。状態自体は（オンラインではサーバーが確定済みで）既にロック済みだが、視覚だけを遅らせる。
@@ -1551,7 +1577,7 @@ function playCardFlipOpenGhost(rect, item) {
   back.style.backgroundImage = `url("${item.backUrl}")`;
   const front = document.createElement("div");
   front.className = "card-flip-face card-flip-front";
-  front.style.backgroundImage = `url("${getBoardCardImagePath(item.cardId)}")`;
+  paintFaceUpCardArt(front, item.cardId); // 【#660】めくれる演出の表面にも文字を乗せる
   flipper.append(back, front);
   inner.appendChild(flipper);
   outer.appendChild(inner);
@@ -1587,8 +1613,10 @@ function buildFlatCard(token) {
   if (flippingOpenTokenIds.has(token.id)) card.style.visibility = "hidden";
   if (token.faceUp) {
     card.className = "board-card";
-    // 盤面・ロックエリアのカードは以前から「イラストのみ画像」を採用（テキスト合成の対象外）。
-    card.style.backgroundImage = `url("${getBoardCardImagePath(token.cardId)}")`;
+    // 盤面・ロックエリアのカードは既定で「イラストのみ画像」。
+    // 【#660】イラストのみを切っている時に、文字を焼き込んだ絵を持たない札（0th拡張・1st）が
+    //   「効果欄だけ真っ白」になっていたので、その時はアプリが文字を描く。
+    paintFaceUpCardArt(card, token.cardId);
   } else {
     card.className = "board-card is-facedown";
     card.style.backgroundImage = `url("${cardBackImageForToken(token)}")`;
@@ -5091,6 +5119,15 @@ async function playSituationCardEffect(cardId) {
       console.error("playSituationCardEffect camera failed", err);
     }
   }
+  // 🔴【#661・#662・2026-11-14】ユーザー報告「経済成長の状況効果で**演出が終わる前に**
+  //   『ドローしますか』モーダルが表示された」「だいぶ**食い気味**に出た」。
+  //   ここまでで待っているのは寄り（380ms）だけなので、**波紋（2.2秒）が出た直後**に
+  //   選択モーダルが被さっていた。
+  //   ⚠ 選択を求めるモーダルは anim-gate で待たせない作りになっている（止めると効果の解決が
+  //     進まなくなるため＝anim-gate.js の線引き）。だから**ここで待つ**しかない。
+  //   ⚠ 2.2秒まるごと待つと間延びするので、輪が広がり切る手前まで。
+  //   ⚠ 演出オフの人はこの関数の冒頭で return しているので、1ミリも待たない。
+  await new Promise((r) => setTimeout(r, 950));
 }
 
 // 🔴【#594・2026-11-12】ターン開始時に走る効果（【状況】カード等）の間はフェイズを進めない。
@@ -9457,7 +9494,10 @@ function playCardCellLanding(sourceRect, cellLocation, tokenId, landFaceUp = fal
   flushBoard3d();
   const ghost = document.createElement("div");
   ghost.className = "setup-fly-card card-landing-ghost";
-  ghost.style.backgroundImage = img;
+  // 【#660】表向きで飛ばすと分かっている時は、文字まで乗せる（0th拡張・1st は文字が絵に
+  //   焼き込まれていないので、生のURLを敷くと**効果欄だけ真っ白**のまま飛んでいた）。
+  if (landFaceUp && token実?.cardId) paintFaceUpCardArt(ghost, token実.cardId);
+  else ghost.style.backgroundImage = img;
   // 続き223（ユーザー要望2026-08-18「上空に止まるとき、カードがやたら小さい。マスのカードと同じ
   // サイズに」）: カードは正方形なのに、飛び元（山札の山＝横長で低い投影rect）のアスペクト比を
   // ゴーストに使い、さらに rotateX(--table-tilt) で縦を潰していたため、上空/着地で横長・低い＝小さく
@@ -17193,7 +17233,15 @@ function paintedBackgroundImage(el) {
   const inline = el.style && el.style.backgroundImage;
   if (inline && inline !== "none") return inline;
   const cs = getComputedStyle(el).backgroundImage;
-  return cs && cs !== "none" ? cs : "";
+  if (cs && cs !== "none") return cs;
+  // 🔴【#660】背景が無くても、**アプリが文字を描いたカード面**が中に在ることがある
+  //   （0th拡張・1st、テキストモード）。その時は絵の無い真っ白なゴーストが飛んでいた。
+  //   ⇒ 中のカード面から札のidを拾って、せめて下地の絵を敷く。
+  //   ⚠ 下地（cards-blank）ではなく**イラストのみ版**を使う。下地は「枠はあるのに効果欄が
+  //     真っ白」という、まさに #660 で言われた見た目になるため。
+  const mount = el.querySelector?.(":scope > .card-face-mount");
+  const id = mount?.dataset?.mountCardId;
+  return id ? `url("${getCardIllustPath(id)}")` : "";
 }
 
 function createGhost(kind, tokenId) {
@@ -17274,7 +17322,7 @@ function startPileDrag(e, pileKey) {
   // 山札・エターナルは裏向き積みなので裏面画像をゴーストに表示する。
   if (pileKey === "discard") {
     ghost.className = "hand-card is-self drag-ghost";
-    ghost.style.backgroundImage = `url("${getCardImagePath(topCardId)}")`;
+    paintFaceUpCardArt(ghost, topCardId); // 【#660】効果欄が真っ白にならないように
   } else {
     ghost.className = "hand-card is-facedown drag-ghost";
     ghost.style.backgroundImage = `url("${getCardBackImagePath(topCardId)}")`;

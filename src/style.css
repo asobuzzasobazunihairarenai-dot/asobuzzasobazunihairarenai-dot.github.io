@@ -16568,14 +16568,17 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
 
 #home-screen-grid {
   display: grid;
-  /* ユーザー要望「4個ずつ並べて（今は上5下3でバランスが悪い）」。8タイルを4×2にする。 */
-  grid-template-columns: repeat(4, 1fr);
+  /* ユーザー要望「4個ずつ並べて（今は上5下3でバランスが悪い）」。8タイルを4×2にしていた。
+     🔴【#647・2026-11-14】CPU戦とフレンドリーマッチを分けて**9タイル**になったので、
+       4列だと 4+4+1 の3行になり、縦に 154px はみ出した（実測）。⇒ **5列**にして
+       5+4 の2行に戻す。タイルは少し細くなるが、スクロールが出るよりよい。 */
+  grid-template-columns: repeat(5, 1fr);
   gap: 1.6rem 1.6rem;
   /* ユーザー報告「アイコンを9.8rem以上にしても大きくならない」。原因は、グリッド幅が
      固定(46rem)で1マス≒11.5rem→中身(img)がその幅にmax-width:100%で頭打ちだったこと。
      グリッド幅をアイコンサイズに連動させ、マスがアイコンより十分広くなるようにする
      （5.5rem時=46remで従来と同じ、大きくすると比例して広がる）。 */
-  width: min(100%, calc(4 * var(--home-tile-icon-size, 5.5rem) + 24rem));
+  width: min(100%, calc(5 * var(--home-tile-icon-size, 5.5rem) + 26rem));
   /* 8メニューの一括位置・サイズ調整（ユーザー要望2026-08-16）。管理者モードの
      --home-grid-pos-x/y/scale。transformなのでレイアウトに影響せず自由に動かせる。 */
   transform: translate(var(--home-grid-pos-x, 0rem), var(--home-grid-pos-y, 6.4rem)) scale(var(--home-grid-scale, 1));
@@ -16620,6 +16623,27 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   position: relative;
   font-size: 2rem;
   line-height: 1;
+}
+/* 🔴【#647・2026-11-14】絵のアイコンを持たないタイル（いまは「CPU戦」だけ）は線画で描く。
+   絵文字（🤖）を置いたら、**他のタイルが水彩の線画なのに1つだけ立体の色物**になって
+   明らかに浮いた（撮って分かった）。線画なら同じ世界の物に見える。
+   ⚠ 水彩のアイコンができたら tile.image を足すだけでこちらは使われなくなる。 */
+.home-screen-tile-icon.is-line-icon {
+  width: var(--home-tile-icon-size, 5.5rem);
+  height: var(--home-tile-icon-size, 5.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-screen-tile-icon.is-line-icon svg {
+  width: 82%;
+  height: 82%;
+  fill: none;
+  stroke: #b08d3f;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22));
 }
 .home-screen-tile-icon-img {
   position: relative;

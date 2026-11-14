@@ -318,6 +318,22 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  647: {
+    ja: "分けました。ホーム画面の「CPUマッチ＆フレンドリーマッチ」を「CPU戦」と「フレンドリーマッチ」の2つのタイルにしたので、どちらも1回押すだけで始まります。タイルが9つになったので、PCでは5列の並びになりました。CPU戦のアイコンはまだ仮の線画です。",
+    en: "Done. The combined tile is now two tiles, so each starts with a single tap. The grid is 5 columns on desktop, and the CPU icon is a placeholder for now.",
+  },
+  660: {
+    ja: "直しました。0th拡張と1st EDITION のカードは、文字が絵に焼き込まれておらず、アプリが文字を描いています。ところが絵をそのまま敷いていた場所（飛ぶカード・めくれる演出・盤面など）では文字なしの下地が出ていたので、効果欄だけ真っ白に見えていました。表向きのカードを絵として出す場所をすべて同じ入口に通して、文字が出るようにしました。",
+    en: "Fixed. Expansion and 1st EDITION cards have no text baked into the artwork — the app draws it. Several places painted the raw artwork instead, so the effect box looked empty. Those places now go through the same path that draws the text.",
+  },
+  661: {
+    ja: "直しました。波紋の演出が出てすぐに選択のモーダルが被さっていたので、演出を見てから聞くようにしました。",
+    en: "Fixed. The choice dialog came right after the ripple started; it now waits for the animation to be seen.",
+  },
+  662: {
+    ja: "直しました（#661 と同じ原因です）。演出の途中で選択のモーダルが出ないよう、間を取りました。",
+    en: "Fixed (same cause as #661). The dialog now waits so it does not cut into the animation.",
+  },
   639: {
     ja: "直しました。ログを見ると、実はカードは撃てていて「奪えなかった」だけでした——１番多くロックしているのがあなただけだと、選べる相手があなた１人になり、自分からは奪えないためです。これまでは相手が１人しかいない時に黙って自動で決めていたので、結果の文しか出ず「効かなかった」ように見えていました。１人でも必ず選ぶ画面を出すようにしたので、何が起きているか分かります。",
     en: "Fixed. The card was actually used; it just had nothing to take, because you alone had the most locked cards and you cannot steal from yourself. Previously a single candidate was chosen silently, so only the result message appeared. The picker is now always shown, even for one candidate.",

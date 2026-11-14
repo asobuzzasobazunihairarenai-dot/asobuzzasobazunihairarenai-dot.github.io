@@ -28,6 +28,10 @@ const UI = {
     "firstSteps.online.cta": "相手を探す",
     "home.tile.tutorial": "物語チュートリアル",
     "home.tile.match": "CPUマッチ＆フレンドリーマッチ",
+    // 🔴【#647・2026-11-14】ホームから直接それぞれへ行けるように分けた。
+    //   match の方は**消していない**（2択のモーダルを戻せるように残してある）。
+    "home.tile.cpu": "CPU戦",
+    "home.tile.friendly": "フレンドリーマッチ",
     "home.tile.ranked": "フリーマッチ（ランク戦）",
     "home.tile.shop": "ショップ",
     "home.tile.ranking": "ランキング",
@@ -2239,6 +2243,8 @@ const UI = {
     "firstSteps.online.cta": "Find an opponent",
     "home.tile.tutorial": "Story Tutorial",
     "home.tile.match": "CPU & Friendly Match",
+    "home.tile.cpu": "Play vs CPU",
+    "home.tile.friendly": "Friendly Match",
     "home.tile.ranked": "Free Match (Ranked)",
     "home.tile.shop": "Shop",
     "home.tile.ranking": "Rankings",

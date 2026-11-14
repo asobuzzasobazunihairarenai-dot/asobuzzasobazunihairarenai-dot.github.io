@@ -2754,6 +2754,24 @@ async function runAction(action, ctx, helpers) {
       //   露出した、その下の表向きカード）。
       // ・入れ替えは同時なので両者の入れ替わり先に表向きカードがあれば両者発動。処理順は処理順の
       //   原則（発動者→時計回り）に従うため、先に発動者(A)ぶんを処理してから相手(B)ぶんを処理する。
+      // ⚠【#659・2026-11-14】報告「マスチェンジ後の合同建設のカード拡大が出てきてないです」。
+      //   行動ログには**入れ替えの後に到達が1行も無かった**。考えられるのは
+      //   ①入れ替え先の札が裏向きだった（＝仕様どおり。入れ替えは「移動」ではないので開かない）
+      //   ②何か別の理由で到達が走らなかった、の2つで、**読みだけでは決められなかった**。
+      //   ⇒ 入れ替え先に何があったかを1行だけ残す（普段から必ず出る＝0しか出ない計器ではない）。
+      {
+        const 先 = getState().tokens.filter(
+          (t) => t.kind === "card" && t.location.zone === "cell" && t.location.row === target.row && t.location.col === target.col
+        );
+        const 上 = 先[先.length - 1];
+        logAction("diag-swap-arrival", {
+          to: { row: target.row, col: target.col },
+          cards: 先.length,
+          topCardId: 上?.cardId ?? null,
+          topFaceUp: 上?.faceUp ?? null,
+          player: ctx.player,
+        });
+      }
       await helpers.triggerArrivalAtIfFaceUp?.(target, ctx.player);
       const massChangeStillOnBoard =
         getState().tokens.find((t) => t.id === ctx.cardTokenId)?.location?.zone === "cell";

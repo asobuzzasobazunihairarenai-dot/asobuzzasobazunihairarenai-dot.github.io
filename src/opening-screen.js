@@ -50,7 +50,247 @@ const CLOSE_TRANSITION_MS = 600;
 // 【2026-11-14・試作】HUERISE の「燃え広がる」演出の長さ。ui-v2.css の
 // huerise-burn-hole / huerise-burn-ember の 1.2s と**同じ値**にする（片方だけ変えると
 // 「炎の途中で画面が切り替わる」か「燃え終わってから待たされる」のどちらかになる）。
-const BURN_TRANSITION_MS = 1200;
+const BURN_TRANSITION_MS = 1900;
+// 燃える絵を描くキャンバス（SVG）の大きさ。ステージ 1600x900 の**半分**で作って CSS で2倍に伸ばす。
+// 🔴 feDisplacementMap は画素ごとの計算なので、全画面で毎コマ回すと重い（#634 の家族）。
+//   半分なら費用は 1/4。ふちの乱れは2倍の大きさで出るので、見た目はむしろ良くなる。
+const BURN_W = 800;
+const BURN_H = 450;
+// 紙を画面より少し大きく描くための余白。乱流で歪ませると**紙の外周も波打つ**ので、
+// その波打ちを画面の外へ追い出すために要る（ここが足りないと画面の四辺がギザギザになる）。
+const BURN_MARGIN = 90;
+
+// 【続き714】HUERISE の「紙が中心からいびつに燃え広がる」演出の本体。
+// ユーザー指摘「本当に紙が燃えているみたいに、**境界が不規則にいびつにじわじわ**広がっていく
+// のがいいです」。
+//
+// 🔴 **CSS の radial-gradient では原理的に真円しか作れない。** 続き713 で「円を2枚ずらす」
+//   「粒を重ねる」を試したが、どちらも**ネオンの輪**にしかならなかった。
+//   いびつなふちは **feTurbulence（乱流）＋ feDisplacementMap（ふちを乱流で押しのける）**で作る。
+//   乱流は**ユーザー空間に固定**されるので、穴が広がるにつれて「同じ模様の紙を食べていく」形になり、
+//   実際の紙が燃えるのと同じ見え方になる（毎コマ模様を作り直すのではない＝安い）。
+//
+// 🔴 **フィルタを掛ける要素は1つだけ**（穴のマスク）。炎・焦げは**フィルタ無しの円**を
+//   紙の下に敷き、**紙のいびつな穴から透けて見せる**。
+//   ＝「ふちが不規則」なのは紙の方で、光は後ろから漏れているだけ。これで費用が半分になり、
+//   しかも実物の燃え方（紙のふちが黒く焦げて、その向こうに火が見える）に近づく。
+//
+// 返り値: 作れたら SVG 要素。作れなかったら null（呼び出し側は今までどおりのフェードに落ちる）。
+function buildHueriseBurn(色, 時間ms) {
+  try {
+    const NS = "http://www.w3.org/2000/svg";
+    const 作 = (name, attrs) => {
+      const el = document.createElementNS(NS, name);
+      for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v));
+      return el;
+    };
+    const uid = "so7hb" + Math.random().toString(36).slice(2, 8);
+    const cx = BURN_W / 2;
+    const cy = BURN_H / 2;
+    // 隅まで焼き切る半径（対角の半分）＋乱流で押しのけられる分の余裕。
+    const 終わりの半径 = Math.hypot(BURN_W, BURN_H) / 2 + 70;
+
+    const svg = 作("svg", {
+      class: "huerise-burn-svg",
+      viewBox: "0 0 " + BURN_W + " " + BURN_H,
+      width: BURN_W,
+      height: BURN_H,
+      "aria-hidden": "true",
+    });
+
+    const defs = 作("defs", {});
+
+    // ── 乱流フィルタ。ふちをぐにゃぐにゃに押しのける ──
+    // ⚠ 範囲は userSpaceOnUse の固定にする。既定（バウンディングボックス基準）だと
+    //   **穴が小さいうちは押しのけた先が切られて直線になり**、大きくなると範囲が
+    //   爆発的に広がって重くなる（両方とも実際に困る）。固定なら費用も一定。
+    const filter = 作("filter", {
+      id: uid + "-rough",
+      filterUnits: "userSpaceOnUse",
+      x: -60,
+      y: -60,
+      width: BURN_W + 120,
+      height: BURN_H + 120,
+      "color-interpolation-filters": "sRGB",
+    });
+    // 4オクターブ＝大きなうねりと細かい毛羽立ちが同時に出る（紙の繊維に見える）。
+    const turb = 作("feTurbulence", {
+      type: "fractalNoise",
+      // 🔴 撮って直した: 最初は 0.018（模様の塊が約55単位）で、**穴が小さいうちは塊1つの中に
+      //   収まってしまい、ふちが歪まずただ平行移動するだけ**だった＝ほぼ真円に見えた。
+      //   細かくして5オクターブ＝大きなうねりと細かい毛羽立ちが同時に出る（紙の繊維）。
+      baseFrequency: "0.055 0.048",
+      numOctaves: 5,
+      seed: Math.floor(Math.random() * 9999),
+      result: "noise",
+    });
+    const disp = 作("feDisplacementMap", {
+      in: "SourceGraphic",
+      in2: "noise",
+      scale: 26,
+      xChannelSelector: "R",
+      yChannelSelector: "G",
+    });
+    filter.append(turb, disp);
+    defs.appendChild(filter);
+
+    // ── 穴の形。黒＝燃えて無くなる／白＝紙が残る ──
+    // ⚠ ふちは**いきなり白**にしない。少し灰色の帯を置くと、そこだけ紙が半透明になり、
+    //   後ろの焦げ・火が透けて「焦げかけた薄い紙」に見える。
+    // 🔴 帯は**狭く**する。広いと「ぼんやり光る輪」になって、紙が焼け落ちていく感じが出ない
+    //   （撮って分かった＝最初は 0.78 から薄くしていて、赤い大きなドーナツに見えた）。
+    // ⚠ このマスク自体にはフィルタを掛けない（＝ただの真円）。乱れは下の <g> にまとめて掛ける。
+    // ⚠ ふちの帯の幅も**絶対の幅**（穴のふちから何単位 内か）で持つ。割合にすると、
+    //   穴が大きくなるほど薄い所が広がって、焦げの出る場所がずれていく。
+    const grad = 作("radialGradient", { id: uid + "-hole" });
+    const holeMid = 作("stop", { offset: "0", "stop-color": "#000" });
+    const holeNear = 作("stop", { offset: "0", "stop-color": "#555" });
+    grad.append(作("stop", { offset: "0", "stop-color": "#000" }), holeMid, holeNear, 作("stop", { offset: "1", "stop-color": "#fff" }));
+    defs.appendChild(grad);
+
+    // マスクは**はみ出した紙**（下の BURN_MARGIN 参照）まで覆う必要がある。
+    const mask = 作("mask", {
+      id: uid + "-mask",
+      maskUnits: "userSpaceOnUse",
+      x: -BURN_MARGIN,
+      y: -BURN_MARGIN,
+      width: BURN_W + BURN_MARGIN * 2,
+      height: BURN_H + BURN_MARGIN * 2,
+    });
+    mask.appendChild(
+      作("rect", { x: -BURN_MARGIN, y: -BURN_MARGIN, width: BURN_W + BURN_MARGIN * 2, height: BURN_H + BURN_MARGIN * 2, fill: "#fff" })
+    );
+    const hole = 作("circle", { cx, cy, r: 0, fill: "url(#" + uid + "-hole)" });
+    mask.appendChild(hole);
+    defs.appendChild(mask);
+
+    // ── 燃えぎわの色。内から外へ **熾火 → 炎 → 白熱 → 焦げ茶 → 黒**（実物の並び）──
+    // 半径は穴の 1.10倍にして、外側の「焦げ」が**まだ残っている紙の下に潜る**ようにする。
+    // 🔴 色の帯は**絶対の幅**で持つ（穴のふちから何単位 内／外か）。割合で持つと、
+    //   穴が大きくなるほど帯も太って**焼けたタイヤみたいな極太の黒い輪**になる（撮って分かった）。
+    //   実物の紙の焦げは、穴が大きくなっても幅はだいたい変わらない。
+    //   並びは内から外へ 熾火 → 炎 → 白熱 → 橙 → 焦げ茶 → 黒。
+    // ⚠ 焦げ（茶・黒）は**穴のふちより内側**に置く。外に置くと**まだ厚い紙の下に完全に潜って
+    //   1ミリも見えない**（撮って分かった。紙はふちより外では不透明だから当然だった）。
+    const EDGE_BANDS = [
+      { d: -52, color: 色, op: 0 },
+      { d: -40, color: 色, op: 0.42 }, // 熾火
+      { d: -30, color: "#ffc24d", op: 0.95 }, // 炎
+      { d: -23, color: "#fff3cf", op: 1 }, // 白熱
+      { d: -16, color: "#ff8c1f", op: 0.95 },
+      { d: -8, color: "#6b3410", op: 0.95 }, // 焦げ茶
+      { d: -1, color: "#140902", op: 0.95 }, // 黒
+      { d: 25, color: "#140902", op: 0.55 },
+    ];
+    const EDGE_OUTER = 25; // いちばん外の帯の位置＝この円の半径（穴のふちからの距離）
+    const HOLE_FADE_IN = -20; // 紙が薄くなり始める所
+    const HOLE_FADE_MID = -7; // 半分くらい透けている所
+    const edge = 作("radialGradient", { id: uid + "-edge" });
+    const edgeStops = EDGE_BANDS.map((b) =>
+      作("stop", { offset: "0", "stop-color": b.color, "stop-opacity": String(b.op) })
+    );
+    edge.append(作("stop", { offset: "0", "stop-color": 色, "stop-opacity": "0" }), ...edgeStops);
+    defs.appendChild(edge);
+
+    // 紙の上にうっすら出す光（紙の向こう側の火が紙を透かす分）。**控えめに。**
+    // ⚠ ここも絶対の幅。割合にすると、穴が小さいうちは**本体から離れた所に大きな輪**が
+    //   浮いて見えた（撮って分かった）。
+    const BLOOM_IN = -5;
+    const BLOOM_PEAK = 12;
+    const BLOOM_OUT = 45;
+    const bloom = 作("radialGradient", { id: uid + "-bloom" });
+    const bloomIn = 作("stop", { offset: "0", "stop-color": 色, "stop-opacity": "0" });
+    const bloomPeak = 作("stop", { offset: "0", "stop-color": 色, "stop-opacity": "0.14" });
+    bloom.append(
+      作("stop", { offset: "0", "stop-color": 色, "stop-opacity": "0" }),
+      bloomIn,
+      bloomPeak,
+      作("stop", { offset: "1", "stop-color": 色, "stop-opacity": "0" })
+    );
+    defs.appendChild(bloom);
+    svg.appendChild(defs);
+
+    // 🔴🔴 **いびつさの出し方（ここが肝）。**
+    //   前の作りは「紙のマスクだけを乱流で歪ませ、炎は真円のまま下に敷く」だった。
+    //   撮ったら **炎の輪だけがつるんとした真円**で、その外側にだけ焦げがギザギザ、という
+    //   ちぐはぐな絵になった（炎と紙のふちが別々の形だから当然だった）。
+    //   ⇒ **炎と紙を1つの <g> にまとめて、グループごと乱流で歪ませる。**
+    //     こうすると炎のふちと紙のふちが**まったく同じ形で**ぐにゃぐにゃになる。
+    //   ⚠ 歪ませると紙の**外周**も波打つので、紙は画面より BURN_MARGIN だけ大きく描いて
+    //     波打つ外周を画面の外へ追い出す（内側の穴だけが見える）。
+    //   ⚠ フィルタを掛ける要素は**この <g> 1つだけ**＝費用は前と同じ。
+    const edgeC = 作("circle", { cx, cy, r: 0, fill: "url(#" + uid + "-edge)" });
+    const paper = 作("rect", {
+      x: -BURN_MARGIN,
+      y: -BURN_MARGIN,
+      width: BURN_W + BURN_MARGIN * 2,
+      height: BURN_H + BURN_MARGIN * 2,
+      fill: "#ffffff",
+      mask: "url(#" + uid + "-mask)",
+    });
+    const burning = 作("g", { filter: "url(#" + uid + "-rough)" });
+    burning.append(edgeC, paper);
+    const bloomC = 作("circle", { cx, cy, r: 0, fill: "url(#" + uid + "-bloom)" });
+    // ⚠ 光（bloom）は歪ませない——あれは「空気が光っている」ぶんなので、輪郭を持たない方が自然。
+    svg.append(burning, bloomC);
+
+    // ── 広がり方 ──
+    // ⚠ **じわじわ**（ユーザー指定）。最初はゆっくり、後になるほど速く＝実際の紙の燃え方。
+    //   rAF で回す（CSS の @property でも動くが、同じコマで半径とフィルタの強さの両方を
+    //   動かしたいので、1か所で決める方が合う）。
+    const 始まり = performance.now();
+    let 止める = false;
+    // 🔴 **遅い端末では乱流をあきらめる保険。** feDisplacementMap は画素ごとの計算なので、
+    //   古い端末だとコマ落ちする可能性がある。最初の8コマの間隔を見て、明らかに重ければ
+    //   フィルタを外す（＝ふちは真円になるが、カクカクするよりはよい）。
+    //   ⚠ 0しか出ない見張りではない（わざと遅くすれば必ず外れる）。
+    let コマ数 = 0;
+    let 前の時刻 = 始まり;
+    let 合計間隔 = 0;
+    let フィルタを外した = false;
+    const 進む = (now) => {
+      if (止める) return;
+      if (!フィルタを外した && コマ数 < 8) {
+        合計間隔 += now - 前の時刻;
+        前の時刻 = now;
+        コマ数++;
+        if (コマ数 === 8 && 合計間隔 / 8 > 60) {
+          burning.removeAttribute("filter");
+          フィルタを外した = true;
+        }
+      }
+      const t = Math.min(1, (now - 始まり) / 時間ms);
+      const p = Math.pow(t, 1.75); // じわじわ始まって、終わりに一気に広がる
+      const r = p * 終わりの半径;
+      hole.setAttribute("r", String(r));
+      const 割 = (d) => (r > 0 ? Math.min(1, Math.max(0, (r + d) / r)) : 0);
+      holeMid.setAttribute("offset", 割(HOLE_FADE_IN).toFixed(4));
+      holeNear.setAttribute("offset", 割(HOLE_FADE_MID).toFixed(4));
+      // 色の帯を**絶対の幅**で貼り直す（穴のふちから何単位 内／外か）。
+      const R = r + EDGE_OUTER;
+      edgeC.setAttribute("r", String(R));
+      for (let i = 0; i < EDGE_BANDS.length; i++) {
+        const off = R > 0 ? Math.min(1, Math.max(0, (r + EDGE_BANDS[i].d) / R)) : 0;
+        edgeStops[i].setAttribute("offset", off.toFixed(4));
+      }
+      const R2 = r + BLOOM_OUT;
+      bloomC.setAttribute("r", String(R2));
+      bloomIn.setAttribute("offset", (R2 > 0 ? Math.max(0, (r + BLOOM_IN) / R2) : 0).toFixed(4));
+      bloomPeak.setAttribute("offset", (R2 > 0 ? Math.max(0, (r + BLOOM_PEAK) / R2) : 0).toFixed(4));
+      // 広がるほど炎のふちは大きくうねる（小さいうちに強く振ると形が崩れる）。
+      disp.setAttribute("scale", String(10 + 34 * p));
+      if (t < 1) requestAnimationFrame(進む);
+    };
+    requestAnimationFrame(進む);
+    svg.__stop = () => {
+      止める = true;
+    };
+    return svg;
+  } catch (err) {
+    console.error("buildHueriseBurn failed", err);
+    return null;
+  }
+}
 
 // ユーザー要望「1画面で複数人が遊べるモードは、実際にはそういう遊び方をさせる予定が
 // 無いので『テストモード』画面とし、ログインカードからは削除して右下に小さいボタンだけを
@@ -798,25 +1038,15 @@ export function initOpeningScreen() {
   //   ⚠ **既定に昇格させたくなったら `燃える` の右辺を true にするだけ**。ただし HUERISE は
   //     「押しても進まない」の報告が過去に4回ある場所（#277 / #424 / #455 / #460）なので、
   //     まず v2 で実機を見てから決めたい。
-  let 燃えぎわ = null;
+  // 【続き713〜714】HUERISE の「紙が燃え広がる」演出（?ui=v2 の時だけ）。
+  //   炎の色は起動のたびにランダム（ユーザー案）。このゲームの7色から1つ選ぶ
+  //   （新しい色を作らない＝世界の色のままにする）。
+  let 燃えぎわ = null; // 燃えている間だけ在る SVG。片付けのために持っておく。
   const 燃える = isUiV2();
-  if (燃える) {
-    startGate.classList.add("is-burn");
-    // 炎の色は起動のたびにランダム（ユーザー案）。このゲームの7色から1つ選ぶ
-    // （新しい色を作らない＝世界の色のままにする）。
-    const 炎の色 = ["#c70025", "#ee781f", "#fabe00", "#22ac38", "#1bb8ce", "#f19ec2", "#915da3"];
-    const その回の色 = 炎の色[Math.floor(Math.random() * 炎の色.length)];
-    startGate.style.setProperty("--burn-color", その回の色);
-    // 燃えぎわ（炎のリング）。1枚だけ。
-    // 🔴 **紙の中に入れない。** 紙にはマスクを掛けるので、子にすると
-    //   **穴より内側＝炎のいちばん明るい芯が毎コマ消される**（実測でそうなっていた＝
-    //   「炎が見えない」という形で出た）。紙の兄弟にして、紙の上（z 11）に重ねる。
-    燃えぎわ = document.createElement("div");
-    燃えぎわ.className = "opening-burn-ember";
-    燃えぎわ.style.setProperty("--burn-color", その回の色);
-  }
+  const その回の色 = ["#c70025", "#ee781f", "#fabe00", "#22ac38", "#1bb8ce", "#f19ec2", "#915da3"][
+    Math.floor(Math.random() * 7)
+  ];
   overlay.appendChild(startGate);
-  if (燃えぎわ) overlay.appendChild(燃えぎわ);
 
   document.body.appendChild(overlay);
   // ユーザー要望「オプションマークはタイトル画面から常に表示させてほしい（BGM音量など
@@ -897,7 +1127,9 @@ export function initOpeningScreen() {
     stopAuras();
     playOpeningBgm();
     startGate.style.display = "none";
-    燃えぎわ?.remove(); // 飛ばした時も残骸を置いていかない
+    燃えぎわ?.__stop?.(); // 飛ばした時も残骸を置いていかない
+    燃えぎわ?.remove();
+    燃えぎわ = null;
     storyCrawl.style.display = "none";
     overlay.classList.add("stage-title", "stage-content");
   }
@@ -929,17 +1161,28 @@ export function initOpeningScreen() {
     if (startPressed) return;
     startPressed = true;
     playOpeningBgm();
-    // 【2026-11-14・試作】v2 は「燃え広がる」、既定は今までどおりのフェード。
-    startGate.classList.add(燃える ? "is-burning" : "is-closing");
-    燃えぎわ?.classList.add("is-burning");
+    // 【2026-11-14・試作】v2 は「紙が燃え広がる」、既定は今までどおりのフェード。
+    // 🔴 **SVG を作れた時だけ**燃える方へ行く。作れなかったら今までどおりのフェード
+    //   （演出のために画面が消えなくなる、という事故が起きない形にしておく）。
+    let 燃やせた = false;
+    if (燃える) {
+      燃えぎわ = buildHueriseBurn(その回の色, BURN_TRANSITION_MS);
+      if (燃えぎわ) {
+        overlay.appendChild(燃えぎわ);
+        燃やせた = true;
+      }
+    }
+    startGate.classList.add(燃やせた ? "is-burning" : "is-closing");
+    // ⚠ 人魂は止める（止めないと、薄れていく紙の上で動き続けて目が散る）。
     stopAuras();
-    // 🔴 **効かない端末でも必ず消える**: この setTimeout は mask が動くかどうかに関係なく
-    //   走る（CSS 側の keyframes も終わりの3割で opacity を 0 にしてある＝二重の保険）。
+    // 🔴 **何が起きても必ず消える**: この setTimeout は、SVG が動くかどうかに関係なく走る。
     setTimeout(() => {
       startGate.style.display = "none";
-      燃えぎわ?.remove(); // 残骸を置いていかない
+      燃えぎわ?.__stop?.(); // rAF を止めてから外す（外した要素を描き続けない）
+      燃えぎわ?.remove();
+      燃えぎわ = null;
       beginTitleSequence();
-    }, 燃える ? BURN_TRANSITION_MS : CLOSE_TRANSITION_MS);
+    }, 燃やせた ? BURN_TRANSITION_MS : CLOSE_TRANSITION_MS);
   };
   startBtn.addEventListener("click", beginFromStart);
   startBtn.addEventListener("pointerup", beginFromStart);
