@@ -78,6 +78,7 @@ export const CHANGELOG = [
       "The Trial Ritual repeats \"declare colors, place a card on an adjacent square and step onto it, then flip it in the center\" for as long as you keep hitting. Until now the camera zoomed in on every step and immediately returned, so the view kept swinging back and forth. Now it stays in close and glides from card to card, returning to the normal view only once, after the ritual ends. If you would rather it never zoomed, the \"zoom in on key moments\" option still turns it off.",
     ],
     fixes: [
+      "勝利演出のあとにアプリが落ちてしまう件の対策を入れました（演出中の画面全体の処理をひとつ減らしました）",
       "拡張のカードが飛ぶときなどに、効果の文が空っぽのまま表示されることがあったのを直しました",
       "状況カード（経済成長など）の演出が終わる前に、選択のモーダルが出ていたのを直しました",
       "リトルマウスで、選べる相手が1人しかいない時も「誰を選んでいるか」が見えるようにしました",
@@ -99,6 +100,7 @@ export const CHANGELOG = [
       "ランク戦を待っている間のCPU練習のつまみを、右上から左上へ移しました（右上に出るカードの拡大と重なっていました）",
     ],
     fixesEn: [
+      "Reduced the memory the victory celebration uses, which has been crashing the app on phones",
       "Expansion cards no longer appear with an empty effect box while flying or flipping",
       "Situation cards no longer pop their choice dialog before the effect animation has played",
       "Little Mouse now always shows the target picker, even when there is only one candidate",
@@ -120,6 +122,7 @@ export const CHANGELOG = [
       "The ranked-wait practice chip moved from the top-right to the top-left, where it no longer overlaps the zoomed arrival card",
     ],
     devItems: [
+      "🔴 **#634／#663「勝利演出の後に落ちる」（11回目）への対策。** 続き710 で足した計器がはじめて中身を返し、山の正体が割れた——`prevPeakAllMB 106` に加えて **レイヤーだけで 79MB**（昇格レイヤー94枚）、さらに **backdrop-filter が名目 11MB**。backdrop-filter は「後ろを写し取ってから掛ける」ので **iOS では写し取り＋往復で名目の2〜3倍（24〜35MB）**持つ。しかも効いていたのは WAIT〜PULSE の約10秒＝**報告が「勝利演出中／直後に落ちた」と言っている、まさにその窓**。⇒ #318 で is-flash（後半）だけ外したのと同じことを**前半にも**やり、代わりに幕の地の色を濃くした。🔴 **濃さは実測で合わせた**（A/B を撮って盤面の画素を集計）: 幕なし 明るさ44.1／彩度0.455 ・直す前 **15.4／0.097** ・ 直した後 **15.8／0.162** ⇒ **暗さはほぼ完全に一致（+2.6%）**。違うのは彩度だけで、色が1.7倍残る。⚠ **絵を見た最初の印象は「ずいぶん明るくなった」で、それは間違いだった**（戻ってきたのは明るさではなく色）。**目ではなく画素で決めた。**⚠ 計器の一覧（`BACKDROP_SELECTORS`）と `tools/check-css.mjs` の想定行数（6→4）も一緒に直した（片方だけ直すと黙って数え落とす）。",
       "🔴 **#660「拡張カードが飛翔するとき効果欄のテキストがブランクになってる。ほかにも…総点検を！」。** 0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**（文字はアプリが描く）。`getCardImagePath` はそういう札に**文字なしの下地**（assets/cards-blank/）を返すので、**生のURLを背景に敷いている所**では「枠と絵はあるのに効果欄だけ真っ白」になっていた。#611（続き698）で `showCardFace` は直したが、**生のURLを使う所はそのまま残っていた**。⇒ `paintFaceUpCardArt` を1つ作り、**盤面・ロックエリア・捨て場／めくれる演出の表面／着地の飛翔ゴースト／捨て場のドラッグ**を全部そこへ通した。⚠ **「イラストのみ表示」がONの時は今までどおり**（文字を出さないのがその設定の意図）。⚠ 文字を焼き込んだ絵を持つ札（リメイク版34種）も今までどおり絵のまま＝**盤面に DOM のカード面を大量に作らない**（render() ごとに作り直すので重くなる）。⚠ `paintedBackgroundImage` にも保険を足した（アプリが文字を描いた札は背景が none なので、そのままだと**真っ白なゴースト**が飛ぶ。中のカード面から札のidを拾ってイラストを敷く）。",
       "🔴 **#661・#662「経済成長の状況効果で演出が終わる前にドローしますかモーダルが表示された」「だいぶ食い気味に出た」。** `playSituationCardEffect` が待っていたのは**寄り（380ms）だけ**で、波紋（2.2秒）が出た直後に選択モーダルが被さっていた。🔴 **選択を求めるモーダルは anim-gate で待たせない作り**（止めると効果の解決が進まなくなるため＝anim-gate.js の線引き）なので、**演出の側で待つ**しかない。⇒ 950ms 待ってから返す（2.2秒まるごと待つと間延びするので、輪が広がり切る手前まで）。⚠ 演出オフの人は関数の冒頭で return しているので1ミリも待たない。",
       "**#647「CPU戦とフレンドリーマッチはこのホーム画面からすでに分かれててもいいかもね！」。** ⇒ タイルを2つに分け、`startCpuBattleFromHome` に CPU戦の開始を括って**タイルからも2択のモーダルからも同じ道**を通すようにした（式を2か所に書かない＝#586 の事故）。⚠ 2択のモーダル（`openMatchChoiceModal`）と `home.tile.match` の文言は**消していない**（戻せるように）。🔴 実測で2つ直した: ①9タイルになって4列だと **4+4+1 の3行＝縦に154px はみ出した** ⇒ **5列**にして2行に戻した（実測 154 → 23px）②CPU戦に絵が無いので絵文字（🤖）を置いたら、**他が水彩の線画なのに1つだけ立体の色物**になって明らかに浮いた ⇒ v2 用に描いた**金の線画**を既定の画面でも使う。**どちらも撮って分かった**（数字だけ見ていたら②は見落とす）。",

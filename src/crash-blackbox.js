@@ -123,12 +123,12 @@ export function registerBlackboxProbe(name, fn) {
 //     ⇒ `tools/check-css.mjs` が「backdrop-filter の宣言は3か所」を見張る。
 const LAYER_SCAN_RETRY_MS = 60000;
 const LAYER_SCAN_MAX_ELEMENTS = 1200;
-// style.css で backdrop-filter を持つ要素。**2026-11-14 時点で宣言は6行・5か所。**
-// 🔴 **全画面に掛かるのは .vic-veil と #home-match-choice だけ**＝ここが #634 の疑い。
+// style.css で backdrop-filter を持つ要素。**2026-11-14（続き715）時点で宣言は4行・4か所。**
+// 🔴 **勝利演出の幕（.vic-veil）は外した**——#634 の山の正体がそこだったため（続き715）。
+//    いま全画面に掛かるのは #home-match-choice だけで、これはホームのモーダル＝対局中は出ない。
 //    残り3つは小さな帯（名前・言語トグル・称号）なので量としては誤差。
 // ⚠ 一覧が古くなると数え落とす ⇒ tools/check-css.mjs が宣言の行数を見張る。
 const BACKDROP_SELECTORS = [
-  "#victory-celebration .vic-veil", // 🔴 全画面（勝利演出の WAIT〜PULSE の間だけ効く）
   "#home-match-choice", // 全画面のモーダル（ホームなので対局中は出ない）
   ".self-status-name",
   ".self-status-hand-count",

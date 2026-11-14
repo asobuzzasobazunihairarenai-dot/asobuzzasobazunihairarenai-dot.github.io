@@ -202,7 +202,8 @@ try {
     if (/@supports/.test(line)) continue; // 機能の問い合わせは宣言ではない
     宣言.push(i + 1);
   }
-  const 想定 = 6; // 5か所（うち -webkit- 付きで2行になるものが1つ）
+  // 【続き715】勝利演出の幕（.vic-veil）の全画面 backdrop-filter を外した（2行減った）。
+  const 想定 = 4; // 4か所（いまは -webkit- 付きで2行になるものは無い）
   if (宣言.length !== 想定) {
     problems.push(
       SHOW + ": backdrop-filter の宣言が " + 宣言.length + " 行（想定 " + 想定 + "）。"

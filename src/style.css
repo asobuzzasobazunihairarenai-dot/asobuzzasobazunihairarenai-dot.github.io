@@ -12754,13 +12754,24 @@ body.victory-celebration-active #option-area {
   inset: 0;
   opacity: 0;
   transition: opacity 420ms cubic-bezier(0.3, 0, 0.2, 1);
-  background: radial-gradient(ellipse at 50% 50%, rgba(3, 4, 8, 0.35) 0%, rgba(3, 4, 8, 0.82) 100%);
-}
-@supports (backdrop-filter: saturate(1)) or (-webkit-backdrop-filter: saturate(1)) {
-  #victory-celebration .vic-veil {
-    -webkit-backdrop-filter: saturate(0.35) brightness(0.42);
-    backdrop-filter: saturate(0.35) brightness(0.42);
-  }
+  /* 🔴【#634・2026-11-14（続き715）】**画面全体の backdrop-filter をやめた。**
+     勝利演出の直後に落ちる報告が **11回**。続き710 で足した計器がはじめて中身を返し、
+     山の正体が割れた——`prevPeakAllMB 106` に加えて **レイヤーだけで 79MB**、さらに
+     **backdrop-filter が名目 11MB**。backdrop-filter は「後ろを写し取ってからぼかす」ので
+     **iOS では写し取り＋往復で名目の2〜3倍（24〜35MB）**持つ。しかも効いていたのは
+     WAIT〜PULSE の約10秒＝**報告が「勝利演出中／直後に落ちた」と言っている、まさにその窓**。
+     ⇒ #318 で **is-flash（後半）だけ外した**のと同じことを、**前半にも**やる。
+     ⚠ 失うのは**彩度落ち**で、明るさは下の値で**合わせ込んである**:
+       旧（中心） 0.42×L×0.65 + 0.35×ほぼ黒 ≒ **0.273L** ⇒ 塗りだけなら α=0.727
+       旧（周縁） 0.42×L×0.18 + 0.82×ほぼ黒 ≒ **0.076L** ⇒ 　　　　　 α=0.924
+     🔴 **実測で合っていた**（`scratchpad/p715veil.mjs` ＋ `p715cmp.mjs` で A/B を撮り、
+       盤面の中の画素を集計）: 幕なし 明るさ44.1／彩度0.455 ・ 直す前 **15.4／0.097** ・
+       直した後 **15.8／0.162**。⇒ **暗さはほぼ完全に一致（+2.6%）**。違うのは彩度だけで、
+       色が 1.7倍 残る。
+       ⚠ **絵を見た最初の印象は「ずいぶん明るくなった」で、それは間違いだった**
+         （戻ってきたのは明るさではなく色だった）。**目ではなく画素で決めること。**
+     ⚠ 塗りだけなので**写し取りが要らない＝毎コマのバッファが丸ごと消える**。 */
+  background: radial-gradient(ellipse at 50% 50%, rgba(3, 4, 8, 0.73) 0%, rgba(3, 4, 8, 0.92) 100%);
 }
 #victory-celebration.is-hushed .vic-veil { opacity: 1; }
 /* 【重さ対策・2026-09-06】白い光が画面を覆った後（.is-flash）は、この幕は白の裏に隠れて
@@ -12769,9 +12780,9 @@ body.victory-celebration-active #option-area {
    その間ずっと画面全体のフィルタが走り、実機（iPhone）で1フレーム 740→1500ms まで落ちていた
    （報告 #318 のログ）。暗い地のグラデーション自体は残すので見た目はほぼ変わらない。 */
 #victory-celebration.is-flash .vic-veil {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  /* filter を外すと盤面が白の向こうに薄く透けてしまう（白は 88% で、残り 12% に盤面が出る）。
+  /* ⚠ 続き715 で前半の backdrop-filter も外したので、ここの打ち消し（backdrop-filter: none）は
+     不要になった。地の色をほぼ不透明にする下の1行だけが意味を持つ。
+     filter を外すと盤面が白の向こうに薄く透けてしまう（白は 88% で、残り 12% に盤面が出る）。
      見た目を今までどおり「一面の白」に保つため、幕の地の色そのものをほぼ不透明にして盤面を隠す。
      ただの塗りなので、毎フレーム画面全体を作り直す backdrop-filter とは負荷が桁違いに軽い。 */
   background: rgba(3, 4, 8, 0.96);
