@@ -217,15 +217,19 @@ const GROUPS = [
     //   調整中は**マイデッキ一覧を開いておく**と反映が見える。
     //   ⚠ 既定値は style.css の var() のフォールバックと**必ず一致**させること。
     //   ⚠ 重なり（--mdl-cos-overlap）は負の margin-top。**大きくするほどデッキの絵に食い込む**。
+    //   🔴【続き719・ユーザー要望「上限の位置のレンジをもっと広く」】幅を広げた
+    //     （重なり -4〜18rem／上下 ±14rem／大きさ 〜10rem）。
+    //     ⚠ **デッキの箱は overflow: hidden** なので、**箱の外へ出した分は切られる**
+    //       （下へ大きく動かすと見えなくなる）。上へ動かす分は箱の中なので切られない。
     title: "マイデッキ：装い（駒・ペット・カード裏）の大きさと重なり",
     category: "position-ui",
     controls: [
-      { key: "--mdl-cos-size", label: "装いの大きさ（両端）", unit: "rem", min: 1, max: 6, step: 0.1, default: 2.7 },
-      { key: "--mdl-cos-size-mid", label: "装いの大きさ（真ん中）", unit: "rem", min: 1, max: 7, step: 0.1, default: 3.2 },
-      { key: "--mdl-cos-overlap", label: "デッキへの重なり（大きいほど食い込む）", unit: "rem", min: 0, max: 7, step: 0.1, default: 2.5 },
-      { key: "--mdl-cos-gap", label: "装いどうしの間隔", unit: "rem", min: 0, max: 3, step: 0.05, default: 0.75 },
+      { key: "--mdl-cos-size", label: "装いの大きさ（両端）", unit: "rem", min: 1, max: 10, step: 0.1, default: 2.7 },
+      { key: "--mdl-cos-size-mid", label: "装いの大きさ（真ん中）", unit: "rem", min: 1, max: 12, step: 0.1, default: 3.2 },
+      { key: "--mdl-cos-overlap", label: "デッキへの重なり（大きいほど食い込む）", unit: "rem", min: -4, max: 18, step: 0.1, default: 2.5 },
+      { key: "--mdl-cos-gap", label: "装いどうしの間隔", unit: "rem", min: 0, max: 8, step: 0.05, default: 0.75 },
       { key: "--mdl-cos-turn", label: "両端の振り向き", unit: "deg", min: 0, max: 60, step: 1, default: 26 },
-      { key: "--mdl-cos-lift", label: "上下の位置（＋で下へ）", unit: "rem", min: -4, max: 4, step: 0.1, default: 0 },
+      { key: "--mdl-cos-lift", label: "上下の位置（＋で下へ）", unit: "rem", min: -14, max: 14, step: 0.1, default: 0 },
     ],
   },
   {
