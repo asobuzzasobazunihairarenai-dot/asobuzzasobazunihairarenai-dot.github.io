@@ -25698,8 +25698,11 @@ body.theme-light #deck-viewer-back {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  margin: 0.2rem 0 0.5rem;
-  padding: 0.55rem 1.1rem;
+  /* 🔴【続き720・ユーザー指摘「はじめる と その上のエディション選択が近すぎない？？ｗ」】
+     ⇒ 上に間を空ける（設定の列と「始める」は別の種類のものなので、くっついていると
+       設定の一部に見える）。下の ::before の細い罫と対で効く。 */
+  margin: 1.6rem 0 0.6rem;
+  padding: 0.6rem 1.1rem;
   border: 1px solid rgba(199, 154, 71, 0.85);
   border-radius: 0.4rem;
   background: linear-gradient(100deg, #c79a47, #b0812f);

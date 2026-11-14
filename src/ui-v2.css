@@ -57,14 +57,27 @@ body.ui-v2 {
    🔴 **字の色は板に合わせて自分で持つ**（決まりごと4）。板は物の色なので
       テーマでは変わらない＝明暗どちらでも同じ見え方になる。
    ──────────────────────────────────────────────────────────────────────── */
+/* 🔴【2026-11-15・続き721】ユーザー指摘「**ショップ画面の左上の戻るボタンテクスチャが
+   ないよ。総点検を。**」⇒ 総点検したら、**8つのうち3つが存在しない id** だった:
+     #settings-back → 本物は #options-menu-back
+     #shop-back     → 本物は #shop-panel-back
+     #my-deck-list-back → 本物は #mdl-back
+   さらに #deck-viewer-back（カード一覧・続き712 で足した）は一覧に無かった。
+   ⇒ **ショップ・基本設定・マイデッキ一覧・カード一覧の4ページで1行も当たっていなかった。**
+   🔴 存在しない id は**何のエラーも出さず黙って無視される**ので、
+     「書いたのに効かない」が静かに残る。⇒ 以後は **style.css の『戻る』の
+     大きさの一覧（9つ）と同じ並び**にしてある（あちらが正）。
+   ⚠ 新しい「戻る」を足す時は、**style.css の一覧とこの一覧の両方**へ加える
+     （tools/check-css.mjs が食い違いを見張る）。 */
 body.ui-v2 #changelog-back,
-body.ui-v2 #settings-back,
+body.ui-v2 #deck-viewer-back,
 body.ui-v2 #codex-page-back,
-body.ui-v2 #shop-back,
-body.ui-v2 #my-deck-list-back,
 body.ui-v2 #profile-page-back,
 body.ui-v2 #ranking-page-back,
-body.ui-v2 #my-deck-page-back {
+body.ui-v2 #shop-panel-back,
+body.ui-v2 #mdl-back,
+body.ui-v2 #my-deck-page-back,
+body.ui-v2 #options-menu-back {
   background-color: #7a5d2b;
   background-image: url("../assets/ui-v2/brass.webp");
   background-size: 120px 120px;
@@ -1474,4 +1487,195 @@ body.ui-v2.is-tablet-device #phase-automation-turn-status {
      🔴 最初 --turn-status-phone-scale と書いた＝**存在しない名前**で、既定の1倍に
        落ちていた（style.css を見て気づいた）。 */
   transform: translateX(-50%) scale(var(--phase-turn-status-scale-phone, 1));
+}
+
+/* ============================================================================
+   ショップを試作の「組み立て」へ（2026-11-15・続き721）
+   ============================================================================
+   ユーザー指摘「**ショップ画面も試作提案のレイアウトになってないね！ほかのページも
+   全部試作の提案時のレイアウトにしてみない？**」。
+   🔴 これまで当てていたのは**角・枠・書体だけ**（続き708/718）＝ユーザーの言うとおり
+     「雰囲気を変えただけ」。試作（project/Shop.dc.html）の正体は**組み立て**だった:
+
+   | | 試作 | アプリの既定 |
+   |---|---|---|
+   | 分類 | **左の縦の列（184px）**・1行1分類・色の点つき | 上に横並びの丸いタブ |
+   | 見出し | **画面の中央**（上に小さな英字 SHOP） | 左端・金のグラデ文字 |
+   | かけら | 右上の**枠付きの札** | 右上の素の文字 |
+   | 商品 | **大きな1枚（推し）＋小さな札が4列で並ぶ** | 横1列のスクロール帯 |
+
+   🔴 **組み立てだけを CSS で変えた**（JSは1行も触っていない）。
+     ⇒ 既定の画面は1行も変わらない／v2 をやめれば1か所で戻る。
+   ⚠ **商品の札の中身（絵・名前・値段・買うボタン）には触らない。**
+     あちらは絵の層（.shop-item-bg）と位置合わせの変数を持っているので、
+     触ると絵が消えるか位置がずれる（続き708 で確認済み）。
+   ⚠ 横スクロールの仕掛け（shop.js wireHorizontalScroll）は
+     「横に溢れていなければ何もしない」作りなので、**縦並びにすると自然に黙る**
+     （JSを外す必要がない）。
+   ============================================================================ */
+
+/* ① 画面全体を「上の帯 ／ 左の列＋中身」の格子にする。
+   🔴 **`!important` と `body.shop-open` が両方要る。** shop.js は開く時に
+     `panelEl.style.display = "flex"` を**じか書き**する（閉じる時は `"none"`）。
+     じか書きは普通の規則では勝てないので important が要るが、**それだけだと
+     閉じられなくなる**（display:none も負けるので出たまま）。
+     ⇒ **開いている間だけ付く印（body.shop-open）の中に閉じ込める**
+     ＝閉じた瞬間に規則ごと外れるので、じか書きの display:none がそのまま効く。
+   ⚠ この印は shop.js が開閉で付け外しし、ui-invariants.js が対になっているか
+     見張っている（src/ui-invariants.js の { id: "shop-panel", bodyClass: "shop-open" }）。
+   🔴 **実測で分かった。** 最初は important 無しで書き、列も面も計算値に入っているのに
+     左の列が全幅のままだった（display だけが flex で残っていた）。
+     **「値は入っているのに効かない」時は、じか書きを疑う。** */
+body.ui-v2.shop-open #shop-panel {
+  display: grid !important;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas:
+    "head head"
+    "rail stat"
+    "rail grid";
+  column-gap: 1.2rem;
+}
+
+/* ② 上の帯: 左に戻る・**中央に見出し**・右にかけらと達成率。 */
+body.ui-v2 #shop-panel-header {
+  grid-area: head;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+body.ui-v2 #shop-panel-back {
+  justify-self: start;
+}
+/* 見出しは「小さな英字（::before）を1行目に、絵＋題を2行目に」。
+   🔴 flex-basis: 100% で英字だけが1行を占める＝**要素を足さずに2段にできる**
+     （JSを触らないための工夫。題の中の絵と文字は今までどおり横並び）。 */
+body.ui-v2 #shop-panel-title {
+  justify-self: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
+  row-gap: 0.25rem;
+}
+body.ui-v2 #shop-panel-title::before {
+  flex-basis: 100%;
+}
+/* かけら・達成率は試作と同じ「枠付きの札」にして横に並べる。 */
+body.ui-v2 #shop-panel-header-info {
+  grid-area: auto;
+  justify-self: end;
+  margin-left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+}
+body.ui-v2 #shop-panel-balance,
+body.ui-v2 #shop-panel-completion {
+  border: 1px solid rgba(176, 141, 63, 0.5);
+  padding: 0.3rem 0.7rem;
+  white-space: nowrap;
+}
+
+body.ui-v2 #shop-panel-status {
+  grid-area: stat;
+  padding-left: 2rem;
+}
+
+/* ③ 分類を左の縦の列へ。 */
+body.ui-v2 #shop-panel-tabs {
+  grid-area: rail;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 0.3rem 0 1rem 1.4rem;
+  /* 分類が増えても切れずに送れるようにする（親は overflow を持たない）。 */
+  overflow-y: auto;
+}
+body.ui-v2 #shop-panel-tabs > button {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+/* 試作の「分類ごとの色の点」。
+   ⚠ 色は**並び順**で振る（JSを触らないため）。分類が増えた分は金のままになるだけで、
+     壊れない。 */
+body.ui-v2 #shop-panel-tabs > button::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  background: #b08d3f;
+  transform: rotate(45deg);
+}
+body.ui-v2 #shop-panel-tabs > button:nth-child(1)::before { background: #cc5b52; }
+body.ui-v2 #shop-panel-tabs > button:nth-child(2)::before { background: #d98b45; }
+body.ui-v2 #shop-panel-tabs > button:nth-child(3)::before { background: #d8b24c; }
+body.ui-v2 #shop-panel-tabs > button:nth-child(4)::before { background: #7fa86f; }
+body.ui-v2 #shop-panel-tabs > button:nth-child(5)::before { background: #6fa2a8; }
+body.ui-v2 #shop-panel-tabs > button:nth-child(6)::before { background: #ce7f90; }
+body.ui-v2 #shop-panel-tabs > button:nth-child(7)::before { background: #9183b5; }
+
+/* ④ 商品を「大きな1枚＋小さな札」の並びへ。 */
+body.ui-v2 #shop-panel-grid {
+  grid-area: grid;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 13.5rem;
+  gap: 1.1rem;
+  padding: 0 2rem 2rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  cursor: default;
+  align-content: start;
+}
+/* 🔴 **4枚以上あるときだけ**先頭を大きくする（:has）。
+     1枚しかない分類（マイデッキ枠）で大きな札が1枚ぽつんと残るのを防ぐ。
+   ⚠ :has が効かない古い端末では「全部同じ大きさで4列に並ぶ」だけ＝壊れない。 */
+body.ui-v2 #shop-panel-grid:has(> .shop-item-card:nth-child(4)) > .shop-item-card:first-child {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+/* 🔴 札は横スクロール用に **width: 17rem のじか指定**を持っている（style.css）。
+     格子に並べると幅が余るので、**枠に合わせる**。
+   ⚠ 中身（絵の層・名前・値段・買うボタン）には触らない。 */
+body.ui-v2 #shop-panel-grid > .shop-item-card {
+  width: auto;
+  min-width: 0;
+}
+
+/* ⑤ 見出しの色。
+   🔴 既定の題は**金のグラデを文字型に切り抜く**作り（background-clip: text ＋
+     text-fill-color: transparent）。試作の見出しは**ふつうの明朝の黒**で、上に
+     小さな金の英字が乗るだけなので、切り抜きを**解いてから**色を持たせる。
+   ⚠ 解かないと ::before（英字）まで薄い金のグラデになり、実測の絵では
+     **ほとんど読めなかった**（撮って分かった。値は入っているので数字では見えない）。
+   ⚠ 教訓15: 明暗2テーマある。**暗テーマの地は暗いまま**なので、題の色はテーマで分ける。
+     英字だけは金（#b08d3f）で、どちらの地でも読める。 */
+body.ui-v2 #shop-panel-title {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
+  color: #f6eddc;
+}
+body.ui-v2.theme-light #shop-panel-title {
+  color: #241f1a;
+}
+body.ui-v2 #shop-panel-title::before {
+  -webkit-text-fill-color: currentColor;
+  color: #b08d3f;
+}
+/* 🔴 ログインしていない時、達成率は**空のまま**残る＝枠だけの空っぽの札が出ていた
+     （実測の絵で分かった）。中身が無い札は出さない。 */
+body.ui-v2 #shop-panel-balance:empty,
+body.ui-v2 #shop-panel-completion:empty {
+  display: none;
 }

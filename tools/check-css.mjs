@@ -213,6 +213,47 @@ try {
   }
 }
 
+// 🔴【2026-11-15・続き721】「戻る」の一覧が2枚の CSS でズレていないか見張る。
+//   ユーザー指摘「ショップ画面の左上の戻るボタンテクスチャがないよ」の正体は、
+//   **ui-v2.css の真鍮の一覧に、存在しない id が3つ書かれていた**こと
+//   （#settings-back / #shop-back / #my-deck-list-back）。
+//   🔴 **存在しない id は何のエラーも出さずに黙って無視される**ので、
+//     「書いたのに効かない」が静かに残る。しかも続き717 では style.css の側で
+//     **同じ事故（#deck-viewer-back の加え忘れ）**を起こしている。
+//   ⇒ 正は style.css の「大きさの一覧」。ui-v2.css の真鍮の一覧がそれと
+//     **同じ集合**であることを機械で突き合わせる。
+{
+  const v2 = fs.readFileSync(V2, "utf8");
+  const 取る = (src, re, what) => {
+    const m = src.match(re);
+    if (!m) { problems.push(what + " の『戻る』の一覧が見つからない（目印が変わった？）"); return null; }
+    return [...m[0].matchAll(/#([a-z0-9-]+-back)/g)].map((x) => x[1]).sort();
+  };
+  const 正 = 取る(src, /#changelog-back,[\s\S]*?#options-menu-back \{/, SHOW);
+  const 真鍮 = 取る(v2, /body\.ui-v2 #changelog-back,[\s\S]*?-back \{/, V2SHOW);
+  if (正 && 真鍮) {
+    const 足りない = 正.filter((x) => !真鍮.includes(x));
+    const 余り = 真鍮.filter((x) => !正.includes(x));
+    if (足りない.length || 余り.length) {
+      problems.push(
+        "「戻る」の一覧が2枚の CSS で食い違っている。"
+          + (足りない.length ? V2SHOW + " に足りない: " + 足りない.join(",") + "。" : "")
+          + (余り.length ? V2SHOW + " にだけ在る（存在しない id の疑い）: " + 余り.join(",") + "。" : "")
+          + "両方の一覧を一緒に直すこと"
+      );
+    }
+    // 🔴 そもそも**本当にその id が在るか**も見る（両方の一覧に同じ綴り間違いを
+    //   書いてしまえば上の照合は通ってしまうため）。
+    const html = fs.readFileSync(path.join(HERE, "..", "index.html"), "utf8");
+    const js = fs.readdirSync(path.join(HERE, "..", "src"))
+      .filter((f) => f.endsWith(".js"))
+      .map((f) => fs.readFileSync(path.join(HERE, "..", "src", f), "utf8"))
+      .join(" ");
+    const 無い = 正.filter((id) => !html.includes(id) && !js.includes(id));
+    if (無い.length) problems.push("「戻る」の一覧に、どこにも無い id が在る: " + 無い.join(","));
+  }
+}
+
 if (problems.length) {
   console.error("❌ CSS に問題 " + problems.length + " 件");
   for (const p of problems) console.error("  ・" + p);
