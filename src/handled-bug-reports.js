@@ -611,6 +611,26 @@ export const BUG_REPORT_FIX_NOTES = {
     ja: "直しました。行き先が「移動前のマス」＝必ず1回通っているマスなので、CPUの無意味ループ防止（同じマスへ戻るのは1回まで）に毎回弾かれていました。この札だけ上限を2にしたので戻れます（2枚で往復するのは今までどおり止まります）。",
     en: "Fixed. The destination is \"the square you came from\", which the piece has by definition already visited, so the CPU's anti-loop guard (one revisit) blocked it every time. That card now allows two, so it can step back while a genuine ping-pong is still stopped.",
   },
+  632: {
+    ja: "移しました。あのトロフィーは、ランク戦を待っている間のCPU練習で出る「相手を探し中」のつまみです（#617 で小さく畳んだもの）。右上は到達したカードの拡大が出る場所なので重なっていました。左上へ移したので、どちらも隠れません。",
+    en: "Moved. That trophy is the ranked-wait practice chip (the one collapsed in #617). The top-right corner is where the arrival card zooms in, so they overlapped; the chip now sits at the top-left.",
+  },
+  631: {
+    ja: "直しました。カードの文は「このカードをあなたの手札に加える。」が**先**に書かれているのに、既定の「効果の後に手札へ加える」で処理していました。この札は条件が**財力（手札の枚数）**なので、先に入るかどうかで対象になる人が変わります。先に手札へ入れるようにしました。",
+    en: "Fixed. The card reads “add this card to your hand” FIRST, but it was using the default “add after the effect”. That matters because the condition is wealth (= hand size), so the timing changes who qualifies. It now goes to your hand before the effect runs.",
+  },
+  633: {
+    ja: "直しました。「場の中央に表向きで置く」はオープンする効果ではないので、めくる演出を出さないようにしました（置く直前に表向きにしているぶんが、裏→表のめくりとして見えていました）。",
+    en: "Fixed. Placing a card face up in the centre is not an “open” action, so the flip animation no longer plays there.",
+  },
+  635: {
+    ja: "直しました。ログインのカードを描き直す処理が途中で待つので、2回続けて呼ばれると『両方が先に中身を消して、待ち終わってから両方が足す』で二重になっていました。新しい描き直しが始まっていたら前の回は捨てるようにしました。",
+    en: "Fixed. The sign-in card re-render awaits mid-way, so two calls in quick succession each cleared and then each appended, producing two copies. A stale run is now discarded.",
+  },
+  636: {
+    ja: "直しました。日付の括弧（11/15まで）は途中で折らないようにしました。あわせて、短い文は行の長さをそろえる（最後の行に1〜2文字だけ残らない）ようにしています。",
+    en: "Fixed. The date in parentheses no longer breaks across lines, and short texts now balance their line lengths so a line never ends with one or two orphan characters.",
+  },
   628: {
     ja: "重みを上げました。相手の隣で手番を終えるのは元から減点していたのですが、前進＋そのマスの札の価値に負けていました（実際の手を足すと +6 対 −4 で「行く」になっていました）。減点を −6 にしたので、割に合わない時は近づきません。",
     en: "Re-weighted. Ending a turn next to an opponent was already penalised, but the advance plus the card's value outweighed it (+6 against -4 in the actual move). The penalty is now -6, so the CPU no longer walks into a bad trade.",

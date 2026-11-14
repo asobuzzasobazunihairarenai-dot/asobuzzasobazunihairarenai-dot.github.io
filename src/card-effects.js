@@ -1841,6 +1841,9 @@ export const CARD_EFFECTS = {
   //   マスに止まるかどうかだけで、ここは**オープンしない**指定なので差が出ない。
   "1st-red-poor-march": {
     arrival: {
+      // 🔴【#631】文は「**このカードをあなたの手札に加える。**財力２以下の…」の順。
+      //   先に手札へ入るので、自分の財力はその1枚ぶん増えた状態で数える。
+      addsCardToHandFirst: true,
       actions: [{ verb: VERBS.QUALIFYING_PLAYERS_DRAW_AND_MOVE, qualifyWealth: { max: 2 }, draw: 2, move: 2 }],
     },
     handEffect: {

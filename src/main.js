@@ -1493,6 +1493,12 @@ function isEternalLockRenderSuppressed(token) {
 // 同じ「perspective + 盤面と同じ傾き」の入れ子なので、WebGL描画のON/OFFに左右されない）。
 const lastBoardFaceUpById = new Map();
 const flippingOpenTokenIds = new Set();
+// 🔴【#633・2026-11-14】報告「建設バブルを手札から場の中央に置く時、場の中央でカードが
+//   捲れる演出が起こってます。『オープンする』という効果では無いので、最初から表向きなだけです。」
+//   ⇒ **表向きで置くと分かっている札は、めくる演出を出さない。**
+//   ⚠ 直前の move で一度 face-down として描かれるので、その後の表向き化が
+//     「裏→表」に見えて演出が走っていた（#503/#597 の先回りのめくりでも消えなかった所）。
+const skipFlipOpenTokenIds = new Set();
 const pendingFlipOpens = [];
 const CARD_FLIP_OPEN_MS = 460;
 function noteBoardCardFaceUp(token) {
@@ -1502,6 +1508,7 @@ function noteBoardCardFaceUp(token) {
   if (!onCell || was !== false || !token.faceUp) return;
   if (isArrivalEffectDisabled()) return; // 「演出をやめる」設定を尊重
   if (flippingOpenTokenIds.has(token.id)) return;
+  if (skipFlipOpenTokenIds.has(token.id)) return; // 【#633】表向きで置くだけの札
   flippingOpenTokenIds.add(token.id);
   pendingFlipOpens.push({ tokenId: token.id, cardId: token.cardId, backUrl: cardBackImageForToken(token) });
 }
@@ -2002,8 +2009,14 @@ async function moveAndSyncForEffect__inner(tokenId, location, soundName, suppres
   if (animOpts?.landFaceUp && location?.zone === "cell") {
     const 置いた札 = getState().tokens.find((t) => t.id === tokenId);
     if (置いた札 && 置いた札.faceUp === false) {
-      await flipToFaceUpForEffect(tokenId, { skipCamera: true });
-      render(); // めくった面でゴーストと実カードを揃える（この後ずっと隠れているので見えない）
+      // 【#633】ここは「オープンする」ではなく「最初から表向き」なので、めくる演出は出さない。
+      skipFlipOpenTokenIds.add(tokenId);
+      try {
+        await flipToFaceUpForEffect(tokenId, { skipCamera: true });
+        render(); // めくった面でゴーストと実カードを揃える
+      } finally {
+        skipFlipOpenTokenIds.delete(tokenId);
+      }
     }
   }
   if (landingSourceRect) await playCardCellLanding(landingSourceRect, location, tokenId, !!animOpts?.landFaceUp);

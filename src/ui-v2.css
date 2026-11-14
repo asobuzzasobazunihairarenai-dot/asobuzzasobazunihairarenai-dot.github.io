@@ -1172,3 +1172,27 @@ body.ui-v2 .mds-deck-art,
 body.ui-v2 .mdl-deck-art {
   border-radius: 0;
 }
+
+/* ═══ 【#636・2026-11-14】中途半端な改行の総点検 ═══
+   ユーザー指摘「『まで』の改行が見栄え的に残念。**中途半端な改行は基本的に見栄え的に
+   残念です。長文ならいいけどね。総点検して。**」。
+   🔴 日本語は**語の途中でも折れる**ので、CSS で「ここで折るな」と言える所は限られる。
+     打てる手は2つで、両方入れた:
+     ① **括弧や日付のような塊は折らない**（nowrap の span に分ける＝文ごとの手当て）
+     ② **短い文は行を揃える**（text-wrap: balance）——最後の行に1〜2文字だけ残る
+        「取り残し」を、ブラウザが行を分け直して防いでくれる。
+   ⚠ ② は**短い文にだけ**当てる（長文に当てると読みにくくなる・対応は Chrome/Safari の新しい版）。 */
+body.ui-v2 .home-screen-cf-until {
+  white-space: nowrap;
+}
+body.ui-v2 #home-screen-cf .home-screen-cf-main,
+body.ui-v2 .home-screen-tile-label,
+body.ui-v2 .opening-v2-lead,
+body.ui-v2 .opening-v2-desc,
+body.ui-v2 [class$="-modal-title"],
+body.ui-v2 .options-menu-section-title,
+body.ui-v2 .ranking-page-column-heading,
+body.ui-v2 #home-v2-title,
+body.ui-v2 #home-v2-subtitle {
+  text-wrap: balance;
+}

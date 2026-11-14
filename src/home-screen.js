@@ -183,6 +183,14 @@ function buildCrowdfundingBanner() {
   const main = document.createElement("span");
   main.className = "home-screen-cf-main";
   main.textContent = t("home.cf.title");
+  // 🔴【#636・2026-11-14】報告「『まで』の改行が見栄え的に残念。中途半端な改行は基本的に
+  //   見栄え的に残念です。」。日付の括弧が「（11/15／まで）」と2行に割れていた。
+  //   ⇒ **括弧の中は途中で折らない**（別の span にして white-space: nowrap）。
+  //   ⚠ 文を短くする手もあるが、締切の日付は**いちばん伝えたい情報**なので消さない。
+  const until = document.createElement("span");
+  until.className = "home-screen-cf-until";
+  until.textContent = t("home.cf.until");
+  main.appendChild(until);
   const cta = document.createElement("span");
   cta.className = "home-screen-cf-cta";
   cta.textContent = t("home.cf.cta");

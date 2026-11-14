@@ -975,12 +975,21 @@ export function initOpeningScreen() {
     return link;
   }
 
+  // 🔴【#635・2026-11-14】報告「なんか二段書きになってる」（ログインのカードの中身が2つ並ぶ）。
+  //   renderCard は途中で getCurrentUser() を**待つ**ので、2回続けて呼ばれると
+  //   「両方が先に innerHTML を空にし、待ち終わってから**両方が中身を足す**」＝二重になる。
+  //   （v2 でパネルを最初から開く showCard() と、ログイン済みの自動 showCard() が重なった。）
+  //   ⇒ 回ごとに番号を振り、待っている間に新しい回が始まっていたら**その回は捨てる**。
+  //   ⚠ v2 に限らない話——onAuthChange は何度も鳴るので、既定の画面でも起こり得た。
+  let renderCardSeq = 0;
   async function renderCard() {
+    const 私の回 = ++renderCardSeq;
     card.innerHTML = "";
     card.appendChild(createModalCloseX(hideCard));
 
     const available = isOnlineAvailable();
     const user = available ? await getCurrentUser() : null;
+    if (私の回 !== renderCardSeq) return; // 【#635】新しい描き直しが始まっていた＝この回は捨てる
 
     // テストモード経由でログインし終えた場合、「オンラインで続ける」を挟まずそのまま
     // 盤面へ進む（Googleログイン・マジックリンクはページ再読み込みを伴うため、ここが

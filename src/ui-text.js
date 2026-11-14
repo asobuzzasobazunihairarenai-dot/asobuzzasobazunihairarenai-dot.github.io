@@ -10,7 +10,9 @@ import { getLang } from "./i18n.js";
 const UI = {
   ja: {
     // --- ホーム画面（home-screen.js） ---
-    "home.cf.title": "クラウドファンディング実施中 ― 原点の「0th EDITION」を作り直します（11/15まで）",
+    // 【#636】日付の括弧は別の span にして途中で折らない（home-screen.js 参照）。
+    "home.cf.title": "クラウドファンディング実施中 ― 原点の「0th EDITION」を作り直します",
+    "home.cf.until": "（11/15まで）",
     "home.cf.cta": "CAMPFIRE で見る →",
     "home.subtitle": "ホーム",
     "firstSteps.label": "次にやること",
@@ -2212,7 +2214,8 @@ const UI = {
   },
   en: {
     // --- Home screen ---
-    "home.cf.title": "Crowdfunding live - remaking the original 0th EDITION (until Nov 15)",
+    "home.cf.title": "Crowdfunding live - remaking the original 0th EDITION",
+    "home.cf.until": " (until Nov 15)",
     "home.cf.cta": "View on CAMPFIRE →",
     "home.subtitle": "Home",
     "firstSteps.label": "Next up",

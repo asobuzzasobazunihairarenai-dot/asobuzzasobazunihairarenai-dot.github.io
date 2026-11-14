@@ -2102,6 +2102,17 @@ async function runAction(action, ctx, helpers) {
             t("ce.flippedCard", { name: helpers.getPlayerName(ctx.player), card: cardDisplayName(revealedCardId) })
           );
         }
+        // 🔴【#630（#508 の再発）・2026-11-14】報告「笛で駒の足元をオープンした時、到達効果が
+        //   起きませんでした」。**読みだけでは決められない**——engine はここで必ず到達を
+        //   呼んでいるのに、行動ログに到達の行が1つも無かった。どこで消えたのかを残す。
+        //   ⚠ 0しか出ない計器ではない（オープンするたびに1行出る）。
+        logAction("diag-flip-arrival", {
+          cardId: ctx.cardId,
+          cell: chosen.row + "," + chosen.col,
+          revealedCardId: revealedCardId ?? null,
+          駒がいる: hasPieceAt(chosen.row, chosen.col),
+          駒の持ち主: getState().tokens.find((t) => t.kind === "piece" && t.location.zone === "cell" && t.location.row === chosen.row && t.location.col === chosen.col)?.player ?? null,
+        });
         if (revealedCardId) {
           // #93: 内側の到達チェーンを最後まで待ってから次の1枚へ（fire-and-forgetにしない）。
           await helpers.maybeTriggerArrivalForPlacedCard?.({ zone: "cell", row: chosen.row, col: chosen.col }, revealedCardId);
@@ -5276,6 +5287,21 @@ export async function runArrivalEffect(ctx, helpers) {
       cardId: ctx.cardId, player: ctx.player, wealth: formatWealth(getWealth(ctx.player)),
       need: describeWealthRequirement(effectDef.wealth),
     });
+  }
+  // 🔴【#631・2026-11-14】カードの文が「**このカードをあなたの手札に加える。**」で始まる札は、
+  //   効果より**先**に手札へ入る。ただの順番の話ではない——貧民の行進の条件は**財力**
+  //   （＝手札の枚数）なので、先に入るかどうかで**対象になる人が変わる**。
+  //   ⚠ 既定の後処理は「盤面（cell）に残っていれば」という条件なので、
+  //     ここで先に動かせば自然に素通りする（二重に手札へ入らない）。
+  if (effectDef.addsCardToHandFirst) {
+    const 札 = getState().tokens.find((t) => t.id === ctx.cardTokenId);
+    if (札 && 札.location.zone === "cell") {
+      const 先の宛先 = redirectArrivalHandTarget(ctx.player);
+      const 先のcardId = 札.cardId;
+      const 先は表 = !!札.faceUp;
+      await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: 先の宛先 });
+      helpers.announceCardAddedToHand?.(先のcardId, 先の宛先, 先は表);
+    }
   }
   for (const action of 財力を満たす ? effectDef.actions : []) {
     if (action.stopIfPreviousFailed && !直前が成功) break;

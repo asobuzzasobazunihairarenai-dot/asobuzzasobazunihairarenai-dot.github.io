@@ -25383,3 +25383,26 @@ body .situation-ring.is-delayed2 { animation-delay: 0.95s; }
   100% { transform: translate(-50%, -50%) scale(5.2); opacity: 0; }
 }
 body.reduce-glow .situation-bloom { animation-duration: 1s; }
+
+/* 🔴【#636・2026-11-14】クラファンの帯の日付は、括弧の途中で折らない。
+   報告「『まで』の改行が見栄え的に残念」。文は home-screen.js が2つの span に分けている。
+   ⚠ この帯は**既定の画面でも出る**ので、v2 だけでなくここにも要る。 */
+.home-screen-cf-until {
+  white-space: nowrap;
+}
+
+/* 🔴【#632・2026-11-14】ユーザー指摘「このトロフィーアイコンは**左端のがいい**」。
+   報告の層の一番上が #ranked-practice-banner.is-collapsed ＝ #617 で入れた 🏆 のつまみ。
+   到達の札（右上に出る拡大カード）と同じ所に居て重なっていた。
+   ⚠ #617 の時に「左上は題字・右上はアイコン列で埋まっている」と書いて右に残したが、
+     **あれは帯が幅いっぱいに広がっていた頃の話**。つまみに畳んだ今は左端に収まる。
+   ⚠ 開いた時は左から右へ伸びる（画面の右半分は到達の札が使うので、そちらを空けておく）。 */
+#ranked-practice-banner {
+  left: 0.6rem;
+  right: auto;
+}
+body.is-phone-device #ranked-practice-banner,
+body.is-tablet-device #ranked-practice-banner {
+  left: 0.6rem;
+  right: auto;
+}
