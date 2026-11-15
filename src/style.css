@@ -26546,3 +26546,14 @@ body.is-phone-device .card-pack-why,
 body.is-tablet-device .card-pack-why {
   font-size: 1.4rem;
 }
+
+/* 【続き730】パック画面の診断の1行（管理者だけ）。小さく、でも読める大きさで。 */
+.card-pack-diag {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  word-break: break-all;
+}
+body.is-phone-device .card-pack-diag,
+body.is-tablet-device .card-pack-diag {
+  font-size: 1.25rem;
+}

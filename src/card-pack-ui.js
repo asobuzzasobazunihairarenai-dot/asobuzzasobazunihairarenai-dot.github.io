@@ -36,6 +36,7 @@ import {
   redeemWildcard,
   claimDailyChallenge,
   claimWeekly,
+  fetchBalanceDirect,
   adminGrantAllCards,
   adminResetCards,
 } from "./card-packs.js";
@@ -59,6 +60,11 @@ let backdrop = null;
 let 再描画 = () => {};
 let いまの引き = null; // [{ cardId, only, isNew, shard, rare, めくった }]
 let 知らせ = null; // 画面の上に出す1行（エラー・結果）
+// 🔴 最後に起きたエラーの**生の文**（診断用。管理者だけに出す）。
+//   文言にした後では「うまくいきませんでした」としか分からず、原因に辿り着けない。
+let 生のエラー = null;
+// 表から直接読んだ残高（診断用。RPC の値と並べる）。
+let 直接の残高 = null;
 let 忙しい = false;
 let 管理者 = false;
 
@@ -106,12 +112,21 @@ function ボタン(文, 中身, { 主役 = false, 無効 = false } = {}) {
       await 中身();
     } catch (err) {
       知らせ = 文言にする(err);
+      生のエラー = 生の文(err);
     } finally {
       忙しい = false;
       再描画();
     }
   });
   return b;
+}
+
+// 診断用に、返ってきた物をそのまま1本の文字列にする。
+function 生の文(err) {
+  if (!err) return null;
+  const 組 = [err.code, err.message, err.details, err.hint]
+    .filter((x) => typeof x === "string" && x);
+  return 組.length ? 組.join(" | ") : String(err);
 }
 
 // サーバーが投げた理由を、プレイヤーの言葉に直す。
@@ -362,6 +377,19 @@ function 中身を組む(inner) {
 
   inner.appendChild(持ち物の行());
 
+  // 🔴 診断（管理者だけ）。「0 と出るが実際は違う」のような時に、**何が返ってきたか**を見る。
+  if (管理者) {
+    const c2 = getCollection();
+    const d = document.createElement("div");
+    d.className = "card-pack-diag";
+    d.textContent =
+      "診断: 読めた=" + (c2.読んだ ? "はい" : "いいえ") +
+      " / セヴル(RPC)=" + c2.balance + " / セヴル(表から直接)=" + (直接の残高 === null ? "?" : 直接の残高) +
+      " / パック=" + c2.packs + " / カード=" + Object.keys(c2.cards).length + "種" +
+      (生のエラー ? " / 最後のエラー: " + 生のエラー : "");
+    inner.appendChild(d);
+  }
+
   const actions = document.createElement("div");
   actions.className = "card-pack-actions";
   const c = getCollection();
@@ -460,8 +488,12 @@ export async function openCardPackPanel(admin) {
   // 開いた時にいちど読み直す（別の端末で買っていることもある）。
   try {
     await refreshCollection();
+    生のエラー = null;
   } catch (err) {
     知らせ = 文言にする(err);
+    生のエラー = 生の文(err);
   }
+  // 🔴 表からも直接読む（RPC と食い違ったら、どちらが悪いかが1回で分かる）。
+  if (管理者) 直接の残高 = await fetchBalanceDirect();
   再描画();
 }

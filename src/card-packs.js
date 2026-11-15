@@ -139,6 +139,17 @@ export async function noteProgress(kind, amount = 1) {
     console.error("noteProgress failed", err);
   }
 }
+// 🔴 診断用: 表から直接読んだ残高（ショップの表示と同じ道）。RPC の値と食い違ったら、
+//   どちらが悪いかが1回で分かる。読めない時は null。
+export async function fetchBalanceDirect() {
+  try {
+    if (!通信?.getBalanceDirect) return null;
+    return await 通信.getBalanceDirect();
+  } catch (e) {
+    return null;
+  }
+}
+
 // 管理用。
 export async function adminGrantAllCards() {
   入れる(await 呼ぶ("adminGrantAll"));

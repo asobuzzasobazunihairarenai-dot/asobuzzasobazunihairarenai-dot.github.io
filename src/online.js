@@ -1575,6 +1575,9 @@ async function カード持ち物RPC(名, 引数) {
 // card-packs.js へ渡す束（あちらは online.js を import しない＝循環を作らないため）。
 export const collectionTransport = {
   isLoggedIn: () => !!cachedUser,
+  // 🔴 診断用: **表から直接**読んだ残高（ショップの表示と同じ道）。RPC の値と並べると、
+  //   食い違った時に「どちらが悪いか」が1回で分かる。
+  getBalanceDirect: () => getMyCurrencyBalance(),
   getCollection: () => カード持ち物RPC('so7_get_my_collection'),
   buyPack: (n) => カード持ち物RPC('so7_buy_pack', { p_count: Math.max(1, Math.floor(Number(n) || 1)) }),
   openPack: () => カード持ち物RPC('so7_open_pack'),
