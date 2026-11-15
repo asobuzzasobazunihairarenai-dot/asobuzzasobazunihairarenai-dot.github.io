@@ -369,7 +369,9 @@ export function openMyStackEditor() {
       panel.style.display = "none";
       backdrop.style.display = "none";
     };
-    backdrop = createBackdrop(close, { dim: true, zIndex: 2400, blocksGame: false });
+    // 🔴【続き734】パネル(2661)と一緒に上げる。覆いだけ下に残すと、マイページが
+    //   覆いの上に出てしまい「後ろに開いた」のと同じ見え方になる。
+    backdrop = createBackdrop(close, { dim: true, zIndex: 2660, blocksGame: false });
     panel = buildPanel(close);
     document.body.appendChild(backdrop);
     document.body.appendChild(panel);

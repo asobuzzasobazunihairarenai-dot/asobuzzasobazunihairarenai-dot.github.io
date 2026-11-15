@@ -615,6 +615,12 @@ function openMatchChoiceModal(opts = {}) {
     editBtn.className = "home-match-choice-stack-edit";
     editBtn.textContent = t("home.matchChoice.stackEdit");
     editBtn.addEventListener("click", async () => {
+      // 🔴【続き734・#675】**先にこのモーダルを閉じる**。
+      //   設定モーダルは z 9200 で、マイ山札の画面(2661)より上。閉じずに開くと
+      //   **モーダルの後ろ**に開いてしまう（マイページで起きたのと同じ形）。
+      //   ⚠ 上げて重ねる手もあるが、モーダルを全画面ページの後ろに残すのは筋が悪い
+      //     （閉じ方が2つ重なる）。ここは閉じるのが正しい。
+      closeMatchChoiceModal();
       const m = await import("./my-stack-editor.js");
       // 未公開の0th拡張・1st EDITION の札は管理者だけに見せる（カードセットの選択と同じ扱い）。
       m.setMyStackShowAllSets(isAdminUser());

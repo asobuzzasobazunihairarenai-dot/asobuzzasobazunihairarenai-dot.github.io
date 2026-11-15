@@ -25854,7 +25854,10 @@ body.theme-light #card-pack-back {
   inset: 0;
   overflow-y: auto;
   padding: 1rem 1.2rem 2rem;
-  z-index: 2401;
+  /* 🔴【続き734・#675】2401 だと **マイページ(2650) の後ろ**に開いていた
+     （ユーザー報告「押しても何も起きません。多分ですが背後で開いてるかも」）。
+     ⇒ マイページより上、オプションエリアの帯(2700)より下へ。 */
+  z-index: 2661;
   background: rgba(15, 23, 32, 0.98);
   color: #e2e8f0;
   font-family: sans-serif;
@@ -26206,7 +26209,9 @@ body.is-tablet-device .my-stack-note {
   inset: 0;
   overflow-y: auto;
   padding: 1rem 1.2rem 2rem;
-  z-index: 2401;
+  /* 【続き734】マイ山札と同じ理由で上げる（いまはホームからしか開かないが、
+     同じ家族の画面なので前後関係をそろえておく）。 */
+  z-index: 2663;
   background: rgba(15, 23, 32, 0.98);
   color: #e2e8f0;
   font-family: sans-serif;

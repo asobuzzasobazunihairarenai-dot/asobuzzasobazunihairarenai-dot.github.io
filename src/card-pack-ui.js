@@ -469,7 +469,8 @@ export async function openCardPackPanel(admin) {
       panel.style.display = "none";
       backdrop.style.display = "none";
     };
-    backdrop = createBackdrop(close, { dim: true, zIndex: 2400, blocksGame: false });
+    // 【続き734】パネル(2663)と一緒に上げる。
+    backdrop = createBackdrop(close, { dim: true, zIndex: 2662, blocksGame: false });
     panel = document.createElement("div");
     panel.id = "card-pack-panel";
 
