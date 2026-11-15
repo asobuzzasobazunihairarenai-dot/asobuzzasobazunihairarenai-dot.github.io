@@ -194,6 +194,9 @@ const TILES = [
   //   今は管理者だけが見れるようにしてください。**」
   //   ⚠ `adminOnly: true` を見て**管理者以外の画面にはこのタイルごと出さない**
   //     （2か所の組み立て＝既定と v2 の両方で同じ関数 出すタイル() を通す）。
+  //   🔴【続き731】ユーザー判断「**パックを開けるはまだV2だけにしませんか？**」。
+  //     ⇒ `v2Only: true` も付けて、**?ui=v2 の時だけ**出す。まだ出来たてで、
+  //       サーバーの用意（SQL）も要るので、既定の画面に出すのは早い。
   //   ⓘ 試作（project/Main.dc.html）に在って、続き704 で「中身が無いので置かない」と
   //     見送ったタイル。マイ山札（続き725/726）が入って中身ができたので置く。
   //   ⚠ 絵のアイコンがまだ無いので線画（V2_ICON.shop）を使い回す。
@@ -204,6 +207,7 @@ const TILES = [
     labelKey: "home.tile.packs",
     status: "ready",
     adminOnly: true,
+    v2Only: true,
     onOpen: async () => {
       const m = await import("./card-pack-ui.js");
       m.openCardPackPanel(true);
@@ -215,7 +219,8 @@ const TILES = [
 // どちらも必ずここを通す（片方だけ直すと「ある時だけ出る」＝#477 の形になる）。
 function 出すタイル() {
   const admin = isAdminUser();
-  return TILES.filter((t) => !t.adminOnly || admin);
+  const v2 = isUiV2();
+  return TILES.filter((t) => (!t.adminOnly || admin) && (!t.v2Only || v2));
 }
 
 // クラウドファンディングの帯。期限を過ぎたら null を返す（＝出さない）。
