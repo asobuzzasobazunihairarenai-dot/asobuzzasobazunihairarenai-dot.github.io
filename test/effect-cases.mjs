@@ -4207,6 +4207,32 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#672・2026-11-15】「飛空艇アルヴァが不発の時手札に加わりませんでした」。
+    //   財力６に届かない＝到達効果が1つも起きない。この札は addsCardToHandAfter:false
+    //   （自分で「あなたの隣に置く」と書いてあるため）だが、**置く行動が起きていない**ので
+    //   ルールブックの原則どおり手札に入るのが正しい。
+    name: "飛空艇アルヴァ(到達): 財力が足りず不発なら、これは手札に加わる（#672）",
+    kind: "arrival",
+    cardId: "1st-white-airship",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-white-airship", faceUp: true, location: { zone: "cell", row: 0, col: 0 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-white-airship", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    picks: {},
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+      { kind: "handCount", player: "A", n: 3 }, // 2枚 ＋ これ
+      { kind: "pieceAt", player: "A", row: 0, col: 0 }, // 動かない
+    ],
+  },
+  {
     name: "大富豪の気紛れ(到達): ２枚ドローし、財力が１番多い人へこれを渡す",
     kind: "arrival",
     cardId: "1st-white-whim",

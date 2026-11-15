@@ -16,7 +16,7 @@
 // 「呼び出し元に注入してもらう」設計）。
 
 import { getState } from "./state.js";
-import { VERBS, TARGETS, TARGET_SELECTIONS, CARD_EFFECTS, optionLabel } from "./card-effects.js";
+import { VERBS, TARGETS, TARGET_SELECTIONS, CARD_EFFECTS, optionLabel, effectActionsHandleSelf } from "./card-effects.js";
 import { getCardDefinition } from "./cards-data.js";
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ11: 表示用のカード名
 import { wealthSatisfies, wealthNeedsDeclaration, wealthCountFor, formatWealth, describeWealthRequirement } from "./wealth.js"; // 1st EDITION の【財力】
@@ -5342,8 +5342,20 @@ export async function runArrivalEffect(ctx, helpers) {
   // 1つ以上あるのに1つも実際には起きなかった場合だけが対象——なないろの欠片のように
   // actions:[]（＝到達効果自体が元々存在しないカード）は「不発」ではなく仕様通りの
   // 「何もしない」なので、こちらは対象外にする。
-  if (effectDef.actions.length > 0 && !hadEffect) {
-    await helpers.announceFizzle?.(ctx.cardId, effectDef.addsCardToHandAfter !== false);
+  // 🔴【#672・2026-11-15】ユーザー報告「飛空艇アルヴァが**不発の時**手札に加わりませんでした。
+  //   総点検を。」。アルヴァは `addsCardToHandAfter: false`（自分で「あなたの隣に置く」と
+  //   書いてあるため）なので、**財力６に届かず1つも起きなかった時でも手札に入らなかった**。
+  //   ⇒ ルールブックの原則（このすぐ上のコメント）どおり、**「これは手札に加えない」と
+  //     書かれていない限り、不発なら札は手に入る**。
+  //   ⓘ 見分けは `effectActionsHandleSelf`（card-effects.js に1つだけ置いた）:
+  //     true ＝「置く／捨てる／渡す」と効果の文が自分で書いている札＝その行動が起きなければ
+  //     盤面に取り残されるので**手札へ**。false ＝「これは手札に加えない」と印字されている札
+  //     （我忘れの白き龍など）＝今までどおり**手札へ入れない**。
+  const 不発 = effectDef.actions.length > 0 && !hadEffect;
+  const 既定で手札へ =
+    effectDef.addsCardToHandAfter !== false || (不発 && effectActionsHandleSelf(effectDef));
+  if (不発) {
+    await helpers.announceFizzle?.(ctx.cardId, 既定で手札へ);
   }
   // 既定動作（到達効果処理後にこのカード自身を手札に加える）。明示的にfalseの時だけ省略する
   // （docs/cards.mdの凡例通り）。
@@ -5357,7 +5369,7 @@ export async function runArrivalEffect(ctx, helpers) {
   // 無条件にctx.cardTokenIdを「到達プレイヤーの手札」へ動かしてしまい、既に
   // 別のプレイヤーへ渡っていたはずのカードを奪い返す形になっていた。このカードが
   // まだ盤面（cellゾーン）に残っている場合だけ既定動作を行うようにする。
-  if (effectDef.addsCardToHandAfter !== false && !arrivalCardMovedByEffect) {
+  if (既定で手札へ && !arrivalCardMovedByEffect) {
     const currentToken = getState().tokens.find((t) => t.id === ctx.cardTokenId);
     if (currentToken && currentToken.location.zone === "cell") {
       // 手札へ移す前に、獲得するカードのidと公開状態を控えておく（移動後はcellから消えるため）。

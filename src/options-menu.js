@@ -19,7 +19,7 @@ import {
   getPseudoCpuDeadlineMs,
   setPseudoCpuDeadlineMs,
 } from "./admin.js";
-import { openDeckViewer } from "./deck-viewer.js";
+import { openDeckViewer, deckViewerTitle } from "./deck-viewer.js";
 import { canResignNow, requestResign } from "./resign.js";
 import { isLockAreaBarVisible, setLockAreaBarVisible } from "./lock-area-bar.js";
 import { isLockColorVisible, setLockColorVisible } from "./lock-color.js";
@@ -1291,7 +1291,7 @@ export function initOptionsMenu() {
       panel.appendChild(basicDivider);
 
       panel.appendChild(
-        buildMenuItem("📋 " + t("deckviewer.title"), () => {
+        buildMenuItem("📋 " + deckViewerTitle(), () => {
           close();
           openDeckViewer();
         })

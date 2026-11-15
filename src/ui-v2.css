@@ -2253,3 +2253,17 @@ body.ui-v2 .options-v2-body > details.options-menu-details {
   border-radius: 0;
   padding: 0.3rem 0.8rem 0.6rem;
 }
+
+/* 🔴【続き722・追記】ユーザー報告「マイページでマイデッキが他の表示と被ってます」。
+   **実際のブラウザで測った**（本番 ?ui=v2・ログイン済み）:
+     メインデッキの札  x1299 y363 416x629
+     重なり            着せ替え **73,420px²** ／ 戦績 **32,064px²**
+   メインデッキの札（#profile-maindeck）は**カードの外**に、管理者が決めた座標
+   （--profile-maindeck-* ＝ 右から2.5rem・幅10.5rem・2.25倍）で置いてある飾り。
+   ⇒ **その座標には触らず**、2列の方を右へ食い込ませないようにする。
+   ⓘ 右から 2.5rem ＋ 10.5rem×2.25 ＝ 約26rem が、あの札の占める帯。
+     少し余裕を見て 25rem ぶん空ける（中身はその残りの中で中央に来る）。 */
+body.ui-v2 #profile-page-card {
+  padding-right: 25rem;
+  box-sizing: border-box;
+}

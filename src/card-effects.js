@@ -2650,20 +2650,7 @@ export function generateEffectText(effectDef) {
   // 行方を明示している場合は、docs/cards.md側にも「これは手札に加えない」の一文が
   // 存在しない（なないろの巨光・色落ちキャット・黒の契約の烙印で確認済み）ため、
   // 冗長な一文を足さない。
-  const actionsHandleSelf = effectDef.actions?.some(
-    (a) =>
-      a.verb === VERBS.DISCARD_SELF ||
-      (a.verb === VERBS.PLACE_CARD && a.source === "self") ||
-      // 0th拡張（ゲートチャージ）: この動詞も「ゲートへ置く／捨てる」とこのカードの行方を
-      // 自分で書いているので、「これはあなたの手札に加えない。」の一文は足さない
-      // （印字にもその一文は無い）。
-      a.verb === VERBS.GATE_CHARGE_PLACE_OR_RETURN ||
-      // 0th拡張（ヤエザ）: これは相手の手札へ行く＝行方を自分で書いている。
-      a.verb === VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT_WITH_OPTIONS ||
-      // 0th拡張（平和への願い）: 条件を満たせば裏向きで残り、満たさなければ手札に加える＝
-      //   どちらになるかを効果文が自分で書いている。
-      a.verb === VERBS.REGISTER_PEACE_WISH
-  );
+  const actionsHandleSelf = effectActionsHandleSelf(effectDef);
   // ⚠ 0th拡張の我忘れの白き龍は「これに到達しても、これをあなたの手札に加えない。」が
   //   **補足（カード下部の説明）**に書かれていて、効果文の本文には出てこない。
   //   hideNoHandNote でその1文を出さないようにする（印字と合わせるため）。
@@ -2937,4 +2924,23 @@ if (typeof process !== "undefined" && process.argv[1] && process.argv[1].endsWit
 export function optionLabel(option) {
   if (!option) return "";
   return option.labelKey ? t(option.labelKey) : (option.label ?? option.id ?? "");
+}
+
+// 🔴【#672・2026-11-15】「このカード自身の行方を、効果の文が自分で書いているか」。
+//   ① 効果文の生成（「これはあなたの手札に加えない。」を足すかどうか＝generateEffectText）と
+//   ② **不発だった時に手札へ入れるかどうか**（card-effect-engine.js の runArrivalEffect）
+//   の**両方**がこれを見る。**式を2か所に書かない**ため、ここに1つだけ置いて両方から呼ぶ。
+//   ⓘ true ＝「置く／捨てる／ゲートへ置く／相手へ渡す」と**効果の文が自分で書いている**札。
+//     その行動が**1つも起きなかった（不発）**なら札は盤面に取り残されるので、ルールブックの
+//     原則どおり**手札に入る**（「これは手札に加えない」と書いてある札だけが例外）。
+export function effectActionsHandleSelf(effectDef) {
+  if (!effectDef) return false;
+  return !!effectDef.actions?.some(
+    (a) =>
+      a.verb === VERBS.DISCARD_SELF ||
+      (a.verb === VERBS.PLACE_CARD && a.source === "self") ||
+      a.verb === VERBS.GATE_CHARGE_PLACE_OR_RETURN ||
+      a.verb === VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT_WITH_OPTIONS ||
+      a.verb === VERBS.REGISTER_PEACE_WISH
+  );
 }

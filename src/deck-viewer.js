@@ -8,6 +8,8 @@ import {
   NORMAL_CARDS,
   FIRST_CARDS,
   getEternalCards,
+  // 【続き722】対局中の山札一覧は「実際にこの対局で使う山の中身」を出す。
+  getDeckNormalCards,
   getCardImagePath,
   getCardDefinition,
   // 【#660】「文字を焼き込んだ絵を持たない」札（0th拡張・1st EDITION）の判定。
@@ -21,6 +23,8 @@ import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName, getCardNote } from "./card-text.js"; // UI英語化フェーズ12: 表示用のカード名・補足
 import { t } from "./ui-text.js"; // UI英語化フェーズ12
+// 【続き722】対局中かどうか（席が決まっていれば対局中）。state.js は葉なので循環しない。
+import { getState } from "./state.js";
 
 // 表示用カード名（英語なら英語名、日本語ならcards-data.jsの名前）。
 function cardDisplayName(cardId) {
@@ -59,7 +63,27 @@ function hideDeckPreview() {
   if (deckPreviewEl) deckPreviewEl.style.display = "none";
 }
 
-function buildCardTile(def) {
+// 🔴【続き722】ユーザー指示「**対局中の基本設定内のカード一覧は山札一覧にしよう。
+//   実際に今の対局で使用している山札の中身を枚数入りで表示。いつものホーム画面の図鑑の
+//   時のカード一覧は今のままでいいです。**」
+//   ⇒ 同じ一覧を2つの顔で出す。対局中は**その対局の山の中身＋枚数**、それ以外は今までどおり。
+//   ⓘ 出すのは「山をどう組んだか（種類と枚数）」であって、**残り枚数ではない**。
+//     山は裏向きなので、残りが見えると引かれた札が分かってしまう＝対局の情報が変わる。
+export function isDeckListMode() {
+  try {
+    // ⚠ state に turn という欄は無い（実際のブラウザで確かめた）。対局が始まっているかは
+    //   **activePlayers に席が入っているか**で見る（ホーム画面では空）。
+    return (getState().activePlayers || []).length > 0;
+  } catch {
+    return false;
+  }
+}
+// オプションの項目名とパネルの題。対局中だけ「山札一覧」。
+export function deckViewerTitle() {
+  return isDeckListMode() ? t("deckviewer.titleDeck") : t("deckviewer.title");
+}
+
+function buildCardTile(def, showCount) {
   const tile = document.createElement("button");
   tile.type = "button";
   tile.style.cssText = `
@@ -98,6 +122,16 @@ function buildCardTile(def) {
   //   ⇒ 「山札に何枚入っているか」の札（×N）は外す。ここは**カードの一覧**であって、
   //     山の中身の話ではない。
   //   ⚠ def.count 自体は残す（山札の構成を作る側＝cards-data.js が使っている）。
+
+  // 【続き722】対局中の山札一覧でだけ、山に何枚入っているかを出す。
+  if (showCount && def.count > 0) {
+    const n = document.createElement("div");
+    n.textContent = t("deckviewer.countN", { n: def.count });
+    n.style.cssText =
+      "position: absolute; right: 0.25rem; top: 0.25rem; padding: 0 0.3rem; border-radius: 0.6rem;" +
+      "background: rgba(15, 23, 32, 0.82); font-size: 0.6rem; line-height: 1.5; font-weight: bold;";
+    tile.appendChild(n);
+  }
 
   const name = document.createElement("div");
   name.textContent = cardDisplayName(def.id);
@@ -153,12 +187,16 @@ function buildCardTile(def) {
   return tile;
 }
 
-function buildSection(title, cardDefs) {
+function buildSection(title, cardDefs, showCount) {
   const section = document.createElement("div");
   section.style.cssText = "margin-bottom: 0.8rem;";
 
   const heading = document.createElement("div");
-  heading.textContent = t("deckviewer.section", { title, n: cardDefs.length });
+  // 対局中は「何種」ではなく「何種・合計何枚」を出す（山の中身の話なので枚数が主役）。
+  const 合計 = cardDefs.reduce((a, c) => a + (c.count > 0 ? c.count : 1), 0);
+  heading.textContent = showCount
+    ? t("deckviewer.sectionDeck", { title, n: cardDefs.length, total: 合計 })
+    : t("deckviewer.section", { title, n: cardDefs.length });
   heading.style.cssText = `
     font-weight: bold; color: #7dd3fc; margin-bottom: 0.4rem;
     border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 0.3rem;
@@ -169,7 +207,7 @@ function buildSection(title, cardDefs) {
   const grid = document.createElement("div");
   grid.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap: 0.5rem;";
   for (const def of cardDefs) {
-    grid.appendChild(buildCardTile(def));
+    grid.appendChild(buildCardTile(def, showCount));
   }
   section.appendChild(grid);
   return section;
@@ -253,7 +291,8 @@ function buildPanel(close) {
   `;
 
   const titleEl = document.createElement("div");
-  titleEl.textContent = t("deckviewer.title");
+  titleEl.id = "deck-viewer-title";
+  titleEl.textContent = deckViewerTitle();
   titleEl.style.cssText = "font-weight: bold; margin-bottom: 0.6rem; padding-right: 1.6rem;";
   // 🔴【#641】左上に名前のある戻る口を置く（✕ だけだと『見当たらない』という報告になる）。
   const backBtn = document.createElement("button");
@@ -269,7 +308,10 @@ function buildPanel(close) {
   closeX.style.position = "fixed";
   panel.appendChild(closeX);
 
-  panel.appendChild(buildDeckSections());
+  // 【続き722】中身は開くたびに作り直す（対局中かどうか・カードセットが変わるため）。
+  const body = document.createElement("div");
+  body.id = "deck-viewer-body";
+  panel.appendChild(body);
 
   return panel;
 }
@@ -291,8 +333,18 @@ function 色でそろえる(defs) {
     })
     .map((o) => o.c);
 }
-export function buildDeckSections() {
+export function buildDeckSections(opts = {}) {
   const wrap = document.createElement("div");
+  // 🔴 対局中（山札一覧）は **getDeckNormalCards()** をそのまま出す——あれが
+  //   「この対局の山をどう組むか」を決めている本人なので、ここで組み直すと必ずズレる
+  //   （まぜるの時の配分も、1st を選んだ時にどの33種が入るかも、全部あちらが持っている）。
+  const 枚数を出す = !!opts.showCount;
+  if (枚数を出す) {
+    wrap.appendChild(buildSection(t("deckviewer.normal"), 色でそろえる(getDeckNormalCards()), true));
+    wrap.appendChild(buildSection(t("deckviewer.eternal"), getEternalCards(), true));
+    wrap.appendChild(buildSection(t("deckviewer.first"), FIRST_CARDS, true));
+    return wrap;
+  }
   // 0th拡張を選んでいる時は、その33種を先に出す（いま山札に入っているものが上に来るように）。
   // 🔴 「まぜる」の時は両方出す。既定（リメイク）では**1枚も出さない**——この関数は図鑑からも
   //   使われるので、遊んでいる人に未公開のカードが並ばないようにする。
@@ -341,6 +393,16 @@ export function initDeckViewer() {
   }
   function open() {
     ensureBuilt();
+    // 🔴 開くたびに中身を作り直す。対局が始まると「カード一覧」→「山札一覧（枚数入り）」に
+    //   変わるし、カードセットも対局ごとに変わるので、1回組んだきりだと**古い顔のまま**になる。
+    const 枚数 = isDeckListMode();
+    const 題 = panel.querySelector("#deck-viewer-title");
+    if (題) 題.textContent = deckViewerTitle();
+    const 中 = panel.querySelector("#deck-viewer-body");
+    if (中) {
+      中.innerHTML = "";
+      中.appendChild(buildDeckSections({ showCount: 枚数 }));
+    }
     panel.style.display = "block";
     backdrop.style.display = "block";
   }

@@ -25777,20 +25777,28 @@ body.theme-light #deck-viewer-back {
 }
 
 /* 【#669・2026-11-15】「イラストのみ」で出している盤面・ロックエリアのカードに、
-   **カードの色の細い枠**を重ねる（遠目でも何色の札か分かるように＝ユーザー提案）。
-   ⚠ 当たり判定を奪わない（pointer-events: none。教訓4）。
-   ⚠ box-shadow でも outline でもなく ::before（どちらも他の用途で埋まっている＝教訓10）。
-   ⚠ 枠は内側に描くので、カードの大きさ・位置は1pxも動かない。 */
-.board-card[data-card-color]::before,
-.lock-card[data-card-color]::before,
-.pile-card[data-card-color]::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 0.16rem solid var(--board-card-ring, rgba(255, 255, 255, 0.8));
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 2;
+   **カードの色の枠**を付ける（遠目でも何色の札か分かるように＝ユーザー提案）。
+
+   🔴【続き722・作り直し】最初は擬似要素（::before）で枠を重ねたが、ユーザー報告
+     「**アグレッシブでカメラが寄るときなど枠だけ置いてけぼりになったりします**」。
+     そのとおりで、**盤面の絵は WebGL が描き、DOM はその手前の別の層**なので、
+     カメラが動いている間は2つがズレる（WebGL だけが動く）。
+   ⇒ ユーザー案「枠だけ抽出して**カードの画像として扱う**」と同じ所に着地させる:
+     **`.board-card` 自身の `border` の色を変えるだけ**にした。board-3d.js は
+     `.board-card` の枠線・背景色・グローを**読み取って WebGL の板として描く**
+     仕組みを既に持っている（SHAPE_SELECTOR／readShapeSpecsNow／shapeTexture）ので、
+     **枠も絵と同じ板の上に乗り、カメラに完全に追従する**。
+     ⓘ しかも board-3d.js は WebGL が描いている間 DOM 側の border-color を
+       transparent に剥がす（ensureStripSheet）ので、**二重に出ることもない**。
+   ⚠ 画像ファイルは1枚も足していない（色を変えるだけ）。
+   ⚠ `.board-card` は `position: absolute; inset: 3%` なので、枠は**内側に描かれる**
+     ＝カードの大きさ・位置は1pxも動かない。
+   ⚠ ★すべての色（なないろの欠片）は1色で表せないので、**淡い金**にしてある
+     （あの札はキラ加工でも見分けが付く）。枠は1色しか持てない（グラデーションの枠は
+     border-image になり、WebGL 側の読み取りが対応していない＝また置いてけぼりになる）。 */
+.board-card[data-card-color] {
+  border-width: 0.16rem;
+  border-color: var(--board-card-ring, rgba(226, 232, 240, 0.4));
 }
 [data-card-color="red"] { --board-card-ring: #c70025; }
 [data-card-color="orange"] { --board-card-ring: #ee781f; }
@@ -25801,14 +25809,7 @@ body.theme-light #deck-viewer-back {
 [data-card-color="purple"] { --board-card-ring: #915da3; }
 [data-card-color="white"] { --board-card-ring: #f2f2f2; }
 [data-card-color="black"] { --board-card-ring: #2b2b2b; }
-/* ★すべての色（なないろの欠片）は1色で表せないので、7色の帯を枠にする。 */
-.board-card[data-card-color="rainbow"]::before,
-.lock-card[data-card-color="rainbow"]::before,
-.pile-card[data-card-color="rainbow"]::before {
-  border-color: transparent;
-  border-image: linear-gradient(135deg, #c70025, #ee781f 16%, #fabe00 33%, #22ac38 50%, #1bb8ce 66%, #f19ec2 83%, #915da3) 1;
-}
-
+[data-card-color="rainbow"] { --board-card-ring: #e8cf8a; }
 /* 【#670・2026-11-15】「設定しているアバターの色次第では手札枚数や名前などが読みづらい」。
    帯はもともと 55% で、明るいアバターの上では透けて読めなかった。濃くして縁取りも足す。 */
 .self-status-name,

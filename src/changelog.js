@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "対局中は「山札一覧」で、その対局の山の中身が枚数つきで見られます",
       "ショップで「まだ持っていないもの」が先に並ぶようにしました",
       "盤面のカードに、その色の細い枠が付くようにしました",
       "読み込み中の画面を、7色が1つずつ灯る形にしました",
@@ -63,6 +64,7 @@ export const CHANGELOG = [
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "During a match, \"Deck list\" now shows that match's deck with card counts",
       "The shop now lists items you do not own yet first",
       "Cards on the board now carry a thin ring in their own colour",
       "The loading screen now lights up the seven colours one by one",
@@ -72,6 +74,7 @@ export const CHANGELOG = [
       "The online match window is better arranged",
     ],
     items: [
+      "対局中にオプション（⚙）から開く一覧を「山札一覧」にしました。いま遊んでいる対局の山がどう組まれているか（種類と、それぞれ何枚入っているか、合計何枚か）が分かります。⚠ 出しているのは「山の組み方」で、残り枚数ではありません（山は裏向きなので、残りが見えると引かれた札が分かってしまうためです）。ホーム画面の図鑑から開く「カード一覧」は今までどおりです。",
       "ショップの並びを「まだ持っていないもの → 所持済み」の順にしました。買えるものが必ず上に来ます。さらに「所持済みを隠す」も置いたので、欲しい人だけ隠せます（既定は隠しません＝自分の持ち物も確かめられるように）。",
       "場・ロックエリアに置かれたカードに、そのカードの色の細い枠が付くようにしました。イラストだけでは遠目に何色の札か分かりにくいことがあったためです。★すべての色のカードは七色の枠になります。",
       "**読み込み中の画面**を、ぐるぐる回る輪から**7色の正方形が1つずつ灯る**形にしました。このゲームの印（7色の正方形のカード）であり、勝つ条件（7色をロックする）そのものの絵です。⚠ 画像は1枚も足していないので、読み込みは1バイトも増えていません。",
@@ -81,6 +84,7 @@ export const CHANGELOG = [
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "During a match, the list you open from Options (gear) is now the \"Deck list\": it shows how this match's deck is built — which cards are in it, how many of each, and the total. Note that this is the deck's composition, not what is left in it (the deck is face down, so showing the remainder would reveal which cards have been drawn). The \"Card list\" in the codex on the home screen is unchanged.",
       "The shop now lists what you do not own yet before what you already have, so anything you can still buy is always near the top. There is also a \"Hide owned\" switch for those who want it (off by default, so your own collection stays visible).",
       "Cards placed on the board or in a lock area now have a thin ring in the card's own colour, because artwork alone was sometimes hard to read at a glance. All-colour cards get a seven-colour ring.",
       "**The loading screen** now lights the seven coloured squares one by one instead of spinning a ring — the game’s own mark, and its win condition. No images were added, so nothing extra is downloaded.",
@@ -90,6 +94,8 @@ export const CHANGELOG = [
       "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
     ],
     fixes: [
+      "飛空艇アルヴァなどで、効果が不発だったときにカードが手札に加わらなかったのを直しました。",
+      "盤面のカードの色枠が、カメラが寄るときに置いてけぼりになっていたのを直しました。",
       "手札効果の霧散演出で、拡張カードの効果文が出ていなかったのを直しました。",
       "マスチェンジの入れ替え演出で、宝石の駒がキューブに見えることがあったのを直しました。",
       "アバターの色によって、自分の名前や手札枚数が読みづらかったのを直しました。",
@@ -100,6 +106,8 @@ export const CHANGELOG = [
       "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
     ],
     fixesEn: [
+      "Cards such as the Airship Alva now come to your hand when their effect does not go off.",
+      "The colour ring on board cards no longer lags behind when the camera moves.",
       "Extension cards now show their effect text in the hand-effect dissolve animation.",
       "Jewel pieces no longer look like cubes during the Mass Change swap animation.",
       "Your name and hand count are now readable whatever colour your avatar is.",
