@@ -4,6 +4,8 @@
 // 器の作り方はランキング/プロフィールの全画面版と同じ（フルスクリーン・戻るボタン・中央寄せ）。
 
 import { openDeckViewer } from "./deck-viewer.js";
+// 【#684】「カード一覧を開く」の扇に、実物のカードの絵を毎回ランダムで敷く。
+import { NORMAL_CARDS, getCardIllustPath } from "./cards-data.js";
 import { buildHelpList } from "./help.js";
 import { syncFullScreenPageActive } from "./option-area.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -55,7 +57,18 @@ export function openCodexPage(onClose) {
   const fan = document.createElement("span");
   fan.className = "codex-deck-fan";
   fan.setAttribute("aria-hidden", "true");
-  for (let i = 0; i < 7; i++) fan.appendChild(document.createElement("i"));
+  // 🔴【#684】ユーザー提案「じっさいのカードから毎回ランダムな組み合わせ表示はどう？」。
+  //   7色から**1枚ずつ**選ぶ（色がそろうので扇が七色のまま・顔ぶれだけ毎回変わる）。
+  //   ⚠ イラストのみ版を使う（この大きさでは文字は読めず、文字なしの下地を敷くと
+  //     白い空欄が出る＝#686 と同じ罠）。絵が無い札は色の帯のまま（CSS の既定）。
+  const 七色 = ["red", "orange", "yellow", "green", "blue", "pink", "purple"];
+  for (const 色 of 七色) {
+    const i = document.createElement("i");
+    const 候補 = NORMAL_CARDS.filter((c) => c.color === 色);
+    const 札 = 候補[Math.floor(Math.random() * 候補.length)];
+    if (札) i.style.backgroundImage = `url("${getCardIllustPath(札.id)}")`;
+    fan.appendChild(i);
+  }
   deckBtn.insertBefore(fan, deckBtn.firstChild);
   deckBtn.addEventListener("click", () => openDeckViewer());
   content.appendChild(deckBtn);

@@ -11,7 +11,7 @@
 // ドラッグ中のゴースト・飛翔演出・canvas（victory-summary / card-dissolve）は DOM スロットでは
 // ないため対象外（常に画像/canvasのまま）。
 import { buildCardFace } from "./card-renderer.js";
-import { hasBakedCardFace, hasNoPrintedFace, getCardImagePath, getCardDefinition } from "./cards-data.js";
+import { hasBakedCardFace, hasNoPrintedFace, getCardImagePath, getCardIllustPath, getCardDefinition } from "./cards-data.js";
 import { getLang } from "./i18n.js";
 
 const STORE_KEY = "so7-card-face-mode";
@@ -107,4 +107,37 @@ export function showCardFace(el, cardId, imageUrl) {
     const url = imageUrl || (cardId && hasBakedCardFace(cardId) ? getCardImagePath(cardId) : null);
     if (url) el.style.backgroundImage = `url("${url}")`;
   }
+}
+
+// 🔴【#686・2026-11-15・続き737】**表向きのカードを「絵として」敷く所は、全部ここを通す。**
+//   ユーザー報告「カードにテキストが入ってないです。この事象は**いろんなとこで**
+//   見受けられます。総点検して。」
+//
+//   いつもの形: 0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**ので、
+//   `getCardImagePath` が返すのは**文字なしの下地**（assets/cards-blank/）。
+//   生のURLを `background-image` に敷くと「枠と絵はあるのに効果欄だけ真っ白」になる。
+//   #611（続き698）→ #660（続き714）と2回直したのに、**後から作った画面で
+//   同じ穴をまた掘った**（パック開封のまとめ・コレクション・ミニロック…）。
+//   ⇒ 判断をこの1か所に置く。新しい画面はここを呼べばよい。
+//
+// options.illustOnly … **小さすぎて文字が読めない所**（3〜4rem 以下）で true。
+//   文字を描く代わりに**イラストだけ**を敷く（白い空欄が出ない・DOM も作らないので軽い）。
+//   ⚠ 文字が読めない大きさで無理に描くより、**絵だけの方が「そういう見せ方」に見える**。
+export function paintCardFace(el, cardId, options = {}) {
+  if (!el) return;
+  if (!cardId) {
+    el.style.backgroundImage = "none";
+    return;
+  }
+  if (options.illustOnly) {
+    clearCardFaceMount(el);
+    el.classList.toggle("is-only-card", !!getCardDefinition(cardId)?.only);
+    el.style.backgroundImage = `url("${getCardIllustPath(cardId)}")`;
+    return;
+  }
+  if (hasNoPrintedFace(cardId)) {
+    showCardFace(el, cardId, null); // 文字はアプリが描く
+    return;
+  }
+  showCardFace(el, cardId, getCardImagePath(cardId));
 }

@@ -2014,7 +2014,11 @@ body.ui-v2 .codex-deck-fan {
   width: 13rem;
   height: 5rem;
 }
+/* 【#684】実物のカードの絵を敷く（JS が1枚ずつ選んで background-image を入れる）。
+   絵が入らなかった時は、下の nth-child の色の帯がそのまま出る（壊れない）。 */
 body.ui-v2 .codex-deck-fan i {
+  background-size: cover;
+  background-position: center;
   position: absolute;
   left: 50%;
   bottom: 0;

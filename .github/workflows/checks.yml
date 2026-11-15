@@ -34,6 +34,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      # 🔴 いちばん最初に見る。これが落ちていると、そのファイルを使う機能が
+      #    ブラウザで丸ごと起動しない（続き737 の実害）。
+      - name: src/*.js が ES モジュールとして読めるか
+        run: node tools/check-syntax.mjs
       - name: 未宣言の名前（import 漏れ）
         run: node tools/check-undeclared.mjs
       - name: カードの持ち物検査

@@ -32,6 +32,8 @@ import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName } from "./card-text.js";
 import { t } from "./ui-text.js";
 import { showCardFace } from "./card-face-display.js";
+// 【続き737】候補の札も、ホバー（スマホは長押し）で拡大して読めるように。
+import { attachCardHoverPreview } from "./card-hover-preview.js";
 // 【続き726→728】パックで手に入れた札と、その**所持枚数**。
 //   card-packs.js は online.js を import しない葉なので循環しない。
 import { copiesOf } from "./card-packs.js";
@@ -172,6 +174,7 @@ function 札の行を組む(c, quota) {
     img.loading = "lazy";
     face.appendChild(img);
   }
+  attachCardHoverPreview(face, c.id); // 【続き737】ホバー／長押しで拡大
   row.appendChild(face);
 
   const name = document.createElement("div");

@@ -23,7 +23,9 @@
 //    （古いタブレットで画面が壊れる報告への既定の対処＝opening-screen.js と同じ作法）。
 
 import { getCardBackImagePath, getCardDefinition, getCardImagePath, hasNoPrintedFace } from "./cards-data.js";
-import { showCardFace } from "./card-face-display.js";
+import { showCardFace, paintCardFace } from "./card-face-display.js";
+// 【続き737】まとめの7枚も、ホバー（スマホは長押し）で拡大して読めるように。
+import { attachCardHoverPreview } from "./card-hover-preview.js";
 import { getCardName } from "./card-text.js";
 import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js";
@@ -327,6 +329,13 @@ function 段3を組む(stage) {
   const 色 = c ? getCardDefinition(c.cardId)?.color : null;
   badge.textContent = COLOR_BADGE[色] || "SEVEN";
   frame.appendChild(badge);
+  // 【#687】ONLY は「1種類に1枚しか入れられない」札。出た時にそれと分かるように。
+  if (c && getCardDefinition(c.cardId)?.only) {
+    const ob = document.createElement("div");
+    ob.className = "pkc-onlybadge";
+    ob.textContent = "ONLY";
+    frame.appendChild(ob);
+  }
   box.appendChild(frame);
   stage.appendChild(box);
 
@@ -382,11 +391,29 @@ function 段4を組む(stage) {
   row.className = "pkc-summary";
   for (const c of 引き) {
     const cell = document.createElement("div");
-    cell.className = "pkc-sum-cell" + (c.rare ? " is-rare" : "");
+    // 🔴【#687】**NEW と ONLY は札そのものを目立たせる**（名前の横の小さな字だけでは足りない）。
+    //   ⚠ ONLY はカードの持ち物（データの only）から引く——「レア枠で出たか」とは別の話。
+    const only = !!getCardDefinition(c.cardId)?.only;
+    cell.className = "pkc-sum-cell" + (c.rare ? " is-rare" : "") + (c.isNew ? " is-new" : "") + (only ? " is-only" : "");
     const art = document.createElement("div");
     art.className = "pkc-sum-art";
-    art.style.backgroundImage = 'url("' + getCardImagePath(c.cardId) + '")';
+    // 🔴【#686】生のURLを敷かない（0th拡張・1st は文字が焼かれていないので真っ白な欄が出る）。
+    //   ⚠ ここは 9.2rem あるので**文字を描く**（読める大きさ）。
+    paintCardFace(art, c.cardId);
+    if (c.isNew) {
+      const b = document.createElement("span");
+      b.className = "pkc-sum-flag is-new";
+      b.textContent = "NEW";
+      art.appendChild(b);
+    }
+    if (only) {
+      const b = document.createElement("span");
+      b.className = "pkc-sum-flag is-only";
+      b.textContent = "ONLY";
+      art.appendChild(b);
+    }
     cell.appendChild(art);
+    attachCardHoverPreview(art, c.cardId);
     const nm = document.createElement("div");
     nm.className = "pkc-sum-name";
     // ⚠ 欠片になった札にも印を付ける（NEW だけだと、その1枚だけ何も無くて不安になる）。

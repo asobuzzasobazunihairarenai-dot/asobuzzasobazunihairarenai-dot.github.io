@@ -21,7 +21,9 @@
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
 import { FIRST_ED_NORMAL_CARDS } from "./cards-data-1st.js";
 import { getCardImagePath, getCardBackImagePath, hasNoPrintedFace, getCardDefinition } from "./cards-data.js";
-import { showCardFace } from "./card-face-display.js";
+import { showCardFace, paintCardFace } from "./card-face-display.js";
+// 【続き737】カードにホバー（スマホは長押し）で拡大（ユーザー要望・総点検）。
+import { attachCardHoverPreview } from "./card-hover-preview.js";
 import { getCardName } from "./card-text.js";
 import {
   PACK_SIZE,
@@ -95,9 +97,12 @@ function 小さい札(cardId, 大きさ) {
   el.className = "card-pack-face";
   el.style.width = 大きさ;
   el.style.height = 大きさ;
-  el.style.backgroundImage = `url("${getCardImagePath(cardId)}")`;
+  // 🔴【#686】生のURLを敷かない。0th拡張・1st は文字が焼かれていないので、
+  //   下地をそのまま敷くと**効果欄が真っ白**になる（52枚並ぶので特に目立つ）。
+  //   ⚠ ここは 3.4rem で文字は読めないので、**イラストだけ**にする
+  //     （白い空欄が出ず、DOM も作らないので 52枚でも軽い）。
+  paintCardFace(el, cardId, { illustOnly: true });
   el.style.backgroundSize = "cover";
-  el.loading = "lazy";
   return el;
 }
 
@@ -158,33 +163,39 @@ function 持ち物の行() {
   const c = getCollection();
   const wrap = document.createElement("div");
   wrap.className = "card-pack-stat";
-  // 🔴 セヴルは**言葉ではなく通貨アイコン**で示す（オプションエリアの所持金と同じ絵）。
-  //   ユーザー指摘「通貨には通貨アイコンがあります。そちらを適用してください。」
+  // 🔴【続き737】ユーザー要望「もっとスタイリッシュに。今はただ必要なものが並べられて
+  //   いるだけな印象」⇒ **4つの札**にする（大きな数字＋小さな見出し）。
+  //   ⚠ セヴルは**言葉ではなく通貨アイコン**（オプションエリアの所持金と同じ絵）。
   const 組 = [
-    [null, c.balance, t("packs.coins")],
-    [t("packs.packs"), c.packs, null],
-    [t("packs.wildNormal"), `${c.wildCards}　(${c.wildShards}/${WILD_PER})`, null],
-    [t("packs.wildOnly"), `${c.onlyCards}　(${c.onlyShards}/${WILD_PER})`, null],
+    { 絵: true, 値: c.balance, 名: t("packs.coins") },
+    { 名: t("packs.packs"), 値: c.packs },
+    { 名: t("packs.wildNormal"), 値: c.wildCards, 下: c.wildShards + " / " + WILD_PER },
+    { 名: t("packs.wildOnly"), 値: c.onlyCards, 下: c.onlyShards + " / " + WILD_PER },
   ];
-  for (const [名, 値, 絵の説明] of 組) {
-    const cell = document.createElement("span");
+  for (const x of 組) {
+    const cell = document.createElement("div");
     cell.className = "card-pack-stat-cell";
-    if (名 === null) {
+    const k = document.createElement("div");
+    k.className = "card-pack-stat-key";
+    if (x.絵) {
       const img = document.createElement("img");
       img.className = "so7-coin-icon";
       img.src = CURRENCY_ICON;
-      img.alt = 絵の説明 || "";
-      img.title = 絵の説明 || "";
-      cell.appendChild(img);
-    } else {
-      const k = document.createElement("span");
-      k.className = "card-pack-stat-key";
-      k.textContent = 名;
-      cell.appendChild(k);
+      img.alt = x.名 || "";
+      k.appendChild(img);
     }
-    const v = document.createElement("b");
-    v.textContent = String(値);
+    k.appendChild(document.createTextNode(x.名));
+    cell.appendChild(k);
+    const v = document.createElement("div");
+    v.className = "card-pack-stat-val";
+    v.textContent = String(x.値);
     cell.appendChild(v);
+    if (x.下) {
+      const sub = document.createElement("div");
+      sub.className = "card-pack-stat-sub";
+      sub.textContent = x.下;
+      cell.appendChild(sub);
+    }
     wrap.appendChild(cell);
   }
   return wrap;
@@ -216,6 +227,8 @@ function 引いた札を組む() {
       再描画();
     });
     slot.appendChild(card);
+    // 🔴 **めくった後だけ**拡大を出す（裏向きのうちに中身が見えてしまっては台無し）。
+    if (c.めくった) attachCardHoverPreview(card, c.cardId);
 
     const label = document.createElement("div");
     label.className = "card-pack-label";
@@ -340,6 +353,22 @@ function コレクションの区画() {
   const 持っている = pool.filter((d) => (c.cards[d.id] || 0) > 0).length;
   box.appendChild(節(t("packs.collection", { n: 持っている, total: pool.length })));
 
+  // 🔴【続き737】どこまで集まったかを**帯**で見せる（数字だけだと進んだ実感が出ない）。
+  const prog = document.createElement("div");
+  prog.className = "card-pack-progress";
+  const bar = document.createElement("div");
+  bar.className = "card-pack-progress-bar";
+  const fill = document.createElement("div");
+  fill.className = "card-pack-progress-fill";
+  fill.style.width = Math.round((持っている / Math.max(1, pool.length)) * 100) + "%";
+  bar.appendChild(fill);
+  prog.appendChild(bar);
+  const num = document.createElement("div");
+  num.className = "card-pack-progress-num";
+  num.textContent = 持っている + " / " + pool.length;
+  prog.appendChild(num);
+  box.appendChild(prog);
+
   const grid = document.createElement("div");
   grid.className = "card-pack-collection";
   for (const def of pool) {
@@ -347,6 +376,8 @@ function コレクションの区画() {
     const cell = document.createElement("div");
     cell.className = "card-pack-cell" + (n === 0 ? " is-missing" : "");
     const face = 小さい札(def.id, "3.4rem");
+    // 【続き737】小さすぎて読めないので、**ホバー（スマホは長押し）で拡大**できるように。
+    attachCardHoverPreview(face, def.id);
     cell.appendChild(face);
     const name = document.createElement("div");
     name.className = "card-pack-cell-name";
@@ -409,6 +440,24 @@ function 中身を組む(inner) {
     inner.appendChild(d);
   }
 
+  // 🔴【続き737】主役の行。**袋の絵**を置いて、そこに「開ける」と値段を添える。
+  //   ⚠ 新しい画像は1枚も足していない（袋はグラデーションだけで描く）。
+  const hero = document.createElement("div");
+  hero.className = "card-pack-hero";
+  const foil = document.createElement("div");
+  foil.className = "card-pack-foil";
+  foil.setAttribute("aria-hidden", "true");
+  const stripe = document.createElement("div");
+  stripe.className = "card-pack-foil-stripe";
+  foil.appendChild(stripe);
+  const ed = document.createElement("div");
+  ed.className = "card-pack-foil-ed";
+  ed.textContent = "0TH EDITION";
+  foil.appendChild(ed);
+  hero.appendChild(foil);
+  const heroText = document.createElement("div");
+  heroText.className = "card-pack-hero-text";
+
   const actions = document.createElement("div");
   actions.className = "card-pack-actions";
   const c = getCollection();
@@ -444,7 +493,7 @@ function 中身を組む(inner) {
     actions.appendChild(ボタン(t("packs.grantAll"), async () => { await adminGrantAllCards(); いまの引き = null; }));
     actions.appendChild(ボタン(t("packs.reset"), async () => { await adminResetCards(); いまの引き = null; }));
   }
-  inner.appendChild(actions);
+  heroText.appendChild(actions);
 
   // 押す前に「いま押しても無理な理由」を書いておく（押してから知らせるより親切）。
   const 理由 = [];
@@ -454,8 +503,10 @@ function 中身を組む(inner) {
     const w = document.createElement("div");
     w.className = "card-pack-why";
     setTextWithCoin(w, 理由.join("　/　"));
-    inner.appendChild(w);
+    heroText.appendChild(w);
   }
+  hero.appendChild(heroText);
+  inner.appendChild(hero);
 
   if (いまの引き) inner.appendChild(引いた札を組む());
   else {

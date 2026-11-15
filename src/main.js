@@ -3465,7 +3465,9 @@ function playHandEffectUseBurn(cardId) {
   stage.className = "hand-effect-burn-stage";
   const card = document.createElement("div");
   card.className = "hand-effect-burn-card";
-  card.style.backgroundImage = `url("${getCardImagePath(cardId)}")`;
+  // 🔴【#686】生のURLを敷かない（0th拡張・1st は文字が焼かれていない＝効果欄が真っ白になる）。
+  //   ここは大きく出る演出なので**文字を描く**。
+  paintFaceUpCardArt(card, cardId);
   if (getCardDefinition(cardId)?.color === "rainbow") card.classList.add("is-rainbow");
   stage.appendChild(card);
   // 燃えカス（rising embers）。カード面の各所からゆっくり立ち上って消える小さな粒。
@@ -16556,7 +16558,7 @@ function updateMiniLockArea() {
     for (const t of revealCards) {
       const rc = document.createElement("div");
       rc.className = "mini-hand-reveal-card";
-      rc.style.backgroundImage = `url("${getCardImagePath(t.cardId)}")`;
+      paintFaceUpCardArt(rc, t.cardId); // 【#686】真っ白な効果欄を出さない
       miniReveal.appendChild(rc);
     }
     playerRow.appendChild(miniReveal);
@@ -16594,7 +16596,7 @@ function updateMiniLockArea() {
       const entry = locked[index];
       if (entry) {
         slot.classList.add("is-locked");
-        slot.style.backgroundImage = `url("${getCardImagePath(entry.cardId)}")`;
+        paintFaceUpCardArt(slot, entry.cardId); // 【#686】真っ白な効果欄を出さない
         // ロック中でも使えるカード（ファースト/エターナル）は、自分の分だけクリックで使える。
         if (isSelf && entry.cardId && (entry.cardId.startsWith("first-") || entry.cardId.startsWith("eternal-"))) {
           slot.classList.add("is-usable");
@@ -16628,7 +16630,7 @@ function updateMiniLockArea() {
     discCard.className = "mini-discard-card";
     if (discardTop) {
       discCard.classList.add("has-card");
-      discCard.style.backgroundImage = `url("${getCardImagePath(discardTop)}")`;
+      paintFaceUpCardArt(discCard, discardTop); // 【#686】真っ白な効果欄を出さない
     }
     disc.appendChild(discLabel);
     disc.appendChild(discCard);
@@ -22009,7 +22011,12 @@ function buildForfeitPlacements(loserSeat) {
 // 残り続けてホーム画面に被さる不具合の後始末。対局を離れる前提なので、既知の一時
 // オーバーレイを一括で消してよい（選択待ちのactiveEffectPickerもnullにし、ハイライト・
 // ヒントも消す。resolveは呼ばない＝対局を離れるので効果チェーンの続きは不要）。
-function dismissAllInGameTransientUi() {
+// 🔴【#678・2026-11-15】報告「ランク戦待機中のCPU練習を途中でやめてホームに戻ったら、
+//   『何もないマスを選択してください』モーダルがホームに出ちゃってる」。
+//   この後片付けは**ホームへ戻る2か所**からしか呼んでいなかったので、
+//   **CPU戦を畳む経路（teardownCpuBattle）では残ったまま**だった。
+//   ⇒ cpu-battle.js から呼べるように export する（あちらは動的 import で使う）。
+export function dismissAllInGameTransientUi() {
   try {
     activeEffectPicker = null;
     clearEffectUiHighlights();

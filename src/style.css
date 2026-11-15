@@ -8012,10 +8012,14 @@ body.theme-light .daily-bonus-modal-note {
   margin-left: auto;
   text-align: right;
 }
+/* 🔴【#681・2026-11-15】ユーザー報告「改行位置というかなんか表示が微妙な感じ」
+   （所持セヴルが『所持セヴル:／🪙／2190』と3行に折れている画像つき）。
+   ⇒ **1行で収める**。v2 側には既に nowrap が在ったが、既定の見た目には無かった。 */
 #shop-panel-balance {
   font-size: 1rem;
   font-weight: bold;
   color: #fde68a;
+  white-space: nowrap;
 }
 /* ユーザー要望「ショップ画面とマイページにアイテムコンプリート率を表示したい」。 */
 #shop-panel-completion {
@@ -16746,6 +16750,13 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   font-weight: bold;
   text-align: center;
   line-height: 1.35;
+  /* 🔴【#680】語の途中で折れるのを防ぐ（「フレンドリ／ーマッチ」「パック／を開ける」）。
+     ・line-break: strict … 行頭に来てはいけない字（ー・っ・ゃ…）を禁じる（全端末で効く）
+     ・word-break: auto-phrase … 文節で折る（Chrome 119+。効かない端末では無視されるだけ）
+     ・text-wrap: balance … 2行になる時、行の長さをそろえる（1字だけ残るのを防ぐ） */
+  line-break: strict;
+  word-break: auto-phrase;
+  text-wrap: balance;
   /* アイコンが大きくなったぶん、ラベルは幅を抑えてアイコンの下にまとまるようにする。 */
   max-width: 12rem;
   margin-top: 0.1rem;
@@ -26282,6 +26293,9 @@ body.theme-light .card-pack-sub-btn {
   line-height: 1.6;
   opacity: 0.72;
   max-width: 46rem;
+  /* 【続き737】中身が中央にそろうようにする（左端に取り残されて見えていた）。 */
+  margin: 0 auto;
+  text-align: center;
 }
 
 /* 引いた5枚。カードは正方形（このゲームの物理カードが正方形）。 */
@@ -27474,6 +27488,10 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   text-align: center;
 }
 .pkc-sum-art {
+  /* 【#686/#687】中に NEW / ONLY の帯と、showCardFace が作るカード面（inset:0）を
+     置くので、必ず positioned にしておく。 */
+  position: relative;
+  overflow: hidden;
   width: 9.2rem;
   height: 9.2rem;
   background-size: cover;
@@ -27543,3 +27561,287 @@ body.is-phone-device .pkc-x,
 body.is-tablet-device .pkc-x { font-size: 1.8rem; width: 3.6rem; height: 3.6rem; }
 body.is-phone-device .pkc-closebtn,
 body.is-tablet-device .pkc-closebtn { font-size: 1.7rem; height: 4.2rem; }
+
+/* ═══ 【2026-11-15・続き737・#687】パックの結果で NEW と ONLY を目立たせる ═══
+   ユーザー要望「**「NEW」なものは一目でNEWとわかるようにカードを目立たせたいね！
+   あとONLYカードも！**」
+   ⚠ `outline` は **ONLY の金の光（.is-only-card）が既に使っている**ので、NEW 側は
+     **枠の色と小さな帯**で示す（教訓10＝box-shadow は合成されず上書きになる）。 */
+.pkc-sum-flag {
+  position: absolute;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 1.25rem;
+  padding: 0 0.45rem;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+  z-index: 3;
+}
+.pkc-sum-flag.is-new {
+  left: 0;
+  background: #c70025;
+  color: #fffdf8;
+}
+.pkc-sum-flag.is-only {
+  right: 0;
+  background: linear-gradient(180deg, #e8cf8a, #b08d3f);
+  color: #19160f;
+}
+/* はじめて手に入れた札は、枠を赤く・少し持ち上げる（並んだ中で先に目が行くように）。 */
+.pkc-sum-cell.is-new .pkc-sum-art {
+  border-color: #c70025;
+  transform: translateY(-0.3rem);
+}
+/* ONLY は金の枠。⚠ .is-only-card（showCardFace が付ける金の光）と取り合わないよう、
+   こちらは border 側だけを使う。 */
+.pkc-sum-cell.is-only .pkc-sum-art {
+  border-color: #d8b24c;
+}
+/* 1枚ずつの段の ONLY の帯（色の帯の反対側）。 */
+.pkc-onlybadge {
+  position: absolute;
+  right: -0.4rem;
+  top: -1rem;
+  display: inline-flex;
+  align-items: center;
+  height: 1.875rem;
+  padding: 0 0.9rem;
+  background: linear-gradient(180deg, #e8cf8a, #b08d3f);
+  color: #19160f;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+}
+
+/* 🔴 スマホ・タブレット（ステージ倍率 0.478）。 */
+body.is-phone-device .pkc-sum-flag,
+body.is-tablet-device .pkc-sum-flag { font-size: 1.2rem; height: 2.1rem; padding: 0 0.7rem; }
+body.is-phone-device .pkc-onlybadge,
+body.is-tablet-device .pkc-onlybadge { font-size: 1.3rem; height: 3rem; }
+
+/* ═══ 【2026-11-15・続き737】パックの画面をスタイリッシュに ═══
+   ユーザー要望「**もっとスタイリッシュにした方が良いかも！ 今はただ必要なものが
+   並べられているだけな印象です。**」
+   ⇒ ①持ち物を4つの札に ②袋の絵を置いた主役の行 ③コレクションに進みの帯。
+   ⚠ この画面は `?ui=v2` の時だけ出る（続き731 のユーザー判断）ので、
+     **アイボリーと金の世界**に合わせる（青い主役ボタンをやめた）。
+   ⚠ **新しい画像は1枚も足していない**（袋はグラデーションだけ）。 */
+#card-pack-title {
+  text-align: center;
+  letter-spacing: 0.14em;
+}
+#card-pack-title::before {
+  content: "BOOSTER PACK";
+  display: block;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.34em;
+  color: #b08d3f;
+  margin-bottom: 0.2rem;
+}
+
+/* ① 持ち物の4つの札 */
+.card-pack-stat {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  max-width: 46rem;
+  margin: 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+.card-pack-stat-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.5rem 0.4rem 0.6rem;
+  border: 1px solid rgba(176, 141, 63, 0.45);
+}
+.card-pack-stat-key {
+  display: flex;
+  align-items: center;
+  gap: 0.1em;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.card-pack-stat-val {
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.card-pack-stat-sub {
+  font-size: 0.62rem;
+  opacity: 0.6;
+}
+
+/* ② 主役の行（袋の絵＋ボタン） */
+.card-pack-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  flex-wrap: wrap;
+  max-width: 46rem;
+  margin: 0.4rem auto 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(176, 141, 63, 0.45);
+}
+/* 袋のミニチュア。実物のブースターパックと同じ作り（銀蒸着の虹色・七色の筋・版の帯）を、
+   グラデーションだけで小さく描く。 */
+.card-pack-foil {
+  position: relative;
+  flex: 0 0 auto;
+  width: 6.4rem;
+  height: 8.9rem;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 7px),
+    linear-gradient(161deg, #2a2724 0%, #16140f 34%, #1f1b14 62%, #100e0a 100%);
+  border: 1px solid rgba(176, 141, 63, 0.5);
+  box-shadow: 0 0.8rem 1.6rem -0.8rem rgba(0, 0, 0, 0.9);
+}
+.card-pack-foil::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+  background: linear-gradient(118deg, transparent 6%, #cc5b52 16%, #d98b45 26%, #d8b24c 36%, #7fa86f 48%, #6fa2a8 60%, #ce7f90 72%, #9183b5 82%, transparent 92%);
+}
+/* 上端の熱圧着（ギザギザ）。 */
+.card-pack-foil::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0.8rem;
+  background:
+    repeating-linear-gradient(90deg, rgba(240, 233, 219, 0.22) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, rgba(240, 233, 219, 0.17), rgba(240, 233, 219, 0.03));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+.card-pack-foil-stripe {
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  top: 1.2rem;
+  height: 2px;
+  background: linear-gradient(90deg, #cc5b52, #d98b45 16%, #d8b24c 33%, #7fa86f 50%, #6fa2a8 66%, #ce7f90 83%, #9183b5);
+  z-index: 2;
+}
+.card-pack-foil-ed {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  height: 1.05rem;
+  padding: 0 0.55rem;
+  background: linear-gradient(180deg, #d8b24c, #a9823a);
+  color: #19160f;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  white-space: nowrap;
+  z-index: 2;
+}
+/* 🔴 撮って分かった: 幅の指定が無いと、ボタンが4つ並んだ時に**袋の下へ折り返して**
+   左半分が空っぽになる。袋の隣に収まる幅を与える。 */
+.card-pack-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1 1 24rem;
+  max-width: 30rem;
+  min-width: 0;
+}
+/* 主役のボタンは金（青はアイボリーの世界から浮く）。 */
+.card-pack-open-btn {
+  border-radius: 0;
+  color: #19160f;
+  background: linear-gradient(180deg, #e8cf8a, #b08d3f);
+  border: 1px solid rgba(176, 141, 63, 0.75);
+  letter-spacing: 0.08em;
+}
+.card-pack-open-btn:hover {
+  background: linear-gradient(180deg, #f0dba6, #c79a47);
+}
+.card-pack-sub-btn {
+  border-radius: 0;
+}
+.card-pack-sub-btn:hover {
+  border-color: rgba(176, 141, 63, 0.8);
+  background: rgba(176, 141, 63, 0.14);
+}
+
+/* ③ コレクションの進みの帯 */
+.card-pack-progress {
+  max-width: 46rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.72rem;
+}
+.card-pack-progress-bar {
+  position: relative;
+  flex: 1 1 auto;
+  height: 0.35rem;
+  background: rgba(176, 141, 63, 0.22);
+}
+.card-pack-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #b08d3f, #e8cf8a);
+}
+.card-pack-progress-num {
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* 🔴 スマホ・タブレット（ステージ倍率 0.478）。既定のままだと見出し 0.68rem＝**実画面5px**。 */
+body.is-phone-device .card-pack-stat,
+body.is-tablet-device .card-pack-stat { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+body.is-phone-device .card-pack-stat-key,
+body.is-tablet-device .card-pack-stat-key { font-size: 1.2rem; }
+body.is-phone-device .card-pack-stat-val,
+body.is-tablet-device .card-pack-stat-val { font-size: 2.6rem; }
+body.is-phone-device .card-pack-stat-sub,
+body.is-tablet-device .card-pack-stat-sub { font-size: 1.1rem; }
+body.is-phone-device .card-pack-progress,
+body.is-tablet-device .card-pack-progress { font-size: 1.3rem; }
+body.is-phone-device #card-pack-title::before,
+body.is-tablet-device #card-pack-title::before { font-size: 1.1rem; }
+body.is-phone-device .card-pack-foil,
+body.is-tablet-device .card-pack-foil { width: 9rem; height: 12.5rem; }
+body.is-phone-device .card-pack-foil-ed,
+body.is-tablet-device .card-pack-foil-ed { font-size: 0.8rem; height: 1.6rem; }
+
+/* 【続き737】パックの画面の中身を、1本の中央の帯にそろえる（左端に散らばって見えていた）。 */
+.card-pack-diag,
+.card-pack-why {
+  max-width: 46rem;
+  margin: 0 auto;
+  text-align: center;
+}
+#card-pack-inner > .card-pack-section,
+.card-pack-collection {
+  max-width: 76rem;
+  margin-left: auto;
+  margin-right: auto;
+}

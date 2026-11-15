@@ -82,6 +82,8 @@ import { buildIconButtonContent, wireIconButtonClick, onIconLabelRefresh } from 
 import { openStatsPlayerLinkModal } from "./stats-player-link.js";
 import { fetchStatsProfile } from "./stats-profile.js";
 import { isFlatten2dMode, setFlatten2dMode } from "./tablet-2d-mode.js";
+// 【#679】ホームに追加したアプリからも新しい見た目を選べるように（localStorage は別の入れ物）。
+import { isUiV2, setUiV2 } from "./ui-v2.js";
 import { isFullscreenSupported, isFullscreenActive, toggleFullscreen } from "./fullscreen-toggle.js";
 import {
   isRankedNotifyEnabled,
@@ -1366,6 +1368,18 @@ export function initOptionsMenu() {
             buildCheckboxRow(t("opt.chk.flatten2d"), isFlatten2dMode(), (checked) => {
               setFlatten2dMode(checked);
               saveMyPreference({ flatten_2d_mode: checked });
+            })
+          );
+          // 🔴【#679・2026-11-15】報告「**V2をホームに追加して起動するとV1の画面になる**」。
+          //   v2 の印は localStorage なのに、**ホーム画面に追加したアプリは
+          //   ブラウザとは別の入れ物**を持つ（iOS の標準の振る舞い）ので、
+          //   ブラウザで `?ui=v2` を付けても、そこから追加したアプリには伝わらない。
+          //   しかも**ホーム画面のアイコンからは `?` を付けられない**ので、
+          //   アプリの中から入れる口が無かった。⇒ ここに置く。
+          //   ⚠ **この端末だけ**（アカウントには同期しない＝ui-v2.js の決まり）。
+          content.appendChild(
+            buildCheckboxRow(t("opt.chk.uiV2"), isUiV2(), (checked) => {
+              setUiV2(checked);
             })
           );
         },

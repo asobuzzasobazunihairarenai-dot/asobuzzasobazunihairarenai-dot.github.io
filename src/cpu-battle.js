@@ -157,6 +157,17 @@ export async function teardownCpuBattle() {
     setPlayerAvatar(seat, null);
   }
   resetGame(); // 練習の盤面を同期的に空にする
+  // 🔴【#678・2026-11-15】**効果の途中で畳むと、選択モーダルやヒントが残る**
+  //   （報告「ランク戦待機中のCPU練習を途中でやめてホームに戻ったら、『何もないマスを
+  //   選択してください』モーダルがホームに出ちゃってる」）。ホームへ戻る経路には
+  //   元から後片付けが在ったが、**CPU戦を畳む経路からは呼んでいなかった**。
+  //   ⚠ 動的 import（main.js を静的に取り込むと、ここが起動の依存の輪に入る）。
+  try {
+    const { dismissAllInGameTransientUi } = await import("./main.js");
+    dismissAllInGameTransientUi();
+  } catch (err) {
+    console.error("dismissAllInGameTransientUi failed", err);
+  }
   try {
     const { forceCloseGateInvasionModal } = await import("./gate-invasion-modal.js");
     forceCloseGateInvasionModal();
