@@ -32,8 +32,9 @@ import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName } from "./card-text.js";
 import { t } from "./ui-text.js";
 import { showCardFace } from "./card-face-display.js";
-// 【続き726】パックで手に入れた札（import を1つも持たない葉なので循環しない）。
-import { ownsCard } from "./card-packs.js";
+// 【続き726→728】パックで手に入れた札と、その**所持枚数**。
+//   card-packs.js は online.js を import しない葉なので循環しない。
+import { copiesOf } from "./card-packs.js";
 
 // 色の点に使う hex（カードの色そのもの。board-3d.js の七色と同じ値）。
 const COLOR_HEX = {
@@ -61,7 +62,7 @@ const COLOR_HEX = {
 //   ⚠ それでも**無色（7枚以下）は1セットでも選べる**（公式ルール①）。
 function 候補のセット() {
   const 既定 = MY_STACK_SETS[0];
-  const 手に入れた = MY_STACK_SETS.slice(1).map((list) => list.filter((c) => ownsCard(c.id)));
+  const 手に入れた = MY_STACK_SETS.slice(1).map((list) => list.filter((c) => copiesOf(c.id, true) > 0));
   return [既定, ...手に入れた.filter((l) => l.length > 0)];
 }
 // ⚠ 続き725 で置いた「全部見せる」の入口。パックに替えたので**何もしない**
@@ -69,6 +70,26 @@ function 候補のセット() {
 export function setMyStackShowAllSets() {}
 function 標準の表() {
   return MY_STACK_SETS[0];
+}
+
+// 🔴【続き728】ユーザー判断「**マイ山札に7枚入れるには、その札を7枚持っている必要がある**」
+//   （MTGA 方式）。⇒ 1種類の上限は「**公式ルールの上限**（ノーマル7・ONLY1）と
+//   **持っている枚数**の小さい方」。
+//   ⓘ リメイクの33種は**最初から上限まで持っている扱い**なので、ここは今までどおり動く
+//     （copiesOf の第2引数が false ＝ 拡張ではない ⇒ 常に上限を返す）。
+//   ⚠ my-stack.js（ルールの側）はこれを知らない。あちらは**公式ルールだけ**を見る葉で、
+//     持ち物はこの画面が縛る——所持枚数は**減ることがない**ので、ここで縛れば
+//     保存された組み方が後から不正になることはない。
+function 拡張か(cardId) {
+  return MY_STACK_SETS.slice(1).some((list) => list.some((c) => c.id === cardId));
+}
+function 持ち物で縛る(c) {
+  const 拡張 = 拡張か(c.id);
+  const 持ち = copiesOf(c.id, 拡張);
+  return { ...c, 拡張, 持ち, max: Math.min(c.max, 持ち) };
+}
+function 候補を縛る(list) {
+  return (list || []).map(持ち物で縛る);
 }
 
 function cardDisplayName(cardId) {
@@ -166,9 +187,13 @@ function 札の行を組む(c, quota) {
   const max = document.createElement("div");
   max.className = "my-stack-card-max";
   // ONLYカードは理由が分かるように名指しする（「なぜ1枚だけ？」が一番出る所）。
-  max.textContent = c.only
-    ? t("mystack.onlyCard")
-    : t("mystack.maxPrinted", { n: c.max, printed: c.printed });
+  // 🔴 拡張の札は「**持っている枚数**／上限」を出す（なぜ7枚入れられないのかが分かるように）。
+  //   リメイクの33種は最初から上限まで持っているので、今までどおり印刷枚数を添える。
+  max.textContent = c.拡張
+    ? t("mystack.owned", { n: c.持ち, max: c.only ? 1 : 7 })
+    : c.only
+      ? t("mystack.onlyCard")
+      : t("mystack.maxPrinted", { n: c.max, printed: c.printed });
   row.appendChild(max);
 
   const stepper = document.createElement("div");
@@ -176,7 +201,7 @@ function 札の行を組む(c, quota) {
   const 現在 = Math.min(Math.floor(Number(下書き[c.id]) || 0), c.max);
   const グループの合計 = () => {
     let s = 0;
-    for (const x of candidatesByGroup(候補のセット()).get(c.group) || []) {
+    for (const x of 候補を縛る(candidatesByGroup(候補のセット()).get(c.group))) {
       s += Math.min(Math.floor(Number(下書き[x.id]) || 0), x.max);
     }
     return s;
@@ -234,7 +259,7 @@ function 中身を組む() {
   head.appendChild(headN);
   right.appendChild(head);
 
-  const cands = candidatesByGroup(候補のセット()).get(開いているグループ) || [];
+  const cands = 候補を縛る(candidatesByGroup(候補のセット()).get(開いているグループ));
   if (cands.length <= 1) {
     const only = document.createElement("div");
     only.className = "my-stack-note";

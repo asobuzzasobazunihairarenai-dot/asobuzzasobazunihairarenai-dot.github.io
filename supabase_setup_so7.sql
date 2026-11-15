@@ -3335,3 +3335,594 @@ begin
   where id = p_game_id;
 end;
 $$;
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- カードの持ち物・パック・ワイルドカード・デイリー／ウィークリー（2026-11-15・続き728）
+-- ══════════════════════════════════════════════════════════════════════════
+-- ユーザー要望: 「MTGAみたいにデイリー報酬とかウィークリー報酬とかも入れたい」
+--   「カケラで買うのも賛成」「同じ種類で7枚以上になったダブりはワイルドカードの欠片的なのに
+--   なって数枚溜まるとワイルドカードになって任意のカードと交換できるように。オンリーワイルドと
+--   ノーマルワイルドを用意するのはどうかな？」「もちろんアカウントに持たせます」
+--
+-- ■ 決まり（ユーザー判断・2026-11-15）
+--   ・マイ山札に N 枚入れるには、その札を **N 枚持っている**必要がある（MTGA 方式）。
+--   ・1種類の上限は **7枚**（公式の山札カスタマイズルール②）。ONLYカードは **1枚**（※）。
+--   ・上限を超えて出たダブりは**欠片**になる。**欠片7個でワイルドカード1枚**。
+--     ノーマル用（wild_*）と ONLY 用（only_*）を別々に数える。
+--   ・ワイルドカード1枚で、その種別の**どの札でも1枚**もらえる。
+--
+-- 🔴 **リメイクの33種は最初から全員が7枚ずつ持っている扱い**にして、この表には入れない。
+--   ⇒ ①既に遊んでいる人の出来ることが1つも減らない ②行が一気に増えない
+--     ③「配り直し」のための移行作業が要らない。
+--
+-- 🔴 残高(so7_user_currency)と同じ扱いにする: RLS は有効だが authenticated への
+--   INSERT/UPDATE ポリシーは**一切付けない**（SELECT だけ）。増減は必ず下の
+--   SECURITY DEFINER 関数を通す——直接 update を許すと、クライアントから持ち物を
+--   好きなだけ増やせてしまう。
+-- 🔴 **パックの中身を決めるのもサーバー**（so7_open_pack）。クライアントで引くと
+--   「欲しい札が出るまでやり直す」ができてしまう。
+--
+-- ⚠ 日付は current_date（UTC）。既にある so7_claim_daily_login_bonus と**同じ基準**に
+--   そろえてある（日本時間だと朝9時に変わる）。ズラすならあちらと一緒に直すこと。
+
+create table if not exists so7_user_cards (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  card_id text not null,
+  copies int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, card_id)
+);
+alter table so7_user_cards enable row level security;
+drop policy if exists "so7_user_cards_select" on so7_user_cards;
+create policy "so7_user_cards_select" on so7_user_cards for select to authenticated
+  using (user_id = auth.uid());
+
+-- パック・ワイルドカード・デイリー／ウィークリーの進み具合は、残高と同じ1行に持たせる
+-- （so7_user_currency は user_id が主キーの「1人1行」。表を増やさない）。
+alter table so7_user_currency add column if not exists packs int not null default 0;
+alter table so7_user_currency add column if not exists wild_shards int not null default 0;
+alter table so7_user_currency add column if not exists wild_cards int not null default 0;
+alter table so7_user_currency add column if not exists only_shards int not null default 0;
+alter table so7_user_currency add column if not exists only_cards int not null default 0;
+alter table so7_user_currency add column if not exists daily_challenge_date date;
+alter table so7_user_currency add column if not exists daily_challenge_progress int not null default 0;
+alter table so7_user_currency add column if not exists daily_challenge_claimed boolean not null default false;
+alter table so7_user_currency add column if not exists weekly_start date;
+alter table so7_user_currency add column if not exists weekly_wins int not null default 0;
+alter table so7_user_currency add column if not exists weekly_claimed int not null default 0;
+
+-- ── パックに入り得る札（0th拡張33種＋1st EDITION 19種＝52種）──────────────
+-- 🔴 src/cards-data-ex0.js / src/cards-data-1st.js の**写し**。手で書かず
+--   scratchpad の生成スクリプトが吐いたもの。**tools/check-card-packs.mjs が毎回照合する**
+--   （ズレたら赤くなる。続き671 の「まぜる」の写しと同じ守り方）。
+-- ⓘ is_only は「絵の左下に ONLY と印字されている札」＝1枚しか入れられない（公式ルール※）。
+drop function if exists so7_pack_pool();
+create or replace function so7_pack_pool()
+returns table (card_id text, is_only boolean)
+language sql
+immutable
+as $$
+  select * from (values
+    ('ex0-orange-bus'::text, false::boolean),
+    ('ex0-yellow-reach-cancel', false),
+    ('ex0-green-lost-forest', false),
+    ('ex0-blue-appraiser', false),
+    ('ex0-pink-wish-for-peace', false),
+    ('ex0-purple-hidden-fortune', false),
+    ('ex0-red-beginning', false),
+    ('ex0-orange-bus-stop', false),
+    ('ex0-yellow-gate-charge', false),
+    ('ex0-green-creation', false),
+    ('ex0-blue-strict-watch', false),
+    ('ex0-pink-mystic-fruit', false),
+    ('ex0-purple-redo-key', false),
+    ('ex0-flute-red', false),
+    ('ex0-flute-orange', false),
+    ('ex0-flute-yellow', false),
+    ('ex0-flute-green', false),
+    ('ex0-flute-blue', false),
+    ('ex0-flute-pink', false),
+    ('ex0-flute-purple', false),
+    ('ex0-red-joyner', true),
+    ('ex0-orange-mccool', true),
+    ('ex0-yellow-little-mouse', true),
+    ('ex0-green-peterhood', true),
+    ('ex0-blue-jake', true),
+    ('ex0-pink-yaeza', true),
+    ('ex0-purple-vivian', true),
+    ('ex0-white-pure-burger', false),
+    ('ex0-white-someones-shadow', true),
+    ('ex0-white-dragon', true),
+    ('ex0-black-bad-burger', false),
+    ('ex0-black-vood-contract', true),
+    ('ex0-red-crimson-fist', false),
+    ('1st-red-poor-march', false),
+    ('1st-red-unrest', false),
+    ('1st-orange-conglomerate', false),
+    ('1st-orange-festival', false),
+    ('1st-yellow-privilege', false),
+    ('1st-yellow-lock-change', false),
+    ('1st-green-largesse', false),
+    ('1st-green-bubble', false),
+    ('1st-blue-robbery', false),
+    ('1st-blue-poor-heart', false),
+    ('1st-pink-overeating', false),
+    ('1st-pink-growth', false),
+    ('1st-purple-slum', false),
+    ('1st-purple-bribe', false),
+    ('1st-white-airship', false),
+    ('1st-white-whim', false),
+    ('1st-white-revolution', false),
+    ('1st-black-depression', false),
+    ('1st-black-great-order', false)
+  ) as t(card_id, is_only);
+$$;
+grant execute on function so7_pack_pool() to authenticated;
+
+-- ── 日付・週の繰り越し ───────────────────────────────────────────────────
+-- デイリー／ウィークリーに触る関数は、**最初に必ずこれを呼ぶ**（行が無ければ作る）。
+-- 1か所にまとめてあるので、2つの関数で別々の繰り越しを書いてズレることがない。
+drop function if exists so7_roll_periods();
+create or replace function so7_roll_periods()
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  insert into so7_user_currency (user_id, balance) values (v_uid, 0)
+    on conflict (user_id) do nothing;
+  update so7_user_currency
+    set daily_challenge_date = current_date,
+        daily_challenge_progress = 0,
+        daily_challenge_claimed = false,
+        updated_at = now()
+    where user_id = v_uid
+      and (daily_challenge_date is null or daily_challenge_date <> current_date);
+  update so7_user_currency
+    set weekly_start = date_trunc('week', current_date)::date,
+        weekly_wins = 0,
+        weekly_claimed = 0,
+        updated_at = now()
+    where user_id = v_uid
+      and (weekly_start is null or weekly_start <> date_trunc('week', current_date)::date);
+end;
+$$;
+revoke execute on function so7_roll_periods() from public;
+grant execute on function so7_roll_periods() to authenticated;
+
+-- ── その日のデイリーチャレンジ ───────────────────────────────────────────
+-- 🔴 **日付から決める**（全員同じ・サーバーが覚えておく必要がない）。
+--   kind はクライアントが文にする合図で、goal は達成に必要な数。
+--   'win'  … 1回勝つ（CPU戦でもよい）
+--   'play' … 2回遊ぶ
+--   'lock' … カードを5枚ロックする
+drop function if exists so7_daily_challenge_of(date);
+create or replace function so7_daily_challenge_of(p_day date)
+returns table (kind text, goal int)
+language sql
+immutable
+as $$
+  -- 🔴 **番号で選ぶ**。VALUES の並び順は規格上保証されないので、offset で選ぶと
+  --   ある日突然ちがうチャレンジが出かねない。
+  select t.kind, t.goal from (values
+    (0, 'win'::text, 1),
+    (1, 'play'::text, 2),
+    (2, 'lock'::text, 5)
+  ) as t(n, kind, goal)
+  where t.n = (extract(doy from p_day)::int % 3);
+$$;
+grant execute on function so7_daily_challenge_of(date) to authenticated;
+
+-- ── いまの持ち物をまとめて返す ───────────────────────────────────────────
+-- 画面が1回の呼び出しで全部そろうようにする（カードの表・パック・ワイルド・デイリー・週）。
+-- ⓘ cards は { "<cardId>": 枚数 } の形。**リメイクの33種は入っていない**（全員7枚持ち扱い）。
+-- ⓘ daily.kind は日付から決まる（全員同じ）。goal と合わせてクライアントが文にする。
+drop function if exists so7_get_my_collection();
+create or replace function so7_get_my_collection()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_cur record;
+  v_cards jsonb;
+  v_kind text;
+  v_goal int;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select * into v_cur from so7_user_currency where user_id = v_uid;
+  select coalesce(jsonb_object_agg(card_id, copies), '{}'::jsonb) into v_cards
+    from so7_user_cards where user_id = v_uid and copies > 0;
+  select kind, goal into v_kind, v_goal from so7_daily_challenge_of(current_date);
+  return jsonb_build_object(
+    'balance', coalesce(v_cur.balance, 0),
+    'packs', coalesce(v_cur.packs, 0),
+    'wildShards', coalesce(v_cur.wild_shards, 0),
+    'wildCards', coalesce(v_cur.wild_cards, 0),
+    'onlyShards', coalesce(v_cur.only_shards, 0),
+    'onlyCards', coalesce(v_cur.only_cards, 0),
+    'cards', v_cards,
+    'daily', jsonb_build_object(
+      'kind', v_kind, 'goal', v_goal,
+      'progress', coalesce(v_cur.daily_challenge_progress, 0),
+      'claimed', coalesce(v_cur.daily_challenge_claimed, false),
+      'reward', 30
+    ),
+    'weekly', jsonb_build_object(
+      'wins', coalesce(v_cur.weekly_wins, 0),
+      'claimed', coalesce(v_cur.weekly_claimed, 0),
+      'steps', jsonb_build_array(3, 7, 12)
+    )
+  );
+end;
+$$;
+revoke execute on function so7_get_my_collection() from public;
+grant execute on function so7_get_my_collection() to authenticated;
+
+-- ── デイリー／ウィークリーの進み ─────────────────────────────────────────
+-- クライアントが対局の区切りで呼ぶ。p_kind が今日のチャレンジと一致する時だけ進む。
+-- ⚠ 'win' は**週の勝利数にも**足す（週の報酬はパック）。
+drop function if exists so7_note_progress(text, int);
+create or replace function so7_note_progress(p_kind text, p_amount int default 1)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_kind text;
+  v_goal int;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  if coalesce(p_amount, 0) <= 0 then
+    return so7_get_my_collection();
+  end if;
+  perform so7_roll_periods();
+  select kind, goal into v_kind, v_goal from so7_daily_challenge_of(current_date);
+  if p_kind = v_kind then
+    update so7_user_currency
+      set daily_challenge_progress = least(daily_challenge_progress + p_amount, v_goal),
+          updated_at = now()
+      where user_id = v_uid;
+  end if;
+  if p_kind = 'win' then
+    update so7_user_currency
+      set weekly_wins = weekly_wins + p_amount, updated_at = now()
+      where user_id = v_uid;
+  end if;
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_note_progress(text, int) from public;
+grant execute on function so7_note_progress(text, int) to authenticated;
+
+-- ── デイリーチャレンジの受け取り ─────────────────────────────────────────
+drop function if exists so7_claim_daily_challenge();
+create or replace function so7_claim_daily_challenge()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_goal int;
+  v_progress int;
+  v_claimed boolean;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select goal into v_goal from so7_daily_challenge_of(current_date);
+  select daily_challenge_progress, daily_challenge_claimed
+    into v_progress, v_claimed
+    from so7_user_currency where user_id = v_uid for update;
+  if v_claimed then
+    raise exception 'already_claimed';
+  end if;
+  if coalesce(v_progress, 0) < v_goal then
+    raise exception 'not_complete';
+  end if;
+  update so7_user_currency
+    set balance = balance + 30, daily_challenge_claimed = true, updated_at = now()
+    where user_id = v_uid;
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_claim_daily_challenge() from public;
+grant execute on function so7_claim_daily_challenge() to authenticated;
+
+-- ── ウィークリーの受け取り（勝利数の節目ごとにパック）────────────────────
+-- 節目は 3勝 / 7勝 / 12勝 の3段。届いている段を**まとめて**受け取る。
+-- weekly_claimed は「受け取り済みの段の数」。
+drop function if exists so7_claim_weekly();
+create or replace function so7_claim_weekly()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_wins int;
+  v_claimed int;
+  v_steps int[] := array[3, 7, 12];
+  v_reached int := 0;
+  i int;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select weekly_wins, weekly_claimed into v_wins, v_claimed
+    from so7_user_currency where user_id = v_uid for update;
+  for i in 1..array_length(v_steps, 1) loop
+    if coalesce(v_wins, 0) >= v_steps[i] then
+      v_reached := i;
+    end if;
+  end loop;
+  if v_reached <= coalesce(v_claimed, 0) then
+    raise exception 'nothing_to_claim';
+  end if;
+  update so7_user_currency
+    set packs = packs + (v_reached - coalesce(v_claimed, 0)),
+        weekly_claimed = v_reached,
+        updated_at = now()
+    where user_id = v_uid;
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_claim_weekly() from public;
+grant execute on function so7_claim_weekly() to authenticated;
+
+-- ── パックを買う ─────────────────────────────────────────────────────────
+-- 🔴 値段は**サーバーが決める**（1パック 100 かけら）。クライアントから cost を
+--   受け取ると 0 を渡せてしまう。⚠ 画面に出す値段は src/card-packs.js の PACK_COST。
+--   **tools/check-card-packs.mjs が両方そろっているか見る。**
+drop function if exists so7_buy_pack(int);
+create or replace function so7_buy_pack(p_count int default 1)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  c_cost constant int := 100;
+  v_n int := greatest(1, least(coalesce(p_count, 1), 10));
+  v_balance int;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select balance into v_balance from so7_user_currency where user_id = v_uid for update;
+  if coalesce(v_balance, 0) < c_cost * v_n then
+    raise exception 'insufficient_balance';
+  end if;
+  update so7_user_currency
+    set balance = balance - c_cost * v_n, packs = packs + v_n, updated_at = now()
+    where user_id = v_uid;
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_buy_pack(int) from public;
+grant execute on function so7_buy_pack(int) to authenticated;
+
+-- ── パックを開ける ───────────────────────────────────────────────────────
+-- 🔴 **引くのはここ（サーバー）**。1パック 7枚。
+--   ・まだ上限に達していない札を優先して引く（同じ札ばかり出ないように）
+--   ・最後の1枚は**レア枠**＝ONLYカードから引く
+--   ・同じパックに同じ札は入らない
+--   ・上限（ノーマル 7枚 / ONLY 1枚）に達している札が出たら**欠片**になる
+--   ・欠片が 7 個たまるたびにワイルドカード1枚へ自動で両替する
+drop function if exists so7_open_pack();
+create or replace function so7_open_pack()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_packs int;
+  v_rare text;
+  v_row record;
+  v_drawn jsonb := '[]'::jsonb;
+  v_new boolean;
+  v_shard boolean;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select packs into v_packs from so7_user_currency where user_id = v_uid for update;
+  if coalesce(v_packs, 0) < 1 then
+    raise exception 'no_pack';
+  end if;
+  update so7_user_currency set packs = packs - 1, updated_at = now() where user_id = v_uid;
+
+  -- レア枠（ONLYカードから1枚。まだ持っていないものを優先）。
+  select m.card_id into v_rare from (
+    select p.card_id, p.is_only,
+           coalesce(c.copies, 0) as copies,
+           case when p.is_only then 1 else 7 end as cap
+      from so7_pack_pool() p
+      left join so7_user_cards c on c.user_id = v_uid and c.card_id = p.card_id
+  ) m
+  where m.is_only
+  order by (m.copies >= m.cap), random()
+  limit 1;
+
+  -- 通常枠＋レア枠をまとめて applying する（レア枠は最後に並べる＝めくる順）。
+  for v_row in
+    with mine as (
+      select p.card_id, p.is_only,
+             coalesce(c.copies, 0) as copies,
+             case when p.is_only then 1 else 7 end as cap
+        from so7_pack_pool() p
+        left join so7_user_cards c on c.user_id = v_uid and c.card_id = p.card_id
+    ),
+    commons as (
+      select * from mine
+      where card_id is distinct from v_rare
+      order by (copies >= cap), random()
+      limit 6
+    )
+    select card_id, is_only, copies, cap, false as rare from commons
+    union all
+    select card_id, is_only, copies, cap, true as rare from mine where card_id = v_rare
+  loop
+    if v_row.copies < v_row.cap then
+      insert into so7_user_cards (user_id, card_id, copies) values (v_uid, v_row.card_id, 1)
+        on conflict (user_id, card_id) do update
+          set copies = so7_user_cards.copies + 1, updated_at = now();
+      v_new := (v_row.copies = 0);
+      v_shard := false;
+    else
+      if v_row.is_only then
+        update so7_user_currency set only_shards = only_shards + 1, updated_at = now() where user_id = v_uid;
+      else
+        update so7_user_currency set wild_shards = wild_shards + 1, updated_at = now() where user_id = v_uid;
+      end if;
+      v_new := false;
+      v_shard := true;
+    end if;
+    v_drawn := v_drawn || jsonb_build_object(
+      'cardId', v_row.card_id, 'only', v_row.is_only,
+      'isNew', v_new, 'shard', v_shard, 'rare', v_row.rare
+    );
+  end loop;
+
+  -- 欠片がたまったらワイルドカードへ両替（1回の計算でまとめて）。
+  update so7_user_currency set
+    wild_cards = wild_cards + wild_shards / 7,
+    wild_shards = wild_shards % 7,
+    only_cards = only_cards + only_shards / 7,
+    only_shards = only_shards % 7,
+    updated_at = now()
+    where user_id = v_uid;
+
+  return jsonb_build_object('drawn', v_drawn, 'collection', so7_get_my_collection());
+end;
+$$;
+revoke execute on function so7_open_pack() from public;
+grant execute on function so7_open_pack() to authenticated;
+
+-- ── ワイルドカードを使う ─────────────────────────────────────────────────
+-- ワイルドカード1枚で、その種別（ノーマル／ONLY）のどの札でも1枚もらえる。
+-- ⚠ もう上限まで持っている札には使えない（無駄打ちさせない）。
+drop function if exists so7_redeem_wildcard(text);
+create or replace function so7_redeem_wildcard(p_card_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_only boolean;
+  v_cap int;
+  v_copies int;
+  v_have int;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select is_only into v_only from so7_pack_pool() where card_id = p_card_id;
+  if v_only is null then
+    raise exception 'unknown_card';
+  end if;
+  v_cap := case when v_only then 1 else 7 end;
+  select copies into v_copies from so7_user_cards where user_id = v_uid and card_id = p_card_id for update;
+  if coalesce(v_copies, 0) >= v_cap then
+    raise exception 'already_max';
+  end if;
+  if v_only then
+    select only_cards into v_have from so7_user_currency where user_id = v_uid for update;
+  else
+    select wild_cards into v_have from so7_user_currency where user_id = v_uid for update;
+  end if;
+  if coalesce(v_have, 0) < 1 then
+    raise exception 'no_wildcard';
+  end if;
+  if v_only then
+    update so7_user_currency set only_cards = only_cards - 1, updated_at = now() where user_id = v_uid;
+  else
+    update so7_user_currency set wild_cards = wild_cards - 1, updated_at = now() where user_id = v_uid;
+  end if;
+  insert into so7_user_cards (user_id, card_id, copies) values (v_uid, p_card_id, 1)
+    on conflict (user_id, card_id) do update
+      set copies = so7_user_cards.copies + 1, updated_at = now();
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_redeem_wildcard(text) from public;
+grant execute on function so7_redeem_wildcard(text) to authenticated;
+
+-- ── 管理用（テストのため全部そろえる／持ち物を空にする）──────────────────
+-- ⚠ 管理者だけが押せる画面から呼ぶ。SQL 側では**誰でも呼べる**ので、
+--   本番で配る前に管理者判定を足すか、この2つを落とすこと。
+drop function if exists so7_admin_grant_all_cards();
+create or replace function so7_admin_grant_all_cards()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  insert into so7_user_cards (user_id, card_id, copies)
+    select v_uid, card_id, case when is_only then 1 else 7 end from so7_pack_pool()
+    on conflict (user_id, card_id) do update
+      set copies = excluded.copies, updated_at = now();
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_admin_grant_all_cards() from public;
+grant execute on function so7_admin_grant_all_cards() to authenticated;
+
+drop function if exists so7_admin_reset_cards();
+create or replace function so7_admin_reset_cards()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  delete from so7_user_cards where user_id = v_uid;
+  update so7_user_currency
+    set wild_shards = 0, wild_cards = 0, only_shards = 0, only_cards = 0, updated_at = now()
+    where user_id = v_uid;
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_admin_reset_cards() from public;
+grant execute on function so7_admin_reset_cards() to authenticated;

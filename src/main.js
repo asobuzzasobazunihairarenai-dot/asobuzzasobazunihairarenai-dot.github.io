@@ -123,6 +123,9 @@ import { maybeShowGameStartIntros } from "./game-intros.js";
 // マイデッキ戦: 保存したデッキをアカウント(so7_user_profiles.my_deck)へ反映する注入（下の
 // registerMyDeckPersistence参照）。my-deck.js は cards-data.js のみ依存の葉モジュール。
 import { registerMyDeckPersistence } from "./my-deck.js";
+// 【続き728】カードの持ち物・パック。card-packs.js は online.js を import しない葉なので、
+//   ここで通信の束を注入する（registerMyDeckPersistence と同じ作法）。
+import { registerCollectionTransport, refreshCollection } from "./card-packs.js";
 // マイデッキ戦F4: 開始時のデッキ選択オーバーレイ（my-deck-select.jsはmy-deck.js/cards-data.jsのみ
 // 依存の葉。ピッカーは内部で動的importするのでここは静的でも循環しない）。
 import { openDeckSelect, closeDeckSelect, isDeckSelectOpen } from "./my-deck-select.js";
@@ -446,6 +449,7 @@ import {
   getAdminStats,
   isGateInvasionPending,
   registerSelfAsStatsPlayer,
+  collectionTransport,
 } from "./online.js";
 import { fetchStatsProfile, getTierInfo } from "./stats-profile.js";
 import { setRankRingOrbitContainer, startRankRingOrbit } from "./rank-ring-orbit.js";
@@ -21663,6 +21667,13 @@ registerCardBackSkinHelpers({ render, savePreference: saveMyPreference, isItemUn
 // も反映する。オンライン対戦開始時にサーバー(so7-apply-action)が各席のこの値を読み、シャッフル
 // して配るため保存が必須。未ログイン/列未追加でもlocalStorageには保存済みで、ここは失敗しても無害。
 registerMyDeckPersistence((deck) => saveMyPreference({ my_deck: deck }));
+// 【続き728】カードの持ち物（so7_user_cards / so7_user_currency）。
+// ⚠ 読み込みは**遅らせる**——起動の邪魔をしないよう、ログイン済みなら最初の区切りで1回だけ。
+//   SQL をまだ流していない環境では例外になるが、握りつぶして標準の山札のまま遊べる。
+registerCollectionTransport(collectionTransport);
+setTimeout(() => {
+  void refreshCollection().catch(() => {});
+}, 3000);
 // マイデッキ戦F4: 開始時のデッキ選択オーバーレイを出す関数（ホストはonline.jsから直接、
 // 非ホストはdeck_selection_start broadcastで呼ばれる）。選んだ結果を自分の座席へ保存する。
 const showDeckSelect = (deadline) => {

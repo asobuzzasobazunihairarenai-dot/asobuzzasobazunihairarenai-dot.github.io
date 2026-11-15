@@ -26391,3 +26391,146 @@ body.is-tablet-device .card-pack-new {
 #profile-mystack-edit {
   margin-top: 0.1rem;
 }
+
+/* ═══════════ 【続き728】パックの画面の中身（持ち物・デイリー／週・コレクション）═══════════
+   🔴 絵を撮って分かった: 区画を足したのに CSS を書き忘れていて、**コレクションが縦1列**・
+   持ち物の行の文字が詰まっていた。
+   ⚠ 色は決め打ちしない（教訓15）。地と字はパネルから継ぎ、違いは枠・太さ・不透明度で出す。 */
+.card-pack-stat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.4rem;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+.card-pack-stat-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.card-pack-stat-key {
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+.card-pack-stat-cell b {
+  font-size: 1.1rem;
+}
+
+/* 節の見出し（デイリー／ウィークリー／コレクション）。 */
+.card-pack-section {
+  margin-top: 0.8rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 1rem;
+  font-weight: bold;
+}
+.card-pack-task {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.card-pack-task-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+}
+/* 進みの帯。中身が無い時も形が見えるように、外枠は常に出す。 */
+.card-pack-bar {
+  position: relative;
+  display: inline-block;
+  width: 10rem;
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+.card-pack-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+}
+
+/* コレクション（52種）。🔴 格子にする（書き忘れると縦1列になる＝実際になった）。 */
+.card-pack-collection {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.card-pack-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.3rem;
+  text-align: center;
+}
+/* まだ持っていない札は薄く（何が足りないか一目で分かるように）。 */
+.card-pack-cell.is-missing {
+  opacity: 0.4;
+}
+.card-pack-cell-name {
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+.card-pack-cell-count {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+/* 札の絵（めくる7枚は .card-pack-card-front が位置と大きさを持つので、ここは地だけ）。 */
+.card-pack-face {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+/* 上限まで持っていて欠片になった札。 */
+.card-pack-shard {
+  display: inline-block;
+  margin-right: 0.3rem;
+  padding: 0 0.3rem;
+  border-radius: 0.2rem;
+  background: rgba(148, 163, 184, 0.3);
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+/* 🔴 スマホ・タブレット（ステージ倍率 0.478 ＝ 既定のままだと字が実画面5px台）。
+   #453・#569 と同じ罠。読ませたい字は実画面 11px 以上。 */
+body.is-phone-device .card-pack-stat-key,
+body.is-tablet-device .card-pack-stat-key {
+  font-size: 1.4rem;
+}
+body.is-phone-device .card-pack-stat-cell b,
+body.is-tablet-device .card-pack-stat-cell b {
+  font-size: 1.9rem;
+}
+body.is-phone-device .card-pack-section,
+body.is-tablet-device .card-pack-section {
+  font-size: 1.8rem;
+}
+body.is-phone-device .card-pack-task-line,
+body.is-tablet-device .card-pack-task-line {
+  font-size: 1.5rem;
+}
+body.is-phone-device .card-pack-collection,
+body.is-tablet-device .card-pack-collection {
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+}
+body.is-phone-device .card-pack-cell-name,
+body.is-tablet-device .card-pack-cell-name,
+body.is-phone-device .card-pack-cell-count,
+body.is-tablet-device .card-pack-cell-count {
+  font-size: 1.3rem;
+}
+body.is-phone-device .card-pack-shard,
+body.is-tablet-device .card-pack-shard {
+  font-size: 1.3rem;
+}

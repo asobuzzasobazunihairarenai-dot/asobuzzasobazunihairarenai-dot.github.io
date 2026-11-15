@@ -1552,6 +1552,41 @@ export async function touchPresence() {
 // "piece-skin:3"・"playmat:red-aged"）を、ログイン直後・購入直後に読み直してキャッシュ
 // しておく。piece-skins.js等の各ピッカーがロック表示の判定に同期的に使えるようにする
 // ため（都度サーバーへ問い合わせるのではなく、このキャッシュを見るだけにする）。
+
+// ══════════ カードの持ち物・パック・ワイルドカード（2026-11-15・続き728）══════════
+// 中身の決まりは supabase_setup_so7.sql の『カードの持ち物…』の節と src/card-packs.js の冒頭。
+//
+// 🔴 **全部サーバーが決める**。残高・持ち物・パックの中身をクライアントが書けると、
+//   「欲しい札が出るまでやり直す」「かけらを自分で増やす」ができてしまう。
+//   ここは RPC を呼んで**返ってきた物をそのまま渡すだけ**。
+// ⚠ どの関数も、SQL をまだ流していない環境では PostgREST が『関数が無い』を返す。
+//   例外をそのまま投げて、画面側が「管理者がSQLを流す必要があります」と出せるようにする。
+async function カード持ち物RPC(名, 引数) {
+  if (!client) throw new Error('not_connected');
+  if (!cachedUser) throw new Error('not_authenticated');
+  const { data, error } = await client.rpc(名, 引数 || {});
+  if (error) {
+    console.error(名 + ' failed (未実行のsupabase_setup_so7.sql追加分がある可能性)', error);
+    throw error;
+  }
+  return data;
+}
+
+// card-packs.js へ渡す束（あちらは online.js を import しない＝循環を作らないため）。
+export const collectionTransport = {
+  isLoggedIn: () => !!cachedUser,
+  getCollection: () => カード持ち物RPC('so7_get_my_collection'),
+  buyPack: (n) => カード持ち物RPC('so7_buy_pack', { p_count: Math.max(1, Math.floor(Number(n) || 1)) }),
+  openPack: () => カード持ち物RPC('so7_open_pack'),
+  redeemWildcard: (cardId) => カード持ち物RPC('so7_redeem_wildcard', { p_card_id: String(cardId) }),
+  claimDailyChallenge: () => カード持ち物RPC('so7_claim_daily_challenge'),
+  claimWeekly: () => カード持ち物RPC('so7_claim_weekly'),
+  noteProgress: (kind, amount) =>
+    カード持ち物RPC('so7_note_progress', { p_kind: String(kind), p_amount: Math.max(1, Math.floor(Number(amount) || 1)) }),
+  adminGrantAll: () => カード持ち物RPC('so7_admin_grant_all_cards'),
+  adminReset: () => カード持ち物RPC('so7_admin_reset_cards'),
+};
+
 let myUnlocks = new Set();
 
 export async function refreshMyUnlocks() {

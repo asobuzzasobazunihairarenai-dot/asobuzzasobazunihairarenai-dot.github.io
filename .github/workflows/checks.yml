@@ -56,6 +56,8 @@ jobs:
         run: node tools/check-thumbs.mjs
       - name: まぜるの山札（クライアントとサーバーの写し）
         run: node tools/check-mixed-deck.mjs
+      - name: パックの札・値段（クライアントとサーバーの写し）
+        run: node tools/check-card-packs.mjs
       # 🔴 これ自身が「手元とCIのズレ」を見張る（続き711）。ここが抜けるとまた静かに離れる。
       - name: 手元の検査とCIの検査がズレていないか
         run: node tools/check-ci-steps.mjs
