@@ -154,6 +154,25 @@ export function openProfilePage(onClose) {
   editBtn.addEventListener("click", openEditor);
   mydeckWrap.appendChild(editBtn);
 
+  // 🔴【2026-11-15・続き726】ユーザー要望「**マイ山札作成をマイページにも実装しよう！**」。
+  //   マイデッキ編集のすぐ下に、同じテキストリンク調で並べる。
+  //   ⓘ **マイデッキとマイ山札は別物**: マイデッキは自分だけが引く持ち込みの山、
+  //     マイ山札は**盤面になる共通の山**の組み方（公式の「山札のカスタマイズ」ルール）。
+  //     紛れないよう、ラベルで言い分けている。
+  //   ⚠ **動的 import**（my-deck-builder と同じ作法。静的に書くと
+  //     profile-page → my-stack-editor → cards-data と輪になり得る）。
+  //   ⚠ ここはマイページを**閉じない**——編集画面は全画面で上に重なるので、
+  //     閉じると戻った時にマイページが消えてしまう。
+  const stackBtn = document.createElement("button");
+  stackBtn.type = "button";
+  stackBtn.id = "profile-mystack-edit";
+  stackBtn.innerHTML = `<span>${t("pp.editStack")}</span>`;
+  stackBtn.addEventListener("click", async () => {
+    const m = await import("./my-stack-editor.js");
+    m.openMyStackEditor();
+  });
+  mydeckWrap.appendChild(stackBtn);
+
   overlayEl.appendChild(mydeckWrap);
 
   const card = document.createElement("div");

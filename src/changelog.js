@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "マイページからも「マイ山札」を作れるようにしました",
       "「マイ山札」——山札の中身を自分で決めてCPU戦で遊べます",
       "対局中は「山札一覧」で、その対局の山の中身が枚数つきで見られます",
       "ショップで「まだ持っていないもの」が先に並ぶようにしました",
@@ -65,6 +66,7 @@ export const CHANGELOG = [
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "You can now build your deck recipe from My Page too",
       "Build your own deck recipe and play it against the CPU",
       "During a match, \"Deck list\" now shows that match's deck with card counts",
       "The shop now lists items you do not own yet first",
@@ -76,7 +78,8 @@ export const CHANGELOG = [
       "The online match window is better arranged",
     ],
     items: [
-      "山札（112枚）の中身を自分で決められるようになりました。ホーム画面の「CPU戦」を押すと出る設定の中に「山札」の行があり、「マイ山札」を選んで「組み方を編集」を押すと、色ごとにどの札を何枚使うかを決められます。色ごとの枚数は標準と同じまま（7色は各14枚・なないろの欠片7枚・白4枚・黒3枚）なので、7色をロックして勝つという遊び方は変わりません。変わるのは「どの札がよく出てくるか」で、たとえば赤をジャンプ台だけにすれば移動の多い対局になります。1種類に入れられるのはその色の枚数までで、実物のカードに刷られている枚数も画面に出ます。「標準に戻す」と「おまかせ」もあります。⚠ 山札は対戦している全員で共有するものなので（49マスに配られ、残りが共通の山になります）、1人の好みが他の人の引く札まで決めてしまわないよう、オンライン対戦とランク戦では今までどおり標準の山札です。効くのはCPU戦と同じ端末での対戦だけです。",
+      "「マイ山札」を作る入口を、マイページにも置きました（メインデッキの下の「マイ山札を作る」）。これまではCPU戦をはじめる時の設定の中だけだったので、遊ぶ前にじっくり組みたい時はこちらからどうぞ。",
+      "山札の中身を自分で決められるようになりました。ホーム画面の「CPU戦」を押すと出る設定の中に「山札」の行があり、「マイ山札」を選んで「組み方を編集」を押すと、どの札を何枚使うかを決められます。組み方は公式サイトに載っている「山札のカスタマイズ」ルールのとおりです——7色は各14枚、なないろの欠片は7枚、無色（白・黒）は合わせて7枚以下。同じ名前のカードは7枚まで、ONLYカードは1種類につき1枚までです。色の枚数バランスは変わらないので、7色をロックして勝つという遊び方もそのままです。⚠ 山札は対戦している全員で共有するものなので（49マスに配られ、残りが共通の山になります）、1人の好みが他の人の引く札まで決めてしまわないよう、オンライン対戦とランク戦では今までどおり標準の山札です。効くのはCPU戦と同じ端末での対戦だけです。",
       "対局中にオプション（⚙）から開く一覧を「山札一覧」にしました。いま遊んでいる対局の山がどう組まれているか（種類と、それぞれ何枚入っているか、合計何枚か）が分かります。⚠ 出しているのは「山の組み方」で、残り枚数ではありません（山は裏向きなので、残りが見えると引かれた札が分かってしまうためです）。ホーム画面の図鑑から開く「カード一覧」は今までどおりです。",
       "ショップの並びを「まだ持っていないもの → 所持済み」の順にしました。買えるものが必ず上に来ます。さらに「所持済みを隠す」も置いたので、欲しい人だけ隠せます（既定は隠しません＝自分の持ち物も確かめられるように）。",
       "場・ロックエリアに置かれたカードに、そのカードの色の細い枠が付くようにしました。イラストだけでは遠目に何色の札か分かりにくいことがあったためです。★すべての色のカードは七色の枠になります。",
@@ -87,7 +90,8 @@ export const CHANGELOG = [
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
-      "You can now decide what goes into the 112-card deck. Open “VS CPU” on the home screen and you will find a “Deck recipe” row: choose “My recipe”, press “Edit recipe”, and set how many of each card you want in every colour. The per-colour totals stay exactly as standard (14 for each of the 7 colours, 7 Rainbow Shards, 4 white, 3 black), so winning by locking all seven colours works just as before. What changes is which cards come up often — fill red with Jump Pads, for instance, and you get a match full of movement. A single kind can go up to that colour's total, and the number actually printed on the physical cards is shown too. There are also “Back to standard” and “Surprise me” buttons. Note: the deck is shared by everyone in a match (it fills the 49 squares and the rest becomes the common draw pile), so that one player's taste does not decide what the others draw, online and ranked matches keep using the standard deck. This applies to CPU matches and matches on the same device only.",
+      "You can now open the deck recipe builder from My Page as well (“Build my deck recipe”, under your main deck). Until now it was only reachable from the CPU match settings, so this gives you a calmer place to put a recipe together before you play.",
+      "You can now decide what goes into the deck. Open “VS CPU” on the home screen and you will find a “Deck recipe” row: choose “My recipe”, press “Edit recipe”, and set how many of each card you want. The recipe follows the official deck customisation rules published on the website: 14 cards in each of the 7 colours, 7 Rainbow Shards, and up to 7 colourless (white and black together), with a single card name appearing at most 7 times and an ONLY card at most once. The colour balance never changes, so winning by locking all seven colours works just as before. Note: the deck is shared by everyone in a match (it fills the 49 squares and the rest becomes the common draw pile), so that one player's taste does not decide what the others draw, online and ranked matches keep using the standard deck. This applies to CPU matches and matches on the same device only.",
       "During a match, the list you open from Options (gear) is now the \"Deck list\": it shows how this match's deck is built — which cards are in it, how many of each, and the total. Note that this is the deck's composition, not what is left in it (the deck is face down, so showing the remainder would reveal which cards have been drawn). The \"Card list\" in the codex on the home screen is unchanged.",
       "The shop now lists what you do not own yet before what you already have, so anything you can still buy is always near the top. There is also a \"Hide owned\" switch for those who want it (off by default, so your own collection stays visible).",
       "Cards placed on the board or in a lock area now have a thin ring in the card's own colour, because artwork alone was sometimes hard to read at a glance. All-colour cards get a seven-colour ring.",
@@ -124,8 +128,13 @@ export const CHANGELOG = [
       "The card list's back button now looks like the one on every other page",
     ],
     devItems: [
+      "🔴 山札カスタマイズの実装を**公式ルールどおりに作り直した**（ユーザー指摘「1種類7枚までです。HPの山札カスタマイズのルールを確認してください」）。www.asobuzz.net/variant-rules の「山札のカスタマイズ」: ①7色各14枚・虹7枚・**無色は7枚以下** ②同じ名前は7枚まで ※ONLYは1種類1枚まで。⇒ 白と黒を別々の枠にしていたのを**1つの「無色」の枠**にまとめ、上限は7（ONLYは1）。ONLYかどうかは**データの only フラグ**で見る（count===1 で判定すると色落ちキャット・1stの白3種が巻き込まれる＝実測で確認）。",
+      "🔴 続き725 で「実物の枚数だと選ぶ余地がゼロだから上限を枠まで広げる」と**自分で決めてしまった**のが間違い。決める話ではなく調べる話だった。なお無色を1つの枠にまとめたことで、1セットしか無くても無色だけは選べる（白7枚・黒0枚なども可。0枚なら山は105枚）。",
+      "パック開封（**管理者だけ**・src/card-packs.js ＋ src/card-pack-ui.js）: 1パック5枚、未所持を優先、最後の1枚はレア枠（ONLYが出やすい）。所持は**種類**で数え、手に入れた札がそのままマイ山札の候補に増える。全部めくり終えてから所持に入る（途中で閉じたら入らない）。買う仕組みは無く、サーバー（SQL・Edge Function）も使わない。机上で52種類そろうまで12パック・だぶり8枚。",
+      "ホームの「パックを開ける」タイルは adminOnly で、既定と v2 の**両方の組み立てが同じ 出すタイル() を通る**ようにした（片方だけだと『ある時だけ出る』＝#477 の形）。未ログインの実測でタイル9つ・packs は出ないことを確認。",
+      "実測で3つ直した: ①パックのラベルに id がそのまま出ていた（getCardName は訳の表に無い札に空を返す⇒定義の name へ落とす） ②レア枠の金の outline が **ONLYカードの光（.is-only-card・#596）と取り合っていた**（計算値は向こうが勝っていた）⇒ カードを光らせるのをやめ、名前の横の ✦ にした ③マイページの新しい入口だけ色が地のままだった（#profile-maindeck-edit の規則に相乗りさせて琥珀にそろえた）。",
       "マイ山札の作り: src/my-stack.js（import を1つも持たない葉。card-set.js と同じ作法で localStorage に enabled と recipe を覚える）＋ src/my-stack-editor.js（編集画面）。cards-data.js の getDeckNormalCards() が isMyStackActive() の時だけ buildMyStackNormalCards() を通し、それ以外は今までの標準の山札をそのまま返す。色ごとに独立して見て、揃っていない色だけ標準へ落とすので、合計は必ず112枚のまま。",
-      "🔴 上限は測って決め直した: 最初は「実物に刷られている枚数まで」にしたが、机上で数えたらリメイクの33種だけでは赤の枠14に対して候補が2種（各7枚）＝7/7 しか組めず、白黒・なないろも含めて全色が一意に決まっていた（＝遊んでいる人には何も選べない機能だった）。⇒ 上限をその色の枠（7色14・白4・黒3）に変えた。箱に7枚しか入っていないのは箱の中身の話でルールではない。ただし ONLYカード（元が1枚）はルールなので1枚で固定。実物の枚数は「実物◯枚」として画面に残す。",
+      "🔴 上限と枠は**公式ルールどおり**（ユーザー指摘で www.asobuzz.net/variant-rules の「山札のカスタマイズ」を確認）: 7色は各14枚ちょうど・虹7枚ちょうど・無色（白＋黒を1つの枠として）7枚以下、同じ名前は7枚まで、ONLYは1種類1枚まで。ONLYかどうかはデータの only フラグで見る（count===1 で判定すると色落ちキャットや1st の白が巻き込まれる）。白と黒を分けていたのを1つの枠にまとめたので、1セットしか無くても無色だけは選べる（7枚以下なので0枚も正しく、その時の山は105枚）。",
       "🔴 オンラインで効かせないのは作りの都合ではなく筋の問題。山札を組むのはサーバー（Edge Function の deckPoolForCardSet）だけなので、クライアントで何を選んでも盤面は標準の山になる＝黙らせずにおくと「山札一覧にはマイ山札が出るのに実際の盤面は標準」という食い違いになる。state.js の setOnlineMode が setMyStackSuspended で明示的に止める。Edge Function・SQL の変更は無い。",
       "未公開の0th拡張・1st EDITION の札は管理者だけに候補として出す（my-stack-editor.js の setMyStackShowAllSets を home-screen.js が isAdminUser() で渡す）。管理者は3セット混ぜた山（赤なら8種から14枚）も組める。",
       "机上の検査31件（scratchpad/_mystack725probe.mjs）: 標準そのまま／偏らせる／上限超え／1色だけ不足→その色だけ標準／3セット混ぜ／おまかせ100回／候補数／空の recipe／0th拡張を選んでいる時の枠の追従／ONLYカードの1枚固定。すべて112枚・色ごとの枠どおり。",

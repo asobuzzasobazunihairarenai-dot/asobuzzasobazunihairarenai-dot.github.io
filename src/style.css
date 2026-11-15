@@ -19269,7 +19269,8 @@ body.theme-light #profile-maindeck .profile-maindeck-name { color: #1e293b; }
   border-radius: 0.6rem;
 }
 /* 「マイデッキ編集」= テキストリンク調（ユーザー要望2026-08-16「ボタン枠は不要」）。枠・背景なし。 */
-#profile-maindeck-edit {
+#profile-maindeck-edit,
+#profile-mystack-edit {
   width: 100%;
   padding: 0.2rem;
   border: none;
@@ -19287,8 +19288,10 @@ body.theme-light #profile-maindeck .profile-maindeck-name { color: #1e293b; }
   text-underline-offset: 3px;
   transform: translate(var(--profile-maindeck-edit-x, 0.3rem), var(--profile-maindeck-edit-y, -1.7rem)) scale(var(--profile-maindeck-edit-scale, 0.8));
 }
-#profile-maindeck-edit:hover { filter: brightness(1.12); }
-body.theme-light #profile-maindeck-edit { color: #b45309; }
+#profile-maindeck-edit:hover,
+#profile-mystack-edit:hover { filter: brightness(1.12); }
+body.theme-light #profile-maindeck-edit,
+body.theme-light #profile-mystack-edit { color: #b45309; }
 #profile-maindeck-edit .profile-maindeck-edit-icon { font-size: 1.05em; line-height: 1; text-decoration: none; display: inline-block; }
 
 /* デッキ一覧: メインデッキ（getSelectedDeckId）のバッジ＋★トグル（my-deck-list.js）。 */
@@ -25059,8 +25062,9 @@ a.opening-trial-video::after {
 #shop-panel-back,
 #mdl-back,
 #my-deck-page-back,
-/* 【続き725】マイ山札の戻る。 */
+/* 【続き725・726】マイ山札とパック開封の戻る。 */
 #my-stack-back,
+#card-pack-back,
 #options-menu-back {
   font-size: 0.85rem;
   padding: 0.45rem 0.9rem;
@@ -25086,6 +25090,8 @@ body.is-phone-device #my-deck-page-back,
 body.is-tablet-device #my-deck-page-back,
 body.is-phone-device #my-stack-back,
 body.is-tablet-device #my-stack-back,
+body.is-phone-device #card-pack-back,
+body.is-tablet-device #card-pack-back,
 body.is-phone-device #options-menu-back,
 body.is-tablet-device #options-menu-back {
   font-size: 1.7rem;
@@ -25634,7 +25640,8 @@ body.is-tablet-device #ranked-practice-banner {
    ⚠ 色は決め打ちしない（教訓15）。他のボタンと同じ `#e2e8f0` を置き、
      明るいテーマのまとめがそれを上書きする（＝他と同じ扱いになる）。 */
 #deck-viewer-back,
-#my-stack-back {
+#my-stack-back,
+#card-pack-back {
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
   color: #e2e8f0;
@@ -25642,13 +25649,15 @@ body.is-tablet-device #ranked-practice-banner {
   cursor: pointer;
 }
 #deck-viewer-back:hover,
-#my-stack-back:hover {
+#my-stack-back:hover,
+#card-pack-back:hover {
   border-color: rgba(56, 189, 248, 0.7);
   background: rgba(56, 189, 248, 0.12);
 }
 /* 明るいテーマでも他の「戻る」と同じ色に（教訓15。#mdl-back / #profile-page-back と同じ値）。 */
 body.theme-light #deck-viewer-back,
-body.theme-light #my-stack-back {
+body.theme-light #my-stack-back,
+body.theme-light #card-pack-back {
   border-color: rgba(176, 141, 63, 0.5);
   color: #6b5c3c;
 }
@@ -26182,4 +26191,203 @@ body.is-tablet-device .my-stack-step-n {
 body.is-phone-device .my-stack-note,
 body.is-tablet-device .my-stack-note {
   font-size: 1.35rem;
+}
+
+/* ═══════════ 【2026-11-15・続き726】パックを開ける ═══════════
+   ユーザー指示「**ではパック開封に進もう！今は管理者だけが見れるようにしてください。**」。
+   中身の決まりは src/card-packs.js の冒頭。
+
+   ⚠ **新しい画像は1枚も足していない**（カードの絵と裏面はアプリが既に持っている）。
+   ⚠ めくりは transform だけ（`filter` は preserve-3d を平坦化する＝教訓1。
+     ここは盤面の外だが、同じ書き方を盤面へ写した時に事故るので揃えておく）。
+   ⚠ **文字色は決め打ちしない**（教訓15）。地と字はパネルが1回だけ決め、中は継ぐ。 */
+#card-pack-panel {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  padding: 1rem 1.2rem 2rem;
+  z-index: 2401;
+  background: rgba(15, 23, 32, 0.98);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  display: none;
+}
+body.theme-light #card-pack-panel {
+  background: #faf8f3;
+  color: #4a4233;
+}
+#card-pack-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0.4rem 0 0.3rem;
+  padding-right: 2rem;
+}
+#card-pack-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.card-pack-stat {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+.card-pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.card-pack-open-btn {
+  padding: 0.55rem 1.3rem;
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: inherit;
+  color: #06202e;
+  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
+  border: 1px solid rgba(56, 189, 248, 0.8);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.card-pack-sub-btn {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.card-pack-sub-btn:hover {
+  border-color: rgba(56, 189, 248, 0.7);
+  background: rgba(56, 189, 248, 0.12);
+}
+body.theme-light .card-pack-sub-btn {
+  border-color: rgba(176, 141, 63, 0.5);
+}
+.card-pack-note {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  opacity: 0.72;
+  max-width: 46rem;
+}
+
+/* 引いた5枚。カードは正方形（このゲームの物理カードが正方形）。 */
+.card-pack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.4rem;
+}
+.card-pack-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 9rem;
+}
+.card-pack-card {
+  width: 9rem;
+  height: 9rem;
+  perspective: 800px;
+  cursor: pointer;
+}
+.card-pack-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+}
+.card-pack-card.is-open .card-pack-card-inner {
+  transform: rotateY(180deg);
+}
+.card-pack-card-back,
+.card-pack-card-front {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 0.4rem;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.45);
+}
+.card-pack-card-front {
+  transform: rotateY(180deg);
+}
+/* 🔴 レア枠に outline を足すのはやめた（実測で分かった）。ONLYカードには**アプリが既に
+   金の outline で光らせる仕組み**がある（.is-only-card・#596）ので、同じ所を2つの規則で
+   取り合うことになる（実測で計算値は向こうの rgba(246,201,69,…) が勝っていた）。
+   ⇒ レア枠は**名前の横の印**で示す（光は向こうに任せる）。教訓10 と同じ考え方。 */
+.card-pack-rare-mark {
+  display: inline-block;
+  margin-right: 0.25rem;
+  color: #e8cf8a;
+  font-weight: bold;
+}
+body.is-phone-device .card-pack-rare-mark,
+body.is-tablet-device .card-pack-rare-mark {
+  font-size: 1.5rem;
+}
+.card-pack-label {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  text-align: center;
+  min-height: 2.2rem;
+}
+.card-pack-new {
+  display: inline-block;
+  margin-right: 0.3rem;
+  padding: 0 0.3rem;
+  border-radius: 0.2rem;
+  background: #c70025;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+/* 🔴 スマホ・タブレット（ステージ倍率 0.478 ＝ 既定のままだと字が実画面6px台）。
+   #453・#569 と同じ罠。読ませたい字は実画面 11px 以上・押す所は 28px 以上。 */
+body.is-phone-device #card-pack-title,
+body.is-tablet-device #card-pack-title {
+  font-size: 2.6rem;
+}
+body.is-phone-device .card-pack-stat,
+body.is-tablet-device .card-pack-stat {
+  font-size: 1.7rem;
+}
+body.is-phone-device .card-pack-open-btn,
+body.is-tablet-device .card-pack-open-btn {
+  font-size: 1.8rem;
+  padding: 0.7rem 1.6rem;
+}
+body.is-phone-device .card-pack-sub-btn,
+body.is-tablet-device .card-pack-sub-btn {
+  font-size: 1.5rem;
+  padding: 0.6rem 1.2rem;
+}
+body.is-phone-device .card-pack-note,
+body.is-tablet-device .card-pack-note {
+  font-size: 1.4rem;
+  max-width: none;
+}
+body.is-phone-device .card-pack-label,
+body.is-tablet-device .card-pack-label {
+  font-size: 1.5rem;
+  min-height: 4rem;
+}
+body.is-phone-device .card-pack-new,
+body.is-tablet-device .card-pack-new {
+  font-size: 1.3rem;
+}
+
+/* 【続き726】マイページの「マイ山札を作る」。マイデッキ編集の真下に同じ調子で並べる。
+   🔴 見た目は #profile-maindeck-edit の規則に**相乗りさせた**（上のセレクタに足してある）。
+     実測で、足すまでは琥珀 rgb(180,83,9) と地の色 rgb(58,51,38) に分かれていて、
+     隣り合っているのに別物に見えた。明暗2テーマの出し分けもあちらが持っている（教訓15）。
+   ⚠ #profile-maindeck は bottom 固定（bottom: 0）なので、ここに1行足すと**上へ伸びる**
+     ＝画面の下からはみ出すことはない（実測で下端は前後とも992＝ステージの底）。 */
+#profile-mystack-edit {
+  margin-top: 0.1rem;
 }

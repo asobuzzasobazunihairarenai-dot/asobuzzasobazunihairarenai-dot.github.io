@@ -78,6 +78,7 @@ body.ui-v2 #shop-panel-back,
 body.ui-v2 #mdl-back,
 body.ui-v2 #my-deck-page-back,
 body.ui-v2 #my-stack-back,
+body.ui-v2 #card-pack-back,
 body.ui-v2 #options-menu-back {
   background-color: #7a5d2b;
   background-image: url("../assets/ui-v2/brass.webp");

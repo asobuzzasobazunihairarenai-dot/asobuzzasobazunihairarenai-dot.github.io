@@ -190,7 +190,33 @@ const TILES = [
   // 【続き621】押された時に本文を読む（動的 import）。ホーム画面の他のタイル
   // （デッキ構築・不具合のお礼）と同じやり方。
   { icon: "📰", image: "assets/home-icons/news.webp", key: "news", labelKey: "home.tile.news", status: "ready", onOpen: () => void openChangelogLazily(), showNewIfUnread: () => hasUnreadChangelog() },
+  // 🔴【2026-11-15・続き726】「パックを開ける」。ユーザー指示「**ではパック開封に進もう！
+  //   今は管理者だけが見れるようにしてください。**」
+  //   ⚠ `adminOnly: true` を見て**管理者以外の画面にはこのタイルごと出さない**
+  //     （2か所の組み立て＝既定と v2 の両方で同じ関数 出すタイル() を通す）。
+  //   ⓘ 試作（project/Main.dc.html）に在って、続き704 で「中身が無いので置かない」と
+  //     見送ったタイル。マイ山札（続き725/726）が入って中身ができたので置く。
+  //   ⚠ 絵のアイコンがまだ無いので線画（V2_ICON.shop）を使い回す。
+  {
+    icon: "🎴",
+    svgKey: "shop",
+    key: "packs",
+    labelKey: "home.tile.packs",
+    status: "ready",
+    adminOnly: true,
+    onOpen: async () => {
+      const m = await import("./card-pack-ui.js");
+      m.openCardPackPanel(true);
+    },
+  },
 ];
+
+// 画面に出すタイル（管理者だけのものを落とす）。**組み立ては2通りある**ので、
+// どちらも必ずここを通す（片方だけ直すと「ある時だけ出る」＝#477 の形になる）。
+function 出すタイル() {
+  const admin = isAdminUser();
+  return TILES.filter((t) => !t.adminOnly || admin);
+}
 
 // クラウドファンディングの帯。期限を過ぎたら null を返す（＝出さない）。
 // URL は CAMPFIRE の正式なもの。/preview?token=… の限定公開URLは絶対に使わない。
@@ -751,7 +777,7 @@ function applyV2Icon(el, key) {
 
 function buildHomeV2(overlayEl, parts) {
   const tileByKey = new Map();
-  for (const tile of TILES) tileByKey.set(tile.key, tile);
+  for (const tile of 出すタイル()) tileByKey.set(tile.key, tile);
   const 作る = (key) => {
     const tile = tileByKey.get(key);
     return tile ? buildTile(tile) : null;
@@ -848,7 +874,9 @@ function buildHomeV2(overlayEl, parts) {
     colR.appendChild(parts.firstStep);
   }
   // 【#647】CPU戦とフレンドリーマッチは分かれたので、右の列は3つ並ぶ。
-  for (const key of ["cpu", "friendly", "tutorial"]) {
+  // 【続き726】管理者だけ「パックを開ける」が4つ目として加わる（作る() が null を返すので
+  //   管理者でなければ**この行は何も足さない**）。
+  for (const key of ["cpu", "friendly", "tutorial", "packs"]) {
     const el = 作る(key);
     if (el) {
       el.classList.add("is-card");
@@ -1055,7 +1083,7 @@ export function openHomeScreen() {
   } else {
     const grid = document.createElement("div");
     grid.id = "home-screen-grid";
-    for (const tile of TILES) grid.appendChild(buildTile(tile));
+    for (const tile of 出すタイル()) grid.appendChild(buildTile(tile));
     overlayEl.appendChild(grid);
   }
 
