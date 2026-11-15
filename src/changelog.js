@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "「マイ山札」——山札の中身を自分で決めてCPU戦で遊べます",
       "対局中は「山札一覧」で、その対局の山の中身が枚数つきで見られます",
       "ショップで「まだ持っていないもの」が先に並ぶようにしました",
       "盤面のカードに、その色の細い枠が付くようにしました",
@@ -64,6 +65,7 @@ export const CHANGELOG = [
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "Build your own deck recipe and play it against the CPU",
       "During a match, \"Deck list\" now shows that match's deck with card counts",
       "The shop now lists items you do not own yet first",
       "Cards on the board now carry a thin ring in their own colour",
@@ -74,6 +76,7 @@ export const CHANGELOG = [
       "The online match window is better arranged",
     ],
     items: [
+      "山札（112枚）の中身を自分で決められるようになりました。ホーム画面の「CPU戦」を押すと出る設定の中に「山札」の行があり、「マイ山札」を選んで「組み方を編集」を押すと、色ごとにどの札を何枚使うかを決められます。色ごとの枚数は標準と同じまま（7色は各14枚・なないろの欠片7枚・白4枚・黒3枚）なので、7色をロックして勝つという遊び方は変わりません。変わるのは「どの札がよく出てくるか」で、たとえば赤をジャンプ台だけにすれば移動の多い対局になります。1種類に入れられるのはその色の枚数までで、実物のカードに刷られている枚数も画面に出ます。「標準に戻す」と「おまかせ」もあります。⚠ 山札は対戦している全員で共有するものなので（49マスに配られ、残りが共通の山になります）、1人の好みが他の人の引く札まで決めてしまわないよう、オンライン対戦とランク戦では今までどおり標準の山札です。効くのはCPU戦と同じ端末での対戦だけです。",
       "対局中にオプション（⚙）から開く一覧を「山札一覧」にしました。いま遊んでいる対局の山がどう組まれているか（種類と、それぞれ何枚入っているか、合計何枚か）が分かります。⚠ 出しているのは「山の組み方」で、残り枚数ではありません（山は裏向きなので、残りが見えると引かれた札が分かってしまうためです）。ホーム画面の図鑑から開く「カード一覧」は今までどおりです。",
       "ショップの並びを「まだ持っていないもの → 所持済み」の順にしました。買えるものが必ず上に来ます。さらに「所持済みを隠す」も置いたので、欲しい人だけ隠せます（既定は隠しません＝自分の持ち物も確かめられるように）。",
       "場・ロックエリアに置かれたカードに、そのカードの色の細い枠が付くようにしました。イラストだけでは遠目に何色の札か分かりにくいことがあったためです。★すべての色のカードは七色の枠になります。",
@@ -84,6 +87,7 @@ export const CHANGELOG = [
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "You can now decide what goes into the 112-card deck. Open “VS CPU” on the home screen and you will find a “Deck recipe” row: choose “My recipe”, press “Edit recipe”, and set how many of each card you want in every colour. The per-colour totals stay exactly as standard (14 for each of the 7 colours, 7 Rainbow Shards, 4 white, 3 black), so winning by locking all seven colours works just as before. What changes is which cards come up often — fill red with Jump Pads, for instance, and you get a match full of movement. A single kind can go up to that colour's total, and the number actually printed on the physical cards is shown too. There are also “Back to standard” and “Surprise me” buttons. Note: the deck is shared by everyone in a match (it fills the 49 squares and the rest becomes the common draw pile), so that one player's taste does not decide what the others draw, online and ranked matches keep using the standard deck. This applies to CPU matches and matches on the same device only.",
       "During a match, the list you open from Options (gear) is now the \"Deck list\": it shows how this match's deck is built — which cards are in it, how many of each, and the total. Note that this is the deck's composition, not what is left in it (the deck is face down, so showing the remainder would reveal which cards have been drawn). The \"Card list\" in the codex on the home screen is unchanged.",
       "The shop now lists what you do not own yet before what you already have, so anything you can still buy is always near the top. There is also a \"Hide owned\" switch for those who want it (off by default, so your own collection stays visible).",
       "Cards placed on the board or in a lock area now have a thin ring in the card's own colour, because artwork alone was sometimes hard to read at a glance. All-colour cards get a seven-colour ring.",
@@ -120,6 +124,11 @@ export const CHANGELOG = [
       "The card list's back button now looks like the one on every other page",
     ],
     devItems: [
+      "マイ山札の作り: src/my-stack.js（import を1つも持たない葉。card-set.js と同じ作法で localStorage に enabled と recipe を覚える）＋ src/my-stack-editor.js（編集画面）。cards-data.js の getDeckNormalCards() が isMyStackActive() の時だけ buildMyStackNormalCards() を通し、それ以外は今までの標準の山札をそのまま返す。色ごとに独立して見て、揃っていない色だけ標準へ落とすので、合計は必ず112枚のまま。",
+      "🔴 上限は測って決め直した: 最初は「実物に刷られている枚数まで」にしたが、机上で数えたらリメイクの33種だけでは赤の枠14に対して候補が2種（各7枚）＝7/7 しか組めず、白黒・なないろも含めて全色が一意に決まっていた（＝遊んでいる人には何も選べない機能だった）。⇒ 上限をその色の枠（7色14・白4・黒3）に変えた。箱に7枚しか入っていないのは箱の中身の話でルールではない。ただし ONLYカード（元が1枚）はルールなので1枚で固定。実物の枚数は「実物◯枚」として画面に残す。",
+      "🔴 オンラインで効かせないのは作りの都合ではなく筋の問題。山札を組むのはサーバー（Edge Function の deckPoolForCardSet）だけなので、クライアントで何を選んでも盤面は標準の山になる＝黙らせずにおくと「山札一覧にはマイ山札が出るのに実際の盤面は標準」という食い違いになる。state.js の setOnlineMode が setMyStackSuspended で明示的に止める。Edge Function・SQL の変更は無い。",
+      "未公開の0th拡張・1st EDITION の札は管理者だけに候補として出す（my-stack-editor.js の setMyStackShowAllSets を home-screen.js が isAdminUser() で渡す）。管理者は3セット混ぜた山（赤なら8種から14枚）も組める。",
+      "机上の検査31件（scratchpad/_mystack725probe.mjs）: 標準そのまま／偏らせる／上限超え／1色だけ不足→その色だけ標準／3セット混ぜ／おまかせ100回／候補数／空の recipe／0th拡張を選んでいる時の枠の追従／ONLYカードの1枚固定。すべて112枚・色ごとの枠どおり。",
       "**「これももっとセブンっぽくしたい」（起動中の覆い）。** ⇒ 輪をやめて**7色の正方形が1つずつ灯る**形へ（勝利条件そのものの絵）。上に細い七色の線、地は試作の卓と同じ暖かい黒（#14120e。真っ黒だと「消えている」ように見える）。🔴 **index.html のインラインのまま**（src のモジュールに書くと、待っている当人を待つことになる）。**画像も webfont も使わない。** ⚠ 既存の三重の保険（pointer-events:none ／ 出たら消す ／ 25秒で強制）には一切触っていない。⚠ 点滅が苦手な人（prefers-reduced-motion）には**動かさず7色を静かに並べる**。実測: 正方形7つ・色はゲームの7色と一致・濃さが 0.18 → 1.00 と動く・当たり判定 none・例外0。",
       "🔴 **#664「ピュアバーガーの到達効果でカード置くとき表向きか裏向きか選べなかった」。** 札の文は「自分の手札から１枚をそのマスの１番上に置く。」で**向きを書いていない**のに、手札→マスの移動は state の既定が**裏向き**なので、黙って裏向きに置かれていた。⇒ 本人に聞く。⚠ CPU・持ち時間切れの代行はモーダルを出さずに自動で選ぶ（`pickOptionForEffect` が`isCpuSelectingNow` を見ている）ので、自動の席は止まらない。",
       "🔴 **#665「ノクスアエルの効果文が実際と異なります」の正体: 【色者】の一文が、カードに1文字も載っていなかった。** `card-effects.js` の**コメントには本文が書いてあった**のに、表示用の `card-text-ex0.ja.js` には入っていなかった（basic は『これは他のカードの効果の対象にならない。』だけ）。⇒ subtitle へ入れた。⚠ 「色者の効果が発動していない」の方は、**処理（`resolveShikijaAtTurnEnd`）は在ってターンの切り替わりから呼ばれている**。条件は「表向き・マスの上」。次の報告で行動ログを見る。",

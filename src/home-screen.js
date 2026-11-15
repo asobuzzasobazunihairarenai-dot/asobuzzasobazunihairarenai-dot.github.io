@@ -28,6 +28,8 @@ import { openRankingPage } from "./ranking-page.js";
 import { getSelfRank, pollRanked, getCurrentUser, isAdminUser } from "./online.js";
 import { rankName } from "./rank-badge.js";
 import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
+// 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
+import { isMyStackEnabled, setMyStackEnabled } from "./my-stack.js";
 import { isUiV2 } from "./ui-v2.js"; // 【2026-11-14】試作のレイアウト（?ui=v2 の時だけ使う）
 import { buildRankShowcase } from "./rank-showcase.js";
 import { showRankExplanationModal } from "./rank-explain.js";
@@ -532,6 +534,68 @@ function openMatchChoiceModal(opts = {}) {
   rules.appendChild(rulesHint);
   説明を畳む(rulesLabel, rulesHint);
   details.appendChild(rules);
+
+  // 🔴【2026-11-15・続き725】「マイ山札」の行（ユーザー指示「**マイ山札から進めよう！**」）。
+  //   山札（112枚）の中身を自分で決められる。色ごとの枚数は標準と同じままなので、
+  //   7色勝利の条件は変わらない（作りの芯は src/my-stack.js の冒頭）。
+  //   ⚠ **ここは CPU戦・ローカル対戦だけに効く。** オンラインの山札を組むのはサーバー
+  //     （Edge Function）だけなので、こちらで何を選んでも盤面は標準の山になる。しかも
+  //     山札は全員の共有物なので、1人の好みが他の3人の引く札を決めてしまう＝筋としても
+  //     効かせるべきではない（state.js の setOnlineMode が明示的に黙らせている）。
+  //   ⚠ **管理者かどうかで候補が変わる**（編集画面側で出し分け）。遊んでいる人には
+  //     未公開の0th拡張・1st EDITION の札は並ばない＝リメイクの33種の中での配分だけ。
+  {
+    const stackBox = document.createElement("div");
+    stackBox.className = "home-match-choice-difficulty";
+    const stackLabel = document.createElement("div");
+    stackLabel.className = "home-match-choice-difficulty-label";
+    stackLabel.textContent = t(cpuだけ ? "home.matchChoice.stackLabelShort" : "home.matchChoice.stackLabel");
+    stackBox.appendChild(stackLabel);
+    const stackSeg = document.createElement("div");
+    stackSeg.className = "home-match-choice-segment";
+    const stackButtons = [];
+    const refreshStack = () => {
+      const on = isMyStackEnabled();
+      for (const b of stackButtons) b.classList.toggle("is-selected", (b.dataset.v === "mine") === on);
+    };
+    for (const [v, key] of [
+      ["standard", "home.matchChoice.stackStandard"],
+      ["mine", "home.matchChoice.stackMine"],
+    ]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "home-match-choice-segment-btn";
+      b.dataset.v = v;
+      b.textContent = t(key);
+      b.addEventListener("click", () => {
+        setMyStackEnabled(v === "mine");
+        refreshStack();
+      });
+      stackSeg.appendChild(b);
+      stackButtons.push(b);
+    }
+    stackBox.appendChild(stackSeg);
+    // 「組み方を編集」。⚠ **動的 import** にする（my-deck-builder と同じ作法。
+    //   静的に書くと home-screen.js → my-stack-editor.js → cards-data.js と輪になり得る）。
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "home-match-choice-stack-edit";
+    editBtn.textContent = t("home.matchChoice.stackEdit");
+    editBtn.addEventListener("click", async () => {
+      const m = await import("./my-stack-editor.js");
+      // 未公開の0th拡張・1st EDITION の札は管理者だけに見せる（カードセットの選択と同じ扱い）。
+      m.setMyStackShowAllSets(isAdminUser());
+      m.openMyStackEditor();
+    });
+    stackBox.appendChild(editBtn);
+    const stackHint = document.createElement("div");
+    stackHint.className = "home-match-choice-difficulty-hint";
+    stackHint.textContent = t("home.matchChoice.stackHint");
+    stackBox.appendChild(stackHint);
+    説明を畳む(stackLabel, stackHint);
+    refreshStack();
+    details.appendChild(stackBox);
+  }
 
   // 🔴 管理者だけに出す「テストモード」。0th拡張（0th EDITION 拡張）の33種で遊ぶための入口。
   //   遊んでいる人には**この区画自体が存在しない**（既定はリメイクの33種のまま）。

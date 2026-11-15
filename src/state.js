@@ -7,6 +7,7 @@
 // 非同期化する際は同じactionをサーバーに送って同期する流れにそのまま乗せる想定。
 
 import { getDeckNormalCards, getEternalCards, getFirstCards, ETERNAL_CARDS, getCardDefinition } from "./cards-data.js";
+import { setMyStackSuspended } from "./my-stack.js"; // マイ山札（続き725）。import を1つも持たない葉なので循環しない
 import { COLORS, GATE_POSITIONS, SEAT_ORDER, SEAT_TO_SIDE } from "./board-layout.js";
 import { logAction, registerTurnInfoProvider } from "./action-log.js";
 
@@ -179,6 +180,12 @@ let onlineTransport = null;
 
 export function setOnlineMode(active) {
   onlineMode = active;
+  // 🔴【続き725】マイ山札はオンラインでは効かせない。
+  //   オンラインの山札を組むのは**サーバー（Edge Function）だけ**なので、こちらが
+  //   何を選んでも盤面は標準の山になる。黙らせずにおくと「山札一覧にはマイ山札が
+  //   出るのに実際の盤面は標準」という食い違いになる（しかも山札は全員の共有物なので、
+  //   1人の好みが他の3人の引く札を決めてしまう＝筋としても効かせるべきではない）。
+  setMyStackSuspended(active);
 }
 
 export function isOnlineMode() {

@@ -3,7 +3,8 @@ import { getLang } from "./i18n.js"; // UI英語化フェーズ12: ブースト�
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_ETERNAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js"; // 1st EDITION の19種＋E7種＋F7種
 import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
-import { buildMixedNormalCards } from "./mixed-deck.js"; // 「まぜる」を通常のエディションと同じ枚数で組む
+import { buildMixedNormalCards } from "./mixed-deck.js";
+import { isMyStackActive, getMyStackRecipe, buildMyStackNormalCards } from "./my-stack.js"; // マイ山札（続き725） // 「まぜる」を通常のエディションと同じ枚数で組む
 
 // 実際のカードデータ（docs/cards.md, docs/rulebook.mdより）。
 // 「カード効果・カードデータはコードに埋め込まず、外部データとして持つ」という方針(CLAUDE.md)
@@ -185,6 +186,20 @@ const ALL_CARDS = [
 ];
 const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 
+// 【続き725】マイ山札で遊ぶ時に、選べる札の全部（3セット分）。
+//   ⚠ 遊んでいる人の画面に未公開の札が並ばないよう、**どこまで選ばせるかは画面側が決める**
+//     （my-stack-editor.js）。ここは「選ばれた id を解決できる」ようにするだけ。
+export const MY_STACK_SETS = [NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS];
+
+export function getDeckNormalCards() {
+  // 🔴【続き725】マイ山札。**色ごとの合計は標準と同じまま**、その色の中の内訳だけ差し替える。
+  //   ⚠ オンラインでは my-stack.js 側が黙っている（山札を組むのはサーバーだけなので）。
+  if (isMyStackActive()) {
+    return buildMyStackNormalCards(MY_STACK_SETS, getMyStackRecipe(), 標準の山札());
+  }
+  return 標準の山札();
+}
+
 // 山札に入れる「通常カード」を、いま選ばれているカードセットに従って返す。
 //
 // ⚠ 0th拡張には**虹が無い**（なないろの欠片はリメイクのものと一字一句同じなので作っていない）。
@@ -194,7 +209,8 @@ const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 // ⚠ 1st EDITION も同じで、**虹（なないろの欠片）だけリメイクのものを使い回す**
 //   （印字が一字一句同じなので作っていない＝0th拡張と同じ）。Eカード・Fカードは別の山なので
 //   ここには出てこない（1st のEカードは入れていない＝続き665 の申し送り参照）。
-export function getDeckNormalCards() {
+// マイ山札を使わない時の山札（＝今までの getDeckNormalCards の中身そのまま）。
+function 標準の山札() {
   const set = getCardSet();
   const rainbow = NORMAL_CARDS.find((c) => c.id === "rainbow-shard");
   if (set === CARD_SETS.EX0) {

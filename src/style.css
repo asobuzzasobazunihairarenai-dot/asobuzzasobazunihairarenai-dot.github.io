@@ -25059,6 +25059,8 @@ a.opening-trial-video::after {
 #shop-panel-back,
 #mdl-back,
 #my-deck-page-back,
+/* 【続き725】マイ山札の戻る。 */
+#my-stack-back,
 #options-menu-back {
   font-size: 0.85rem;
   padding: 0.45rem 0.9rem;
@@ -25082,6 +25084,8 @@ body.is-phone-device #mdl-back,
 body.is-tablet-device #mdl-back,
 body.is-phone-device #my-deck-page-back,
 body.is-tablet-device #my-deck-page-back,
+body.is-phone-device #my-stack-back,
+body.is-tablet-device #my-stack-back,
 body.is-phone-device #options-menu-back,
 body.is-tablet-device #options-menu-back {
   font-size: 1.7rem;
@@ -25629,19 +25633,22 @@ body.is-tablet-device #ranked-practice-banner {
    （その一覧のコメントに「新しく『戻る』を足す時はこの一覧へ加える」と書いてある）。
    ⚠ 色は決め打ちしない（教訓15）。他のボタンと同じ `#e2e8f0` を置き、
      明るいテーマのまとめがそれを上書きする（＝他と同じ扱いになる）。 */
-#deck-viewer-back {
+#deck-viewer-back,
+#my-stack-back {
   background: none;
   border: 1px solid rgba(148, 163, 184, 0.35);
   color: #e2e8f0;
   font-family: sans-serif;
   cursor: pointer;
 }
-#deck-viewer-back:hover {
+#deck-viewer-back:hover,
+#my-stack-back:hover {
   border-color: rgba(56, 189, 248, 0.7);
   background: rgba(56, 189, 248, 0.12);
 }
 /* 明るいテーマでも他の「戻る」と同じ色に（教訓15。#mdl-back / #profile-page-back と同じ値）。 */
-body.theme-light #deck-viewer-back {
+body.theme-light #deck-viewer-back,
+body.theme-light #my-stack-back {
   border-color: rgba(176, 141, 63, 0.5);
   color: #6b5c3c;
 }
@@ -25822,4 +25829,357 @@ body.theme-light #deck-viewer-back {
 .self-status-hand-count {
   background: rgba(10, 14, 20, 0.74);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+/* ═══════════ 【2026-11-15・続き725】マイ山札（山札の組み方）═══════════
+   ユーザー指示「**マイ山札から進めよう！**」。作りの芯は src/my-stack.js の冒頭。
+
+   ⚠ **文字色を決め打ちしない**（教訓15。このアプリは明暗2テーマある）。地と文字色は
+     パネルが1回だけ決め、中の部品は**色を指定せず継ぐ**。違いは枠・太さ・不透明度で出す。
+     色の点だけは「カードの色」そのものなのでテーマに依らない。
+   ⚠ 大きさは rem（ステージ 1600x900 基準）。スマホ横（932x430）は倍率 0.478 なので、
+     読ませたい字は 1.6rem 以上・押す所は 2rem 以上にしてある。
+   ⚠ `vh` は使わない（ステージを縮めて描く作りなので、tools/check-css.mjs が見張っている）。 */
+#my-stack-panel {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  padding: 1rem 1.2rem 2rem;
+  z-index: 2401;
+  background: rgba(15, 23, 32, 0.98);
+  color: #e2e8f0;
+  font-family: sans-serif;
+  display: none;
+}
+body.theme-light #my-stack-panel {
+  background: #faf8f3;
+  color: #4a4233;
+}
+#my-stack-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0.4rem 0 0.3rem;
+  padding-right: 2rem;
+}
+#my-stack-hint {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  opacity: 0.72;
+  max-width: 56rem;
+  margin-bottom: 0.8rem;
+}
+#my-stack-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+/* 上の行: 「この組み方で遊ぶ」と、標準に戻す／おまかせ。 */
+.my-stack-toprow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+.my-stack-toggle {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: bold;
+  font-family: inherit;
+  color: inherit;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+/* オンの時だけ色を持たせる（押してある／押していないが形で分かるように）。 */
+.my-stack-toggle.is-on {
+  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
+  border-color: rgba(56, 189, 248, 0.8);
+  color: #06202e;
+}
+.my-stack-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.my-stack-action-btn,
+.home-match-choice-stack-edit {
+  padding: 0.42rem 0.9rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.my-stack-action-btn:hover,
+.home-match-choice-stack-edit:hover {
+  border-color: rgba(56, 189, 248, 0.7);
+  background: rgba(56, 189, 248, 0.12);
+}
+/* 「組み方を編集」は段を1つ下げて置く（切り替えの帯と並べると押し間違える）。 */
+.home-match-choice-stack-edit {
+  margin-top: 0.45rem;
+}
+body.theme-light .my-stack-action-btn,
+body.theme-light .home-match-choice-stack-edit,
+body.theme-light .my-stack-toggle {
+  border-color: rgba(176, 141, 63, 0.5);
+}
+
+/* 本体: 左に色の列、右にその色の札。 */
+.my-stack-body {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+}
+/* 色の列は貼り付けておく（下へ送って札を見ている間も、どの色かと数えが見える）。
+   ⚠ sticky は格子の子が align-self: start の時に効く（.my-stack-body が align-items: start）。 */
+.my-stack-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: sticky;
+  top: 0;
+}
+.my-stack-rail-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  text-align: left;
+}
+.my-stack-rail-btn:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+.my-stack-rail-btn.is-on {
+  border-color: rgba(56, 189, 248, 0.7);
+  background: rgba(56, 189, 248, 0.14);
+  font-weight: bold;
+}
+body.theme-light .my-stack-rail-btn.is-on {
+  border-color: rgba(176, 141, 63, 0.7);
+  background: rgba(176, 141, 63, 0.14);
+}
+.my-stack-rail-name {
+  flex: 1 1 auto;
+}
+.my-stack-rail-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+/* 枠と合っていない色は、数字の側で知らせる（×印のような強い出し方はしない）。 */
+.my-stack-rail-btn.is-off-balance .my-stack-rail-count {
+  color: #f19ec2;
+  opacity: 1;
+  font-weight: bold;
+}
+/* 選ぶ余地が無い色（なないろの欠片）。押せるが何も変わらないと分かるように薄く。 */
+.my-stack-rail-btn.is-fixed .my-stack-rail-name {
+  opacity: 0.6;
+}
+.my-stack-dot {
+  display: inline-block;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  flex: 0 0 auto;
+}
+
+.my-stack-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 44rem;
+}
+.my-stack-cards-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+.my-stack-cards-head-name {
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+.my-stack-cards-head-n {
+  margin-left: auto;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+.my-stack-cards-head-n.is-off-balance {
+  color: #f19ec2;
+  opacity: 1;
+  font-weight: bold;
+}
+.my-stack-card-row {
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0.3rem;
+}
+/* 1枚も入れていない札は薄く（入っているものが一目で分かるように）。 */
+.my-stack-card-row.is-unused {
+  opacity: 0.55;
+}
+.my-stack-card-face {
+  position: relative;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 0.2rem;
+  overflow: hidden;
+}
+.my-stack-card-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.my-stack-card-name {
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+.my-stack-card-max {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+.my-stack-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+/* 押す所は 2rem 角以上（スマホ横の倍率 0.478 で実画面 19px 以上）。 */
+.my-stack-step-btn {
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  color: inherit;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+.my-stack-step-btn:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.7);
+  background: rgba(56, 189, 248, 0.14);
+}
+.my-stack-step-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.my-stack-step-n {
+  min-width: 1.6rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+.my-stack-note {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  opacity: 0.7;
+  padding: 0.2rem 0.1rem;
+}
+.my-stack-note.is-warn {
+  color: #f19ec2;
+  opacity: 1;
+}
+
+/* 🔴【続き725】スマホ・タブレットのマイ山札。
+   実測（本物の画面で数えた）: 既定のままだとステージ倍率 0.478 で
+     札の名前 13.76px→**実画面 6.6px** ／ 上限の字 11.52px→**5.5px**
+     「− ＋」35x35px→**17x17px** ／ 色の列 12.8px→**6.1px**
+   ＝ #453・#569 と同じ罠。**読ませたい字は実画面 11px 以上・押す所は 28px 以上**を
+   目安に、ここだけ大きくする（PCは1pxも変えない）。 */
+body.is-phone-device #my-stack-title,
+body.is-tablet-device #my-stack-title {
+  font-size: 2.6rem;
+}
+body.is-phone-device #my-stack-hint,
+body.is-tablet-device #my-stack-hint {
+  font-size: 1.4rem;
+  max-width: none;
+}
+body.is-phone-device .my-stack-toggle,
+body.is-tablet-device .my-stack-toggle {
+  font-size: 1.8rem;
+  padding: 0.7rem 1.4rem;
+}
+body.is-phone-device .my-stack-action-btn,
+body.is-tablet-device .my-stack-action-btn,
+body.is-phone-device .home-match-choice-stack-edit,
+body.is-tablet-device .home-match-choice-stack-edit {
+  font-size: 1.5rem;
+  padding: 0.6rem 1.2rem;
+}
+/* 色の列は字を上げたぶん幅も広げる（「なないろ」が割れないように）。 */
+body.is-phone-device .my-stack-body,
+body.is-tablet-device .my-stack-body {
+  grid-template-columns: 17rem minmax(0, 1fr);
+}
+body.is-phone-device .my-stack-rail-btn,
+body.is-tablet-device .my-stack-rail-btn {
+  font-size: 1.5rem;
+  padding: 0.6rem 0.7rem;
+}
+body.is-phone-device .my-stack-cards-head-name,
+body.is-tablet-device .my-stack-cards-head-name {
+  font-size: 1.9rem;
+}
+body.is-phone-device .my-stack-cards-head-n,
+body.is-tablet-device .my-stack-cards-head-n {
+  font-size: 1.7rem;
+}
+body.is-phone-device .my-stack-cards,
+body.is-tablet-device .my-stack-cards {
+  max-width: none;
+}
+body.is-phone-device .my-stack-card-row,
+body.is-tablet-device .my-stack-card-row {
+  grid-template-columns: 4.6rem minmax(0, 1fr) auto auto;
+}
+body.is-phone-device .my-stack-card-face,
+body.is-tablet-device .my-stack-card-face {
+  width: 4.6rem;
+  height: 4.6rem;
+}
+body.is-phone-device .my-stack-card-name,
+body.is-tablet-device .my-stack-card-name {
+  font-size: 1.6rem;
+}
+body.is-phone-device .my-stack-card-max,
+body.is-tablet-device .my-stack-card-max {
+  font-size: 1.3rem;
+}
+/* 押す所。3.8rem ＝ 実画面 29px（目安の28px以上）。 */
+body.is-phone-device .my-stack-step-btn,
+body.is-tablet-device .my-stack-step-btn {
+  width: 3.8rem;
+  height: 3.8rem;
+  font-size: 1.9rem;
+}
+body.is-phone-device .my-stack-step-n,
+body.is-tablet-device .my-stack-step-n {
+  min-width: 2.8rem;
+  font-size: 1.9rem;
+}
+body.is-phone-device .my-stack-note,
+body.is-tablet-device .my-stack-note {
+  font-size: 1.35rem;
 }
