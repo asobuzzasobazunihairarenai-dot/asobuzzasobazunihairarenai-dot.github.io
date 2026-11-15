@@ -848,15 +848,39 @@ export function openBugReportModal() {
         }
         status.textContent = isOnlineMode() ? t("bug.sendingOnline") : t("bug.sending");
       }
-      const peers = await collectPeerLogs();
-      const { actionLog, consoleLog } = buildCombinedLogs(peers);
-      const context = gatherContext();
+      // 🔴【続き739】**ログや画面の状態づくりで落ちても、報告は必ず送る。**
+      //   いちばん大事なのは**コメント**で、添え物のせいで1件も届かないのが最悪。
+      //   ユーザー報告「debug送れなくなりました」の時、画面には理由が1文字も出ていなかった。
+      let actionLog = "";
+      let consoleLog = "";
+      let context = {};
+      const 添え物の失敗 = [];
+      try {
+        const peers = await collectPeerLogs();
+        const r = buildCombinedLogs(peers);
+        actionLog = r.actionLog;
+        consoleLog = r.consoleLog;
+      } catch (err) {
+        console.error("buildCombinedLogs failed", err);
+        添え物の失敗.push("log:" + stringifyLogArg(err));
+      }
+      try {
+        context = gatherContext() || {};
+      } catch (err) {
+        console.error("gatherContext failed", err);
+        添え物の失敗.push("context:" + stringifyLogArg(err));
+      }
       // 開いた瞬間の画面の状態。何秒前の話かも残す（開いたまま対局が進むことがあるため）。
-      if (screenCheck.checked) {
-        context.screen2 = { ...screenAtOpen, agoMs: Date.now() - openedAt };
+      try {
+        if (screenCheck.checked) {
+          context.screen2 = { ...screenAtOpen, agoMs: Date.now() - openedAt };
+        }
+      } catch (err) {
+        添え物の失敗.push("screen2:" + stringifyLogArg(err));
       }
       if (shotUrl) context.shotUrl = shotUrl;
       if (shotError) context.shotError = shotError;
+      if (添え物の失敗.length) context.buildErrors = 添え物の失敗;
       await submitBugReport({
         comment,
         actionLog,
@@ -869,8 +893,36 @@ export function openBugReportModal() {
       setTimeout(close, 1400);
     } catch (err) {
       console.error("submitBugReport failed", err);
+      // 🔴【続き739】**ここで諦めない。** 添え物（ログ・画面の状態・画像）を全部落として、
+      //   **コメントだけ**でもう一度送る。報告が1件も届かないのがいちばん損。
+      let 救えた = false;
+      try {
+        status.textContent = t("bug.retrying");
+        await submitBugReport({
+          comment,
+          actionLog: "(添え物の送信に失敗したため省略)",
+          consoleLog: null,
+          context: { retryMinimal: true, firstError: stringifyLogArg(err) },
+        });
+        救えた = true;
+      } catch (err2) {
+        console.error("submitBugReport retry failed", err2);
+      }
+      if (救えた) {
+        status.classList.remove("is-error");
+        status.textContent = t("bug.sentMinimal");
+        submitBtn.textContent = t("bug.sentBtn");
+        setTimeout(close, 2200);
+        return;
+      }
       status.classList.add("is-error");
-      status.textContent = t("bug.failed");
+      // 🔴 **本当の理由を出す。** これまでは何が起きても同じ1文だったので、
+      //   原因に辿り着く手がかりがゼロだった（#729 でパックのボタンに対して直したのと同じ形）。
+      status.textContent =
+        t("bug.failed") +
+        "（" +
+        String(stringifyLogArg(err)).replace(/s+/g, " ").trim().slice(0, 160) +
+        "）";
       submitBtn.disabled = false;
       cancelBtn.disabled = false;
     }

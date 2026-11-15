@@ -134,12 +134,19 @@ export async function claimWeekly() {
   return 持ち物;
 }
 // 対局の区切りで呼ぶ（kind: "win" / "play" / "lock"）。失敗しても対局は止めない。
+// 🔴【続き739】失敗を**同じ種類につき1回だけ**知らせる。続き738 で手札効果・到達効果にも
+//   繋いだので、サーバー側の準備がまだの端末では**1手ごとに**エラーが積まれ、
+//   不具合報告のコンソールログが無関係な行で埋まってしまう。
+const 知らせた失敗 = new Set();
 export async function noteProgress(kind, amount = 1) {
   if (!isCollectionReady()) return;
   try {
     入れる(await 呼ぶ("noteProgress", kind, amount));
   } catch (err) {
-    console.error("noteProgress failed", err);
+    if (!知らせた失敗.has(kind)) {
+      知らせた失敗.add(kind);
+      console.error("noteProgress failed (" + kind + "・以後この種類は黙る)", err);
+    }
   }
 }
 // 🔴 診断用: 表から直接読んだ残高（ショップの表示と同じ道）。RPC の値と食い違ったら、

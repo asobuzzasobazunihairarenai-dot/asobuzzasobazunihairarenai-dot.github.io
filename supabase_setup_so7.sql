@@ -395,6 +395,10 @@ grant execute on function so7_join_room(text, text) to authenticated;
 -- 決して含めない。既存のso7_game_tokens_visible等と同じ「security_invokerを付けない」
 -- パターンで、so7_game_passwords（authenticatedへのポリシー無し）をビュー所有者権限で
 -- 参照できるようにする。
+-- 🔴【続き739】`create or replace view` は**列を減らせない**（cannot drop columns from view）。
+--   このビューはファイル内で何度か定義し直しているので、**毎回 drop してから作る**。
+--   ビューはデータを持たない別名なので、落として作り直して安全（権限は下で付け直す）。
+drop view if exists so7_games_list;
 create or replace view so7_games_list as
 select
   g.id, g.name, g.status, g.created_at,
@@ -1859,6 +1863,10 @@ alter table so7_games add column if not exists is_ranked boolean not null defaul
 
 -- 部屋一覧からランク対局を除外（ランクのキュー戦・合言葉戦は独自の入場経路を持つため、
 -- 公開の「参加できる部屋」には出さない）。列を変えないのでcreate or replaceで安全。
+-- 🔴【続き739】`create or replace view` は**列を減らせない**（cannot drop columns from view）。
+--   このビューはファイル内で何度か定義し直しているので、**毎回 drop してから作る**。
+--   ビューはデータを持たない別名なので、落として作り直して安全（権限は下で付け直す）。
+drop view if exists so7_games_list;
 create or replace view so7_games_list as
 select
   g.id, g.name, g.status, g.created_at,
@@ -4174,3 +4182,31 @@ end;
 $$;
 revoke execute on function so7_get_my_collection() from public;
 grant execute on function so7_get_my_collection() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 【2026-11-16・続き739・#682】ランクの部屋も「参加できる部屋」の一覧に出す。
+--
+-- ユーザー判断で「部屋コードで参加」を畳んだ（通常の部屋はパスワードで守れるので要らない）。
+-- ところが**合言葉フレンドランク戦だけは部屋コードが唯一の入口**だった——このビューが
+-- `and not g.is_ranked` で公開一覧から外していたため。
+-- ⇒ 入口を一覧に移す。外していた理由（入口が部屋コードだから）そのものが無くなる。
+--
+-- 🔴 **そのままでは、通りすがりの人がレートの動く対局に入れてしまう。**
+--    ⇒ クライアント側で**ランクの部屋はパスワード必須**にしてある（online-ui.js）。
+--      一覧には 🔒🏆 付きで出て、合言葉を知っている人だけが入れる。
+-- ⚠ `is_ranked` を列に足すので、一覧の側で 🏆 を出せる。列が増えるだけなので
+--    `create or replace view` で安全（既存の列の順番は変えていない）。
+-- 🔴【続き739】`create or replace view` は**列を減らせない**（cannot drop columns from view）。
+--   このビューはファイル内で何度か定義し直しているので、**毎回 drop してから作る**。
+--   ビューはデータを持たない別名なので、落として作り直して安全（権限は下で付け直す）。
+drop view if exists so7_games_list;
+create or replace view so7_games_list as
+select
+  g.id, g.name, g.status, g.created_at,
+  (p.game_id is not null) as has_password,
+  (select count(*) from so7_game_seats s where s.game_id = g.id) as member_count,
+  g.is_ranked
+from so7_games g
+left join so7_game_passwords p on p.game_id = g.id
+where g.status = 'open';
+grant select on so7_games_list to authenticated;

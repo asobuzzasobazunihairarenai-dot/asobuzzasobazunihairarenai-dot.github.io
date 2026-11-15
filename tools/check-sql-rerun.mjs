@@ -38,4 +38,35 @@ for (const [name, list] of defs) {
   if (new Set(list.map((d) => d.ret)).size < 2) continue; // 戻り値が全部同じ＝上書きできるので安全
   for (const d of list) if (!d.hasDrop) { console.log(`⚠ ${name} の ${d.line}行目: 戻り値が他の定義と違うのに drop が無い`); bad++; }
 }
-console.log(bad === 0 ? "✅ 全文を再実行しても落ちない（戻り値が変わる定義には全部 drop がある）" : `⚠ ${bad} 件`);
+
+// ── ビュー ────────────────────────────────────────────────────────────────
+// 🔴【続き739 の実害】`create or replace view` は**列を減らせない・順番も変えられない**
+//   （psql: cannot drop columns from view）。同じビューをこのファイル内で何度か定義し直して
+//   いるので、**どれか1つで列を増やすと、2回目の実行で前の定義が落ちる**。
+//   実際に `so7_games_list` に `is_ranked` を足した時に踏んだ（ローカルで流して気づいた。
+//   そのまま渡していたら、本番で途中まで流れて止まっていた）。
+//   ⇒ **2回以上定義しているビューは、どの定義にも `drop view if exists` を置く**。
+const views = new Map();
+lines.forEach((l, i) => {
+  const m = l.match(/^create (?:or replace )?view (so7_[a-z_0-9]+)/);
+  if (!m) return;
+  if (!views.has(m[1])) views.set(m[1], []);
+  views.get(m[1]).push({
+    line: i + 1,
+    hasDrop: lines.slice(Math.max(0, i - 8), i).some((x) => x.startsWith("drop view if exists " + m[1])),
+  });
+});
+for (const [name, list] of views) {
+  if (list.length < 2) continue; // 1回しか定義していないなら列が食い違いようがない
+  for (const d of list) {
+    if (d.hasDrop) continue;
+    console.log(
+      `⚠ ${name} の ${d.line}行目: 同じビューを${list.length}回定義しているのに drop view が無い` +
+        "（列を1つでも増やすと、2回目の実行で cannot drop columns from view で落ちる）"
+    );
+    bad++;
+  }
+}
+
+console.log(bad === 0 ? "✅ 全文を再実行しても落ちない（戻り値が変わる定義・複数回のビューには全部 drop がある）" : `⚠ ${bad} 件`);
+if (bad > 0) process.exitCode = 1;

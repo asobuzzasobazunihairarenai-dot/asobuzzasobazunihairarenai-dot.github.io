@@ -52,6 +52,35 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-16",
+    summary: [
+      "ランク戦の部屋を、部屋一覧から作って入れるようにしました",
+    ],
+    summaryEn: [
+      "Ranked rooms are now created and joined from the room list",
+    ],
+    items: [
+      "**ランク戦の部屋（結果がレートに反映される部屋）**を、ふつうの部屋と同じように**一覧から**作って入れるようになりました。一覧では 🏆 が付きます。⚠ ランクの部屋は**パスワードが必須**です——一覧に出るので、合言葉を教えた人だけが入れるようにするためです。",
+    ],
+    itemsEn: [
+      "Ranked rooms (where the result affects your rank) are now created and joined from the room list, just like ordinary rooms. They are marked with a trophy. Note that a ranked room needs a password: it appears in the list, so only people you share the password with can join.",
+    ],
+    fixes: [
+      "不具合報告が送れなくなることがあったのを直しました。送れなかった時は理由をその場に出すようにし、ログを添えられない時でも本文だけは必ず届くようにしました。",
+    ],
+    fixesEn: [
+      "Fixed bug reports sometimes failing to send. The reason is now shown on the spot, and if the logs cannot be attached the comment is still sent on its own.",
+    ],
+    devItems: [
+      "🔴 **ユーザー報告「debug送れなくなりました」。** 本番で実測したところ、**送信そのものは壊れていなかった**（最小の送信・本物のモーダルからの送信・**1MB の本文**まで全部通った。試した行は対処済みにして畳んだ）。⇒ 落ちていたのは**その手前**（ログ・画面の状態づくり）。🔴 **いちばんの問題は、何が起きても同じ1文（「未実行のSQL追加分がある可能性」）しか出ないので、原因に辿り着く手がかりがゼロだったこと**（#729 でパックのボタンに対して直したのと同じ形）。⇒ ①**本当の理由を画面に出す** ②ログ・画面の状態づくりで落ちても**報告は必ず送る**（失敗は `context.buildErrors` に残す） ③それでも駄目なら**本文だけでもう一度送る**。",
+      "⚠ あわせて `noteProgress` の失敗を**同じ種類につき1回だけ**にした。続き738 で手札効果・到達効果にも繋いだので、サーバー側の準備がまだの端末では**1手ごとに**エラーが積まれ、不具合報告のコンソールログが無関係な行で埋まる。",
+      "🔴 **【#682 の続き】ユーザーの問い「部屋コードをたたみつつ、ランク対応の部屋をつくれるようにするのはどうしたらいい？」。** ⇒ **ランクの部屋も一覧に出す**（ビューから `and not g.is_ranked` を外し、`is_ranked` を列に足した）。公開一覧から外していた唯一の理由が「入口が部屋コードだから」だったので、入口を一覧にするなら外す理由も消える。⚠ そのままだと**通りすがりがレートの動く対局に入れる**ので、**ランクの部屋はパスワード必須**にした（クライアント側で止める）。一覧には 🏆🔒 が付く。",
+      "🔴🔴 **SQL をローカルで流してエラーを捕まえた**: `create or replace view` は**列を減らせない・順番も変えられない**（psql: cannot drop columns from view）。このファイルは `so7_games_list` を**3回定義し直している**ので、末尾で列を1つ足すと**2回目の実行で前の定義が落ちる**。⇒ 3か所すべての前に `drop view if exists` を置いた。**そのまま渡していたら本番で途中まで流れて止まっていた。** あわせて `tools/check-sql-rerun.mjs` に**ビューの見張り**を足した（2回以上定義しているビューは全部に drop が要る）。わざと1つ消して落ちることを確かめた。⚠ この検査は今まで**終了コードを返していなかった**（⚠ を出すだけ）ので、落ちるようにもした。",
+      "⚠⚠ **自分のミス（記録）**: 実測の**2枚目のページが本番の Supabase に部屋を2つ作った**。`page.addInitScript` は**そのページだけ**に効き、`browser.newPage()` は**新しい文脈**を作るので、2枚目には「ローカルへ向ける」上書きが入っていなかった。⇒ アプリ自身の掃除（`so7_cleanup_stale_rooms`）で消した（本番の一覧は0件に戻っている）。⇒ 実測を**文脈を作ってから仕込む**形に直し、さらに**「本当にローカルに向いているか」を測ってから進む**行を足した（向いていなければその場で止まる）。**2枚目を足す時は、1枚目の仕込みが入っているかを必ず確かめる。**",
+    ],
+    devItemsEn: [],
+  },
+  {
     date: "2026-11-15",
     summary: [
       "デイリーチャレンジが1日3つになりました",

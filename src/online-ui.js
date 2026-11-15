@@ -644,7 +644,13 @@ function wrapWithPasswordToggle(input) {
 //   ⚠ **コードは1行も消していない。** この2つを true に戻せば元どおり。
 //     戻す時は、合言葉戦の入口（部屋コード or 一覧に出す）も一緒に考えること。
 const 部屋コードで参加できる = false;
-const 合言葉フレンドランク戦を作れる = false;
+// 🔴【続き739】ユーザーの問い「**部屋コードをたたみつつ、ランク対応の部屋をつくれるように
+//   するのはどうしたらいい？**」への答え: **ランクの部屋も一覧に出す**
+//   （SQL のビューから `and not g.is_ranked` を外した）。入口が一覧になったので、
+//   部屋コードを畳んだままでも「作れるのに誰も入れない部屋」にならない。
+//   ⚠ 一覧に出る＝**通りすがりが入れる**＝レートの動く対局に知らない人が混ざる。
+//     ⇒ 下で**ランクの部屋はパスワード必須**にしてある。
+const 合言葉フレンドランク戦を作れる = true;
 
 // 部屋のパスワードは、サーバー側にはハッシュしか保存しない設計（そもそも平文を復元できない）
 // ため、「部屋作成後もパスワードを確認できるように」は、作成した本人のこのブラウザだけが
@@ -710,7 +716,10 @@ function buildRoomRow(room) {
 
   const label = document.createElement("div");
   label.style.cssText = "font-size: 0.85rem;";
-  label.textContent = t("oui.roomRow", { lock: room.has_password ? "🔒 " : "", name: room.name, n: room.member_count });
+  // 🔴【続き739】ランクの部屋も一覧に出るようになった（#682）。**どれがランクか**が
+  //   分からないまま入ると、知らないうちにレートが動く。印を付ける。
+  const 印 = (room.is_ranked ? "🏆 " : "") + (room.has_password ? "🔒 " : "");
+  label.textContent = t("oui.roomRow", { lock: 印, name: room.name, n: room.member_count });
   row.appendChild(label);
 
   const passRow = document.createElement("div");
@@ -872,7 +881,7 @@ async function renderRoomChoice(user, myGeneration) {
   rankedRow.appendChild(rankedLabel);
   const rankedNote = document.createElement("div");
   rankedNote.style.cssText = "font-size: 0.72rem; color: #94a3b8; margin: -0.2rem 0 0.4rem 1.4rem; display: none;";
-  rankedNote.textContent = t("oui.L749");
+  rankedNote.textContent = t("oui.rankedNote2");
   rankedCheckbox.addEventListener("change", () => {
     rankedNote.style.display = rankedCheckbox.checked ? "block" : "none";
   });
@@ -886,6 +895,13 @@ async function renderRoomChoice(user, myGeneration) {
   createConfirmBtn.addEventListener("click", async () => {
     createConfirmBtn.disabled = true;
     createStatus.textContent = t("oui.L760");
+    // 🔴【続き739】ランクの部屋は**パスワード必須**。一覧に出るようになったので、
+    //   無しだと通りすがりが入れてしまい、**レートの動く対局に知らない人が混ざる**。
+    if (rankedCheckbox.checked && !(passInput.value || "").trim()) {
+      createStatus.textContent = t("oui.rankedNeedsPassword");
+      createConfirmBtn.disabled = false;
+      return;
+    }
     try {
       const gameId = await createRoom(nameInput.value, passInput.value, rankedCheckbox.checked);
       setSavedRoomPassword(gameId, passInput.value || null);
