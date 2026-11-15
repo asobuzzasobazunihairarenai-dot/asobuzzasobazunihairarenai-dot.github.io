@@ -416,7 +416,7 @@ function openMatchChoiceModal(opts = {}) {
   diff.className = "home-match-choice-difficulty";
   const diffLabel = document.createElement("div");
   diffLabel.className = "home-match-choice-difficulty-label";
-  diffLabel.textContent = t("home.matchChoice.difficultyLabel");
+  diffLabel.textContent = t(cpuだけ ? "home.matchChoice.difficultyLabelShort" : "home.matchChoice.difficultyLabel");
   diff.appendChild(diffLabel);
   const seg = document.createElement("div");
   seg.className = "home-match-choice-segment";
@@ -457,7 +457,7 @@ function openMatchChoiceModal(opts = {}) {
   cnt.className = "home-match-choice-difficulty";
   const cntLabel = document.createElement("div");
   cntLabel.className = "home-match-choice-difficulty-label";
-  cntLabel.textContent = t("home.matchChoice.countLabel");
+  cntLabel.textContent = t(cpuだけ ? "home.matchChoice.countLabelShort" : "home.matchChoice.countLabel");
   cnt.appendChild(cntLabel);
   const cntSeg = document.createElement("div");
   cntSeg.className = "home-match-choice-segment";
@@ -545,7 +545,7 @@ function openMatchChoiceModal(opts = {}) {
     setBox.className = "home-match-choice-difficulty home-match-choice-testmode";
     const setLabel = document.createElement("div");
     setLabel.className = "home-match-choice-difficulty-label";
-    setLabel.textContent = t("home.matchChoice.cardSetLabel");
+    setLabel.textContent = t(cpuだけ ? "home.matchChoice.cardSetLabelShort" : "home.matchChoice.cardSetLabel");
     setBox.appendChild(setLabel);
     const setSeg = document.createElement("div");
     setSeg.className = "home-match-choice-segment";

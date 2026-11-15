@@ -38,6 +38,15 @@ let panelEl = null;
 let balanceEl = null;
 let completionEl = null;
 let statusEl = null;
+// 【続き722】「所持済みを隠す」（既定オフ・端末に覚える）。
+const HIDE_OWNED_KEY = "so7-shop-hide-owned";
+let hideOwned = (() => {
+  try {
+    return localStorage.getItem(HIDE_OWNED_KEY) === "1";
+  } catch {
+    return false;
+  }
+})();
 let tabsEl = null;
 let gridEl = null;
 let backBtnEl = null;
@@ -263,7 +272,21 @@ function renderGrid() {
   gridEl.innerHTML = "";
   const category = SHOP_CATEGORIES.find((c) => c.key === activeCategoryKey) ?? SHOP_CATEGORIES[0];
   if (!category) return;
-  for (const item of category.items) {
+  // 所持しているか（buildItemCard と同じ数え方。式を2か所に書かないよう、ここでも
+  // cost 0＝最初から持っている扱いにそろえる）。
+  const 持っている = (item) => item.cost === 0 || isItemUnlocked(item.itemKey);
+  let items = category.items.slice();
+  if (hideOwned) items = items.filter((item) => !持っている(item));
+  // 未所持を先に（同じ組の中の並びは元のまま＝安定なので、既に並んでいる順番は崩れない）。
+  items.sort((a, b) => Number(持っている(a)) - Number(持っている(b)));
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.id = "shop-panel-empty";
+    empty.textContent = hideOwned ? t("shop.allOwned") : "";
+    gridEl.appendChild(empty);
+    return;
+  }
+  for (const item of items) {
     gridEl.appendChild(buildItemCard(item));
   }
 }
@@ -462,6 +485,36 @@ function buildPanel() {
   statusEl = document.createElement("div");
   statusEl.id = "shop-panel-status";
   panel.appendChild(statusEl);
+
+  // 🔴【続き722】ユーザーの問い「所持済みをデフォで非表示にしようか？並び替えやソートが
+  //   できるようにする？」への答え。
+  //   ① **既定で隠すのはやめた**——買ったものが画面から消えると「自分が何を持っているか」を
+  //      確かめる場所が無くなる（持ち物の一覧は他に無い）し、全部持っている分類は
+  //      **空っぽの画面**になる。達成率「○/○」とも食い違って見える。
+  //   ② 代わりに **未所持を先に並べる**（常時・下の renderGrid）。これだけで「まだ買えるもの」が
+  //      必ず上に来るので、ソートのつまみを足さなくても目的は果たせる。
+  //   ③ そのうえで **「所持済みを隠す」**を1つだけ置く（既定オフ・端末に覚える）。
+  //      欲しい人だけ隠せる＝隠したくない人の邪魔をしない。
+  //   ⚠ 価格順・名前順のソートは入れない（品数が少なく、分類で既に分かれているため
+  //     つまみを増やすだけになる）。
+  const filterRow = document.createElement("label");
+  filterRow.id = "shop-panel-filter";
+  const filterBox = document.createElement("input");
+  filterBox.type = "checkbox";
+  filterBox.checked = hideOwned;
+  filterBox.addEventListener("change", () => {
+    hideOwned = filterBox.checked;
+    try {
+      localStorage.setItem(HIDE_OWNED_KEY, hideOwned ? "1" : "0");
+    } catch {
+      /* 使えない端末では覚えないだけ */
+    }
+    renderGrid();
+  });
+  const filterText = document.createElement("span");
+  filterText.textContent = t("shop.hideOwned");
+  filterRow.append(filterBox, filterText);
+  panel.appendChild(filterRow);
 
   tabsEl = document.createElement("div");
   tabsEl.id = "shop-panel-tabs";

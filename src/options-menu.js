@@ -116,6 +116,52 @@ function buildSectionTitle(text) {
 // onReset（省略可、同じくユーザー要望「セクションごとの初期設定に戻すボタン」）: 渡すと
 // summary行の右端に小さな「戻す」ボタンを出す。クリックしてもdetailsの開閉（summaryの
 // 既定動作）が起きないようstopPropagation/preventDefaultする。
+// 🔴【続き722】?ui=v2 の基本設定を、試作（Settings）の「左に分類・右に中身」へ。
+//   ユーザーの問い「出来そう？」への答え＝**できる。しかも思ったより小さく済んだ。**
+//   この画面は既に「見出し＋中身」の箱（<details>）の積み重ねなので、**その見出しを
+//   左の列へ写して、選んだ1つだけを開く**だけでよかった（設定の中身は1行も触らない）。
+//   ⚠ 既定（?ui=0）では**この関数は何もしない**＝今までどおりの1本の長い列。
+//   ⚠ 畳む／開く仕掛け自体は残してある（左の列を押すと details.open を付け替えるだけ）。
+//     効かない時も「全部開いた長い列」に戻るだけで、設定が消えることはない。
+//   ⚠ 見出しの無い行（言語・よく使う設定・管理者用など）は**右の列の上にそのまま**残す。
+function applyOptionsRailV2(panel) {
+  try {
+    if (!panel || !document.body.classList.contains("ui-v2")) return;
+    const 箱 = [...panel.children].filter((el) => el.tagName === "DETAILS" && el.classList.contains("options-menu-details"));
+    if (箱.length < 2) return;
+    const 先頭 = panel.firstChild;
+    const 見出し行 = [...panel.children].filter((el) => el.classList?.contains("options-menu-section-title"));
+    const 残り = [...panel.children].filter((el) => el !== 先頭 && !見出し行.includes(el));
+    const wrap = document.createElement("div");
+    wrap.className = "options-v2-wrap";
+    const rail = document.createElement("div");
+    rail.className = "options-v2-rail";
+    const body = document.createElement("div");
+    body.className = "options-v2-body";
+    for (const el of 残り) body.appendChild(el);
+    const 選ぶ = (i) => {
+      箱.forEach((s, k) => {
+        s.open = k === i;
+        s.classList.toggle("is-rail-on", k === i);
+      });
+      [...rail.children].forEach((b, k) => b.classList.toggle("is-on", k === i));
+    };
+    箱.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "options-v2-rail-btn";
+      b.textContent = s.querySelector(".options-menu-details-title")?.textContent || "";
+      b.addEventListener("click", () => 選ぶ(i));
+      rail.appendChild(b);
+    });
+    wrap.append(rail, body);
+    panel.appendChild(wrap);
+    選ぶ(0);
+  } catch (err) {
+    console.error("applyOptionsRailV2 failed", err); // 失敗しても今までの長い列が出るだけ
+  }
+}
+
 function buildCollapsibleSection(title, buildContent, { icon, onReset } = {}) {
   const details = document.createElement("details");
   details.className = "options-menu-details";
@@ -1762,6 +1808,11 @@ export function initOptionsMenu() {
       );
     }
     // ユーザー要望「オプション画面に『タイトルに戻る』があってもいいかも」への対応。
+    // 【続き722】左の列（v2）は**詳細設定の画面だけ**に作る。
+    //   基本設定の画面は上で return しているのでここへ来ない＝そのまま。
+    //   ⓘ それで正しい: 1画面目は7つのボタンに絞ってある（2026-09-06 のユーザー要望）ので
+    //     短く、長い列で困るのは**詳細設定の方**だけ。
+    applyOptionsRailV2(panel);
   }
 
   renderContent();

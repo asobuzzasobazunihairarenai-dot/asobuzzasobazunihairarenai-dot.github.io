@@ -49,6 +49,14 @@ export function openCodexPage(onClose) {
   //   3つ使う羽目になっていた（style.css の body.theme-light .codex-open-deck-btn の
   //   コメント「インラインで白文字＝白地で見えない」がその跡）。
   //   見た目は CSS 側で持つ方が、テーマや ?ui=v2 から素直に上書きできる。
+  // 【2026-11-15・続き722】ユーザー要望「カード一覧を開くボタンをもっとワクワクする感じに」。
+  // 7色のカードが扇に広がる飾りを入れる。**既定では display:none**（style.css）で、
+  // ?ui=v2 の時だけ見える。画像は1枚も足していない（紙の色＋7色の細い帯だけ）。
+  const fan = document.createElement("span");
+  fan.className = "codex-deck-fan";
+  fan.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 7; i++) fan.appendChild(document.createElement("i"));
+  deckBtn.insertBefore(fan, deckBtn.firstChild);
   deckBtn.addEventListener("click", () => openDeckViewer());
   content.appendChild(deckBtn);
 

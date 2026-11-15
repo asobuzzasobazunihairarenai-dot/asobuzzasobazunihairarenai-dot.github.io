@@ -62,8 +62,57 @@ function getStageScale() {
 // レイアウトされるので、全ユーザーで見た目が一致する。
 const CANVAS_WIDTH_PX = 960;
 
+// 【2026-11-15・続き722】?ui=v2 のマイページだけは、焼き込み座標（PROFILE_LAYOUT）を使わずに
+// **2列の組み立て**へ切り替える（ユーザー了承「あなたのセンスで再構築してみていいよ！」）。
+// 🔴 **焼き込み座標には1つも触っていない。** ここは「使わない」だけなので、?ui=0 に戻せば
+//    今までの配置がそのまま出る。管理者のレイアウト編集モードも今までどおり（下の early return は
+//    editMode の時は通らない）。
+// ⚠ 並べ方は src/ui-v2.css が data-layout-key を目印に決める。ここでは**絶対配置を解く**だけ。
+function applyProfileLayoutV2(container) {
+  container.classList.remove("profile-layout-editing");
+  container.classList.add("profile-v2");
+  container.style.position = "relative";
+  container.style.width = "";
+  container.style.height = "";
+  const card = container.parentElement;
+  if (card) {
+    // 囲う枠は v2 でも出さない（中の札が自分で枠を持つ＝試作の額装）。
+    // 🔴 **幅は必ず自分で持つ。** 空にすると CSS の既定（24rem の細いカード）へ落ちて、
+    //    2列の右側が潰れる（実測で stats が幅 24px になった）。
+    card.style.width = "100%";
+    card.style.maxWidth = "76rem";
+    card.style.marginLeft = "auto";
+    card.style.marginRight = "auto";
+    card.style.background = "none";
+    card.style.border = "none";
+    card.style.boxShadow = "none";
+    card.style.overflow = "visible";
+  }
+  const full = card && card.id === "profile-page-card" ? document.getElementById("profile-page") : null;
+  if (full) {
+    full.style.overflow = "hidden"; // 全画面版はスクロールを出さない（従来の方針のまま）
+    full.style.overflowX = "";
+    full.style.overflowY = "";
+  }
+  let i = 0;
+  for (const el of [...container.children]) {
+    if (el.classList.contains("profile-layout-toolbar")) continue;
+    if (!el.dataset.layoutKey) el.dataset.layoutKey = `auto-${i}`;
+    i++;
+    // 焼き込みの絶対配置を解く（CSS 側に任せる）。
+    for (const p of ["position", "left", "top", "width", "maxWidth", "margin", "transform", "transformOrigin", "boxSizing", "pointerEvents"]) {
+      el.style[p] = "";
+    }
+  }
+}
+
 export function applyProfileLayout(container) {
   if (!container) return;
+  if (!editMode && document.body.classList.contains("ui-v2")) {
+    applyProfileLayoutV2(container);
+    return;
+  }
+  container.classList.remove("profile-v2");
   container.classList.toggle("profile-layout-editing", editMode);
   container.style.position = "relative";
 

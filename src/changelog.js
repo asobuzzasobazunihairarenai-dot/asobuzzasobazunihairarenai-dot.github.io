@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "ショップで「まだ持っていないもの」が先に並ぶようにしました",
+      "盤面のカードに、その色の細い枠が付くようにしました",
       "読み込み中の画面を、7色が1つずつ灯る形にしました",
       "CPU戦の設定を、最初から開いた形にしました",
       "マイデッキの「装い」を、見本を押すだけで変えられるようにしました",
@@ -61,6 +63,8 @@ export const CHANGELOG = [
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "The shop now lists items you do not own yet first",
+      "Cards on the board now carry a thin ring in their own colour",
       "The loading screen now lights up the seven colours one by one",
       "The CPU battle settings now open expanded",
       "Change a deck's attire by tapping the samples",
@@ -68,6 +72,8 @@ export const CHANGELOG = [
       "The online match window is better arranged",
     ],
     items: [
+      "ショップの並びを「まだ持っていないもの → 所持済み」の順にしました。買えるものが必ず上に来ます。さらに「所持済みを隠す」も置いたので、欲しい人だけ隠せます（既定は隠しません＝自分の持ち物も確かめられるように）。",
+      "場・ロックエリアに置かれたカードに、そのカードの色の細い枠が付くようにしました。イラストだけでは遠目に何色の札か分かりにくいことがあったためです。★すべての色のカードは七色の枠になります。",
       "**読み込み中の画面**を、ぐるぐる回る輪から**7色の正方形が1つずつ灯る**形にしました。このゲームの印（7色の正方形のカード）であり、勝つ条件（7色をロックする）そのものの絵です。⚠ 画像は1枚も足していないので、読み込みは1バイトも増えていません。",
       "**CPU戦の設定を最初から開いた形**にして、説明文は各項目の **i マーク**の中へ畳みました（押した時だけ出ます）。設定を変えずに始めたい人は、そのまま「この設定ではじめる」を押せます。",
       "**マイデッキの「装い」（駒・ペット・カード裏）を、見本を押すだけで変えられる**ようにしました。これまでは編集画面を開いてから設定を探す必要がありました。見本はデッキの箱の手前に大きく並び、設定していない所は**破線の ＋**で空き枠だと分かります。",
@@ -75,6 +81,8 @@ export const CHANGELOG = [
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "The shop now lists what you do not own yet before what you already have, so anything you can still buy is always near the top. There is also a \"Hide owned\" switch for those who want it (off by default, so your own collection stays visible).",
+      "Cards placed on the board or in a lock area now have a thin ring in the card's own colour, because artwork alone was sometimes hard to read at a glance. All-colour cards get a seven-colour ring.",
       "**The loading screen** now lights the seven coloured squares one by one instead of spinning a ring — the game’s own mark, and its win condition. No images were added, so nothing extra is downloaded.",
       "**The CPU battle settings now open expanded**, and each explanation is folded behind an i mark. If you do not want to change anything, just press Start with these settings.",
       "**You can now change a deck's attire (piece, pet, card back) by tapping the samples** instead of opening the editor and hunting for the settings. Unset slots show a dashed +.",
@@ -82,11 +90,21 @@ export const CHANGELOG = [
       "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
     ],
     fixes: [
+      "手札効果の霧散演出で、拡張カードの効果文が出ていなかったのを直しました。",
+      "マスチェンジの入れ替え演出で、宝石の駒がキューブに見えることがあったのを直しました。",
+      "アバターの色によって、自分の名前や手札枚数が読みづらかったのを直しました。",
+      "ペットの下半分がたまに欠けて見えたのを直しました。",
+      "CPU戦の設定の見出しを短くしました。",
       "ピュアバーガーで置くカードを、表向きか裏向きか選べるようにしました",
       "我忘れの白き龍（ノクスアエル）のカードに【色者】の効果文が載っていなかったのを直しました",
       "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
     ],
     fixesEn: [
+      "Extension cards now show their effect text in the hand-effect dissolve animation.",
+      "Jewel pieces no longer look like cubes during the Mass Change swap animation.",
+      "Your name and hand count are now readable whatever colour your avatar is.",
+      "The pet is no longer cut in half from time to time.",
+      "The headings in the CPU match settings are shorter.",
       "Pure Burger now lets you choose whether the card you place is face-up or face-down",
       "The Self-Forgetting White Dragon's standing effect text was missing from the card",
       "The card list's back button now looks like the one on every other page",

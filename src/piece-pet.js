@@ -451,8 +451,12 @@ function tick(now) {
       // 駒の裏に回った時 hideBottom がペット高さの大半に達し、頭だけ＝上半分以下しか見えなくなる。
       // ペットは見せるための飾りなので、隠す量をペット高さ(≒fontPx)の45%までに制限（最低55%は常に
       // 見せる）。駒に少しだけ隠れる“奥にいる”感は残しつつ、大きく欠けないようにする。
+      // 🔴【#671・2026-11-15】ユーザー報告「ペットのポヨンの**下半分**がたまに消えます」。
+      //   2026-08-19 の「上半分だけになる」と**同じ症状の裏表**（下から隠しているので、
+      //   隠す量が増えると『下半分が消えた』と見える）。45% は小さいペットには大きすぎた。
+      //   ⇒ **28%** まで。奥にいる感じは残るが、半分欠けることはもう無い。
       const rawHide = Math.max(0, pet.y - pieceTopLocal); // 要素の下からこのpxぶんを隠す
-      const hideBottom = Math.min(rawHide, fontPx * 0.45);
+      const hideBottom = Math.min(rawHide, fontPx * 0.28);
       pet.el.style.clipPath = `inset(0px 0px ${hideBottom}px 0px)`;
     } else if (pet.el.style.clipPath) {
       pet.el.style.clipPath = "";

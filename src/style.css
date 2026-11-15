@@ -25736,3 +25736,83 @@ body.theme-light #deck-viewer-back {
   opacity: 0.55;
   cursor: default;
 }
+
+/* 【2026-11-15・続き722】図鑑「カード一覧を開く」の中の7色の扇。
+   ?ui=v2 でだけ見せる飾り（見た目は src/ui-v2.css が持つ）。
+   ⚠ 既定の画面では出さない＝ここで display:none にしておく。 */
+.codex-deck-fan {
+  display: none;
+}
+
+/* 【2026-11-15・続き722】CPU戦の設定モーダルの見出しは、折り返す時に行の長さをそろえる。
+   （#636 の総点検と同じ考え方＝最後の行に1〜2文字だけ残る「取り残し」を防ぐ。
+   ⚠ 短い見出しにだけ当てる。長文に当てると読みにくくなる。） */
+.home-match-choice-title,
+.home-match-choice-difficulty-label {
+  text-wrap: balance;
+}
+
+/* 【2026-11-15・続き722】ショップの「所持済みを隠す」。
+   ⚠ 文字色は決め打ちしない（教訓15＝明暗2テーマ）。親から継いで濃さだけ落とす。 */
+#shop-panel-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 1.2rem 0.3rem auto;
+  font-size: 0.85rem;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+  user-select: none;
+  width: fit-content;
+}
+#shop-panel-filter input {
+  cursor: pointer;
+}
+#shop-panel-empty {
+  padding: 2rem 1.2rem;
+  color: inherit;
+  opacity: 0.7;
+  font-size: 0.95rem;
+}
+
+/* 【#669・2026-11-15】「イラストのみ」で出している盤面・ロックエリアのカードに、
+   **カードの色の細い枠**を重ねる（遠目でも何色の札か分かるように＝ユーザー提案）。
+   ⚠ 当たり判定を奪わない（pointer-events: none。教訓4）。
+   ⚠ box-shadow でも outline でもなく ::before（どちらも他の用途で埋まっている＝教訓10）。
+   ⚠ 枠は内側に描くので、カードの大きさ・位置は1pxも動かない。 */
+.board-card[data-card-color]::before,
+.lock-card[data-card-color]::before,
+.pile-card[data-card-color]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 0.16rem solid var(--board-card-ring, rgba(255, 255, 255, 0.8));
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+}
+[data-card-color="red"] { --board-card-ring: #c70025; }
+[data-card-color="orange"] { --board-card-ring: #ee781f; }
+[data-card-color="yellow"] { --board-card-ring: #fabe00; }
+[data-card-color="green"] { --board-card-ring: #22ac38; }
+[data-card-color="blue"] { --board-card-ring: #1bb8ce; }
+[data-card-color="pink"] { --board-card-ring: #f19ec2; }
+[data-card-color="purple"] { --board-card-ring: #915da3; }
+[data-card-color="white"] { --board-card-ring: #f2f2f2; }
+[data-card-color="black"] { --board-card-ring: #2b2b2b; }
+/* ★すべての色（なないろの欠片）は1色で表せないので、7色の帯を枠にする。 */
+.board-card[data-card-color="rainbow"]::before,
+.lock-card[data-card-color="rainbow"]::before,
+.pile-card[data-card-color="rainbow"]::before {
+  border-color: transparent;
+  border-image: linear-gradient(135deg, #c70025, #ee781f 16%, #fabe00 33%, #22ac38 50%, #1bb8ce 66%, #f19ec2 83%, #915da3) 1;
+}
+
+/* 【#670・2026-11-15】「設定しているアバターの色次第では手札枚数や名前などが読みづらい」。
+   帯はもともと 55% で、明るいアバターの上では透けて読めなかった。濃くして縁取りも足す。 */
+.self-status-name,
+.self-status-hand-count {
+  background: rgba(10, 14, 20, 0.74);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}

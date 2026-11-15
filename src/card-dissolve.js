@@ -4,7 +4,10 @@
 // 炎ではなくカード色の神秘的な湯気/霧/オーラ。白・黒・七色対応。スマホは粒子数を抑える。
 // 演出レイヤーのみ（ゲームロジック・状態は一切変更しない）。canvasはステージ(body)直下・
 // pointer-events:none で、ステージ座標(1600×900)にそのまま描く（他の演出ゴーストと同じ考え方）。
-import { getCardDefinition, getCardImagePath } from "./cards-data.js";
+import { getCardDefinition, getCardImagePath, hasNoPrintedFace } from "./cards-data.js";
+// 【#667】霧散演出の中に効果文を焼き込むため（0th拡張・1st EDITION は絵に文字が無い）。
+// card-text.js は i18n しか取り込まない葉なので、循環しない。
+import { getCardText, getCardName } from "./card-text.js";
 import { isArrivalEffectDisabled } from "./motion-prefs.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { playPulseThump } from "./sound.js";
@@ -149,6 +152,105 @@ function loadImage(src) {
 //     （#3・ユーザー要望2026-08-19「手札を捨てる時は手札のその場で焼失演出で」）。
 //   opts.inPlace: true なら残骸を右へ流さず、その場から上へ立ち上らせる（捨て札の焼失向け）。
 // 完了（残光が消えるまで）で解決する Promise を返す。演出OFF時は即 onShowModal して解決。
+// 🔴【#667・2026-11-15】ユーザー報告「手札効果を使うとき画面中央に拡大出てそれが霧散する
+//   演出あると思うけど、その時**拡張カードなどの効果文テキストがない状態のカード**が
+//   表示されちゃってます。総点検を！」。
+//   0th拡張・1st EDITION は**文字を焼き込んだ絵を持たない**（文字はアプリが描く）ので、
+//   `getCardImagePath` が返すのは効果欄が真っ白な下地（assets/cards-blank/）。
+//   #611（showCardFace）と #660（生のURLを敷いていた所）では直したが、**この霧散演出だけは
+//   「DOMの文字を焼き込む道が無い」として続き698 で申し送ったまま残っていた。**
+//   ⇒ 粒子にする前に、下地の上へ**canvas で文字を描いて**から渡す。
+//   ⚠ 文字を焼き込んだ絵を持つ札（リメイク34種）は素通り＝今までどおり。
+//   ⚠ 印刷カードと1pxまで同じ組版にはしない（下パネルの中に収めて読めれば足りる＝
+//     1秒ほどで崩れていく絵なので）。位置は card-renderer.js の実測コメント
+//     「下パネルの下辺はカード高さの約95%」に合わせてある。
+const DISSOLVE_TEXT_SIZE = 433; // カード画像の実寸（#223 以来この大きさのまま）
+function bakeCardTextIfNeeded(img, cardId) {
+  if (!img || !cardId || !hasNoPrintedFace(cardId)) return img;
+  let txt = null;
+  try {
+    txt = getCardText(cardId);
+  } catch {
+    return img;
+  }
+  const 行 = [];
+  for (const k of ["subtitle", "basic", "arrival", "hand"]) {
+    const v = txt && txt[k];
+    if (v) 行.push(String(v));
+  }
+  const 名 = (() => {
+    try {
+      return getCardName(cardId) || getCardDefinition(cardId)?.name || "";
+    } catch {
+      return "";
+    }
+  })();
+  if (!行.length && !名) return img;
+  const S = DISSOLVE_TEXT_SIZE;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d");
+  if (!g) return img;
+  noteBlackboxWeight("card-dissolve-text"); // 433x433 ＝ 約0.75MB。張った瞬間を控える。
+  g.drawImage(img, 0, 0, S, S);
+  const 左 = S * 0.14;
+  const 右 = S * 0.86;
+  const 幅 = 右 - 左;
+  // 名前（下パネルの上端あたり）
+  if (名) {
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = "700 " + Math.round(S * 0.052) + "px 'Shippori Mincho B1', serif";
+    g.lineWidth = Math.round(S * 0.014);
+    g.strokeStyle = "rgba(255,255,255,0.9)";
+    g.strokeText(名, S / 2, S * 0.545, 幅);
+    g.fillStyle = "#1a1a1a";
+    g.fillText(名, S / 2, S * 0.545, 幅);
+  }
+  // 効果文（折り返しは1文字ずつ測って足す＝日本語は語の途中でも折れるため）
+  const 上 = S * 0.6;
+  const 下 = S * 0.93;
+  let 字 = Math.round(S * 0.042);
+  let 組み = [];
+  for (let 回 = 0; 回 < 8; 回++) {
+    g.font = Math.round(字) + "px 'Shippori Mincho B1', serif";
+    組み = [];
+    for (const 文 of 行) {
+      let 今 = "";
+      for (const ch of 文) {
+        if (ch === "\n") {
+          組み.push(今);
+          今 = "";
+          continue;
+        }
+        const 次 = 今 + ch;
+        if (g.measureText(次).width > 幅 && 今) {
+          組み.push(今);
+          今 = ch;
+        } else {
+          今 = 次;
+        }
+      }
+      if (今) 組み.push(今);
+    }
+    if (組み.length * (字 * 1.32) <= 下 - 上 || 字 <= S * 0.022) break;
+    字 *= 0.88;
+  }
+  g.textAlign = "left";
+  g.textBaseline = "top";
+  g.lineWidth = Math.max(2, Math.round(字 * 0.3));
+  g.strokeStyle = "rgba(255,255,255,0.92)";
+  g.fillStyle = "#1a1a1a";
+  let y = 上;
+  for (const 行文 of 組み) {
+    g.strokeText(行文, 左, y);
+    g.fillText(行文, 左, y);
+    y += 字 * 1.32;
+    if (y > 下) break;
+  }
+  return c;
+}
+
 export async function playCardDissolve(usedCardId, opts = {}) {
   const { costCardId = null, costStart = null, onShowModal, atRect = null, inPlace = false } = opts;
   if (isArrivalEffectDisabled()) {
@@ -166,10 +268,13 @@ export async function playCardDissolve(usedCardId, opts = {}) {
     dissolveSlots.shift(); // 数が合っていればよいので、どれを抜いても同じ
   };
   const isV5 = !!costCardId;
-  const [cardImg, costImg] = await Promise.all([
+  const [cardImgRaw, costImgRaw] = await Promise.all([
     loadImage(getCardImagePath(usedCardId)),
     costCardId ? loadImage(getCardImagePath(costCardId)) : Promise.resolve(null),
   ]);
+  // 【#667】文字を焼き込んだ絵を持たない札は、ここで文字を描いてから粒子にする。
+  const cardImg = bakeCardTextIfNeeded(cardImgRaw, usedCardId);
+  const costImg = bakeCardTextIfNeeded(costImgRaw, costCardId);
   const usedColor = colorInfoFor(usedCardId);
   const costColor = costCardId ? colorInfoFor(costCardId) : usedColor;
 

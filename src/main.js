@@ -1462,6 +1462,18 @@ function getBoardCardImagePath(cardId) {
 //     ＝**盤面に DOM のカード面を大量に作らない**（render() ごとに作り直すので重くなる）。
 function paintFaceUpCardArt(el, cardId) {
   if (!el) return;
+  // 🔴【#669・2026-11-15】ユーザー提案「カードが場やロックエリアにあるときはイラストだけに
+  //   してると思うけど、**枠のレイヤーとイラストだけにしない？** というのもイラストだけだと
+  //   遠目に見て何色のカードかわかりづらいイラストのカードがあるから。」
+  //   ⇒ 「イラストのみ」で出している間だけ、**カードの色の細い枠**を重ねる（CSS の ::before）。
+  //   ⚠ 枠は `pointer-events: none`（教訓4＝当たり判定は elementsFromPoint の自前判定なので、
+  //     透明でも拾われると事故る）。
+  //   ⚠ `box-shadow` は使わない（教訓10＝複数の規則の値は合成されず上書きになる）。
+  //     `outline` も使わない（★すべての色 のカードの光で既に使っている）。
+  //   ⚠ 文字入りの絵を出している時は、その絵が自分で色枠を持っているので付けない。
+  const 色 = cardId && isBoardIllustOnly() ? getCardDefinition(cardId)?.color : null;
+  if (色) el.dataset.cardColor = 色;
+  else delete el.dataset.cardColor;
   if (!cardId || isBoardIllustOnly() || !hasNoPrintedFace(cardId)) {
     el.style.backgroundImage = cardId ? `url("${getBoardCardImagePath(cardId)}")` : "none";
     return;
@@ -2288,13 +2300,19 @@ async function playMassChangeSwapAnimation__inner(pieceAId, pieceBId) {
   const arc = createSwapArc(rectA, rectB);
   playSound("swap");
   await wait(getContactAnimSeconds("--swap-anim-charge-duration", 0.8) * 1000);
-  // ③実駒を隠してゴーストで入れ替え飛翔（お互いの位置へ）。
-  setSetupPendingTokenIds(new Set([pieceAId, pieceBId]));
-  render();
+  // ③入れ替え飛翔（お互いの位置へ）。
+  // 【#668】宝石の駒は WebGL の立体なので、2Dの影武者に化けてしまう（キューブに見える）。
+  //   WebGL が描いていて両方が宝石の駒なら、**盤面の中で本物を動かす**（影武者も非表示も使わない）。
   const durMs = getContactAnimSeconds("--swap-anim-flight-duration", 0.6) * 1000;
-  const gA = flyGhost(rectA, rectB, getSkinImagePath(tokA.color, tokA.player), "setup-fly-card", durMs);
-  const gB = flyGhost(rectB, rectA, getSkinImagePath(tokB.color, tokB.player), "setup-fly-card", durMs);
-  await Promise.all([gA.done, gB.done]);
+  const 本物で動かせた = await playSwapSlideInBoard(pieceAId, pieceBId, durMs);
+  if (!本物で動かせた) {
+    // 今までどおり: 実駒を隠してゴーストで飛ばす。
+    setSetupPendingTokenIds(new Set([pieceAId, pieceBId]));
+    render();
+    const gA = flyGhost(rectA, rectB, getSkinImagePath(tokA.color, tokA.player), "setup-fly-card", durMs);
+    const gB = flyGhost(rectB, rectA, getSkinImagePath(tokB.color, tokB.player), "setup-fly-card", durMs);
+    await Promise.all([gA.done, gB.done]);
+  }
   arc.remove();
   // pendingはここでは解除しない——呼び出し側が状態を入れ替えてrenderした後に解除する。
 }
@@ -6146,6 +6164,65 @@ async function playJewelHopInBoard(pieceId, fromLocation, durationMs, styleName)
     return true;
   } catch (err) {
     console.error("playJewelHopInBoard failed", err);
+    return false;
+  }
+}
+
+// 🔴【#668・2026-11-15】ユーザー報告「マスチェンジで入れ替わる演出の時ジュエルがキューブに
+//   なった」。入れ替えの飛翔は **2Dの影武者**（flyGhost）で、本物の駒は隠していた。
+//   宝石の駒は WebGL の立体なので、影武者（平らなスキン画像）に化ける＝#573 とまったく同じ形。
+//   ⇒ #545/#549/#573 と同じ道＝**盤面の中で本物を動かす**（playJewelHopInBoard の兄弟）。
+//   ⚠ WebGL が描いていない時・宝石の駒でない時は false を返し、**今までどおり影武者**へ。
+//   ⚠ 途中で render() が走ると駒の要素は作り直される（続き644）ので、**毎コマ引き直す**。
+//   ⚠ 終わった後も transform を残す——このあと呼び出し側が状態を入れ替えて render() するので、
+//     ここで戻すと**1コマだけ元の位置へ跳ね返って見える**。
+async function playSwapSlideInBoard(aId, bId, durationMs) {
+  try {
+    const table = document.getElementById("game-table");
+    if (!table || !isBoard3dPainting()) return false;
+    const 引く = (id) => table.querySelector(".piece[data-token-id=" + JSON.stringify(String(id)) + "]");
+    let elA = 引く(aId);
+    let elB = 引く(bId);
+    if (!elA || !elB) return false;
+    // どちらかが宝石の駒でなければ、見た目が揃わないので影武者のまま（混ぜない）。
+    if (!elA.classList.contains("is-jewel-piece") || !elB.classList.contains("is-jewel-piece")) return false;
+    const cellA = elA.closest(".cell");
+    const cellB = elB.closest(".cell");
+    if (!cellA || !cellB) return false;
+    const dx = cellB.offsetLeft - cellA.offsetLeft;
+    const dy = cellB.offsetTop - cellA.offsetTop;
+    if (!dx && !dy) return false;
+    const 山 = (elA.offsetHeight || 0) * 1.15;
+    trackBoard3dAnim(elA, true);
+    trackBoard3dAnim(elB, true);
+    const t0 = performance.now();
+    await new Promise((resolve) => {
+      const 保険 = setTimeout(() => resolve(), durationMs + 1200);
+      const 終わる = () => { clearTimeout(保険); resolve(); };
+      const 進む = () => {
+        const 比 = Math.min(1, (performance.now() - t0) / Math.max(1, durationMs));
+        for (const [id, 旧] of [[aId, elA], [bId, elB]]) {
+          const いま = 引く(id);
+          if (いま && いま !== 旧) {
+            try { trackBoard3dAnim(旧, false); } catch (err) {}
+            if (id === aId) elA = いま; else elB = いま;
+            trackBoard3dAnim(いま, true);
+          }
+        }
+        if (!elA || !elA.isConnected || !elB || !elB.isConnected) { 終わる(); return; }
+        const z = Math.sin(Math.PI * 比) * 山;
+        elA.style.transform = "translate3d(" + dx * 比 + "px, " + dy * 比 + "px, " + z + "px)";
+        elB.style.transform = "translate3d(" + -dx * 比 + "px, " + -dy * 比 + "px, " + z + "px)";
+        if (比 >= 1) { 終わる(); return; }
+        requestAnimationFrame(進む);
+      };
+      requestAnimationFrame(進む);
+    });
+    try { trackBoard3dAnim(elA, false); } catch (err) {}
+    try { trackBoard3dAnim(elB, false); } catch (err) {}
+    return true;
+  } catch (err) {
+    console.error("playSwapSlideInBoard failed", err);
     return false;
   }
 }
