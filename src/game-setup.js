@@ -13,6 +13,8 @@
 // 割り込んでこないようにするため）。
 
 import { resetGame, setupAssignFirstCards, setupFillBoard, setTurnPlayer, applySeatNoir } from "./state.js";
+// 【続き733】デイリーチャレンジ／ウィークリーの進み（card-packs.js は葉なので循環しない）。
+import { noteProgress } from "./card-packs.js";
 import { isManualSeatMode } from "./admin.js";
 import { SEAT_TO_SIDE, SEAT_ORDER } from "./board-layout.js";
 import { getPlayerName, getPlayerAvatar } from "./player-identity.js";
@@ -412,6 +414,8 @@ function runStep3() {
   // 「スタートプレイヤー決定」モーダルとの重なりを防ぐため、notifyChange()より前に
   // フラグを立てて待たせ、モーダルが消えた（自動タイムアウト/閉じる操作いずれも）
   // タイミングで戻す。
+  // 【続き733】デイリーチャレンジの「対局をあそぶ」を数える（ここが『本当に始まった』瞬間）。
+  void noteProgress("play");
   setSetupRevealActive(true);
   setTurnPlayer(startPlayer);
   notifyChange();

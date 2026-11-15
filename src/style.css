@@ -26598,3 +26598,141 @@ body.is-tablet-device .card-pack-cell .card-pack-sub-btn {
   font-size: 1.25rem;
   padding: 0.35rem 0.7rem;
 }
+
+/* ═══════════ 【2026-11-15・続き733】ホームの7色のリング ═══════════
+   ユーザー要望「**普段はスマートな表示でクリア進捗によってリングが埋まってく感じ。
+   セブンだから７つの色が灯ってく感じはどう？**」
+   ⇒ 7本の弧（7色）が、デイリーの進みに応じて左から順に灯る。
+     ホバー／長押し／押す で中身の札が開く（MTGA のやり方）。
+   ⚠ **新しい画像は1枚も足していない**（弧は SVG・色はアプリの7色）。
+   ⚠ 色は決め打ちしない（教訓15）＝札の地と字はテーマごとに分ける。 */
+#daily-ring {
+  position: relative;
+  width: 3.4rem;
+  height: 3.4rem;
+  flex: 0 0 auto;
+  cursor: pointer;
+  outline: none;
+}
+.daily-ring-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* 灯っていない弧は、在ることだけ分かる薄さに。 */
+.daily-ring-seg {
+  opacity: 0.16;
+  transition: opacity 0.35s ease;
+}
+.daily-ring-seg.is-on {
+  opacity: 1;
+}
+.daily-ring-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+/* 受け取れるものがある時だけ、右上に小さな点。 */
+#daily-ring.has-claim::after {
+  content: "";
+  position: absolute;
+  right: 0.1rem;
+  top: 0.1rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #c70025;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+/* 開いた時の札。 */
+.daily-ring-card {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 30;
+  width: 20rem;
+  padding: 0.7rem 0.8rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.4rem;
+  background: rgba(15, 23, 32, 0.97);
+  color: #e2e8f0;
+  box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.5);
+  cursor: default;
+  text-align: left;
+}
+body.theme-light .daily-ring-card {
+  background: #fffdf8;
+  color: #4a4233;
+  border-color: rgba(176, 141, 63, 0.45);
+}
+.daily-ring-card-title {
+  font-size: 0.82rem;
+  font-weight: bold;
+  opacity: 0.85;
+}
+.daily-ring-line {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.daily-ring-btn {
+  align-self: flex-start;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1em;
+}
+.daily-ring-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.daily-ring-note {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+/* 🔴 スマホ・タブレット（ステージ倍率 0.478）。輪は押す所なので 28px 以上に、
+   札の字は実画面 11px 以上に。 */
+body.is-phone-device #daily-ring,
+body.is-tablet-device #daily-ring {
+  width: 6rem;
+  height: 6rem;
+}
+body.is-phone-device .daily-ring-num,
+body.is-tablet-device .daily-ring-num {
+  font-size: 1.5rem;
+}
+body.is-phone-device .daily-ring-card,
+body.is-tablet-device .daily-ring-card {
+  width: 34rem;
+}
+body.is-phone-device .daily-ring-card-title,
+body.is-tablet-device .daily-ring-card-title {
+  font-size: 1.6rem;
+}
+body.is-phone-device .daily-ring-line,
+body.is-tablet-device .daily-ring-line,
+body.is-phone-device .daily-ring-btn,
+body.is-tablet-device .daily-ring-btn {
+  font-size: 1.5rem;
+}
+body.is-phone-device .daily-ring-note,
+body.is-tablet-device .daily-ring-note {
+  font-size: 1.35rem;
+}

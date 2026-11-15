@@ -14,6 +14,8 @@ import { t } from "./ui-text.js"; // UI英語化フェーズ6
 import { playVictoryBgm, stopVictoryBgm } from "./sound.js";
 import { showPostGamePanel, showCpuBattleEndPanel } from "./post-game-panel.js";
 import { awardMatchCurrency, awardCpuWinCurrency, getSelfSeat, getCurrentGameId, reportRankedResult, getSelfRank, getRankedPreMatchRank, markRankedResultShown, ensureStatsMatchRecorded, scheduleStatsBackupRecord, clearRecordedStatsMatch } from "./online.js";
+// 【続き733】デイリーチャレンジ／ウィークリーの進み（card-packs.js は葉なので循環しない）。
+import { noteProgress } from "./card-packs.js";
 // フェーズ3: ランク対局の結果表示（新ランク・七色ゲージ・勝敗）。
 import { showRankedResultModal } from "./ranked-result-modal.js";
 import { isCpuBattleActive, getEidosStoryStage, getEidosStoryResultHandler } from "./cpu-battle-state.js";
@@ -371,6 +373,10 @@ export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
       // （ユーザー確定方針）。CPU(C)が勝った時は付与しない。未ログイン時は
       // awardCpuWinCurrencyが0を返すので演出も出ない（お金はアカウント紐付けのため）。
       // 順位・戦績・ポストゲームパネルはオンライン専用のためCPU戦では出さない。
+      // 【続き733】デイリー／ウィークリーの「勝った」を数える（CPU戦でも数える＝
+      //   チャレンジの文も『対局に1回勝つ』でCPU戦を除いていない）。
+      //   ⚠ 失敗しても対局は止めない（noteProgress が握りつぶす）。
+      if (player === getSelfSeat()) void noteProgress("win");
       if (isCpuBattleActive() && player === getSelfSeat()) {
         try {
           const amount = await awardCpuWinCurrency();

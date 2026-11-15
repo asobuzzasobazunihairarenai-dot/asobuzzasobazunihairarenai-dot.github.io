@@ -125,7 +125,7 @@ import { maybeShowGameStartIntros } from "./game-intros.js";
 import { registerMyDeckPersistence } from "./my-deck.js";
 // 【続き728】カードの持ち物・パック。card-packs.js は online.js を import しない葉なので、
 //   ここで通信の束を注入する（registerMyDeckPersistence と同じ作法）。
-import { registerCollectionTransport, refreshCollection } from "./card-packs.js";
+import { registerCollectionTransport, refreshCollection, noteProgress } from "./card-packs.js";
 // マイデッキ戦F4: 開始時のデッキ選択オーバーレイ（my-deck-select.jsはmy-deck.js/cards-data.jsのみ
 // 依存の葉。ピッカーは内部で動的importするのでここは静的でも循環しない）。
 import { openDeckSelect, closeDeckSelect, isDeckSelectOpen } from "./my-deck-select.js";
@@ -7686,6 +7686,10 @@ async function performLockPhaseClick__inner(tokenId, { skipConfirm = false, acti
   render();
   if (lockSourceRect) playCardCellLanding(lockSourceRect, dropTarget, tokenId); // #2: 手札→ロックの飛翔
   maybeAnnounceLock(dropTarget, token.cardId, false);
+  // 【続き733】デイリーチャレンジの「ロックする」を数える。
+  // ⚠ **ここは本当に通った後**（承認待ち・取りやめの道では上で return しているので数えない）。
+  // ⚠ 自分の席の時だけ（CPU の自動ロックもこの関数を通る＝actingSeat が CPU の席になる）。
+  if (player === getSelfSeat()) void noteProgress("lock");
 }
 
 // ムーブフェイズの接触可能ハイライトをクリックした時。接触の実処理自体は既存の

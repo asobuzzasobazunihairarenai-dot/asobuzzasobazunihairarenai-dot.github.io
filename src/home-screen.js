@@ -31,6 +31,8 @@ import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
 // 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
 import { isMyStackEnabled, setMyStackEnabled } from "./my-stack.js";
 import { isUiV2 } from "./ui-v2.js"; // 【2026-11-14】試作のレイアウト（?ui=v2 の時だけ使う）
+// 【続き733】デイリーチャレンジ／ウィークリーの「7色のリング」（ユーザー要望）。
+import { buildDailyRing } from "./daily-ring.js";
 import { buildRankShowcase } from "./rank-showcase.js";
 import { showRankExplanationModal } from "./rank-explain.js";
 // チュートリアルCPU戦（台本化された練習試合）。完全ローカル機能。
@@ -836,6 +838,18 @@ function buildHomeV2(overlayEl, parts) {
   sub.textContent = t("home.subtitle");
   headLeft.append(eyebrow, h1, sub);
   header.appendChild(headLeft);
+  // 🔴【続き733】7色のリング（デイリーチャレンジ／ウィークリー）。
+  //   ⚠ **パックと同じ扱い**（管理者 かつ v2）。ここは v2 の組み立ての中なので v2 は自明、
+  //     管理者かどうかだけ見る。普段は小さな輪だけ＝「スマートな表示」（ユーザー要望）。
+  if (isAdminUser()) {
+    try {
+      const ring = buildDailyRing();
+      ring.classList.add("is-v2-header");
+      header.appendChild(ring);
+    } catch (err) {
+      console.error("daily ring failed", err);
+    }
+  }
   // クラウドファンディングの帯は、試作の「右の札」の位置へ（期限を過ぎたら parts.cf が null）。
   if (parts.cf) {
     parts.cf.classList.add("is-v2-header");

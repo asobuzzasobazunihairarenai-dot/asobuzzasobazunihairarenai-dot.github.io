@@ -253,6 +253,7 @@ function 節(題) {
   return h;
 }
 
+// ⚠【続き733】いまは呼んでいない（ホームの7色のリングへ移した）。戻せるように残してある。
 function デイリーの区画() {
   const c = getCollection();
   const d = c.daily;
@@ -294,6 +295,7 @@ function bar(now, goal) {
   return outer;
 }
 
+// ⚠【続き733】いまは呼んでいない（ホームの7色のリングへ移した）。戻せるように残してある。
 function ウィークリーの区画() {
   const c = getCollection();
   const w = c.weekly;
@@ -452,8 +454,10 @@ function 中身を組む(inner) {
     inner.appendChild(note);
   }
 
-  inner.appendChild(デイリーの区画());
-  inner.appendChild(ウィークリーの区画());
+  // 🔴【続き733】ユーザー判断「**パックを開けるページにデイリーチャレンジやウィークリーは
+  //   不要です。これらはホームに表示しよう。**」⇒ ここからは外した（ホームの7色のリングへ）。
+  //   ⚠ 組み立てる関数（デイリーの区画／ウィークリーの区画）は**消していない**——
+  //     戻したくなったらこの2行を足すだけ。
   inner.appendChild(コレクションの区画());
 }
 
