@@ -26749,6 +26749,36 @@ body.is-tablet-device .daily-ring-note {
   font-size: 1.35rem;
 }
 
+/* 【2026-11-15・続き736・#673】中央のミニモーダルに出す「捨てた順」の番号。
+   捨て場は積み重なり、どれが1番上かは後の効果（赤のはじまり＝1番上／フェニックス＝
+   上から2番目）に効くので、**順番そのものが大事な情報**になる。
+   ⚠ 付くのは盤面の一括捨て（迷いの森・ワインウェア・白の意志の覚醒）の時だけ。 */
+.hand-pickup-toast-order {
+  position: absolute;
+  left: 0.1rem;
+  top: 0.1rem;
+  min-width: calc(1.1rem * var(--hand-pickup-toast-scale));
+  height: calc(1.1rem * var(--hand-pickup-toast-scale));
+  padding: 0 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: sans-serif;
+  font-size: calc(0.7rem * var(--hand-pickup-toast-scale));
+  font-weight: bold;
+  color: #0f1720;
+  background: #fca5a5; /* 捨てる＝赤系（到達の金と見分けられるように） */
+  border-radius: calc(0.6rem * var(--hand-pickup-toast-scale));
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* ⚠【続き736】ここから下の .discard-reveal-* は**もう使っていない**。
+   続き735 で左上に独自のモーダルを作ったが、ユーザー指摘「ミニモーダルとは
+   中央に出て左側にストックされていくやつ」で、**別物だった**と分かった。
+   ⇒ 中央のミニモーダル（.hand-pickup-toast）へ付け替えた。
+   規則は**消さずに残す**——古い版のコードを掴んだままの端末が、この規則だけ
+   無くなった新しい CSS を読むと、枠も地も無い裸の札が並ぶことになるため。 */
 /* ═══════════ 【2026-11-15・続き735・#673】捨てられたカードのミニモーダル ═══════════
    ユーザー要望「**迷いの森で捨てられたカードを捨てられた順にミニモーダルで全員へ。
    複数枚は1つにまとめる。**」（src/discard-reveal.js）

@@ -1958,7 +1958,7 @@ async function runAction(action, ctx, helpers) {
         .map((id) => getState().tokens.find((t2) => t2.id === id)?.cardId)
         .filter(Boolean);
       for (const id of 並び) await helpers.discardAndSync(id, { batchNotice: true });
-      helpers.revealDiscardedCards?.(捨てた札);
+      helpers.revealDiscardedCards?.(ctx.player, 捨てた札);
       await helpers.announceEffectReason?.(
         ctx.cardId,
         t("ce.discardedAdjacentN", { name: helpers.getPlayerName(ctx.player), n: 対象.length })
@@ -2218,7 +2218,7 @@ async function runAction(action, ctx, helpers) {
       for (const token of orderedStack) {
         await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
       }
-      helpers.revealDiscardedCards?.(捨てた札);
+      helpers.revealDiscardedCards?.(ctx.player, 捨てた札);
       // 【#335】お知らせは中央が空くまで順番待ちする（実機で最大9秒）。既定の3秒で光が消えると
       // 文面の「光っているマス」が何も指さなくなるので、**お知らせが出て読み終わるまで光らせ続け**、
       // 終わってから短く畳む。焼失の演出 → お知らせ、という順番はこれで自然に成立する
@@ -2919,7 +2919,7 @@ async function runAction(action, ctx, helpers) {
       for (const token of orderedCandidates) {
         await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
       }
-      helpers.revealDiscardedCards?.(捨てた札);
+      helpers.revealDiscardedCards?.(ctx.player, 捨てた札);
       // お知らせ（ユーザー要望）: 盤面一括変化の要約。
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.L1409"));
       return true;

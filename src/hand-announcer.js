@@ -315,7 +315,12 @@ export function announceCardLocked(player, cardId) {
 // 「ギャンブルで外した時、捨てるカードのミニモーダルは捨てるカードの全てを一気に表示させたい」）。
 // 1枚ずつ出すと、中央は一度に1つ（#266）なので順番待ちになり、手札の枚数ぶん待たされていた。
 // 見た目は「獲得」のまとめ表示（announceHandPickups）と同じ横並び。
-export function announceCardsDiscarded(player, cardIds, reason) {
+// options.ordered … **捨てた順の番号**を1枚ずつに付ける（【#673】盤面の一括捨て用）。
+//   捨て場は積み重なり、どれが1番上かは後の効果（赤のはじまり＝1番上／フェニックス＝
+//   上から2番目）に効くので、**順番そのものが大事な情報**になる。
+//   ⚠ 既定は付けない——他の呼び出し（ザ・ギャンブル等）では順番に意味が薄く、
+//     番号を足すと「何かの順位」と読まれてしまう。
+export function announceCardsDiscarded(player, cardIds, reason, options = {}) {
   const ids = (cardIds || []).filter((id) => id && getCardDefinition(id));
   if (ids.length === 0) return;
   if (ids.length === 1) return announceCardDiscarded(player, ids[0], reason);
@@ -327,9 +332,11 @@ export function announceCardsDiscarded(player, cardIds, reason) {
     <div class="hand-pickup-toast-cards">
       ${ids
         .map(
-          (cardId) => `
+          (cardId, i) => `
         <div class="hand-pickup-toast-card">
-          <div class="hand-pickup-toast-img" data-cardface-id="${cardId}"></div>
+          <div class="hand-pickup-toast-img" data-cardface-id="${cardId}">${
+            options.ordered ? `<span class="hand-pickup-toast-order">${i + 1}</span>` : ""
+          }</div>
           <div class="hand-pickup-toast-name">${cardNameOf(cardId)}</div>
         </div>`
         )

@@ -254,8 +254,14 @@ import { isArrivalEffectDisabled, isFlightAnimationDisabled } from "./motion-pre
 import { playCardDissolve, isCardDissolvePlaying, getCardDissolveLoad } from "./card-dissolve.js";
 import { rectCenter, flyGhost } from "./ghost-flight.js";
 import { showCardArrivalModal, hideCardArrivalModalImmediately } from "./card-arrival.js";
-// 【#673・2026-11-15】まとめて捨てられた盤面のカードを、捨てられた順に全員へ見せる。
-import { showDiscardedCardsModal, hideDiscardRevealModal } from "./discard-reveal.js";
+// 🔴【#673・続き736】ユーザー指摘「**ミニモーダルは画面中央ですよ？** ミニモーダルとは
+//   出た後にこのターンの出来事、前のターンの出来事としてストックされていくやつ」
+//   （ユーザー訂正「**右にストックでしたね**」＝右下のアクションボタン列の上の横帯）。
+//   ⇒ 続き735 で私が作った左上の独自モーダル（discard-reveal.js）は**別物**だった。
+//     正しい入口は、画面**中央**でフラッシュして**右下の帯**へ飛ぶ既存の仕組み。
+//     正しくは **中央のフラッシュ → 右下のストックへ飛ぶ** 既存の仕組み
+//     （hand-announcer.js の announceCardsDiscarded）。そちらへ付け替えた。
+//   ⚠ discard-reveal.js は**消していない**（公開済みの src/*.js は消さない＝続き423 の実害）。
 import {
   showHandEffectUseModal,
   hideHandEffectUseModalImmediately,
@@ -2730,7 +2736,7 @@ function isSelfAction(fromPlayer) {
   }
   return fromPlayer === getSelfSeat();
 }
-onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, optionLabel, mode, costCardId }) => {
+onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, forPlayer, optionLabel, mode, costCardId }) => {
   if (isSelfAction(fromPlayer)) return;
   // 🔴【#621・#622】1st EDITION の【状況】カードの合図。**「使った」のではない**ので、
   //   霧散演出（canvas）も、割り込みの窓も出さない——出すと「相手が手札効果を宣言した」
@@ -2740,12 +2746,14 @@ onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, optionLabel, mode, costCar
     return;
   }
   // 【#673】まとめて捨てられた盤面のカード。**「使った」のではない**ので、霧散演出も
-  //   割り込みの窓も出さない（situation と同じ理由）。見せるのはミニモーダルだけ。
+  //   割り込みの窓も出さない（situation と同じ理由）。見せるのは中央のミニモーダルだけ。
   if (mode === "discarded") {
     try {
-      showDiscardedCardsModal(Array.isArray(cardIds) ? cardIds : [cardId]);
+      announceCardsDiscarded(forPlayer ?? fromPlayer, Array.isArray(cardIds) ? cardIds : [cardId], null, {
+        ordered: true,
+      });
     } catch (err) {
-      console.error("showDiscardedCardsModal (remote) failed", err);
+      console.error("announceCardsDiscarded (remote) failed", err);
     }
     return;
   }
@@ -10260,16 +10268,25 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
 //     受け側は mode で振り分ける。
 //   ⚠ 効果を走らせるのは**その席の本人のクライアントだけ**なので、送らないと
 //     他の人の画面には何も出ない（#592 の「勝手に効くので追えない」と同じ形）。
-function revealDiscardedCardsForEffect(cardIds) {
+function revealDiscardedCardsForEffect(player, cardIds) {
   const ids = (Array.isArray(cardIds) ? cardIds : []).filter(Boolean);
   if (ids.length === 0) return;
   try {
-    showDiscardedCardsModal(ids);
+    // 🔴 **中央のミニモーダル**（一瞬フラッシュ → 右下のストックへ飛び、
+    //   「このターンの出来事／前のターンの出来事」として残る）。
+    //   `ordered: true` で**捨てた順の番号**を1枚ずつに付ける。
+    announceCardsDiscarded(player, ids, currentEffectReasonLabel(), { ordered: true });
   } catch (err) {
-    console.error("showDiscardedCardsModal failed", err);
+    console.error("announceCardsDiscarded failed", err);
   }
   if (isOnlineMode()) {
-    broadcastHandEffectUse({ fromPlayer: getSelfSeat(), cardId: ids[0], cardIds: ids, mode: "discarded" });
+    broadcastHandEffectUse({
+      fromPlayer: getSelfSeat(),
+      cardId: ids[0],
+      cardIds: ids,
+      forPlayer: player,
+      mode: "discarded",
+    });
   }
 }
 
@@ -21999,8 +22016,7 @@ function dismissAllInGameTransientUi() {
     hideEffectPickerHint();
   } catch (e) { /* best-effort */ }
   try { hideCardArrivalModalImmediately(); } catch (e) {}
-  // 【#673】残るとホーム画面に被る（到達モーダルと同じ理由）。
-  try { hideDiscardRevealModal(); } catch (e) {}
+  // 【#673・続き736】中央のミニモーダルに付け替えたので、ここでの後片付けは要らない。
   try { hideHandEffectUseModalImmediately(); } catch (e) {}
   try { hideContactApprovalModalImmediately(); } catch (e) {}
   try { forceCloseGateInvasionModal(); } catch (e) {}
@@ -22476,8 +22492,7 @@ subscribe(() => {
     // 引っ込める（仕組みはモーダル自身が元から持っているものをそのまま使う）。
     hideCardArrivalModalImmediately({ fade: true });
     hideHandEffectUseModalImmediately({ fade: true });
-    // 【#673】捨てられた札の札も、ターンが変わったら畳む（次の人の邪魔にならないように）。
-    hideDiscardRevealModal();
+    // 【#673・続き736】中央のミニモーダルは自分で消えるので、ここでの後片付けは要らない。
     // 【#619】繰り返す効果がカメラを抱えたままターンが変わったら、そこで必ず解く（保険）。
     forceReleaseCameraHold();
     // 0th拡張: ターンが切り替わった瞬間を使う2つの処理。
