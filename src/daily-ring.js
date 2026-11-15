@@ -40,11 +40,27 @@ let 開いている = false;
 let 長押しタイマー = null;
 let 外れる = null;
 
+// 🔴【#683・続き738】デイリーは **1日3つ**になった（サーバーが配列で返す）。
+//   card-packs.js が古いサーバーの1件も配列に直してくれるので、ここは**常に配列**を見る。
+function 一覧(c) {
+  return Array.isArray(c?.daily) ? c.daily : [];
+}
+// 3つを合わせた進み（0〜1）。「どれか1つが終わった」より「全体でどこまで来たか」の方が
+//   7本の弧には素直に乗る。
+function 進み(c) {
+  const ds = 一覧(c);
+  if (ds.length === 0) return 0;
+  let 済 = 0;
+  let 全 = 0;
+  for (const d of ds) {
+    const g = Math.max(1, Number(d.goal) || 1);
+    全 += g;
+    済 += Math.min(Math.max(0, Number(d.progress) || 0), g);
+  }
+  return 全 > 0 ? 済 / 全 : 0;
+}
 function 灯る数(c) {
-  const d = c?.daily;
-  if (!d || !d.goal) return 0;
-  if (d.claimed) return SEVEN.length;
-  const 割合 = Math.max(0, Math.min(1, d.progress / d.goal));
+  const 割合 = 進み(c);
   // 🔴 1つでも進んだら1本は灯す（0と1の違いが見えないと、進んだ実感が無い）。
   if (割合 <= 0) return 0;
   return Math.max(1, Math.ceil(割合 * SEVEN.length));
@@ -83,20 +99,32 @@ function 弧を描く(c) {
 function 中の数え(c) {
   const el = document.createElement("div");
   el.className = "daily-ring-num";
-  const d = c?.daily;
-  if (!d) el.textContent = "–";
-  else if (d.claimed) el.textContent = "✓";
-  else el.textContent = `${Math.min(d.progress, d.goal)}/${d.goal}`;
+  const ds = 一覧(c);
+  if (ds.length === 0) el.textContent = "–";
+  else {
+    // 3つのうち**何個終わったか**（全部済んだら ✓）。
+    const 済 = ds.filter((d) => (Number(d.progress) || 0) >= (Number(d.goal) || 1)).length;
+    el.textContent = 済 >= ds.length ? "✓" : 済 + "/" + ds.length;
+  }
   return el;
 }
 
 // 受け取れるものがあるか（赤い点を出すかどうか）。
 function 受け取れる(c) {
-  const d = c?.daily;
   const w = c?.weekly;
-  const 日 = !!d && !d.claimed && d.progress >= d.goal;
+  const 日 = 一覧(c).some((d) => !d.claimed && (Number(d.progress) || 0) >= (Number(d.goal) || 1));
   const 週 = !!w && (w.steps || []).filter((n) => w.wins >= n).length > (w.claimed || 0);
   return 日 || 週;
+}
+
+// 【#683】種類ごとの題と説明。**知らない種類が来ても落ちない**
+//   （サーバー側に新しい kind を足した時、古いクライアントでも「チャレンジ」と出るだけ）。
+function 題文(kind, 部分, n) {
+  const 鍵 = "packs.ch." + String(kind || "") + "." + 部分;
+  const 文 = t(鍵, { n });
+  // t() は見つからない鍵をそのまま返すので、それで判定する。
+  if (文 && 文 !== 鍵) return 文;
+  return t("packs.ch.unknown." + 部分, { n });
 }
 
 function ボタン(文, 中身, 無効) {
@@ -127,7 +155,6 @@ function 札を組む() {
   el.className = "daily-ring-card";
   el.addEventListener("click", (e) => e.stopPropagation());
 
-  const d = c?.daily;
   const w = c?.weekly;
 
   const 題 = document.createElement("div");
@@ -135,22 +162,32 @@ function 札を組む() {
   題.textContent = t("packs.daily");
   el.appendChild(題);
 
-  if (d) {
+  // 🔴【#683】1日3つ。それぞれに**題**（ユーザー要望「タイトルくらいは入れる？」）と
+  //   進み、**セヴルの報酬**を出す。⚠ 題と説明はクライアントが持つ（英語に切り替えるため）。
+  for (const d of 一覧(c)) {
+    const goal = Math.max(1, Number(d.goal) || 1);
+    const prog = Math.min(Math.max(0, Number(d.progress) || 0), goal);
+    const 済 = prog >= goal;
+    const row = document.createElement("div");
+    row.className = "daily-ring-task" + (済 ? " is-done" : "");
+    const 題行 = document.createElement("div");
+    題行.className = "daily-ring-task-title";
+    題行.textContent = 題文(d.kind, "title");
+    row.appendChild(題行);
     const 行 = document.createElement("div");
     行.className = "daily-ring-line";
-    const 文 = document.createElement("span");
-    文.textContent = t(`packs.challenge.${d.kind}`, { n: d.goal }) + `　${Math.min(d.progress, d.goal)} / ${d.goal}`;
-    行.appendChild(文);
-    el.appendChild(行);
-    el.appendChild(
+    行.textContent = 題文(d.kind, "desc", goal) + "　" + prog + " / " + goal;
+    row.appendChild(行);
+    row.appendChild(
       ボタン(
-        d.claimed ? t("packs.claimed") : t("packs.claim", { n: d.reward }),
+        d.claimed ? t("packs.ch.done") : t("packs.ch.claim", { n: d.reward ?? 0 }),
         async () => {
-          await claimDailyChallenge();
+          await claimDailyChallenge(Number(d.slot) || 0);
         },
-        d.claimed || d.progress < d.goal
+        !!d.claimed || !済
       )
     );
+    el.appendChild(row);
   }
 
   const 題2 = document.createElement("div");

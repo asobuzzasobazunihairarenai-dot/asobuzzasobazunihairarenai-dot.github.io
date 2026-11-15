@@ -1602,7 +1602,8 @@ export const collectionTransport = {
   buyPack: (n) => カード持ち物RPC('so7_buy_pack', { p_count: Math.max(1, Math.floor(Number(n) || 1)) }),
   openPack: () => カード持ち物RPC('so7_open_pack'),
   redeemWildcard: (cardId) => カード持ち物RPC('so7_redeem_wildcard', { p_card_id: String(cardId) }),
-  claimDailyChallenge: () => カード持ち物RPC('so7_claim_daily_challenge'),
+  // 【#683・続き738】デイリーは1日3つ。どのスロットを受け取るかを渡す。
+  claimDailyChallenge: (slot) => カード持ち物RPC('so7_claim_daily_challenge', { p_slot: Math.max(0, Math.min(2, Math.floor(Number(slot) || 0))) }),
   claimWeekly: () => カード持ち物RPC('so7_claim_weekly'),
   noteProgress: (kind, amount) =>
     カード持ち物RPC('so7_note_progress', { p_kind: String(kind), p_amount: Math.max(1, Math.floor(Number(amount) || 1)) }),

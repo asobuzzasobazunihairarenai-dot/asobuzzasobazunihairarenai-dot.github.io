@@ -65,7 +65,10 @@ function 入れる(o) {
     onlyShards: Number(o.onlyShards) || 0,
     onlyCards: Number(o.onlyCards) || 0,
     cards: o.cards && typeof o.cards === "object" ? { ...o.cards } : {},
-    daily: o.daily || null,
+    // 🔴【#683・続き738】デイリーは **1日3つ**になった（サーバーは配列を返す）。
+    //   ⚠ **古いサーバー（SQL をまだ流していない）は1つのオブジェクトを返す**ので、
+    //     そのまま1件の配列として扱う＝画面側は常に配列だけを見ればよい。
+    daily: Array.isArray(o.daily) ? o.daily : o.daily ? [{ slot: 0, reward: 30, ...o.daily }] : [],
     weekly: o.weekly || null,
     読んだ: true,
   };
@@ -122,8 +125,8 @@ export async function redeemWildcard(cardId) {
   入れる(await 呼ぶ("redeemWildcard", cardId));
   return 持ち物;
 }
-export async function claimDailyChallenge() {
-  入れる(await 呼ぶ("claimDailyChallenge"));
+export async function claimDailyChallenge(slot = 0) {
+  入れる(await 呼ぶ("claimDailyChallenge", slot));
   return 持ち物;
 }
 export async function claimWeekly() {

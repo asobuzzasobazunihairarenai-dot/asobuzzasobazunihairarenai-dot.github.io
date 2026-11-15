@@ -3968,3 +3968,209 @@ end;
 $$;
 revoke execute on function so7_ranked_waiting_count() from public;
 grant execute on function so7_ranked_waiting_count() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 【2026-11-15・続き738・#683】デイリーチャレンジを **1日3つ** に／種類を増やす／
+-- 報酬を**セヴル**に（ユーザー要望「タイトルくらいは入れる？１個じゃなくて同時に３つ
+-- くらいあってもいいよね。あと報酬はパックだけじゃなくてセヴルでもいいよね。」）。
+--
+-- ⚠ 既存の列（daily_challenge_date / _progress / _claimed）は**消さない**
+--    ——本番で動いているものを壊さないため。新しい配列の列を足して、そちらを使う。
+--    古い列は日付の判定にだけ使い続ける（_date）。
+alter table so7_user_currency add column if not exists daily_progress int[] not null default array[0,0,0];
+alter table so7_user_currency add column if not exists daily_claimed boolean[] not null default array[false,false,false];
+
+-- 🔴 1日3つ。**番号で選ぶ**（VALUES の並び順は規格上保証されないので offset では選ばない）。
+--   その日の3つは `(doy*5 + 0,1,2) % 件数` ＝**必ず違う3つ**（連番なので重複しない）。
+--   5 は件数(12)と互いに素なので、12日かけて全部の組み合わせが回る。
+--   ⓘ kind の文（題と説明）は**クライアントが持つ**（英語に切り替えられるようにするため）。
+drop function if exists so7_daily_challenge_of(date);
+create or replace function so7_daily_challenge_of(p_day date)
+returns table (slot int, kind text, goal int, reward int)
+language sql
+immutable
+as $$
+  with pool as (
+    select * from (values
+      (0,  'win'::text,         1, 60),
+      (1,  'play'::text,        2, 40),
+      (2,  'lock'::text,        5, 40),
+      (3,  'hand'::text,        3, 40),
+      (4,  'arrival'::text,     5, 40),
+      (5,  'hand_red'::text,    2, 50),
+      (6,  'hand_orange'::text, 2, 50),
+      (7,  'hand_yellow'::text, 2, 50),
+      (8,  'hand_green'::text,  2, 50),
+      (9,  'hand_blue'::text,   2, 50),
+      (10, 'hand_pink'::text,   2, 50),
+      (11, 'hand_purple'::text, 2, 50)
+    ) as t(n, kind, goal, reward)
+  ), total as (select count(*)::int as c from pool)
+  select s.i as slot, p.kind, p.goal, p.reward
+  from generate_series(0, 2) as s(i)
+  cross join total
+  join pool p on p.n = ((extract(doy from p_day)::int * 5 + s.i) % total.c)
+  order by s.i;
+$$;
+grant execute on function so7_daily_challenge_of(date) to authenticated;
+
+-- 日付が変わったら3つぶんまとめて戻す。⚠ 古い列も今までどおり戻す（まだ残してあるので）。
+create or replace function so7_roll_periods()
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  insert into so7_user_currency (user_id, balance) values (v_uid, 0)
+    on conflict (user_id) do nothing;
+  update so7_user_currency
+    set daily_challenge_date = current_date,
+        daily_challenge_progress = 0,
+        daily_challenge_claimed = false,
+        daily_progress = array[0, 0, 0],
+        daily_claimed = array[false, false, false],
+        updated_at = now()
+    where user_id = v_uid
+      and (daily_challenge_date is null or daily_challenge_date <> current_date);
+  update so7_user_currency
+    set weekly_start = date_trunc('week', current_date)::date,
+        weekly_wins = 0,
+        weekly_claimed = 0,
+        updated_at = now()
+    where user_id = v_uid
+      and (weekly_start is null or weekly_start <> date_trunc('week', current_date)::date);
+end;
+$$;
+
+-- 進みの申告。**3つぜんぶ**を見て、合う種類のスロットだけ進める。
+create or replace function so7_note_progress(p_kind text, p_amount int default 1)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  r record;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  if coalesce(p_amount, 0) <= 0 then
+    return so7_get_my_collection();
+  end if;
+  perform so7_roll_periods();
+  for r in select * from so7_daily_challenge_of(current_date) loop
+    if p_kind = r.kind then
+      update so7_user_currency
+        set daily_progress = daily_progress[1:r.slot]
+              || least(coalesce(daily_progress[r.slot + 1], 0) + p_amount, r.goal)
+              || daily_progress[r.slot + 2:3],
+            updated_at = now()
+        where user_id = v_uid;
+    end if;
+  end loop;
+  if p_kind = 'win' then
+    update so7_user_currency
+      set weekly_wins = weekly_wins + p_amount, updated_at = now()
+      where user_id = v_uid;
+  end if;
+  return so7_get_my_collection();
+end;
+$$;
+
+-- 受け取り。**スロットを指定**する（既定は0＝古いクライアントが引数なしで呼んでも落ちない）。
+drop function if exists so7_claim_daily_challenge();
+drop function if exists so7_claim_daily_challenge(int);
+create or replace function so7_claim_daily_challenge(p_slot int default 0)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_slot int := greatest(0, least(2, coalesce(p_slot, 0)));
+  v_goal int;
+  v_reward int;
+  v_progress int;
+  v_claimed boolean;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select goal, reward into v_goal, v_reward
+    from so7_daily_challenge_of(current_date) where slot = v_slot;
+  select coalesce(daily_progress[v_slot + 1], 0), coalesce(daily_claimed[v_slot + 1], false)
+    into v_progress, v_claimed
+    from so7_user_currency where user_id = v_uid for update;
+  if v_claimed then
+    raise exception 'already_claimed';
+  end if;
+  if v_progress < v_goal then
+    raise exception 'not_complete';
+  end if;
+  update so7_user_currency
+    set balance = balance + v_reward,
+        daily_claimed = daily_claimed[1:v_slot] || true || daily_claimed[v_slot + 2:3],
+        updated_at = now()
+    where user_id = v_uid;
+  return so7_get_my_collection();
+end;
+$$;
+revoke execute on function so7_claim_daily_challenge(int) from public;
+grant execute on function so7_claim_daily_challenge(int) to authenticated;
+
+-- 持ち物の返しを **daily = 3件の配列** にする（ほかの欄は1つも変えない）。
+create or replace function so7_get_my_collection()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_cur record;
+  v_cards jsonb;
+  v_daily jsonb;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  perform so7_roll_periods();
+  select * into v_cur from so7_user_currency where user_id = v_uid;
+  select coalesce(jsonb_object_agg(card_id, copies), '{}'::jsonb) into v_cards
+    from so7_user_cards where user_id = v_uid and copies > 0;
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'slot', d.slot, 'kind', d.kind, 'goal', d.goal, 'reward', d.reward,
+           'progress', coalesce(v_cur.daily_progress[d.slot + 1], 0),
+           'claimed', coalesce(v_cur.daily_claimed[d.slot + 1], false)
+         ) order by d.slot), '[]'::jsonb)
+    into v_daily
+    from so7_daily_challenge_of(current_date) d;
+  return jsonb_build_object(
+    'balance', coalesce(v_cur.balance, 0),
+    'packs', coalesce(v_cur.packs, 0),
+    'wildShards', coalesce(v_cur.wild_shards, 0),
+    'wildCards', coalesce(v_cur.wild_cards, 0),
+    'onlyShards', coalesce(v_cur.only_shards, 0),
+    'onlyCards', coalesce(v_cur.only_cards, 0),
+    'cards', v_cards,
+    'daily', v_daily,
+    'weekly', jsonb_build_object(
+      'wins', coalesce(v_cur.weekly_wins, 0),
+      'claimed', coalesce(v_cur.weekly_claimed, 0),
+      'steps', jsonb_build_array(3, 7, 12)
+    )
+  );
+end;
+$$;
+revoke execute on function so7_get_my_collection() from public;
+grant execute on function so7_get_my_collection() to authenticated;

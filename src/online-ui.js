@@ -633,6 +633,19 @@ function wrapWithPasswordToggle(input) {
   return wrapper;
 }
 
+// 🔴【#682・2026-11-15・続き738】ユーザー判断「**通常の部屋にはPassもかけれますので
+//   一旦これは無くしていいと思います**」＝「部屋コードで参加」を畳む。
+//
+//   🔴 **一緒に「🏆 ランク戦にする」も畳んだ**。理由: 合言葉フレンドランク戦の部屋は
+//     SQL のビューが `where ... and not g.is_ranked` で**公開一覧から外している**ので、
+//     **部屋コードが唯一の入口**だった。入口だけ消すと「作れるのに誰も入れない部屋」が
+//     残る＝壊れた機能になる。片方だけ残さない。
+//
+//   ⚠ **コードは1行も消していない。** この2つを true に戻せば元どおり。
+//     戻す時は、合言葉戦の入口（部屋コード or 一覧に出す）も一緒に考えること。
+const 部屋コードで参加できる = false;
+const 合言葉フレンドランク戦を作れる = false;
+
 // 部屋のパスワードは、サーバー側にはハッシュしか保存しない設計（そもそも平文を復元できない）
 // ため、「部屋作成後もパスワードを確認できるように」は、作成した本人のこのブラウザだけが
 // 作成時に入力した平文を覚えておく、という形でしか実現できない（別端末や別ブラウザからは
@@ -845,6 +858,9 @@ async function renderRoomChoice(user, myGeneration) {
   // チェックすると is_ranked な私的部屋になり、結果がレートに反映される。2人対戦・タイマー＆
   // 自動処理必須・無色なし（＝マッチメイクのランク戦と同じルール）。公開ロビーには出ないので
   // 部屋コードを相手に共有して参加してもらう。
+  // 🔴【#682】既定では出さない（上の 合言葉フレンドランク戦を作れる を参照）。
+  //   ⚠ `rankedCheckbox` は下の「作成」ボタンが読むので、**要素そのものは作る**
+  //     （画面に足さないだけ）。消すと参照が落ちる。
   const rankedRow = document.createElement("label");
   rankedRow.style.cssText =
     "display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0.2rem 0 0.4rem; font-size: 0.85rem;";
@@ -881,9 +897,11 @@ async function renderRoomChoice(user, myGeneration) {
     }
   });
   createForm.appendChild(nameInput);
-  createForm.appendChild(wrapWithPasswordToggle(passInput));
-  createForm.appendChild(rankedRow);
-  createForm.appendChild(rankedNote);
+  createForm.appendChild(wrapWithPasswordToggle(passInput));
+  if (合言葉フレンドランク戦を作れる) {
+    createForm.appendChild(rankedRow);
+    createForm.appendChild(rankedNote);
+  }
   createForm.appendChild(createStatus);
   createForm.appendChild(createConfirmBtn);
   leftCol.appendChild(createForm);
@@ -921,6 +939,8 @@ async function renderRoomChoice(user, myGeneration) {
   // 「部屋コードで参加」（合言葉フレンドランク戦の復活で再追加）。ランク戦の私的部屋は
   // 公開ロビー（so7_games_list, not is_ranked）に出ないため、相手から共有された部屋コードで
   // 参加する経路が必要。通常の部屋にも使える（パスワード付き部屋も、下のパスワード欄で参加可）。
+  // 🔴【#682】既定では出さない（上の 部屋コードで参加できる を参照）。
+  if (部屋コードで参加できる) {
   const codeJoinLabel = document.createElement("div");
   codeJoinLabel.className = "online-section-title";
   codeJoinLabel.dataset.eyebrow = "ROOM CODE";
@@ -961,6 +981,7 @@ async function renderRoomChoice(user, myGeneration) {
   codeJoinForm.appendChild(codeJoinStatus);
   codeJoinForm.appendChild(codeJoinBtn);
   rightCol.appendChild(codeJoinForm);
+  }
 
   // --- 観戦（進行中の対局を後から見る、ユーザー要望） ---
   // 「参加できる部屋」とはっきり分けるため、区切り線＋太字見出しの独立セクションにする。

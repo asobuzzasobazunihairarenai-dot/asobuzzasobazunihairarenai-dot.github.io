@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "デイリーチャレンジが1日3つになりました",
+      "マイページを開いた時の待ちが分かるようにしました",
       "カードにマウスを乗せる（スマホは長押し）と拡大して読めるようにしました",
       "「パックを開ける」の画面を作り直しました",
       "図鑑の「カード一覧を開く」の絵が、毎回ちがう7枚のカードになりました",
@@ -71,6 +73,8 @@ export const CHANGELOG = [
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "Three daily challenges a day now",
+      "My Page now shows that it is loading",
       "Hover a card (long-press on a phone) to see it large",
       "Rebuilt the pack-opening screen",
       "The codex's card-list button now shows seven different cards every time",
@@ -88,6 +92,8 @@ export const CHANGELOG = [
       "The online match window is better arranged",
     ],
     items: [
+      "**デイリーチャレンジが1日3つ**になりました。それぞれに**題**が付いて、**セヴルの報酬**がもらえます。種類も増えて、「対局に勝つ」「あそぶ」「ロックする」に加えて**「手札効果を使う」「到達効果を起こす」「○色のカードの手札効果を使う」**が出ます（12種類の中からその日の3つ）。ホームの7色のリングは3つ合わせた進みを表し、真ん中は「終わった数 / 3」になります。",
+      "マイページを開いた時、中身ができるまで**骨組み**が出るようになりました（これまでは、通信を待つあいだ何も無く見えていました）。",
       "**カードにマウスを乗せると拡大**して読めるようになりました（スマホは**長押し**）。これまでは対局中・マイデッキ編集・図鑑だけでしたが、**パックの画面・開封の結果・マイ山札の編集**でも同じように読めます。拡大の大きさは基本設定の「カード拡大の大きさ」と同じなので、大きくすればここも一緒に大きくなります。",
       "**「パックを開ける」の画面を作り直しました。** 持ち物（セヴル・パック・ワイルド）を4つの札に、真ん中にパックの袋を置いて「開ける」をその隣に、コレクションには**どこまで集まったかの帯**を付けました。",
       "図鑑の「カード一覧を開く」の扇が、**毎回ちがう7枚の実物のカード**になりました。",
@@ -105,6 +111,8 @@ export const CHANGELOG = [
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "There are now three daily challenges a day, each with a title and a Sevre reward. New kinds were added: use hand effects, trigger arrival effects, and use hand effects of a specific colour (three of twelve kinds each day). The seven-colour ring on the home screen shows your combined progress, and its centre now reads how many of the three are done.",
+      "My Page now shows a placeholder while it loads, instead of looking empty while it waits for the network.",
       "Hovering a card now shows it large (long-press on a phone). This used to work only in a match, in deck editing and in the codex; it now works on the pack screen, on your pack results and while building your deck recipe. The size follows the \\\"card zoom size\\\" setting.",
       "Rebuilt the pack-opening screen: your wallet is now four tiles, the pack itself sits next to the Open button, and the collection shows how far along you are.",
       "The fan on the codex's \\\"Open the card list\\\" button now shows seven real cards, different every time.",
@@ -122,6 +130,7 @@ export const CHANGELOG = [
       "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
     ],
     fixes: [
+      "オンライン対戦の画面から「部屋コードで参加」をなくしました（部屋はパスワードで守れます）。",
       "カードの効果文が出ず、白い欄になっていた所をまとめて直しました（パックの結果・コレクション・ミニロックエリアなど）。",
       "パックの結果で、はじめて手に入れたカードと ONLY カードが見分けられるようになりました。",
       "ランク戦の待機中にCPU練習をやめてホームに戻ると、選択モーダルが残っていたのを直しました。",
@@ -144,6 +153,7 @@ export const CHANGELOG = [
       "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
     ],
     fixesEn: [
+      "Removed \\\"join with a room code\\\" from the online screen (rooms can be protected with a password instead).",
       "Fixed card effect text missing (showing an empty white panel) in several places, including pack results, the collection and the mini lock area.",
       "Pack results now show which cards are new to you and which are ONLY cards.",
       "Fixed a selection dialog staying on the home screen after you quit CPU practice while queuing for a ranked match.",
@@ -166,6 +176,12 @@ export const CHANGELOG = [
       "The card list's back button now looks like the one on every other page",
     ],
     devItems: [
+      "🔴 **【#682】「部屋コードで参加」を畳んだ。** ユーザー判断「通常の部屋にはPassもかけれますので一旦これは無くしていい」⇒ そのとおりで、通常の部屋は一覧に出るし 🔒 の部屋はその場でパスワードを入れて入れる。🔴 **ところが調べると、合言葉フレンドランク戦（「🏆 ランク戦にする」）だけは話が別**で、あの部屋は SQL のビューが `where ... and not g.is_ranked` で**公開一覧から外している**＝**部屋コードが唯一の入口**だった。入口だけ消すと「作れるのに誰も入れない部屋」が残る ⇒ **作る口も一緒に畳んだ**。⚠ コードは1行も消していない（`部屋コードで参加できる` / `合言葉フレンドランク戦を作れる` を true に戻すだけ）。",
+      "🔴 **【#683】デイリーチャレンジを1日3つに**（ユーザー要望「タイトルくらいは入れる？１個じゃなくて同時に３つ。報酬はセヴルでも」）。種類を **12** に増やし（色ごとの手札効果7種＋手札効果・到達・勝つ・あそぶ・ロック）、その日の3つは `(doy*5 + 0,1,2) % 12` ＝**連番なので必ず違う3つ**・5と12は互いに素なので**12日かけて全部回る**。進みは配列の列（`daily_progress` / `daily_claimed`）で持ち、受け取りは**スロット指定**。⚠ **既存の列は1つも消していない**（本番で動いているものを壊さない）。⚠ 古いサーバー（SQL 未実行）が1件のオブジェクトを返しても、クライアントが配列に直すので画面は壊れない。",
+      "🔴 **SQL は手で流してもらうものなので、ローカルの Supabase で本当に動かして確かめた**（続き728 の教訓）。全文を流して ERROR 0、そのうえで PostgREST を素の fetch で叩いて **18項目**: 3件・slot 0/1/2・種類が3つとも違う・報酬あり／合う種類のスロットだけ進む・知らない種類では進まない・goal で止まる／スロット指定で受け取れてセヴルが増える・2回受け取れない・未達は受け取れない・**引数なしでも落ちない**（古いクライアント）／**12日ぶん全部ちがう組み合わせ**。",
+      "**【#683】新しい種類をゲームに繋いだ**: 手札効果を使った時（`announceHandEffectUseForEffect`。**自分の席の時だけ**・追色ありの deferVisual でも数える）と、到達効果が起きた時（**自分の駒だけ**）。⚠ 「サーバーに口を作った」と「ゲームがそれを呼んでいる」は別（続き733 で実際に忘れた）。",
+      "🔴 **【#685】マイページに骨組み（スケルトン）。** `renderMyPageBody` は通信を待つのに、#649 の直しで中身を `visibility: hidden` にしていた＝**待っている間は本当に何も無い**。メインデッキの箱だけはカードの外に在って通信を待たないので、**そこだけ先に出る**＝報告の見え方そのもの。⇒ 薄い板を6枚だけ重ねて置き、中身ができたら取り除く。⚠ **カードの中には入れない**（中身と一緒に消えるため）。⚠ #649 の直しはそのまま。",
+      "⚠ **実測のミス（記録）**: #682 の最初の実測は**空振り**だった——未ログインだとオンラインのパネルは**ログインの札しか出さない**ので、「部屋コードで参加が無い」は当たり前の話を測っていた。⇒ **ローカルの Supabase へ向けて匿名ログインしてから**測り直した（「部屋選びの画面まで来ている」を先に確かめる行を足した）。**「無い」を測る時は、在るはずの物が在ることを先に確かめる。**",
       "🔴🔴 **`node --check` には穴がある。** `src/card-pack-ui.js` の末尾に `}` が1つ余ったのに `node --check src/card-pack-ui.js` は**終了コード0**（拡張子が .js だと**まず CommonJS として**読むため）。ブラウザでは `import()` が SyntaxError で落ち、**パックの画面が丸ごと開かない**。⇒ **新しい検査 `tools/check-syntax.mjs`（15本目）**を足した: src/*.js を一時フォルダへ **.mjs として写してから** `node --check`（実行はしないので副作用ゼロ・197件で約10秒）。わざと壊して落ちることを確かめた。**私はこの session 中ずっと `node --check` を根拠にしていた。**",
       "🔴 **【#686】「カードにテキストが入ってない」の総点検。** 0th拡張・1st は文字を焼き込んだ絵を持たないので `getCardImagePath` は**文字なしの下地**を返す＝生のURLを背景に敷くと効果欄が真っ白。#611（続き698）→#660（続き714）と2回直したのに、**後から作った画面で同じ穴をまた掘っていた**。⇒ 判断を1か所に置いた（`card-face-display.js` の `paintCardFace`）。大きい所は**文字を描く**／小さい所（3〜4rem）は**イラストだけ**（白い空欄が出ず、DOM も作らないので52枚でも軽い）。当てた先: パック開封のまとめ・コレクション・**ミニロック／ミニ手札公開／ミニ捨て場**・手札効果の燃焼演出。",
       "🔴 **【#687】ONLY の問い**「ヴド族ってONLYじゃなかったっけ？」⇒ **ONLY です**（`cards-data-ex0.js` の `only: true`。0th拡張の ONLY は10枚）。**データは正しく、見た目に出ていなかっただけ**——原因は #686 と同じで、生のURLを敷いていたので `showCardFace` が付ける金の光（`.is-only-card`）が付かなかった。#686 の直しで自動的に出る。そのうえで NEW／ONLY の帯と枠を足した。",

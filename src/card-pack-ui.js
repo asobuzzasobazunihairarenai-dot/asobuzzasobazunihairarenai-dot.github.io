@@ -273,7 +273,9 @@ function 節(題) {
 // ⚠【続き733】いまは呼んでいない（ホームの7色のリングへ移した）。戻せるように残してある。
 function デイリーの区画() {
   const c = getCollection();
-  const d = c.daily;
+  // ⚠【#683・続き738】daily は**配列**になった（1日3つ）。この区画はもう呼んでいないが、
+  //   戻した時に落ちないよう先頭の1件を見る形にしておく。
+  const d = Array.isArray(c.daily) ? c.daily[0] : c.daily;
   const box = document.createElement("div");
   box.className = "card-pack-task";
   if (!d) {

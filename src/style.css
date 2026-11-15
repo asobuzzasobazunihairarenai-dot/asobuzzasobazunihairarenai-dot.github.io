@@ -17237,6 +17237,8 @@ body.theme-light .home-match-choice-cancel:hover {
   margin-bottom: 1.4rem;
 }
 #profile-page-card {
+  /* 【#685】骨組み（.profile-skeleton）を中に重ねるので positioned にしておく。 */
+  position: relative;
   width: min(24rem, 92vw);
   background: rgba(15, 23, 32, 0.7);
   border: 1px solid rgba(148, 163, 184, 0.3);
@@ -27845,3 +27847,73 @@ body.is-tablet-device .card-pack-foil-ed { font-size: 0.8rem; height: 1.6rem; }
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ═══ 【2026-11-15・続き738・#683】デイリーチャレンジ 1日3つ ═══
+   ユーザー要望「**タイトルくらいは入れる？１個じゃなくて同時に３つくらいあってもいいよね。
+   あと報酬はパックだけじゃなくてセヴルでもいいよね。**」
+   ⇒ 3つを**それぞれ1枚の札**にして、題・進み・報酬を縦に並べる。 */
+.daily-ring-task {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(176, 141, 63, 0.35);
+}
+/* 済んだものは、まだのものより一歩引く（次にやることが先に目に入るように）。 */
+.daily-ring-task.is-done {
+  border-color: rgba(176, 141, 63, 0.7);
+}
+.daily-ring-task-title {
+  font-size: 0.82rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+}
+.daily-ring-task .daily-ring-line {
+  opacity: 0.85;
+}
+
+body.is-phone-device .daily-ring-task-title,
+body.is-tablet-device .daily-ring-task-title { font-size: 1.6rem; }
+
+/* ═══ 【2026-11-15・続き738・#685】マイページの骨組み（スケルトン）═══
+   ユーザー報告「マイページを開くとき**メインデッキ以外の表示が少し遅い**」。
+   中身は通信を待つので、その間ここに薄い板を並べておく。
+   ⚠ **新しい画像は1枚も使わない**（ただの半透明の矩形＋ゆっくりした明滅）。
+   ⚠ `filter` は使わない（教訓1。ここは盤面の外だが、同じ書き方を写した時に事故る）。 */
+.profile-skeleton {
+  position: absolute;
+  inset: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  pointer-events: none;
+}
+.profile-skeleton-bar {
+  background: currentColor;
+  opacity: 0.1;
+  border-radius: 0.3rem;
+  animation: profile-skeleton-pulse 1.4s ease-in-out infinite;
+}
+@keyframes profile-skeleton-pulse {
+  0%, 100% { opacity: 0.07; }
+  50% { opacity: 0.16; }
+}
+.profile-skeleton-bar.is-avatar {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+}
+.profile-skeleton-bar.is-line { height: 1.1rem; }
+.profile-skeleton-bar.is-block { width: 80%; height: 7rem; }
+.profile-skeleton-bar.w70 { width: 70%; }
+.profile-skeleton-bar.w60 { width: 60%; }
+.profile-skeleton-bar.w45 { width: 45%; }
+.profile-skeleton-bar.w35 { width: 35%; }
+/* 1本ずつ少しずらして、順に息をしているように見せる。 */
+.profile-skeleton-bar:nth-child(2) { animation-delay: 0.12s; }
+.profile-skeleton-bar:nth-child(3) { animation-delay: 0.24s; }
+.profile-skeleton-bar:nth-child(4) { animation-delay: 0.36s; }
+.profile-skeleton-bar:nth-child(5) { animation-delay: 0.48s; }
+.profile-skeleton-bar:nth-child(6) { animation-delay: 0.6s; }

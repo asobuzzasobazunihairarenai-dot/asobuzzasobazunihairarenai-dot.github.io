@@ -32,6 +32,27 @@ registerProfileLayoutHelpers({
   },
 });
 
+// 【#685】中身ができるまでのあいだ置いておく、薄い板だけの骨組み。
+//   ⚠ **カードの中には入れない**（中身は `visibility: hidden` なので一緒に消える）。
+//     カードの上に重ねて置き、中身ができたら取り除く。
+//   ⚠ 新しい画像は1枚も使わない（板はただの半透明の矩形）。
+function 骨組みを出す() {
+  const card = document.getElementById("profile-page-card");
+  if (!card) return null;
+  const 骨 = document.createElement("div");
+  骨.className = "profile-skeleton";
+  骨.setAttribute("aria-hidden", "true");
+  // アバター1枚＋行がいくつか、という「だいたいの形」だけ。
+  const 形 = ["is-avatar", "is-line w70", "is-line w45", "is-block", "is-line w60", "is-line w35"];
+  for (const c of 形) {
+    const b = document.createElement("div");
+    b.className = "profile-skeleton-bar " + c;
+    骨.appendChild(b);
+  }
+  card.appendChild(骨);
+  return 骨;
+}
+
 async function renderProfileBody() {
   if (!bodyEl) return;
   // 🔴【#649・2026-11-14】ユーザー報告「マイページを開いた直後、全体が大きく端が見切れた
@@ -42,12 +63,20 @@ async function renderProfileBody() {
   //   ⇒ 収まりを決めるまで**見せない**。`visibility` なので**大きさは測れる**
   //     （`display: none` にすると測れず、縮め方が決まらない）。
   bodyEl.style.visibility = "hidden";
+  // 🔴【#685・2026-11-15】ユーザー報告「マイページを開くとき**メインデッキ以外の表示が
+  //   少し遅い**」。`renderMyPageBody` は**通信を待つ**（戦績・ランク・フレンド）ので、
+  //   その間ここは上の行で見えなくなっている＝**本当に何も無い**。
+  //   メインデッキの箱だけはカードの外に在って通信を待たないので、そこだけ先に出る。
+  //   ⇒ **骨組みを先に出す**（待ち時間は変わらないが「開いた」ことが即座に分かる）。
+  //   ⚠ #649 の直し（収まりが決まるまで中身を見せない）はそのまま。骨組みは別の要素。
+  const 骨 = 骨組みを出す();
   try {
     await renderMyPageBody(bodyEl, closeProfilePage);
     applyProfileLayout(bodyEl); // PROFILE_LAYOUT適用＋編集モードなら移動/リサイズ配線
     fitProfilePageContent();
   } finally {
     // 途中で失敗しても必ず見せる（白いままにしない方が実害が小さい）。
+    骨?.remove();
     bodyEl.style.visibility = "";
   }
 }

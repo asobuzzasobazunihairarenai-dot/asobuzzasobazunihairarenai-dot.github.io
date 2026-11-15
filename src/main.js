@@ -3532,6 +3532,15 @@ function announceHandEffectUseForEffect(cardId, optionLabel, player, opts) {
   // 行動ログ用（ユーザー要望「△△は〇〇の手札効果を得ました」。以前は手札効果がログに
   // 残っていなかった）。到達効果(arrival)と同じく「誰が・どのカードの手札効果を使ったか」を記録。
   logAction("hand-effect", { cardId, player: player ?? getSelfSeat() });
+  // 🔴【#683】デイリーチャレンジ「手札効果を n 回使う」「○色の手札効果を n 回使う」。
+  //   ⚠ **自分の席の時だけ**（相手の手札効果で自分のチャレンジが進んでは意味が無い）。
+  //   ⚠ deferVisual（追色あり）でも**使ったことに変わりはない**ので、ここで数える
+  //     （下の return より前に置く）。
+  if ((player ?? getSelfSeat()) === getSelfSeat()) {
+    void noteProgress("hand");
+    const 色 = getCardDefinition(cardId)?.color;
+    if (色 && 色 !== "rainbow" && 色 !== "white" && 色 !== "black") void noteProgress("hand_" + 色);
+  }
   // ユーザー要望（続き76）「手札効果使用宣言の直後にも割り込みモーダルを出す」。使用が
   // 決まった瞬間なので、追色あり/なしに関わらずここで（ログと合わせて）行う。
   triggerAnytimeInterruptCheckpoint(player ?? getSelfSeat());
@@ -11419,6 +11428,8 @@ function triggerCardArrival(cardId, location, onFullyResolved, opts = {}) {
   // 診断（到達コンボ不発の調査）: どのブランチ（自動実行 or 手動モーダルのみ）に入るかを
   // 決める材料を全部残す。ユーザー報告「パーティを取って露出したジャンプ台の到達効果が
   // 起きない（モーダルは出る）」の切り分け用。auto=false ならモーダルのみ＝効果は動かない。
+  // 🔴【#683】デイリーチャレンジ「到達効果を n 回起こす」。**自分の駒の到達だけ**数える。
+  if (player === getSelfSeat()) void noteProgress("arrival");
   logAction("arrival", {
     cardId,
     location,
