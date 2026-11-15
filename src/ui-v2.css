@@ -2306,3 +2306,15 @@ body.ui-v2 #profile-maindeck::before {
   height: 2px;
   background: linear-gradient(90deg, #d8b24c, #c79a47);
 }
+
+/* ═══ 【2026-11-15・続き735・#676】v2 のマイページ: メイン山札の箱 ═══
+   v2 ではメインデッキが**縦中央**（top:50% / scale 1.95）なので、上に残る高さは
+   実測 232px しかない（箱は 264px 要る）。⇒ **デッキの下**へ置き、右端をそろえる。
+   ⚠ メインデッキの位置・倍率には触らない（続き724 で詰めた3列の割り付けを壊さない）。 */
+body.ui-v2 #profile-mainstack {
+  top: auto;
+  bottom: 1rem;
+  right: 5rem;
+  transform: scale(1.1);
+  transform-origin: bottom right;
+}

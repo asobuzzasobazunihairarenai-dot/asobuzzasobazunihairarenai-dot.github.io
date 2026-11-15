@@ -1948,7 +1948,17 @@ async function runAction(action, ctx, helpers) {
         helpers.clearPlacementTargets?.();
       }
       // #463: 直後に「n枚捨てた」の要約を出すので、1枚ごとのお知らせは出さない。
+      // 🔴【#673・2026-11-15】ユーザー要望「**迷いの森で捨てられたカードを捨てられた順に
+      //   ミニモーダルで全員へ。複数枚は1つにまとめる。**」
+      //   捨て場は積み重なり、どれが1番上かが後で効く（赤のはじまり＝1番上／フェニックス＝
+      //   上から2番目）ので、**順番が見えること自体がゲームの情報**。
+      //   ⚠ 捨てる**前に** cardId を控える（捨てた後の token から引くと、捨て場の並びを
+      //     読み直すことになって順番の根拠が2つになる）。
+      const 捨てた札 = 並び
+        .map((id) => getState().tokens.find((t2) => t2.id === id)?.cardId)
+        .filter(Boolean);
       for (const id of 並び) await helpers.discardAndSync(id, { batchNotice: true });
+      helpers.revealDiscardedCards?.(捨てた札);
       await helpers.announceEffectReason?.(
         ctx.cardId,
         t("ce.discardedAdjacentN", { name: helpers.getPlayerName(ctx.player), n: 対象.length })
@@ -2203,9 +2213,12 @@ async function runAction(action, ctx, helpers) {
           orderedStack = [...ordered, ...topFirst.filter((tk) => !seen.has(tk.id))];
         }
       }
+      // 【#673】捨てられた札を順番つきで全員に見せる（迷いの森と同じ扱い＝同じ家族の動詞）。
+      const 捨てた札 = orderedStack.map((tk) => tk.cardId).filter(Boolean);
       for (const token of orderedStack) {
         await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
       }
+      helpers.revealDiscardedCards?.(捨てた札);
       // 【#335】お知らせは中央が空くまで順番待ちする（実機で最大9秒）。既定の3秒で光が消えると
       // 文面の「光っているマス」が何も指さなくなるので、**お知らせが出て読み終わるまで光らせ続け**、
       // 終わってから短く畳む。焼失の演出 → お知らせ、という順番はこれで自然に成立する
@@ -2901,9 +2914,12 @@ async function runAction(action, ctx, helpers) {
           orderedCandidates = [...ordered, ...candidates.filter((tk) => !seen.has(tk.id))];
         }
       }
+      // 【#673】捨てられた札を順番つきで全員に見せる（迷いの森と同じ扱い）。
+      const 捨てた札 = orderedCandidates.map((tk) => tk.cardId).filter(Boolean);
       for (const token of orderedCandidates) {
         await helpers.discardAndSync(token.id, { batchNotice: true }); // #463: 1枚ごとのお知らせは出さず、下の要約1回にまとめる
       }
+      helpers.revealDiscardedCards?.(捨てた札);
       // お知らせ（ユーザー要望）: 盤面一括変化の要約。
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.L1409"));
       return true;

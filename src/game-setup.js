@@ -461,7 +461,10 @@ function buildPanel(close) {
   `;
 
   const title = document.createElement("div");
-  title.textContent = t("setup.title");
+  // 🔴【続き735】ここは**セットアップウィザード**の題。鍵が `setup.title` のままだと、
+  //   オープニングの「遊びやすくするために（2つだけ）」が同じ鍵を後から書いていて
+  //   **後が勝つ**ため、ウィザードの題がそちらの文になっていた（新しい検査が見つけた）。
+  title.textContent = t("setup.wizardTitle");
   title.style.cssText = "font-weight: bold; margin-bottom: 0.5rem; padding-right: 1.6rem;";
   panel.appendChild(title);
   panel.appendChild(createModalCloseX(close));

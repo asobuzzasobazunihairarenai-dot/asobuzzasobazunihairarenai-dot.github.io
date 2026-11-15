@@ -1343,6 +1343,26 @@ export async function pollRanked() {
 
 // レディチェックで「対戦開始」を押した時。両者readyになれば game_id（文字列）が返る、
 // まだ相手待ちなら null。
+// 🔴【#677・2026-11-15】**待機画面ではない所から待機人数を知りたい時は、こちらを使う。**
+//   pollRanked（so7_ranked_poll）は先頭で必ずハートビートを打つので、ホーム画面の札や
+//   バックグラウンドのお知らせから呼ぶと、**自分の古いキュー行が自分のポーリングで
+//   生き返り続ける**（＝待機中にアプリを閉じて戻ると、いつまでも自分1人がキューに残り、
+//   『1人が待機中』が自分になる）。こちらは数えるだけで、1行も書き換えない。
+//   ⚠ 返す数には**自分を含めない**。my_status は「自分がまだキューに残っているか」。
+//   ⚠ SQL（so7_ranked_waiting_count）が未実行の環境では null を返す。呼び出し側は
+//     null なら札を出さない（＝今までより悪くならない）。
+export async function fetchRankedWaitingCount() {
+  const client = getClient();
+  const { data, error } = await client.rpc("so7_ranked_waiting_count");
+  if (error) {
+    console.error("so7_ranked_waiting_count failed (未実行のsupabase_setup_so7.sql追加分がある可能性)", error);
+    return null;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return { waitingCount: Number(row.waiting_count) || 0, myStatus: row.my_status || null };
+}
+
 export async function readyRanked(matchId) {
   if (!client || !cachedUser) return null;
   const { data, error } = await client.rpc("so7_ranked_ready", { p_match_id: matchId });

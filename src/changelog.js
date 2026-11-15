@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-15",
     summary: [
+      "まとめて捨てられたカードが、捨てられた順に全員へ見えるようになりました",
+      "マイページに「メイン山札」の箱が並ぶようになりました",
       "マイページからも「マイ山札」を作れるようにしました",
       "「マイ山札」——山札の中身を自分で決めてCPU戦で遊べます",
       "対局中は「山札一覧」で、その対局の山の中身が枚数つきで見られます",
@@ -66,6 +68,8 @@ export const CHANGELOG = [
       "オンライン対戦のウィンドウの並びを整えました",
     ],
     summaryEn: [
+      "Cards discarded all at once are now shown to everyone, in the order they were discarded",
+      "My Page now shows a box for your main deck recipe too",
       "You can now build your deck recipe from My Page too",
       "Build your own deck recipe and play it against the CPU",
       "During a match, \"Deck list\" now shows that match's deck with card counts",
@@ -78,6 +82,8 @@ export const CHANGELOG = [
       "The online match window is better arranged",
     ],
     items: [
+      "「迷いの森」などで**一度に何枚も**カードが捨てられた時、捨てられたカードが**捨てられた順に**小さな札で並ぶようになりました（番号は捨てた順）。捨て場は積み重なり、どれが1番上かは後の効果（赤のはじまり・フェニックス）に効くので、順番そのものが大事な情報になります。オンラインでは**その場にいる全員の画面**に出ます（これまでは「n枚捨てました」という文だけでした）。",
+      "マイページに、**メイン山札**の箱が並ぶようになりました。箱の面には、いま一番多く入れているカードの絵が出ます（まだ組んでいない人は標準の山札の印）。押すとそのまま山札の組み方を編集できます。",
       "「マイ山札」を作る入口を、マイページにも置きました（メインデッキの下の「マイ山札を作る」）。これまではCPU戦をはじめる時の設定の中だけだったので、遊ぶ前にじっくり組みたい時はこちらからどうぞ。",
       "山札の中身を自分で決められるようになりました。ホーム画面の「CPU戦」を押すと出る設定の中に「山札」の行があり、「マイ山札」を選んで「組み方を編集」を押すと、どの札を何枚使うかを決められます。組み方は公式サイトに載っている「山札のカスタマイズ」ルールのとおりです——7色は各14枚、なないろの欠片は7枚、無色（白・黒）は合わせて7枚以下。同じ名前のカードは7枚まで、ONLYカードは1種類につき1枚までです。色の枚数バランスは変わらないので、7色をロックして勝つという遊び方もそのままです。⚠ 山札は対戦している全員で共有するものなので（49マスに配られ、残りが共通の山になります）、1人の好みが他の人の引く札まで決めてしまわないよう、オンライン対戦とランク戦では今までどおり標準の山札です。効くのはCPU戦と同じ端末での対戦だけです。",
       "対局中にオプション（⚙）から開く一覧を「山札一覧」にしました。いま遊んでいる対局の山がどう組まれているか（種類と、それぞれ何枚入っているか、合計何枚か）が分かります。⚠ 出しているのは「山の組み方」で、残り枚数ではありません（山は裏向きなので、残りが見えると引かれた札が分かってしまうためです）。ホーム画面の図鑑から開く「カード一覧」は今までどおりです。",
@@ -90,6 +96,8 @@ export const CHANGELOG = [
       "**オンライン対戦のウィンドウの並びを整えました。** 観戦を下の帯に移して、左＝部屋を作る／右＝部屋に入る、という対にしました。",
     ],
     itemsEn: [
+      "When several cards are discarded at once (for example by Forest of Wandering), they are now shown as small cards in the order they were discarded, numbered. The discard pile stacks up, and which card ends on top matters for later effects, so the order itself is information. Online, every player sees it (before, there was only a line of text saying how many were discarded).",
+      "My Page now shows a box for your main deck recipe, beside your main deck. Its face shows the card you included the most (or a standard mark if you have not built one yet). Tap it to edit the recipe.",
       "You can now open the deck recipe builder from My Page as well (“Build my deck recipe”, under your main deck). Until now it was only reachable from the CPU match settings, so this gives you a calmer place to put a recipe together before you play.",
       "You can now decide what goes into the deck. Open “VS CPU” on the home screen and you will find a “Deck recipe” row: choose “My recipe”, press “Edit recipe”, and set how many of each card you want. The recipe follows the official deck customisation rules published on the website: 14 cards in each of the 7 colours, 7 Rainbow Shards, and up to 7 colourless (white and black together), with a single card name appearing at most 7 times and an ONLY card at most once. The colour balance never changes, so winning by locking all seven colours works just as before. Note: the deck is shared by everyone in a match (it fills the 49 squares and the rest becomes the common draw pile), so that one player's taste does not decide what the others draw, online and ranked matches keep using the standard deck. This applies to CPU matches and matches on the same device only.",
       "During a match, the list you open from Options (gear) is now the \"Deck list\": it shows how this match's deck is built — which cards are in it, how many of each, and the total. Note that this is the deck's composition, not what is left in it (the deck is face down, so showing the remainder would reveal which cards have been drawn). The \"Card list\" in the codex on the home screen is unchanged.",
@@ -102,6 +110,9 @@ export const CHANGELOG = [
       "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
     ],
     fixes: [
+      "最初の画面の「HUERISE」の文字が、ずっと早く出るようになりました。",
+      "ランク戦をさがしたままアプリを閉じて戻ると、「1人が待機中」が自分のことになっていたのを直しました。",
+      "対局前の設定パネルの見出しが、別の画面の見出しになっていたのを直しました。",
       "なないろの欠片（★すべての色）の枠が金色1色だったのを、七色にしました。",
       "飛空艇アルヴァなどで、効果が不発だったときにカードが手札に加わらなかったのを直しました。",
       "盤面のカードの色枠が、カメラが寄るときに置いてけぼりになっていたのを直しました。",
@@ -115,6 +126,9 @@ export const CHANGELOG = [
       "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
     ],
     fixesEn: [
+      "The \"HUERISE\" lettering on the first screen now appears much sooner.",
+      "Fixed the home badge counting you yourself as \"1 player waiting\" after you closed the app while searching for a ranked match.",
+      "Fixed the setup panel before a match showing another screen's heading.",
       "The ring on the Rainbow Shard (all-colour) card is now seven-coloured instead of plain gold.",
       "Cards such as the Airship Alva now come to your hand when their effect does not go off.",
       "The colour ring on board cards no longer lags behind when the camera moves.",
@@ -128,6 +142,15 @@ export const CHANGELOG = [
       "The card list's back button now looks like the one on every other page",
     ],
     devItems: [
+      "🔴 **【#673】まとめて捨てた盤面のカードを、捨てられた順に全員へ見せるミニモーダルを作った**（[src/discard-reveal.js](src/discard-reveal.js)）。**1枚ずつ出さない**——1枚＝1モーダルだと n 枚ぶん出て、しかも右上の同じ場所で上書きし合う（card-arrival.js が実際にそうしている）＝最後の1枚しか見えない。⇒ **1つのモーダルに横並び**で番号を振る。置き場所は**左上**（到達モーダルは右上なので取り合う）。大きさと消える時間は到達モーダルと同じ変数を使う＝設定で大きくしたら一緒に大きくなる。⚠ 当てたのは**盤面の一括捨て3か所**（迷いの森・ワインウェア・白の意志の覚醒）＝同じ家族の動詞にまとめて。手札の一括捨て（ザ・ギャンブル）には入れていない。",
+      "🔴 中継は **hand_effect_use に相乗り**（mode は discarded）。状態は1つも変えない**見た目だけの合図**なので、新しい通信路もサーバー側の変更も要らない（#621・#622 と同じ形）。⚠ 受け側は霧散演出も割り込みの窓も出さない——出すと「相手が手札効果を宣言した」という別の意味になる。",
+      "🔴 **【#677】ランク戦のキューに自分が残り続けていた。** so7_ranked_poll は**先頭で必ずハートビートを打つ**のに、**待機画面ではない所からも呼んでいた**（ホームの「n人が待機中」の札＝15秒ごと／ランク戦のお知らせ＝バックグラウンド）。⇒ 待機中にアプリを閉じて戻ると、**自分の古い行が自分のポーリングで生き返り**、25秒の離脱処理をすり抜けて残る。待機画面が無いので組まれても「対戦開始」を押せない（AFK扱い）。⇒ **数えるだけの関数** so7_ranked_waiting_count を足した（ハートビートを打たない・**自分を数に入れない**）。ホームの札では、まだ waiting なら**自分でキューから抜ける**。🔴 **SQL の追加が要る。**",
+      "🔴 **【#676】マイページの「メイン山札」の箱は、置き場所を実測で2回変えた。** ①左隣 → 中身の列へ **30,753px²** 食い込んだ ②デッキの真上 → 「標準の山札」の行が**ログインの案内文**に重なった ⇒ ③**右上**（既定）／**デッキの下**（v2＝右の列が本当に空いている）。⚠ **マイページの中身は PROFILE_LAYOUT が1つずつ絶対配置しているので、親の箱で重なりを測っても意味が無い**——①で実際に見落とした。⇒ 実測を「見えている末端の要素ぜんぶと突き合わせる」形に直した。箱は **buildDeckCaseArt を使い回す**（箱の見た目を2か所に書かない）。",
+      "🔴 **【#674】HUERISE の文字を、出きるまで 6.5秒 → 2.0秒に**（delay 2.5s＋4s → 0.6s＋1.4s）。報告は「文字が完全に出てからクリック有効にすべきか」だったが、**押せない時間をわざと作るのは危ない**——この画面は「押しても進まない」の報告が過去に4回（#277/#424/#455/#460）。⇒ **押せる時間は1ミリも減らさず、出きるまでを短くする**方で直した。点滅は animationend で始まるので自動的に早まる。",
+      "🔴 **パック開封の演出を作った**（[src/pack-opening.js](src/pack-opening.js)・**管理者 かつ ?ui=v2 のみ**）。試作の3段構え（①封を切る ②包みがめくれる ③1枚ずつ）をそのまま実装。袋は実物のブースターパック（熱圧着のギザギザ・TEAR HERE の切り欠き・銀蒸着フィルムの虹色・0TH EDITION の帯・情報帯とバーコード）。🔴 **新しい画像も canvas も1枚も足していない**（全画面の canvas は1枚で約23MB＝#441・#607）。商品名だけ既にある assets/ui-v2/logo.webp を使い回す。🔴 **blur も backdrop-filter も使わない**（#634 で見つけた「どの計器にも写らない量」／#715 で勝利演出から外したばかり）。⚠ **どの段でも、どこを押しても進む**（#277 の家族）／✕・Esc・「とじる」の3つの出口。",
+      "🔴 **撮って4つ直した**（どれも値を見るだけでは気づけない）: ①②の段の結晶が**題字を突き抜けていた**（40→30rem・中心を 52%→44%）②レアの七色の縁が **3px** しかなく金の縁と区別が付かなかった（→6px）③まとめの画面で**欠片になった札だけ何の印も無かった** ④表示のクラスを rAF だけで付けていたので、**画面が見えていない間は透明のまま**になり得た（#360 の家族）⇒ setTimeout も併用。",
+      "🔴 **新しい検査 tools/check-ui-text.mjs を足した**（14本目・CI にも登録）。ja/en の鍵がそろっているか・**同じ鍵が2回書かれていないか**・差し込みがそろっているか。続き728 で「古い鍵が後ろに取り残されて、画面に古い文言が出る」を実際にやったので、**数えないと分からない**種類を機械に移した。⇒ **走らせたその場で4件見つけた**。うち setup.title は**別の2画面が同じ鍵を使っていて**、後に書いた「遊びやすくするために（2つだけ）」が勝ち、**対局前のセットアップウィザードの題がそれになっていた**（誰も気づいていなかった）。⇒ ウィザード側を setup.wizardTitle に分けた。",
+      "⚠ **道具のミス（記録）**: ①python のヒアドキュメントを使ったが、この端末の python は **Windows ストアのスタブ**で「Python」と1行出して終わる（終了コード0）＝**置換が1つも当たっていないのに成功したように見えた**。node で書き直した。②置換スクリプトを**書いただけで走らせず**、次のスクリプトを「もう当たっている前提」で書いて半分だけ当たった状態を作った。③実測で「出きるまでの秒」を壁時計で測ろうとしたが、**ヘッドレスでは CSS アニメーションが壁時計どおりに進まない**（8.2秒待って opacity 0.644）⇒ 秒ではなく**指定（delay+duration）と押せるかどうか**を見る形に直した。",
       "🔴 パック・ワイルドカード・デイリー／ウィークリーを**アカウント**に持たせた（ユーザー判断: 枚数で数える MTGA 方式・欠片7個でワイルド1枚・日=かけら/週=パック＋デイリーチャレンジ・かけらで購入）。**supabase_setup_so7.sql に書き足したので、SQL Editor で手で流す必要がある**（全文の再実行で安全）。Edge Function は変更なし＝再デプロイ不要。",
       "🔴 **引くのはサーバー**（so7_open_pack）。クライアントで引くと「欲しい札が出るまでやり直す」ができてしまう。値段も同じ理由でサーバーが持つ。残高・持ち物の表は SELECT だけ本人に許し、増減は SECURITY DEFINER の関数のみ（既存の so7_user_currency と同じ守り方）。",
       "リメイクの33種は**最初から全員が7枚ずつ持っている扱い**で表に入れない（いま遊んでいる人の出来ることが1つも減らない／行が増えない／配り直しの移行が要らない）。マイ山札の1種類の上限は「公式ルールの上限と持っている枚数の小さい方」。",

@@ -254,6 +254,8 @@ import { isArrivalEffectDisabled, isFlightAnimationDisabled } from "./motion-pre
 import { playCardDissolve, isCardDissolvePlaying, getCardDissolveLoad } from "./card-dissolve.js";
 import { rectCenter, flyGhost } from "./ghost-flight.js";
 import { showCardArrivalModal, hideCardArrivalModalImmediately } from "./card-arrival.js";
+// 【#673・2026-11-15】まとめて捨てられた盤面のカードを、捨てられた順に全員へ見せる。
+import { showDiscardedCardsModal, hideDiscardRevealModal } from "./discard-reveal.js";
 import {
   showHandEffectUseModal,
   hideHandEffectUseModalImmediately,
@@ -2728,13 +2730,23 @@ function isSelfAction(fromPlayer) {
   }
   return fromPlayer === getSelfSeat();
 }
-onHandEffectUseEvents(({ fromPlayer, cardId, optionLabel, mode, costCardId }) => {
+onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, optionLabel, mode, costCardId }) => {
   if (isSelfAction(fromPlayer)) return;
   // 🔴【#621・#622】1st EDITION の【状況】カードの合図。**「使った」のではない**ので、
   //   霧散演出（canvas）も、割り込みの窓も出さない——出すと「相手が手札効果を宣言した」
   //   という別の意味になってしまう。波紋と右上の札だけを、送り手と同じ形で出す。
   if (mode === "situation") {
     void playSituationCardEffect(cardId);
+    return;
+  }
+  // 【#673】まとめて捨てられた盤面のカード。**「使った」のではない**ので、霧散演出も
+  //   割り込みの窓も出さない（situation と同じ理由）。見せるのはミニモーダルだけ。
+  if (mode === "discarded") {
+    try {
+      showDiscardedCardsModal(Array.isArray(cardIds) ? cardIds : [cardId]);
+    } catch (err) {
+      console.error("showDiscardedCardsModal (remote) failed", err);
+    }
     return;
   }
   // 続き218: 相手の手札使用も、Canvas霧散演出→右の使用モーダルで見せる。追色使用(mode:v5)は
@@ -10239,6 +10251,28 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
   advanceAnytimeInterruptQueue();
 }
 
+// 🔴【#673・2026-11-15】ユーザー要望「**迷いの森で捨てられたカードを捨てられた順に
+//   ミニモーダルで全員へ。複数枚は1つにまとめる。**」
+//   盤面から一度に何枚も消える札（迷いの森・ワインウェア・白の意志の覚醒）は、
+//   いまは「n枚捨てました」の文しか出ないので**何が消えたのか誰にも分からない**。
+//   ⚠ 状態は1つも変えない**見た目だけの合図**なので、hand_effect_use に相乗りさせる
+//     （新しい通信路もサーバー側の変更も要らない＝#621・#622 と同じ形）。
+//     受け側は mode で振り分ける。
+//   ⚠ 効果を走らせるのは**その席の本人のクライアントだけ**なので、送らないと
+//     他の人の画面には何も出ない（#592 の「勝手に効くので追えない」と同じ形）。
+function revealDiscardedCardsForEffect(cardIds) {
+  const ids = (Array.isArray(cardIds) ? cardIds : []).filter(Boolean);
+  if (ids.length === 0) return;
+  try {
+    showDiscardedCardsModal(ids);
+  } catch (err) {
+    console.error("showDiscardedCardsModal failed", err);
+  }
+  if (isOnlineMode()) {
+    broadcastHandEffectUse({ fromPlayer: getSelfSeat(), cardId: ids[0], cardIds: ids, mode: "discarded" });
+  }
+}
+
 // 続き77: オンライン中、ロック・移動・接触の宣言/処理チェックポイントを行動した本人
 // 以外のクライアントにも届ける薄いラッパー。手札効果使用宣言だけは既存の
 // hand_effect_use経路（announceHandEffectUseForEffect/onHandEffectUseEvents）で
@@ -10692,6 +10726,8 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
       { cardId, cardTokenId, player },
       {
         discardAndSync: discardFromHandReveal,
+        // 【#673】まとめて捨てた盤面のカードを、捨てられた順に全員へ見せる。
+        revealDiscardedCards: revealDiscardedCardsForEffect,
         // 【#315】まとめて捨てた分は1つのお知らせにまとめて見せる（ザ・ギャンブル等）。
         announceCardsDiscarded: (p, ids) => announceCardsDiscarded(p, ids, currentEffectReasonLabel()),
         drawCards: drawCardsForEffect,
@@ -10923,6 +10959,8 @@ function buildArrivalEffectHelpers(player) {
       // 追色コストの支払いで元々discardAndSyncを持っていたが、到達効果側には
       // まだ無かったので追加した。
       discardAndSync: discardFromHandReveal,
+      // 【#673】まとめて捨てた盤面のカードを、捨てられた順に全員へ見せる。
+      revealDiscardedCards: revealDiscardedCardsForEffect,
       // 【#353】到達したカードが自分を捨てた後、下から現れたカードへの到達（コンボ）を起こす。
       triggerExposedArrival: (location, prevTopTokenId) =>
         maybeTriggerCardArrivalForExposedCard(location, false, prevTopTokenId),
@@ -21961,6 +21999,8 @@ function dismissAllInGameTransientUi() {
     hideEffectPickerHint();
   } catch (e) { /* best-effort */ }
   try { hideCardArrivalModalImmediately(); } catch (e) {}
+  // 【#673】残るとホーム画面に被る（到達モーダルと同じ理由）。
+  try { hideDiscardRevealModal(); } catch (e) {}
   try { hideHandEffectUseModalImmediately(); } catch (e) {}
   try { hideContactApprovalModalImmediately(); } catch (e) {}
   try { forceCloseGateInvasionModal(); } catch (e) {}
@@ -22436,6 +22476,8 @@ subscribe(() => {
     // 引っ込める（仕組みはモーダル自身が元から持っているものをそのまま使う）。
     hideCardArrivalModalImmediately({ fade: true });
     hideHandEffectUseModalImmediately({ fade: true });
+    // 【#673】捨てられた札の札も、ターンが変わったら畳む（次の人の邪魔にならないように）。
+    hideDiscardRevealModal();
     // 【#619】繰り返す効果がカメラを抱えたままターンが変わったら、そこで必ず解く（保険）。
     forceReleaseCameraHold();
     // 0th拡張: ターンが切り替わった瞬間を使う2つの処理。

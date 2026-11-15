@@ -7,7 +7,7 @@
 // 待機人数を見る。自分がキュー/対局中の時は通知しない（自分の待機画面が別途知らせる）。
 // 待機人数が 0→1以上 に変わった瞬間（＝相手が現れた）に、時間帯内かつクールダウン外なら通知する。
 
-import { pollRanked, getCurrentUser, isOnlineMode } from "./online.js";
+import { fetchRankedWaitingCount, getCurrentUser, isOnlineMode } from "./online.js";
 import { playSound } from "./sound.js";
 import {
   ensureNotifyPermission,
@@ -80,15 +80,18 @@ async function tick() {
   if (isOnlineMode()) return; // 対局中は対象外（自分が遊んでいる）
   const user = await getCurrentUser();
   if (!user) return;
+  // 🔴【#677・2026-11-15】ここも pollRanked() をやめる。**バックグラウンドで回る**
+  //   このお知らせがハートビートを打っていたので、待機中にアプリを閉じた人が
+  //   いつまでもキューに残り続けていた（ホーム画面の札と同じ原因）。
   let res;
   try {
-    res = await pollRanked();
+    res = await fetchRankedWaitingCount();
   } catch {
     return;
   }
   if (!res) return;
-  const count = res.waiting_count || 0;
-  const iAmQueued = res.state && res.state !== "none"; // 自分がキュー/対局中は通知しない
+  const count = res.waitingCount || 0;
+  const iAmQueued = !!res.myStatus; // 自分がキュー/対局中は通知しない
   if (
     !iAmQueued &&
     prevWaiting < 1 &&

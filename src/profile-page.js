@@ -17,6 +17,9 @@ import { closeHelpPanel } from "./help.js";
 // ユーザー要望2026-08-16「ボタンの代わりにメインデッキのビジュアル（3D箱）を置き、その下に編集ボタン」。
 import { openMyDeckList, buildDeckCaseArt } from "./my-deck-list.js";
 import { getSelectedDeckId, getDeckById, getAllDecks } from "./my-deck.js";
+// 【#676・2026-11-15】メイン山札（マイ山札）の箱。my-stack.js は import を1つも持たない葉。
+import { isMyStackActive, getMyStackRecipe } from "./my-stack.js";
+import { getCardDefinition } from "./cards-data.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
 let overlayEl = null;
@@ -174,6 +177,62 @@ export function openProfilePage(onClose) {
   mydeckWrap.appendChild(stackBtn);
 
   overlayEl.appendChild(mydeckWrap);
+
+  // 🔴【#676・2026-11-15】ユーザー要望「**マイページにメイン山札も縦長の四角柱の箱で併記。
+  //   箱の面に中のカード1枚のイラスト。**」
+  //   ⓘ **マイデッキとマイ山札は別物**（持ち込みの個人の山／盤面になる共通の山）なので、
+  //     並べて置くと「2つある」ことがひと目で分かる。
+  //   🔴 **箱は作り直さない。** デッキ一覧と同じ共通部品（buildDeckCaseArt）に、
+  //     山札を「デッキの形」にして渡すだけ——箱の見た目を2か所に書くと必ず食い違う。
+  //   ⚠ **#profile-maindeck には1行も触らない**（管理者が詰めた座標・transform が在る）。
+  //     別の要素として、その左隣に自分の座標で置く。
+  const mystackWrap = document.createElement("div");
+  mystackWrap.id = "profile-mainstack";
+
+  const sBadge = document.createElement("div");
+  sBadge.className = "profile-mainstack-badge";
+  sBadge.textContent = t("pp.mainStack");
+  mystackWrap.appendChild(sBadge);
+
+  const sCover = document.createElement("button");
+  sCover.type = "button";
+  sCover.className = "profile-maindeck-cover profile-mainstack-cover";
+  sCover.title = t("pp.editStack");
+  sCover.addEventListener("click", async () => {
+    const m = await import("./my-stack-editor.js");
+    m.openMyStackEditor();
+  });
+  // 箱の面に出す1枚＝**いちばん多く入れている札**（組み方の性格がそこに出る）。
+  //   組んでいない人は標準の山なので、このゲームの看板＝なないろの欠片を出す。
+  const 組み方 = isMyStackActive() ? getMyStackRecipe() : null;
+  let 山の顔 = null;
+  if (組み方 && Object.keys(組み方).length > 0) {
+    let 最多 = 0;
+    for (const [id, n] of Object.entries(組み方)) {
+      if ((Number(n) || 0) > 最多) {
+        最多 = Number(n) || 0;
+        山の顔 = id;
+      }
+    }
+  }
+  if (!山の顔) 山の顔 = "rainbow-shard";
+  // MDL_COLOR_HEX は7色だけなので、虹・白・黒は null にして既定の灰にさせる
+  //   （無い色を渡すと --mdl-accent が "undefined" になって規則ごと無効になる）。
+  const 顔の色 = getCardDefinition(山の顔)?.color || null;
+  const 七色 = ["red", "orange", "yellow", "green", "blue", "pink", "purple"];
+  sCover.appendChild(
+    buildDeckCaseArt({
+      firstColor: 七色.includes(顔の色) ? 顔の色 : null,
+      mainCardId: 山の顔,
+      cards: { [山の顔]: 1 },
+    })
+  );
+  const sName = document.createElement("div");
+  sName.className = "profile-maindeck-name profile-mainstack-name";
+  sName.textContent = 組み方 && Object.keys(組み方).length > 0 ? t("pp.myStack") : t("pp.standardStack");
+  sCover.appendChild(sName);
+  mystackWrap.appendChild(sCover);
+  overlayEl.appendChild(mystackWrap);
 
   const card = document.createElement("div");
   card.id = "profile-page-card";

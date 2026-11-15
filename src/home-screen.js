@@ -25,7 +25,9 @@ import { openCodexPage } from "./codex-page.js";
 // ユーザー要望「ランキングを実装しましょう」への対応で新設したページ。
 import { openRankingPage } from "./ranking-page.js";
 // ランク戦フェーズ4/6: 現ランクをホームに常時表示（称号バッジ静止版＋七色ゲージ）。
-import { getSelfRank, pollRanked, getCurrentUser, isAdminUser } from "./online.js";
+import { getSelfRank, fetchRankedWaitingCount, leaveRankedQueue, getCurrentUser, isAdminUser } from "./online.js";
+// 【#677】キューに残っていたのを自分で外した時だけ1行残す（次の報告で1行で分かるように）。
+import { logAction } from "./action-log.js";
 import { rankName } from "./rank-badge.js";
 import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
 // 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
@@ -1180,14 +1182,32 @@ async function updateRankedWaitingBadge() {
   }
   // ユーザー要望2026-09-02: まだONにしていない人にだけ勧める。
   if (notifyBadge) notifyBadge.style.display = shouldSuggestRankedNotify() ? "" : "none";
+  // 🔴【#677・2026-11-15】ここで pollRanked() を呼んではいけない。あれは先頭で
+  //   **ハートビートを打つ**ので、待機中にアプリを閉じて戻ってきた人の古いキュー行が
+  //   **この札のポーリング（15秒ごと）で生き返り続ける**＝いつまでもキューに残り、
+  //   その自分1人が「1人が待機中」として出ていた（報告そのまま）。
+  //   ⇒ 数えるだけの関数に替える（自分は数に入らない）。
   let res;
   try {
-    res = await pollRanked();
+    res = await fetchRankedWaitingCount();
   } catch {
     return;
   }
   if (!overlayEl || !res) return;
-  const count = res.waiting_count || 0;
+  // 🔴 ホーム画面が出ているのに、まだキューに残っている＝**待機画面が無い状態で
+  //   組まれる**ことになり、『対戦開始』を押せない（AFK扱いで外される）。
+  //   押せない約束を残さないよう、自分でキューから抜ける。
+  if (res.myStatus === "waiting") {
+    logAction("diag-ranked-stale-queue-left", { from: "home-badge" });
+    try {
+      await leaveRankedQueue();
+    } catch (e) {
+      /* 抜けられなくても札を出さないだけ */
+    }
+    badge.style.display = "none";
+    return;
+  }
+  const count = res.waitingCount || 0;
   if (count >= 1) {
     badge.textContent = t("home.waitingBadge", { count });
     badge.style.display = "";

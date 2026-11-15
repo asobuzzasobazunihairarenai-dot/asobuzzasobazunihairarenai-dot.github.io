@@ -3926,3 +3926,45 @@ end;
 $$;
 revoke execute on function so7_admin_reset_cards() from public;
 grant execute on function so7_admin_reset_cards() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 【2026-11-15・続き735・#677】ランク戦の「待機人数だけ」を読む関数。
+--
+-- 🔴 なぜ要るか（報告「ランク戦待機中にアプリを閉じて戻ると『1人が待機中』が自分になる」）:
+--   so7_ranked_poll() は**先頭で必ずハートビートを打つ**
+--     update so7_ranked_queue set last_seen = now() where user_id = auth.uid();
+--   ところがこの関数を、**待機画面ではない所からも呼んでいた**:
+--     ・ホーム画面の「n人が待機中」の札（15秒ごと）
+--     ・ランク戦のお知らせ（ranked-notify.js・バックグラウンド）
+--   ⇒ 待機中にアプリを閉じて戻ると、**自分の古いキュー行が自分のポーリングで生き返り**、
+--     25秒で消えるはずの離脱処理をすり抜けて**いつまでもキューに残る**。
+--     しかも待機画面は出ていないので、組まれても『対戦開始』を押せない（AFK扱いになる）。
+--     画面には、その自分1人が『1人が待機中』として出ていた。
+--
+-- ⇒ **数えるだけの関数**を分ける。ハートビートを打たず、**自分を数に入れない**。
+--   my_status は『自分がまだキューに残っているか』。待機画面を出していないのに waiting なら、
+--   クライアントが自分でキューから抜ける（押せない約束を残さない）。
+drop function if exists so7_ranked_waiting_count();
+create or replace function so7_ranked_waiting_count()
+returns table(waiting_count int, my_status text)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+#variable_conflict use_column
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  -- 🔴 ここでハートビートを打たない（それが #677 の原因そのもの）。掃除もしない
+  --    （読むだけの関数が行を消すと、呼ぶ側の数が呼ぶたびに変わる）。
+  waiting_count := (select count(*) from so7_ranked_queue
+                    where status = 'waiting'
+                      and last_seen > now() - interval '25 seconds'
+                      and user_id <> v_uid);
+  select status into my_status from so7_ranked_queue where user_id = v_uid;
+  return next;
+end;
+$$;
+revoke execute on function so7_ranked_waiting_count() from public;
+grant execute on function so7_ranked_waiting_count() to authenticated;

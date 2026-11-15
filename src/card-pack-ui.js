@@ -41,6 +41,10 @@ import {
   adminResetCards,
 } from "./card-packs.js";
 import { createModalCloseX, createBackdrop, setTextWithCoin, CURRENCY_ICON } from "./ui-helpers.js";
+// 🔴【続き735】開封の演出（ユーザー要望「ポケポケみたいにめちゃ豪華に」）。
+//   ⚠ 画面を**作り直したのではない**——引いた7枚をそのまま渡すだけで、
+//     パックの画面（持ち物・コレクション）は今までどおりその後ろに残る。
+import { openPackCeremony } from "./pack-opening.js";
 import { t } from "./ui-text.js";
 
 // パックに入り得る札＝**まだアプリで公開していない**0th拡張と 1st EDITION の通常カード。
@@ -413,7 +417,14 @@ function 中身を組む(inner) {
   //   サーバーが返す理由（no_pack / insufficient_balance）を文で出す。
   actions.appendChild(
     ボタン(t("packs.open"), async () => {
-      いまの引き = (await openPack()).map((x) => ({ ...x, めくった: false }));
+      const 引いた = await openPack();
+      // 🔴【続き735】引いたら**演出に渡す**（試作の3段構え: 封を切る→めくれる→1枚ずつ）。
+      //   ⚠ 一覧（いまの引き）は**残したまま**にする——演出を途中で閉じても、
+      //     後ろのこの画面に7枚が並んでいるので「何が出たのか分からない」にならない。
+      //   ⚠ 演出では**全部めくった状態**にしておく（演出でもう見ているので、
+      //     後ろの一覧で裏向きから押し直させるのは二度手間）。
+      いまの引き = 引いた.map((x) => ({ ...x, めくった: true }));
+      openPackCeremony(引いた, { onDone: () => 再描画() });
     }, { 主役: true })
   );
   actions.appendChild(
