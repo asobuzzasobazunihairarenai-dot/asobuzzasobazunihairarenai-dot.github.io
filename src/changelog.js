@@ -94,6 +94,7 @@ export const CHANGELOG = [
       "**The online match window is better arranged:** spectating moved to a band at the bottom, so the two columns are now simply create / join.",
     ],
     fixes: [
+      "なないろの欠片（★すべての色）の枠が金色1色だったのを、七色にしました。",
       "飛空艇アルヴァなどで、効果が不発だったときにカードが手札に加わらなかったのを直しました。",
       "盤面のカードの色枠が、カメラが寄るときに置いてけぼりになっていたのを直しました。",
       "手札効果の霧散演出で、拡張カードの効果文が出ていなかったのを直しました。",
@@ -106,6 +107,7 @@ export const CHANGELOG = [
       "カード一覧の「← 戻る」だけ他のページと見た目が違っていたのを直しました",
     ],
     fixesEn: [
+      "The ring on the Rainbow Shard (all-colour) card is now seven-coloured instead of plain gold.",
       "Cards such as the Airship Alva now come to your hand when their effect does not go off.",
       "The colour ring on board cards no longer lags behind when the camera moves.",
       "Extension cards now show their effect text in the hand-effect dissolve animation.",

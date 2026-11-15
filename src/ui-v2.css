@@ -2254,16 +2254,53 @@ body.ui-v2 .options-v2-body > details.options-menu-details {
   padding: 0.3rem 0.8rem 0.6rem;
 }
 
-/* 🔴【続き722・追記】ユーザー報告「マイページでマイデッキが他の表示と被ってます」。
-   **実際のブラウザで測った**（本番 ?ui=v2・ログイン済み）:
-     メインデッキの札  x1299 y363 416x629
-     重なり            着せ替え **73,420px²** ／ 戦績 **32,064px²**
-   メインデッキの札（#profile-maindeck）は**カードの外**に、管理者が決めた座標
-   （--profile-maindeck-* ＝ 右から2.5rem・幅10.5rem・2.25倍）で置いてある飾り。
-   ⇒ **その座標には触らず**、2列の方を右へ食い込ませないようにする。
-   ⓘ 右から 2.5rem ＋ 10.5rem×2.25 ＝ 約26rem が、あの札の占める帯。
-     少し余裕を見て 25rem ぶん空ける（中身はその残りの中で中央に来る）。 */
+/* 🔴【続き724】マイページの構図を作り直した。
+   ユーザー了承「**一旦私の決めた座標にとらわれずにあなたがかっこいいおしゃれと思う
+   構図にして**」。⇒ **「人物 ｜ 中身 ｜ メインデッキ」の3列**にする。
+   ⓘ メインデッキの札（#profile-maindeck）は**カードの外**に在る要素なので、格子の
+     中には入れられない（中身は描き直すたびに innerHTML で作り直されるため、
+     そこへ移すと消えてしまう）。⇒ **3列目のぶんの幅を空けて、そこへ置き直す**。
+     見た目は3列、仕組みは「2列＋右の飾り」。
+   ⚠ 焼き込み座標（PROFILE_LAYOUT）も管理者の調整用の変数も**壊していない**。
+     v2 の時だけ上書きしているので、?ui=0 では今までどおりの位置に戻る。 */
+/* 中身は縦の真ん中へ（上に寄せると下半分が空いて、作りかけに見える）。 */
 body.ui-v2 #profile-page-card {
-  padding-right: 25rem;
+  padding-right: 23rem;
   box-sizing: border-box;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+}
+body.ui-v2 #profile-page-card > div {
+  width: 100%;
+}
+/* 3列目＝メインデッキ。上端を中身の1行目にそろえて置く（右下に沈めない）。 */
+body.ui-v2 #profile-maindeck {
+  top: 50%;
+  right: 5rem;
+  bottom: auto;
+  width: 10.5rem;
+  transform: translateY(-50%) scale(1.95);
+  transform-origin: center right;
+  padding: 0.6rem 0.5rem 0.7rem;
+  box-sizing: border-box;
+  border: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
+  border-radius: 0;
+  box-shadow: 0 12px 30px -24px rgba(120, 96, 48, 0.9);
+}
+body.ui-v2.theme-light #profile-maindeck {
+  background: var(--v2-paper, #fffdf8);
+}
+body.ui-v2:not(.theme-light) #profile-maindeck {
+  background: rgba(255, 253, 248, 0.06);
+}
+/* 天の金の罫（他の札の七色の罫と役割を分ける＝主役は人物の札のまま）。 */
+body.ui-v2 #profile-maindeck::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #d8b24c, #c79a47);
 }

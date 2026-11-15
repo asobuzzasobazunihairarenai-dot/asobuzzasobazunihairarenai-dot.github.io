@@ -25809,7 +25809,13 @@ body.theme-light #deck-viewer-back {
 [data-card-color="purple"] { --board-card-ring: #915da3; }
 [data-card-color="white"] { --board-card-ring: #f2f2f2; }
 [data-card-color="black"] { --board-card-ring: #2b2b2b; }
-[data-card-color="rainbow"] { --board-card-ring: #e8cf8a; }
+/* 🔴【続き724】★すべての色は七色のグラデーションの枠（board-3d.js が canvas で描く）。
+   border-color は「枠を出すかどうか」の合図として残す——board-3d.js は border-color と
+   width が無い要素には枠の板を作らないため。WebGL を切っている人にはこの1色が出る。 */
+[data-card-color="rainbow"] {
+  --board-card-ring: #e8cf8a;
+  --so7-ring-rainbow: 1;
+}
 /* 【#670・2026-11-15】「設定しているアバターの色次第では手札枚数や名前などが読みづらい」。
    帯はもともと 55% で、明るいアバターの上では透けて読めなかった。濃くして縁取りも足す。 */
 .self-status-name,

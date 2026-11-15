@@ -239,6 +239,13 @@ function quantizeColor(css) {
 // （iPhone は画像だけで既に 51MB・ピーク 68MB。青天井にはしない）。
 const SHAPE_TEXTURE_SPARE = 64; // 画面の形の数に上乗せする余白（明滅の色の行き来を吸収する分）
 const SHAPE_TEXTURE_HARD_MAX = 256; // 端末のメモリのための絶対上限
+// 🔴【続き724】ユーザー指摘「**なないろなのに金はなんかおかしいかも！**」。
+//   ★すべての色（なないろの欠片）の枠だけは1色で表せないので、**七色のグラデーション**で描く。
+//   ⓘ CSS の `border-image` では WebGL 側が読み取れず、DOM の層に取り残される（#669 の再発）。
+//     ⇒ **枠を描いているのはここ（canvas）**なので、ここで線の色をグラデーションにすればよい。
+//     画像ファイルは1枚も足さない（#607 の実測どおり、画像は幅×高さ×4バイトでメモリを食う）。
+const RING_RAINBOW = ["#c70025", "#ee781f", "#fabe00", "#22ac38", "#1bb8ce", "#f19ec2", "#915da3"];
+
 function shapeTexture(key, spec) {
   let tex = shapeTextures.get(key);
   // 【#275】使ったものは列の最後尾へ入れ直す（LRU）。ユーザー報告「盤面のカードの一部と
@@ -309,7 +316,14 @@ function shapeTexture(key, spec) {
   if (bw > 0.2 && spec.bc && spec.bc !== "transparent") {
     path(bw / 2);
     g.lineWidth = bw;
-    g.strokeStyle = spec.bc;
+    if (spec.rainbow) {
+      // 斜めの七色。板の四隅を結ぶ向きにすると、どの辺にも全部の色が少しずつ乗る。
+      const grad = g.createLinearGradient(0, 0, cw, ch);
+      RING_RAINBOW.forEach((c, i) => grad.addColorStop(i / (RING_RAINBOW.length - 1), c));
+      g.strokeStyle = grad;
+    } else {
+      g.strokeStyle = spec.bc;
+    }
     g.stroke();
   }
   tex = new THREE.CanvasTexture(cv);
@@ -472,11 +486,14 @@ function readShapeSpecsNow(table) {
       const bg = isVisibleColor(cs.backgroundColor) ? quantColor(cs.backgroundColor) : null;
       const bc = isVisibleColor(cs.borderTopColor) ? quantColor(cs.borderTopColor) : null;
       const bw = parseFloat(cs.borderTopWidth) || 0;
+      // 【続き724】★すべての色の札だけ、枠を七色のグラデーションで描く目印。
+      //   CSS 側は `--so7-ring-rainbow: 1` を立てるだけ（border-image は使わない＝読めないので）。
+      const rainbow = cs.getPropertyValue("--so7-ring-rainbow").trim() === "1";
       // 外側へ広がるグロー（inset は箱の内側なので対象外＝DOMのまま）。
       const glow = parseBoxShadow(cs.boxShadow);
       if (!bg && (!bc || bw <= 0) && !glow) continue; // 何も塗らない箱は板を作らない
       specs.set(el, {
-        w, h, bg, bc, bw,
+        w, h, bg, bc, bw, rainbow,
         r: parseFloat(cs.borderTopLeftRadius) || 0,
         glow,
         pad: glow ? Math.ceil(glow.blur + glow.spread + 2) : 0,
@@ -779,7 +796,7 @@ function ensureShapeMesh(el, spec) {
     ? { ...spec, bc, bg, glow: { ...spec.glow, color: glowColor } }
     : { ...spec, bc, bg };
   const key =
-    spec.w + "x" + spec.h + "|" + spec.r + "|" + spec.bw + "|" + bc + "|" + bg +
+    spec.w + "x" + spec.h + "|" + spec.r + "|" + spec.bw + "|" + (spec.rainbow ? "rainbow" : bc) + "|" + bg +
     "|" + (spec.glow ? glowColor + spec.glow.blur + "/" + spec.glow.spread : "");
   let mesh = shapeMeshByElement.get(el);
   if (!mesh) {
