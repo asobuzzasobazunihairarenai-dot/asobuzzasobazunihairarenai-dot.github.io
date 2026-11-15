@@ -26534,3 +26534,15 @@ body.is-phone-device .card-pack-shard,
 body.is-tablet-device .card-pack-shard {
   font-size: 1.3rem;
 }
+
+/* 【続き729】押しても無理な理由（かけら不足・パック無し）。
+   🔴 ボタンを disabled にする代わりにこれを出す——押せないだけだと
+   「何も起きない」としか見えない（ユーザー報告の形）。 */
+.card-pack-why {
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+body.is-phone-device .card-pack-why,
+body.is-tablet-device .card-pack-why {
+  font-size: 1.4rem;
+}

@@ -116,7 +116,10 @@ function ボタン(文, 中身, { 主役 = false, 無効 = false } = {}) {
 
 // サーバーが投げた理由を、プレイヤーの言葉に直す。
 function 文言にする(err) {
-  const m = String(err?.message || err || "");
+  // Supabase/PostgREST は code・details・hint にも理由を入れる。**全部つなげて**見る
+  //   （message だけ見ていて「SQL をまだ流していない」を取りこぼした）。
+  const m = [err?.code, err?.message, err?.details, err?.hint, err].
+    map((x) => (typeof x === "string" ? x : "")).join(" ") || String(err || "");
   if (/not_authenticated|not_ready|not_connected/.test(m)) return t("packs.needLogin");
   if (/insufficient_balance/.test(m)) return t("packs.noCoins");
   if (/no_pack/.test(m)) return t("packs.noPacks");
@@ -347,10 +350,13 @@ function 中身を組む(inner) {
     return;
   }
 
-  if (知らせ) {
+  // 🔴 押した結果（うまくいった／いかなかった）を**必ず文で出す**。
+  //   ユーザー報告「パックを買うを押しても何も起きません」は、ここが無かったのが半分、
+  //   ボタンを disabled にしていたのが半分。
+  if (忙しい || 知らせ) {
     const n = document.createElement("div");
     n.className = "card-pack-note is-warn";
-    n.textContent = 知らせ;
+    n.textContent = 忙しい ? t("packs.working") : 知らせ;
     inner.appendChild(n);
   }
 
@@ -359,16 +365,19 @@ function 中身を組む(inner) {
   const actions = document.createElement("div");
   actions.className = "card-pack-actions";
   const c = getCollection();
+  // 🔴 **ボタンは disabled にしない。** 押せないと「何も起きない」としか見えず、
+  //   理由が分からない（ユーザー報告の形）。押せるようにして、足りなければ
+  //   サーバーが返す理由（no_pack / insufficient_balance）を文で出す。
   actions.appendChild(
     ボタン(t("packs.open"), async () => {
       いまの引き = (await openPack()).map((x) => ({ ...x, めくった: false }));
-    }, { 主役: true, 無効: c.packs < 1 })
+    }, { 主役: true })
   );
   actions.appendChild(
     ボタン(t("packs.buy", { n: PACK_COST }), async () => {
       await buyPacks(1);
       知らせ = t("packs.bought");
-    }, { 無効: c.balance < PACK_COST })
+    })
   );
   if (いまの引き && いまの引き.some((x) => !x.めくった)) {
     actions.appendChild(
@@ -382,6 +391,17 @@ function 中身を組む(inner) {
     actions.appendChild(ボタン(t("packs.reset"), async () => { await adminResetCards(); いまの引き = null; }));
   }
   inner.appendChild(actions);
+
+  // 押す前に「いま押しても無理な理由」を書いておく（押してから知らせるより親切）。
+  const 理由 = [];
+  if (c.packs < 1) 理由.push(t("packs.whyNoPack"));
+  if (c.balance < PACK_COST) 理由.push(t("packs.whyNoCoins", { n: PACK_COST - c.balance }));
+  if (理由.length) {
+    const w = document.createElement("div");
+    w.className = "card-pack-why";
+    w.textContent = 理由.join("　/　");
+    inner.appendChild(w);
+  }
 
   if (いまの引き) inner.appendChild(引いた札を組む());
   else {
