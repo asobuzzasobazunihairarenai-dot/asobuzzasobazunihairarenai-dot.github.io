@@ -18,6 +18,8 @@ import { refreshCurrencyDisplay } from "./currency-display.js";
 import { SHOP_CATEGORIES, getShopCompletionStats } from "./shop-content.js";
 import { t } from "./ui-text.js";
 import { onLangChange } from "./i18n.js";
+// 【続き732】通貨アイコン（セヴル）を文の中へ差し込む共通部品。
+import { setTextWithCoin } from "./ui-helpers.js";
 import { getSkinImagePathForVariant } from "./piece-skins.js";
 import { petSpriteSrc } from "./pet-skins.js";
 // #231: 全画面ページは「同時に1つだけ」に統一する。他のページの opener（ranking/help/profile）は
@@ -317,7 +319,8 @@ async function refreshBalance() {
     return;
   }
   const balance = await getMyCurrencyBalance();
-  balanceEl.textContent = t("shop.balance", { n: balance });
+  // 【続き732】通貨アイコン（セヴル）を文の中へ。絵文字 🪙 はやめた。
+  setTextWithCoin(balanceEl, t("shop.balance", { n: balance }));
   // ユーザー要望「ショップ画面とマイページにアイテムコンプリート率を表示したい」への対応。
   if (completionEl) {
     const { owned, total, percent } = getShopCompletionStats();

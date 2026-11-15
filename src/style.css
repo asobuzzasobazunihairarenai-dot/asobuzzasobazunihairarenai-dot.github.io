@@ -26557,3 +26557,44 @@ body.is-phone-device .card-pack-diag,
 body.is-tablet-device .card-pack-diag {
   font-size: 1.25rem;
 }
+
+/* 【続き732】文の中に差し込む通貨アイコン（セヴル）。
+   ⚠ 大きさは**その場の字に合わせる**（1em）。固定の rem にすると、スマホ用に字を
+   上げた所で絵だけ取り残される（#453・#569 と同じ形）。 */
+.so7-coin-icon {
+  width: 1.05em;
+  height: 1.05em;
+  object-fit: contain;
+  vertical-align: -0.15em;
+  margin-right: 0.15em;
+}
+
+/* 🔴【続き732】撮って分かった: 通貨アイコンを入れたボタンが**2行に割れて**
+   縦長になっていた（「パックを買う（ / 🪙100）」）。括弧と数字は1つの塊なので折らない。
+   ⚠ ボタンの文は短いので、折らなくても画面からはみ出さない（実測）。 */
+/* 🔴 実測: `white-space: nowrap` を当てても、買うボタンだけ 98x56（＝2行ぶんの高さ）の
+   ままだった。正体は**flex の縮み**——`.card-pack-actions` が flex なので、既定の
+   `flex-shrink: 1` でボタンが中身より狭く潰され、中で折り返していた。
+   ⇒ **縮まないようにする**（flex: 0 0 auto）。中身も inline-flex で並べて、
+     アイコンと数字が離れないようにする。
+   **教訓: 「折り返すな」と言っても、入れ物が縮めてくれば中身は折り返す。** */
+.card-pack-open-btn,
+.card-pack-sub-btn {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1em;
+  flex: 0 0 auto;
+}
+/* コレクションの「ワイルドで1枚」は数が多いので小さく軽く。 */
+.card-pack-cell .card-pack-sub-btn {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+body.is-phone-device .card-pack-cell .card-pack-sub-btn,
+body.is-tablet-device .card-pack-cell .card-pack-sub-btn {
+  font-size: 1.25rem;
+  padding: 0.35rem 0.7rem;
+}

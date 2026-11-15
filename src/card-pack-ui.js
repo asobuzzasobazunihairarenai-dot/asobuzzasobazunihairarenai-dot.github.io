@@ -40,7 +40,7 @@ import {
   adminGrantAllCards,
   adminResetCards,
 } from "./card-packs.js";
-import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
+import { createModalCloseX, createBackdrop, setTextWithCoin, CURRENCY_ICON } from "./ui-helpers.js";
 import { t } from "./ui-text.js";
 
 // パックに入り得る札＝**まだアプリで公開していない**0th拡張と 1st EDITION の通常カード。
@@ -101,7 +101,8 @@ function ボタン(文, 中身, { 主役 = false, 無効 = false } = {}) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = 主役 ? "card-pack-open-btn" : "card-pack-sub-btn";
-  b.textContent = 文;
+  // 文に {icon} が入っていれば通貨アイコンの絵に差し替える（「パックを買う（🪙100）」等）。
+  setTextWithCoin(b, 文);
   b.disabled = 無効 || 忙しい;
   b.addEventListener("click", async () => {
     if (忙しい) return;
@@ -153,21 +154,33 @@ function 持ち物の行() {
   const c = getCollection();
   const wrap = document.createElement("div");
   wrap.className = "card-pack-stat";
+  // 🔴 セヴルは**言葉ではなく通貨アイコン**で示す（オプションエリアの所持金と同じ絵）。
+  //   ユーザー指摘「通貨には通貨アイコンがあります。そちらを適用してください。」
   const 組 = [
-    [t("packs.coins"), c.balance],
-    [t("packs.packs"), c.packs],
-    [t("packs.wildNormal"), `${c.wildCards}　(${c.wildShards}/${WILD_PER})`],
-    [t("packs.wildOnly"), `${c.onlyCards}　(${c.onlyShards}/${WILD_PER})`],
+    [null, c.balance, t("packs.coins")],
+    [t("packs.packs"), c.packs, null],
+    [t("packs.wildNormal"), `${c.wildCards}　(${c.wildShards}/${WILD_PER})`, null],
+    [t("packs.wildOnly"), `${c.onlyCards}　(${c.onlyShards}/${WILD_PER})`, null],
   ];
-  for (const [名, 値] of 組) {
+  for (const [名, 値, 絵の説明] of 組) {
     const cell = document.createElement("span");
     cell.className = "card-pack-stat-cell";
-    const k = document.createElement("span");
-    k.className = "card-pack-stat-key";
-    k.textContent = 名;
+    if (名 === null) {
+      const img = document.createElement("img");
+      img.className = "so7-coin-icon";
+      img.src = CURRENCY_ICON;
+      img.alt = 絵の説明 || "";
+      img.title = 絵の説明 || "";
+      cell.appendChild(img);
+    } else {
+      const k = document.createElement("span");
+      k.className = "card-pack-stat-key";
+      k.textContent = 名;
+      cell.appendChild(k);
+    }
     const v = document.createElement("b");
     v.textContent = String(値);
-    cell.append(k, v);
+    cell.appendChild(v);
     wrap.appendChild(cell);
   }
   return wrap;
@@ -371,7 +384,7 @@ function 中身を組む(inner) {
   if (忙しい || 知らせ) {
     const n = document.createElement("div");
     n.className = "card-pack-note is-warn";
-    n.textContent = 忙しい ? t("packs.working") : 知らせ;
+    setTextWithCoin(n, 忙しい ? t("packs.working") : 知らせ);
     inner.appendChild(n);
   }
 
@@ -427,7 +440,7 @@ function 中身を組む(inner) {
   if (理由.length) {
     const w = document.createElement("div");
     w.className = "card-pack-why";
-    w.textContent = 理由.join("　/　");
+    setTextWithCoin(w, 理由.join("　/　"));
     inner.appendChild(w);
   }
 

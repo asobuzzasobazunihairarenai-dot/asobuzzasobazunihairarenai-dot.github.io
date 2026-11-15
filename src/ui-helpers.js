@@ -85,3 +85,29 @@ export function createOpenGuard(ms = 400) {
   const openedAt = performance.now();
   return () => performance.now() - openedAt < ms;
 }
+
+// 🔴【続き732】ゲーム内通貨「セヴル」のアイコン。
+//   ユーザー指摘「通貨には通貨アイコンがあります。すでにオプションエリアの所持金の
+//   ところに用いられています。そちらを適用してください。」
+//   ⇒ currency-display.js が使っている**本物のアイコン**をここに1つだけ置いて、
+//     使う側はこれを呼ぶ（2か所に書くとズレる）。絵文字 🪙 は使わない。
+export const CURRENCY_ICON = "assets/icons/currency.png";
+
+// 文の中の `{icon}` を通貨アイコンの絵に差し替えて、要素に入れる。
+// ⚠ 文字列のままでは画像を入れられないので、**文を分けて組み立てる**。
+//   `{icon}` が無い文でも、そのまま文字として入るだけなので安全。
+export function setTextWithCoin(el, 文) {
+  el.textContent = "";
+  const 断片 = String(文 == null ? "" : 文).split("{icon}");
+  断片.forEach((t, i) => {
+    if (i > 0) {
+      const img = document.createElement("img");
+      img.className = "so7-coin-icon";
+      img.src = CURRENCY_ICON;
+      img.alt = "";
+      el.appendChild(img);
+    }
+    if (t) el.appendChild(document.createTextNode(t));
+  });
+  return el;
+}
