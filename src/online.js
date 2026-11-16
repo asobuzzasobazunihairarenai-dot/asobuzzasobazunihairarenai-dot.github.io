@@ -2168,6 +2168,79 @@ export async function getRoomOwnerId(gameId) {
   return data[0].user_id ?? null;
 }
 
+// ── フレンドリーマッチの山札選び（続き742 でサーバー側・続き743 で画面） ──────────
+//
+// 🔴 **マイ山札は端末の中（localStorage）にしか無い。** だから「部屋主が他の人のマイ山札から
+//   選ぶ」には、**その人が自分で部屋に出す**しかない（＝預ける表は作らない。詳しくは
+//   CLAUDE.md の続き742）。ここはその口の薄い包み。
+//
+// ⚠ レシピの形が2つある。端末の中は **{cardId: 枚数}**、サーバーは **[{id, count}]**。
+//   取り違えると黙って空の山札になるので、**変換はこの2つの関数の中だけ**に置く。
+function レシピを配列へ(recipe) {
+  const out = [];
+  for (const [id, raw] of Object.entries(recipe || {})) {
+    const n = Math.floor(Number(raw) || 0);
+    if (typeof id === "string" && id && n > 0) out.push({ id, count: Math.min(n, 7) });
+  }
+  return out;
+}
+export function レシピを連想へ(arr) {
+  const out = {};
+  for (const r of Array.isArray(arr) ? arr : []) {
+    const n = Math.floor(Number(r?.count) || 0);
+    if (r?.id && n > 0) out[String(r.id)] = n;
+  }
+  return out;
+}
+
+async function 山札選びRPC(名, 引数) {
+  if (!client) throw new Error("not_connected");
+  if (!cachedUser) throw new Error("not_authenticated");
+  const { data, error } = await client.rpc(名, 引数 || {});
+  if (error) {
+    console.error(名 + " failed (未実行のsupabase_setup_so7.sql追加分がある可能性)", error);
+    throw error;
+  }
+  return data;
+}
+
+// 自分のマイ山札を1つ、この部屋に出す。recipe は端末の形（{cardId: 枚数}）。
+export async function offerMyStackToRoom(gameId, stackKey, name, cardSet, recipe) {
+  return 山札選びRPC("so7_offer_my_stack", {
+    p_game_id: gameId,
+    p_stack_key: String(stackKey),
+    p_name: String(name || "").slice(0, 24),
+    p_card_set: String(cardSet || "remake"),
+    p_recipe: レシピを配列へ(recipe),
+  });
+}
+// 引っ込める（stackKey を省くと自分のぶん全部）。
+export async function withdrawMyStackFromRoom(gameId, stackKey = null) {
+  return 山札選びRPC("so7_withdraw_my_stack", { p_game_id: gameId, p_stack_key: stackKey });
+}
+// ラインナップ＋今の選択＋自分が部屋主か。**部屋に居る全員が読める**（それがこの設計の肝）。
+// ⚠ まだSQLを流していないサーバーでは例外になるので、画面側は必ず try で受けること。
+export async function listStackOffers(gameId) {
+  const d = await 山札選びRPC("so7_list_stack_offers", { p_game_id: gameId });
+  return {
+    offers: Array.isArray(d?.offers) ? d.offers : [],
+    choice: d?.choice ?? null,
+    hostId: d?.hostId ?? null,
+    iamHost: !!d?.iamHost,
+  };
+}
+// 部屋主だけ。choice は {mode:"official",cardSet} / {mode:"stack",userId,stackKey} / {mode:"random"}。
+export async function setRoomDeckChoice(gameId, choice) {
+  return 山札選びRPC("so7_set_deck_choice", { p_game_id: gameId, p_choice: choice });
+}
+// 🔴 ランダムを**サーバーが1回だけ**引く。部屋主以外が呼んでも引かれない（pending が返る）。
+export async function resolveRoomDeckChoice(gameId, officialSets) {
+  return 山札選びRPC("so7_resolve_deck_choice", {
+    p_game_id: gameId,
+    p_official_sets: Array.isArray(officialSets) && officialSets.length ? officialSets : ["remake"],
+  });
+}
+
 export function getCurrentGameId() {
   return currentGameId;
 }
@@ -2437,7 +2510,7 @@ export async function registerSelfAsStatsPlayer() {
 }
 
 let startGameInFlight = false;
-export async function startGame(gameId, { includeBlackWhite = false, timerEnabled, pseudoCpuModeEnabled = false, boost = false, myDeckMode = false, skipDeckSelection = false, cardSet } = {}) {
+export async function startGame(gameId, { includeBlackWhite = false, timerEnabled, pseudoCpuModeEnabled = false, boost = false, myDeckMode = false, skipDeckSelection = false, cardSet, deckRecipe = null } = {}) {
   // 二重起動防止（不具合#70）: マイデッキ戦では開始直後に「デッキ選択フェイズ」(最大60秒)を
   // 回すため、このstartGameのPromiseがすぐには解決しない。その間にロビーが再描画されて開始
   // ボタンが作り直され再クリックされる等でstartGameが二重に走ると、デッキ選択オーバーレイが
@@ -2484,7 +2557,7 @@ export async function startGame(gameId, { includeBlackWhite = false, timerEnable
       // ここで送らないと、画面で0th拡張を選んでいてもオンラインではリメイクの山札になる。
       // matchRules に入れておくと「もう一度遊ぶ」でも引き継がれ、全クライアントが
       // getSyncedTimerConfig() から同じ値を読める（＝片方だけ別セット、が起きない）。
-      matchRules: { boost, includeBlackWhite, myDeckMode, cardSet: cardSet || getCardSet() },
+      matchRules: { boost, includeBlackWhite, myDeckMode, cardSet: cardSet || getCardSet(), deckRecipe: deckRecipe || null },
     };
     // ユーザー要望（続き102）「疑似CPUモードが適用されない原因をアクションログで
     // 確認できるようにしてほしい」。ゲーム開始時に送信するtimerConfig（疑似CPU
@@ -2500,7 +2573,9 @@ export async function startGame(gameId, { includeBlackWhite = false, timerEnable
     if (myDeckMode && !skipDeckSelection) await runDeckSelectionPhase(gameId, timerConfig.enabled);
     // myDeckMode: マイデッキ戦（対戦ロビーのトグル）。timerConfig等と同じく開始時に1回だけ
     // 送り、サーバーが各席の selected_deck を読んでシャッフル配布する（so7-apply-action）。
-    const result = await callAction({ type: "BOOTSTRAP_GAME", includeBlackWhite, timerConfig, boost, myDeckMode, cardSet: cardSet || getCardSet() });
+    // 【続き743】deckRecipe＝部屋主が選んだ「みんなのマイ山札」。null なら今までどおり。
+    // 🔴 山札を組むのはサーバー（so7-apply-action.ts の BOOTSTRAP_GAME）だけ。ここは渡すだけ。
+    const result = await callAction({ type: "BOOTSTRAP_GAME", includeBlackWhite, timerConfig, boost, myDeckMode, cardSet: cardSet || getCardSet(), deckRecipe: deckRecipe || null });
     // 戦績プレイヤーの登録は各クライアントが自分の分だけ行う
     // （main.js のオンライン対局開始検知 → registerSelfAsStatsPlayer）。
     return result;

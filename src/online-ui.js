@@ -35,7 +35,11 @@ import {
   subscribeToOpenRoomsChanges,
   getAccountDisplayLabel,
   isAdminUser,
+  listStackOffers,
+  resolveRoomDeckChoice,
 } from "./online.js";
+// 【続き743】この対局の山札（公式の箱／みんなのマイ山札／おまかせ）。
+import { buildDeckChoiceSection } from "./deck-choice-ui.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 // 【2026-11-10】部屋ごとのカードセット（管理者だけ選べる）。card-set.js は何も import しない葉。
 import { getCardSet, CARD_SETS } from "./card-set.js";
@@ -316,6 +320,7 @@ export function openLobbyModal(gameId) {
 }
 
 export function closeLobbyModal() {
+  山札選びを片付ける(); // 【続き743】6秒ごとの問い合わせと箱の回転を止める
   lobbyRosterUnsub?.();
   lobbyRosterUnsub = null;
   lobbyStateUnsub?.();
@@ -329,6 +334,26 @@ export function closeLobbyModal() {
 // 開始オプション。ユーザー要望2026-08-10: タイマー/白黒カード/ブーストは「大きいアイコンを
 // クリックでオン/オフ」に変更（ON＝点灯、OFF＝グレーアウト）。挙動（pendingRoom*）は不変で見た目だけ変更。
 // 疑似CPU（管理者表示ONの時のみ）はアイコン素材が無いので従来のチェックボックスのまま。
+// 【続き743】ロビーの「この対局の山札」。**作り直さずに使い回す**——毎回作り直すと
+// 箱の回転が初期化されてしまう（renderLobbyModal は入室・退室のたびに走る）。
+let lobbyDeckChoice = null;
+let lobbyDeckChoiceGameId = null;
+function 山札選びの節(gameId) {
+  if (lobbyDeckChoice && lobbyDeckChoiceGameId === gameId) return lobbyDeckChoice;
+  lobbyDeckChoice?.destroy?.();
+  lobbyDeckChoiceGameId = gameId;
+  lobbyDeckChoice = buildDeckChoiceSection(gameId, {
+    // 公式山札が選ばれたら、開始時に送るセットもそれに合わせる（2つの値がズレないように）。
+    onCardSetPick: (v) => { pendingRoomCardSet = v; },
+  });
+  return lobbyDeckChoice;
+}
+function 山札選びを片付ける() {
+  lobbyDeckChoice?.destroy?.();
+  lobbyDeckChoice = null;
+  lobbyDeckChoiceGameId = null;
+}
+
 function buildLobbyOptionRows() {
   const wrap = document.createElement("div");
   wrap.className = "online-lobby-options";
@@ -365,9 +390,10 @@ function buildLobbyOptionRows() {
   addIconToggle("assets/icons/boost-mode.svg", t("oui.L262"), pendingRoomBoost, (v) => (pendingRoomBoost = v));
   addIconToggle("assets/icons/my-deck.svg", t("oui.L263"), pendingRoomMyDeck, (v) => (pendingRoomMyDeck = v));
   wrap.appendChild(iconRow);
-  // 【2026-11-10】管理者だけ、この部屋で使うカードのセットを選べる。
-  const 選ぶ = buildRoomCardSetChooser();
-  if (選ぶ) wrap.appendChild(選ぶ);
+  // 【続き743】管理者だけの「使うカードのセット」は、**ここから外した**——
+  //   同じことを決める入口が2つあると必ず食い違う（新しい「この対局の山札」が、
+  //   管理者には「まぜる」も含めて同じものを出す）。関数 buildRoomCardSetChooser は
+  //   オンラインパネルの待機中ボックス（renderRoomStatus）がまだ使うので消していない。
   // 疑似CPUモードのチェックは管理者モードで表示ONの時だけ出す（既定は非表示。ユーザー要望2026-08-08）。
   // アイコン素材が無いため従来のチェックボックスのまま。
   if (isLobbyPseudoCpuToggleVisible()) {
@@ -412,6 +438,11 @@ async function renderLobbyModal() {
   countEl.textContent = t("oui.members", { n: info.count });
   card.appendChild(countEl);
 
+  // 【続き743】この対局の山札。**部屋の全員に出す**（選べるのは部屋主だけだが、
+  // 何が候補に挙がっているかは全員が見られる＝ユーザー要望）。
+  // ⚠ 使い回すので、ここでは append するだけ（作り直さない＝箱の回転が消えない）。
+  card.appendChild(山札選びの節(gameId).el);
+
   if (info.amIHost) {
     card.appendChild(buildLobbyOptionRows());
     const canStart = info.count >= 2;
@@ -421,13 +452,34 @@ async function renderLobbyModal() {
     startBtn.addEventListener("click", async () => {
       startBtn.disabled = true;
       try {
+        // 【続き743】この対局の山札を**始める直前に確定させる**。
+        // 🔴 「おまかせ」はここでサーバーが1回だけ引く（端末では引かない＝引き直せてしまう）。
+        // ⚠ 何も決めていない部屋では**触らない**——触ると、管理者が選んだセットや端末の
+        //   設定が黙ってリメイクに戻る（so7_resolve_deck_choice は未設定を remake と答える）。
+        let 使うセット = roomCardSet();
+        let 使うレシピ = null;
+        try {
+          const 今 = await listStackOffers(gameId);
+          if (今?.choice?.mode) {
+            const 確定 = await resolveRoomDeckChoice(gameId, [CARD_SETS.REMAKE, CARD_SETS.EX0, CARD_SETS.FIRST_ED]);
+            if (確定?.mode === "official" && 確定.cardSet) 使うセット = 確定.cardSet;
+            else if (確定?.mode === "stack") {
+              使うセット = 確定.cardSet || 使うセット;
+              使うレシピ = 確定.recipe ?? null;
+            }
+          }
+        } catch (err) {
+          // SQL（続き742）がまだの部屋。今までどおり進める（黙って止めない）。
+          console.error("山札の確定に失敗（未実行のsupabase_setup_so7.sql追加分がある可能性）", err);
+        }
         await startGame(gameId, {
           timerEnabled: pendingRoomTimerEnabled,
           includeBlackWhite: pendingRoomIncludeBlackWhite,
           pseudoCpuModeEnabled: pendingRoomPseudoCpuModeEnabled,
           boost: pendingRoomBoost,
           myDeckMode: pendingRoomMyDeck,
-          cardSet: roomCardSet(), // 【2026-11-10】この部屋のセット（管理者が選べる）
+          cardSet: 使うセット,
+          deckRecipe: 使うレシピ,
         });
         closeLobbyModal();
       } catch (err) {
@@ -913,9 +965,9 @@ async function renderRoomChoice(user, myGeneration) {
     }
   });
   createForm.appendChild(nameInput);
-  createForm.appendChild(wrapWithPasswordToggle(passInput));
+  createForm.appendChild(wrapWithPasswordToggle(passInput));
   if (合言葉フレンドランク戦を作れる) {
-    createForm.appendChild(rankedRow);
+    createForm.appendChild(rankedRow);
     createForm.appendChild(rankedNote);
   }
   createForm.appendChild(createStatus);

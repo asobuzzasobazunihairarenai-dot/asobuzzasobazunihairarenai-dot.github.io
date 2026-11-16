@@ -65,6 +65,7 @@ export const CHANGELOG = [
       "ランク戦のシーズンが半年ごとになりました",
       "パックのコレクションに、リメイク版のカードも色の順に並ぶようになりました",
       "ランク戦の部屋を、部屋一覧から作って入れるようにしました",
+      "フレンドリーマッチで、その対局の山札を部屋を立てた人が選べるようになりました",
     ],
     summaryEn: [
       "The square-choice check now shows the top card on that square",
@@ -78,6 +79,7 @@ export const CHANGELOG = [
       "Ranked seasons now change every six months",
       "The pack collection now lists the remake cards too, ordered by colour",
       "Ranked rooms are now created and joined from the room list",
+      "The host now chooses which deck a friendly match uses",
     ],
     items: [
       "カード効果でマスを選ぶ時の「このマスでいいですか？」に、**そのマスの一番上のカードが出る**ようになりました。盤面は傾いていて札も小さいので、これまでは「中身を見るために押す」しか確かめる道がありませんでした。⚠ 一番上が**裏向きの時は出しません**（「裏向きです」とだけ出ます）。中身が見えてしまうと、めくる前に分かってしまうためです。",
@@ -91,6 +93,7 @@ export const CHANGELOG = [
       "**ランク戦のシーズンが半年ごと**になりました（1月と7月に新しいシーズンが始まります）。⚠ シーズンの区切り方が変わっただけで、いまのランクが下がることはありません。",
       "パックのコレクションに**リメイク版のカードも並ぶ**ようになり、**赤から色の順**に並ぶようになりました。",
       "**ランク戦の部屋（結果がレートに反映される部屋）**を、ふつうの部屋と同じように**一覧から**作って入れるようになりました。一覧では 🏆 が付きます。⚠ ランクの部屋は**パスワードが必須**です——一覧に出るので、合言葉を教えた人だけが入れるようにするためです。",
+      "フレンドリーマッチの待合に**「この対局の山札」**が出るようになりました。**公式の山札は実物の箱**（リメイク／0th拡張／1st EDITION）で並び、**指でくるくる回すと裏まで読めます**。**どれを使うかは部屋を立てた人が決めます**が、**候補の一覧は部屋の全員が見られます**。「おまかせ」を選ぶと、始める時にその中から1つが選ばれます。自分のマイ山札も**候補として部屋に出せます**（出すか出さないかは毎回あなたが決めます。出していない山札は誰にも見えません）。⚠ マイ山札で実際に遊べるようにする準備はまだ途中で、いま選んでも盤面は標準の山札で始まります。",
     ],
     itemsEn: [
       "The \"Is this square OK?\" check now shows the top card on that square. The board is tilted and the cards are small, so until now the only way to check a card was to tap it. If the top card is face down it is not shown, only a note saying so, since revealing it would give away a card before it is flipped.",
@@ -104,6 +107,7 @@ export const CHANGELOG = [
       "Ranked seasons now last six months, starting in January and in July. Only the length changed; your current rank is not lowered.",
       "The pack collection now also lists the remake cards, and is ordered by colour starting from red.",
       "Ranked rooms (where the result affects your rank) are now created and joined from the room list, just like ordinary rooms. They are marked with a trophy. Note that a ranked room needs a password: it appears in the list, so only people you share the password with can join.",
+      "The friendly-match lobby now has a \"Deck for this match\" panel. The official decks (Remake, 0th Expansion, 1st EDITION) appear as the real retail boxes, and you can drag one to spin it and read the back. The host decides which deck is used, but everyone in the room can see the candidates. Picking Random leaves the choice to be drawn when the match starts. You can also offer your own custom deck to the room; it is your choice each time, and decks you do not offer stay invisible to everyone. Custom decks are not live yet, so picking one still starts the match with the standard deck.",
     ],
     fixes: [
       "効果の処理が終わる前に手札のカードを連打すると、使用確認が出せてしまったのを直しました。",
@@ -146,6 +150,12 @@ export const CHANGELOG = [
       "🔴 **【#682 の続き】ユーザーの問い「部屋コードをたたみつつ、ランク対応の部屋をつくれるようにするのはどうしたらいい？」。** ⇒ **ランクの部屋も一覧に出す**（ビューから `and not g.is_ranked` を外し、`is_ranked` を列に足した）。公開一覧から外していた唯一の理由が「入口が部屋コードだから」だったので、入口を一覧にするなら外す理由も消える。⚠ そのままだと**通りすがりがレートの動く対局に入れる**ので、**ランクの部屋はパスワード必須**にした（クライアント側で止める）。一覧には 🏆🔒 が付く。",
       "🔴🔴 **SQL をローカルで流してエラーを捕まえた**: `create or replace view` は**列を減らせない・順番も変えられない**（psql: cannot drop columns from view）。このファイルは `so7_games_list` を**3回定義し直している**ので、末尾で列を1つ足すと**2回目の実行で前の定義が落ちる**。⇒ 3か所すべての前に `drop view if exists` を置いた。**そのまま渡していたら本番で途中まで流れて止まっていた。** あわせて `tools/check-sql-rerun.mjs` に**ビューの見張り**を足した（2回以上定義しているビューは全部に drop が要る）。わざと1つ消して落ちることを確かめた。⚠ この検査は今まで**終了コードを返していなかった**（⚠ を出すだけ）ので、落ちるようにもした。",
       "⚠⚠ **自分のミス（記録）**: 実測の**2枚目のページが本番の Supabase に部屋を2つ作った**。`page.addInitScript` は**そのページだけ**に効き、`browser.newPage()` は**新しい文脈**を作るので、2枚目には「ローカルへ向ける」上書きが入っていなかった。⇒ アプリ自身の掃除（`so7_cleanup_stale_rooms`）で消した（本番の一覧は0件に戻っている）。⇒ 実測を**文脈を作ってから仕込む**形に直し、さらに**「本当にローカルに向いているか」を測ってから進む**行を足した（向いていなければその場で止まる）。**2枚目を足す時は、1枚目の仕込みが入っているかを必ず確かめる。**",
+      "🔴 **【続き743・山札選び②】箱の絵は、イラストレーター無しで `.ai` から取り出した。** ユーザーが Illustrator を解約済みなので「書き出してください」は頼めない。⇒ `.ai`（PDF互換）を **pdf.js にブラウザで描かせる**道具（`scratchpad/_pdf_render.mjs`）と、**埋め込みの Flate/CMYK 画像を PNG へ組み直す**道具（`_ai_big.mjs`）を用意した。⚠ **1stの蓋の天面には、もともと題字が無い**（タイル紋様だけ・ロゴは側面）。私は最初これを「描けていない」と読み違えた。**版の見分け**: 白地に虹の輪＝**旧0th**／淡い水色のタイル紋様＝**1st**／金とアイボリー＝0th拡張（現行）。ⓘ 入稿フォルダには **8色ぶん**（赤橙黄緑青紫桃＋黒）の箱が揃っている。",
+      "⚠ **箱は CSS の疑似3Dで6面**（`src/deck-box-3d.js`・新しい canvas は1枚も足していない＝#441・#607 で実機が落ちている）。教訓どおり `filter` を preserve-3d に付けず、影は box-shadow、面の中心合わせは **left/top の px**（面ごとに大きさが違うので、transform に translate(-50%,-50%) を混ぜると rotate と順番が絡んで崩れる）。2D表示モードでは回さず前面だけ出す。",
+      "🔴 **管理者だけの「この部屋で使うカード」は、ロビーから外した。** 同じことを決める入口が2つあると必ず食い違うため（新しい節が、管理者には『まぜる』も含めて同じものを出す）。関数 `buildRoomCardSetChooser` は待機中ボックスがまだ使うので**消していない**。",
+      "🔴 **開始時に「何も決めていない部屋」では山札の確定に触らない。** `so7_resolve_deck_choice` は未設定を `remake` と答えるので、そのまま使うと**管理者が選んだセットや端末の設定が黙ってリメイクに戻る**。⇒ 先に `so7_list_stack_offers` で choice が在るかを見て、在る時だけ確定させる。",
+      "⚠ **実測（`scratchpad/_p743.mjs`・ローカルの Supabase・2つの文脈）38項目が合格。** 🔴 **撮って3つ直した（数字だけでは気づけない）**: ①箱が互いに重なっていた（108px の箱が 5.4rem の札からはみ出していた）⇒ 76px ＋ ロビーを 24rem→27rem。②アイボリーの箱が明テーマの地に埋もれて消えていた ⇒ 札に薄い地＋面の縁を濃く＋下に落ちる影。③`<select>` の地はブラウザが白く描くのに字は継承で明るいまま＝**暗テーマで読めなかった**（教訓15 の裏返し）。",
+      "⚠ **ヘッドレスでは rAF が壁時計どおりに進まない**（続き735 と同じ）。「離すと元の角度へ戻る」を秒で待って3回空振りしたので、**落ち着くまで見張る**形に直した。",
     ],
     devItemsEn: [],
   },

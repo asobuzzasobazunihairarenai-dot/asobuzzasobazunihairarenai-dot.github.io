@@ -6240,7 +6240,8 @@ body.spotlight-mode #spotlight-overlay {
 }
 .online-lobby-card {
   pointer-events: auto;
-  width: min(24rem, 92vw);
+  /* 【続き743】「この対局の山札」の箱4つが1行に収まるよう 24rem → 27rem へ広げた。 */
+  width: min(27rem, 94vw);
   max-height: 50.625rem; /* 90vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.96);
@@ -28314,3 +28315,172 @@ body.is-phone-device .my-page-title-chip .my-page-title-progress-num,
 body.is-tablet-device .my-page-title-chip .my-page-title-progress-num {
   font-size: 1.1rem;
 }
+
+/* ============================================================================
+   この対局の山札（deck-choice-ui.js / deck-box-3d.js・続き743）
+   ユーザー要望「みんなのマイ山札及び公式山札の中から部屋主が選ぶ」
+             「公式山札のビジュアルはセブンの販売時の箱に」
+             「箱を指でくるくる回して裏とかも見えるとおもしろいかも!」
+   🔴 **文字色を決め打ちしない**（明暗2テーマある＝教訓15）。地と枠だけ決めて、字は継承する。
+   🔴 差し色は --so7-accent（続き741）。v2 では金、既定では空色になる。
+   ============================================================================ */
+.deck-choice {
+  text-align: left;
+  margin: 0 0 0.8rem;
+  padding: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.07);
+}
+.deck-choice.is-unavailable { display: none; } /* サーバーがまだ対応していない部屋では出さない */
+.deck-choice-title { font-weight: bold; font-size: 0.95rem; margin-bottom: 0.25rem; }
+.deck-choice-current { font-size: 0.8rem; opacity: 0.85; margin-bottom: 0.55rem; }
+.deck-choice-sub { font-weight: bold; font-size: 0.85rem; margin: 0.7rem 0 0.3rem; }
+.deck-choice-note,
+.deck-choice-empty { font-size: 0.75rem; opacity: 0.7; line-height: 1.5; }
+.deck-choice-note { margin-top: 0.5rem; }
+
+/* 公式山札の並び。幅が足りなければ折り返す（ロビーは min(24rem, 92vw) と狭い）。 */
+.deck-choice-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.deck-choice-box {
+  position: relative;
+  width: 5.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.15rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+  box-sizing: border-box;
+  /* 🔴 アイボリーの箱（リメイク／0th拡張）は、明テーマの地だと輪郭が消える。
+     札そのものに薄い地を敷いて、箱が「乗っている」ように見せる。 */
+  background: rgba(70, 80, 100, 0.09);
+}
+.deck-choice-box.is-pickable { cursor: pointer; }
+.deck-choice-box.is-selected {
+  border-color: var(--so7-accent, #38bdf8);
+  background: rgba(148, 163, 184, 0.14);
+}
+.deck-choice-box-name {
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.25;
+  /* 行頭に来てはいけない字を禁じる＋文節で折る（#680/#681 と同じ手当て）。 */
+  line-break: strict;
+  word-break: auto-phrase;
+}
+.deck-choice-box-ribbon {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.1rem;
+  font-size: 0.6rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 0.2rem;
+  background: var(--so7-accent, #38bdf8);
+  color: #0b1220;
+  font-weight: bold;
+  pointer-events: none;
+}
+.deck-choice-box-placeholder {
+  width: 4.75rem;
+  height: 4.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+
+/* みんなのマイ山札 */
+.deck-choice-stack-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.deck-choice-stack {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+}
+.deck-choice-stack.is-selected { border-color: var(--so7-accent, #38bdf8); }
+.deck-choice-stack-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-choice-stack-owner { flex: 0 0 auto; font-size: 0.7rem; opacity: 0.75; }
+.deck-choice-offer { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.4rem; }
+/* 🔴 <select> の地はブラウザが白く描くのに、字は継承で明るいままになる＝暗テーマで読めない
+   （教訓15 の裏返し。実際に撮って見つけた）。ここは2色とも決め打ちして対にする。 */
+.deck-choice-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  padding: 0.2rem;
+  color: #1f2937;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  border-radius: 0.25rem;
+}
+/* 🔴 flex の中のボタンは既定で縮む＝中で折り返して縦長になる（続き732 の実害）。 */
+.deck-choice-mini-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--so7-accent, #38bdf8);
+  background: rgba(56, 189, 248, 0.12);
+  color: inherit;
+  cursor: pointer;
+}
+.deck-choice-mini-btn.is-quiet { border-color: rgba(148, 163, 184, 0.5); background: transparent; }
+.deck-choice-mini-btn:disabled { opacity: 0.55; cursor: default; }
+
+/* ---- 箱（CSSの疑似3D）。教訓1: preserve-3d の要素に filter を付けない（影は box-shadow）。 ---- */
+.deck-box-3d {
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.deck-box-3d.is-grabbed { cursor: grabbing; }
+.deck-box-3d-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.deck-box-face {
+  /* 置き場所（left/top）は deck-box-3d.js が px で入れる——面ごとに大きさが違うので、
+     CSS 側で中心合わせをすると面ごとの rotate と順番が絡んで崩れる。 */
+  position: absolute;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  border-radius: 1px;
+  /* 🔴 影は box-shadow（filter を付けると preserve-3d が平坦化する＝教訓1）。
+     アイボリーの箱は明テーマの地に埋もれるので、縁をはっきりめに取る。 */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+/* 箱の下に落ちる影（3Dの外側に置く普通の要素。箱と重ならないので preserve-3d とは無関係）。 */
+.deck-box-3d::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -4%;
+  height: 10%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 72%);
+  pointer-events: none;
+}
+.deck-box-3d.is-flat .deck-box-3d-inner { transform: none !important; }
+.deck-box-3d.is-flat .deck-box-face:not(.is-front) { display: none; }
+.deck-box-3d.is-flat .deck-box-face.is-front { transform: none !important; }
