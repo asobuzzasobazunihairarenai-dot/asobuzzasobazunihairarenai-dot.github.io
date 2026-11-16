@@ -93,7 +93,7 @@ export const CHANGELOG = [
       "**ランク戦のシーズンが半年ごと**になりました（1月と7月に新しいシーズンが始まります）。⚠ シーズンの区切り方が変わっただけで、いまのランクが下がることはありません。",
       "パックのコレクションに**リメイク版のカードも並ぶ**ようになり、**赤から色の順**に並ぶようになりました。",
       "**ランク戦の部屋（結果がレートに反映される部屋）**を、ふつうの部屋と同じように**一覧から**作って入れるようになりました。一覧では 🏆 が付きます。⚠ ランクの部屋は**パスワードが必須**です——一覧に出るので、合言葉を教えた人だけが入れるようにするためです。",
-      "フレンドリーマッチの待合に**「この対局の山札」**が出るようになりました。「山札を選ぶ」を押すと**画面いっぱいに箱が並び**、**公式の山札が実物の箱**（リメイク／1st EDITION）で出ます。**箱は指でくるくる回せて、裏まで読めます**（裏には物語の文とパッケージ内容が印刷されています）。**どれを使うかは部屋を立てた人が決めます**が、**候補の一覧は部屋の全員が見られます**。「おまかせ」を選ぶと、始める時にその中から1つが選ばれます。自分のマイ山札も**候補として部屋に出せます**（出すか出さないかは毎回あなたが決めます。出していない山札は誰にも見えません）。⚠ マイ山札で実際に遊べるようにする準備はまだ途中で、いま選んでも盤面は標準の山札で始まります。",
+      "フレンドリーマッチの待合に**「この対局の山札」**が出るようになりました。「山札を選ぶ」を押すと**画面いっぱいに箱が並び**、**公式の山札が実物の箱**（リメイク／1st EDITION）で出ます。**箱は指でくるくる回せて、裏まで読めます**（裏には物語の文とパッケージ内容が印刷されています）。**どれを使うかは部屋を立てた人が決めます**が、**候補の一覧は部屋の全員が見られます**。「おまかせ」を選ぶと、始める時にその中から1つが選ばれます。自分のマイ山札も**候補として部屋に出せます**（出すか出さないかは毎回あなたが決めます。出していない山札は誰にも見えません）。**選ばれたマイ山札は、その対局の山札として本当に使われます。**",
     ],
     itemsEn: [
       "The \"Is this square OK?\" check now shows the top card on that square. The board is tilted and the cards are small, so until now the only way to check a card was to tap it. If the top card is face down it is not shown, only a note saying so, since revealing it would give away a card before it is flipped.",
@@ -107,7 +107,7 @@ export const CHANGELOG = [
       "Ranked seasons now last six months, starting in January and in July. Only the length changed; your current rank is not lowered.",
       "The pack collection now also lists the remake cards, and is ordered by colour starting from red.",
       "Ranked rooms (where the result affects your rank) are now created and joined from the room list, just like ordinary rooms. They are marked with a trophy. Note that a ranked room needs a password: it appears in the list, so only people you share the password with can join.",
-      "The friendly-match lobby now has a \"Deck for this match\" line. Pressing \"Choose the deck\" fills the screen with the boxes: the official decks (Remake and 1st EDITION) appear as the real retail boxes, and you can drag one to spin it and read the back, where the story text and the component list are printed. The host decides which deck is used, but everyone in the room can see the candidates. Picking Random leaves the choice to be drawn when the match starts. You can also offer your own custom deck to the room; it is your choice each time, and decks you do not offer stay invisible to everyone. Custom decks are not live yet, so picking one still starts the match with the standard deck.",
+      "The friendly-match lobby now has a \"Deck for this match\" line. Pressing \"Choose the deck\" fills the screen with the boxes: the official decks (Remake and 1st EDITION) appear as the real retail boxes, and you can drag one to spin it and read the back, where the story text and the component list are printed. The host decides which deck is used, but everyone in the room can see the candidates. Picking Random leaves the choice to be drawn when the match starts. You can also offer your own custom deck to the room; it is your choice each time, and decks you do not offer stay invisible to everyone. A chosen custom deck really is the deck the match is played with.",
     ],
     fixes: [
       "効果の処理が終わる前に手札のカードを連打すると、使用確認が出せてしまったのを直しました。",

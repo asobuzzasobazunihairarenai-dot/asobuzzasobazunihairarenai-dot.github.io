@@ -334,13 +334,6 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
     }
     stacks.appendChild(list);
 
-    // 🔴 正直に書く。山札を組むのは**サーバーだけ**で、そこは続き744 の③が入るまで標準の山を作る。
-    //   ⚠ ③ が本番に入ったら**この5行と文言2つを消す**こと。
-    const 準備中 = document.createElement("div");
-    準備中.className = "deck-chooser-note deck-choice-pending";
-    準備中.textContent = t("deckChoice.stackNotYet");
-    stacks.appendChild(準備中);
-
     // 自分のマイ山札を出す
     const 手持ち = getMyStacks().filter((s) => Object.keys(s.recipe || {}).length > 0);
     const 出し済み = new Set(offers.filter((o) => o.mine).map((o) => o.stackKey));
