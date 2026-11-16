@@ -12,6 +12,8 @@
 // ないため対象外（常に画像/canvasのまま）。
 import { buildCardFace } from "./card-renderer.js";
 import { hasBakedCardFace, hasNoPrintedFace, getCardImagePath, getCardIllustPath, getCardDefinition } from "./cards-data.js";
+// 【#698/#699・続き745】小さく出すイラストは小さい版へ（image-thumbs.js は何も import しない葉）。
+import { thumbImagePath } from "./image-thumbs.js";
 import { getLang } from "./i18n.js";
 
 const STORE_KEY = "so7-card-face-mode";
@@ -132,7 +134,13 @@ export function paintCardFace(el, cardId, options = {}) {
   if (options.illustOnly) {
     clearCardFaceMount(el);
     el.classList.toggle("is-only-card", !!getCardDefinition(cardId)?.only);
-    el.style.backgroundImage = `url("${getCardIllustPath(cardId)}")`;
+    // 🔴【#698/#699・続き745】**小さい版（192px）を敷く。**
+    //   illustOnly は「小さく出す所」専用（3〜4rem）なので、原寸 433角は要らない。
+    //   パックのコレクションは 71枚を一度に並べるため、原寸だと
+    //   433x433x4 = 0.75MB x 71 = **53MB**（報告の実測 imgMB 41）＝iPhone が落ちる（#223）。
+    //   小さい版なら 0.147MB x 71 = **10MB**。
+    //   ⚠ 小さい版が焼かれていない絵はそのまま原寸が返る（thumbImagePath の既定）＝壊れない。
+    el.style.backgroundImage = `url("${thumbImagePath(getCardIllustPath(cardId))}")`;
     return;
   }
   if (hasNoPrintedFace(cardId)) {

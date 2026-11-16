@@ -5857,7 +5857,16 @@ document.addEventListener(
                 // 【#442】行き先を言葉で出す（押し間違いをその場で気づけるように）。
                 const 自駒 = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === getSelfSeat());
                 const 案内 = describeMoveDestination(自駒 ? 自駒.location : null, location);
-                if (!(await confirmCellChoice(cellEl, 案内))) return;
+                // 🔴【#707・続き745】**移動先の確認にもカードの絵を出す。**
+                //   続き741（#651）でカードを出すようにしたのは「カード効果でマスを選ぶ時」の
+                //   方だけで、**ムーブフェイズの移動先を選ぶ時には付けていなかった**。
+                //   移動先の札は踏めば到達効果が起きるので、ここでこそ見たい。
+                //   ⚠ 裏向きは中身を出さない（faceDown だけ立てる）＝#651 と同じ扱い。
+                const 行き先の札 = findTopCardAt(location);
+                if (!(await confirmCellChoice(cellEl, 案内, {
+                  cardId: 行き先の札 && 行き先の札.faceUp ? 行き先の札.cardId : null,
+                  faceDown: !!(行き先の札 && !行き先の札.faceUp),
+                }))) return;
                 // 確認中に状況が変わっている可能性があるので、まだ移動できるかを見直す。
                 if (!isMovePhaseActive()) return;
                 markPhaseMoveActionTaken("tap-move");
@@ -11657,6 +11666,31 @@ function spawnLockSear(hostEl, color) {
 // おり、今まで**演出も音も一切出ていなかった**。ルール上の扱いはそのままに、見た目だけ
 // 「呪印が焼き付く」形で分かるようにする（通常のロックの金色の刻印とは別物に見せる）。
 const BLACK_SEAL_MS = 1250;
+// 🔴【#708・続き745】**白（無色）にも専用の演出を付ける。**
+//   報告「無色のカードがロックエリアに置かれるときはロックではないので鎖の演出はなしで
+//   別の演出にしたいです」。黒には烙印の演出が在ったが、**白には何も無かった**ので、
+//   ロックの演出（鎖＝刻印）が出ているように見えていた。
+//   ⚠ ルール上の扱いは**何も変えていない**（白黒は今までどおりロックに数えない）。
+//   ⚠ 黒の烙印と同じ骨組みを使い、クラス1つで色だけ変える（演出を2つ書かない）。
+function spawnWhiteSealEffect(hostEl) {
+  if (isArrivalEffectDisabled()) return;
+  const el = document.createElement("div");
+  el.className = "black-seal is-white";
+  el.appendChild(Object.assign(document.createElement("div"), { className: "black-seal-smoke" }));
+  el.appendChild(Object.assign(document.createElement("div"), { className: "black-seal-ring" }));
+  el.appendChild(Object.assign(document.createElement("div"), { className: "black-seal-ring is-inner" }));
+  el.appendChild(Object.assign(document.createElement("div"), { className: "black-seal-flash" }));
+  appendEffectHost(hostEl, el, BLACK_SEAL_MS);
+  beginBoardAnimation();
+  setTimeout(endBoardAnimation, BLACK_SEAL_MS);
+  // 黒は低く沈む一撃。白は**澄んだ方**へ（同じ合成音なので素材は要らない）。
+  playPulseThump(1.25);
+  setTimeout(() => {
+    playSound("lock");
+    playPulseThump(1.6);
+  }, 520);
+}
+
 function spawnBlackSealEffect(hostEl) {
   if (isArrivalEffectDisabled()) return;
   const el = document.createElement("div");
@@ -11752,6 +11786,10 @@ function maybeAnnounceSpecialLockPlacement() {
     if (def.color === "black") {
       fired.add(slot);
       spawnBlackSealEffect(hostEl);
+    } else if (def.color === "white") {
+      // 【#708】白も「置く」だけ＝ロックではない。黒と対になる演出を出す。
+      fired.add(slot);
+      spawnWhiteSealEffect(hostEl);
     } else if (token.cardId === "rainbow-shard") {
       // 2枚そろって初めて「2枚ロック」。1枚目が置かれた瞬間には出さない。
       const pair = [...now].filter(([oid, oslot]) => oslot === slot && tokensById.get(oid)?.cardId === "rainbow-shard");

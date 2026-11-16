@@ -30,12 +30,19 @@ const FORCE = process.argv.includes("--force");
 //    小さい方（15x15px のアイコン）には過剰だが、それでも 6.0MB → 0.33MB になるので十分。
 //    2種類に分けると、貼る側が「どの大きさを使うか」を知る必要が出て複雑になる。
 const THUMB_EDGE = 384;
+// 🔴【#698/#699・続き745】カードのイラストだけ**もっと小さく**焼く。
+//    パックのコレクションは 71枚を一度に並べるので、433角のままだと
+//    433x433x4 = 0.75MB x 71 = **53MB**（実測の報告は imgMB 41）＝iPhone が落ちる（#223）。
+//    小さく出す所（3〜4rem＝dpr3 でも 192px 以下）しか使わないので 192 で足りる。
+//    384 では 21% しか減らず意味が無かった（計算して決めた）。
+const CARD_ART_EDGE = 192;
 
 const TARGETS = [
   { dir: "assets/backgrounds", maxEdge: THUMB_EDGE },
   { dir: "assets/playmats", maxEdge: THUMB_EDGE },
   { dir: "assets/avatars", maxEdge: THUMB_EDGE },
   { dir: "assets/cards", maxEdge: THUMB_EDGE, only: (f) => /^back-/.test(f) },
+  { dir: "assets/cards-illust", maxEdge: CARD_ART_EDGE },
 ];
 
 const MIME = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg" };

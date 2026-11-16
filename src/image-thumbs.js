@@ -28,11 +28,14 @@
 
 // 小さい版を持っている種類。cards だけは裏面（back-*）だけが対象
 // （盤面のカードは原寸が要る＝拡大して見るので）。
-const THUMB_DIRS = ["backgrounds", "playmats", "avatars"];
+const THUMB_DIRS = ["backgrounds", "playmats", "avatars", "cards-illust"];
 
 // 🔴 焼き出しの長辺。**tools/make-thumbs.mjs の THUMB_EDGE と同じ値でなければならない**
 //    （`tools/check-thumbs.mjs` が毎回2か所を照合する）。
 export const THUMB_EDGE = 384;
+// 🔴【#698/#699】カードのイラストだけ 192（上の TARGETS の CARD_ART_EDGE と同じ値）。
+//    こちらも tools/check-thumbs.mjs が2か所を照合する。
+export const CARD_ART_EDGE = 192;
 
 /**
  * 絵のパスを、小さい版のパスに読み替える。対象外ならそのまま返す。

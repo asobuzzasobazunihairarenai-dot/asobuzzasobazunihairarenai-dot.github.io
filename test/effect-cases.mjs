@@ -4690,7 +4690,9 @@ export const CASES = [
     ],
   },
   {
-    name: "青のジュエル ラピスティア(手札): 【財力＝１】手札3枚以上の相手だけが1枚捨てる",
+    // 🔴【#702・続き745】ユーザー判断で **3枚以上 → 2枚以上** に変えた（ルールの変更）。
+    //   アナログ版の印字とは食い違うので memory `art-director-report-queue` に控えてある。
+    name: "青のジュエル ラピスティア(手札): 【財力＝１】手札2枚以上の相手が1枚捨てる",
     kind: "hand",
     cardId: "first-1st-blue",
     state: {
@@ -4713,8 +4715,9 @@ export const CASES = [
       { kind: "handUsable", value: true },
       { kind: "tokenGone", id: "bh1" }, // B は3枚 → 対象（無作為＝先頭）
       { kind: "handCount", player: "B", n: 2 },
-      // 🔴 C は2枚 → **対象外**。リメイクのセレスティア（2枚以上）と取り違えたらここで落ちる。
-      { kind: "handCount", player: "C", n: 2 },
+      // 【#702】C は2枚 → **2枚以上なので対象**（前は対象外だった）。
+      { kind: "tokenGone", id: "ch1" },
+      { kind: "handCount", player: "C", n: 1 },
     ],
   },
   {

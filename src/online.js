@@ -1501,14 +1501,43 @@ export async function uploadBugShot(blob) {
   });
 }
 
+// 🔴【#701・続き745】報告が `PGRST102 "Empty or invalid json"` で弾かれていた。
+//   オンラインの報告は**4人ぶんのアクションログとコンソールを連結**する（bug-report.js の
+//   buildCombinedLogs）ので、長い対局では本文が何MBにもなる。大きすぎる本文は途中で
+//   切られて壊れたJSONとして届く＝この返事になる。
+//   ⇒ **サーバーへ出す唯一の口であるここで**、長さを切り、壊れた文字を落とす。
+//   ⚠ 切るのは**後ろを残す**（直近の方が原因に近い）。切ったことは本文の頭に書く——
+//     黙って短くすると「ログが足りない」と誤診する。
+//   ⚠ 単独サロゲート（壊れた絵文字の片割れ）はUTF-8にできず、やはり壊れたJSONになる。
+const BUG_LOG_MAX = 300000; // 1本あたりの上限（4人ぶんでも1MBに収まる）
+const BUG_CONTEXT_MAX = 120000;
+function 送れる形に(s, 上限) {
+  if (s == null) return null;
+  let t2 = String(s).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+  if (t2.length > 上限) {
+    const 切った = t2.length - 上限;
+    t2 = "（長すぎたので古い方を " + 切った + " 文字ぶん省きました）\n" + t2.slice(-上限);
+  }
+  return t2;
+}
+
 export async function submitBugReport({ comment, actionLog, consoleLog, context } = {}) {
   if (!client) throw new Error(t("on.err.noOnlineBug"));
+  let ctx = context ?? null;
+  if (ctx) {
+    try {
+      const s = JSON.stringify(ctx);
+      if (s.length > BUG_CONTEXT_MAX) ctx = { tooBig: true, bytes: s.length, head: s.slice(0, BUG_CONTEXT_MAX) };
+    } catch (err) {
+      ctx = { contextStringifyError: String(err).slice(0, 200) };
+    }
+  }
   const { error } = await client.from("so7_bug_reports").insert({
     user_id: cachedUser?.id ?? null,
-    comment: comment ?? "",
-    action_log: actionLog ?? null,
-    console_log: consoleLog ?? null,
-    context: context ?? null,
+    comment: 送れる形に(comment ?? "", 4000) ?? "",
+    action_log: 送れる形に(actionLog, BUG_LOG_MAX),
+    console_log: 送れる形に(consoleLog, BUG_LOG_MAX),
+    context: ctx,
   });
   if (error) throw error;
 }

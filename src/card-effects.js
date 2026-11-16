@@ -2223,7 +2223,10 @@ export const CARD_EFFECTS = {
     handEffect: {
       wealth: { eq: 1 },
       usageLimit: { per: "turn", count: 1 },
-      actions: [{ verb: VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS, minHandSize: 3 }],
+      // 🔴【#702・続き745】ユーザー判断「3枚以上じゃなくて2枚以上にしよう」＝**ルールの変更**。
+      //   文（card-text-1st.ja.js）と数（ここ）の**両方**を直さないと、書いてあることと
+      //   起きることが食い違う。アートディレクターへの報告控えにも1行入れてある。
+      actions: [{ verb: VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS, minHandSize: 2 }],
     },
   },
 

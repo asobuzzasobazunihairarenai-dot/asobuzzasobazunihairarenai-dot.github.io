@@ -16,6 +16,7 @@ const TARGETS = [
   { dir: "playmats" },
   { dir: "avatars" },
   { dir: "cards", only: (f) => f.startsWith("back-") },
+  { dir: "cards-illust" },
 ];
 const IMG = /\.(webp|png|jpe?g)$/i;
 
@@ -37,6 +38,17 @@ if (e1 === null || e2 === null) {
 }
 if (e1 !== e2) {
   console.error("check-thumbs: 長辺の値がズレています 焼く側=" + e1 + " / 貼る側=" + e2);
+  process.exit(1);
+}
+// 🔴【#698/#699】カードのイラストだけ別の長辺（CARD_ART_EDGE）。これも2か所にある。
+const c1 = 数(焼く側, "const CARD_ART_EDGE =");
+const c2 = 数(貼る側, "export const CARD_ART_EDGE =");
+if (c1 === null || c2 === null) {
+  console.error("check-thumbs: CARD_ART_EDGE を取り出せませんでした（名前が変わった？）");
+  process.exit(2);
+}
+if (c1 !== c2) {
+  console.error("check-thumbs: カードの長辺の値がズレています 焼く側=" + c1 + " / 貼る側=" + c2);
   process.exit(1);
 }
 

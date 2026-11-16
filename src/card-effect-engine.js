@@ -1533,11 +1533,18 @@ export function getLockableHandTokensExceptFinal(player, opts = {}) {
   const candidateSlotsFor = (token) => {
     if (emptySlots.length === 0) return [];
     const color = getCardDefinition(token.cardId)?.color;
-    // 無色（白・黒）と虹（なないろの欠片）は特定の色スロットに縛られないので、空いている
-    // どのスロットにも置ける（プレイヤーがどの色にするか選ぶ）。虹をセレナーデでロックする
-    // 場合は「色を選んで1枚だけ」ロックする（不具合#52、serenade-rainbow-shard-lock-rule。
-    // 虹本来の手札効果=2枚ロックとは別で、ここでは単体を1スロットに置く＝勝利判定でも1色）。
-    if (color === "white" || color === "black" || color === "rainbow") return emptySlots;
+    // 🔴【#713・続き745】**無色（白・黒）は候補から外す。**
+    //   報告「貴族の特権の効果で無色のバッドバーガーをロックエリアにおけてしまう」。
+    //   無色をロックエリアへ置いても**『ロック』したことにはならない**（ルール。
+    //   main.js の maybeAnnounceLock・victory.js の getLockedCount も無色を数えていない）。
+    //   ここは「ロックする」と書いてある効果（セレナーデ／桃のジュエル／貴族の特権）の
+    //   候補を作る所なので、**ロックにならない札を選ばせてはいけない**。
+    //   ⚠ 前のコメントは「色スロットに縛られない＝どこへでも置ける」と書いていたが、
+    //     それは**手で置く時**の話で、「ロックする」効果の話ではなかった。
+    //   ⚠ 虹（なないろの欠片）は**そのまま候補に残す**——あれは色を選んで本当にロックできる
+    //     （#52 serenade-rainbow-shard-lock-rule）。
+    if (color === "white" || color === "black") return [];
+    if (color === "rainbow") return emptySlots;
     const idx = COLORS.indexOf(color);
     const matching = emptySlots.filter((s) => s.index === idx);
     return idx >= 0 ? matching : [];
@@ -2941,9 +2948,13 @@ async function runAction(action, ctx, helpers) {
         if (helpers.delegateToPlayer) await helpers.delegateToPlayer(p, "discard-hand-ordered");
         // 委任が届かなかった／時間切れだった／委任の仕組みを持たない呼び出し元でも、
         // 「手札を全て捨てる」というルールは必ず守る（残っていればここで捨てる。通常は空振り）。
+        // 【#711】その人のぶんを**1つのミニモーダル**にまとめる（1枚ごとに出すと上書きし合う）。
+        const 捨てた = [];
         for (const token of getHandTokens(p)) {
-          await helpers.discardAndSync(token.id);
+          捨てた.push(token.cardId);
+          await helpers.discardAndSync(token.id, { batchNotice: true });
         }
+        if (捨てた.length > 0) helpers.revealDiscardedCards?.(p, 捨てた);
         await helpers.drawCards(p, action.count);
       }
       // お知らせ（ユーザー要望）: 全員の手札が変わったこと。
@@ -2985,10 +2996,13 @@ async function runAction(action, ctx, helpers) {
         );
         if (Array.isArray(picked) && picked.length > 0) ordered2 = picked.slice(0, discardCount2);
       }
+      // 【#711】まとめて1つのミニモーダルに出すため、捨てた札の id も控える。
+      const 捨てた札2 = [];
       if (ordered2) {
         for (const token of ordered2) {
           discardedNames2.push(cardDisplayName(token.cardId));
-          await helpers.discardAndSync(token.id);
+          捨てた札2.push(token.cardId);
+          await helpers.discardAndSync(token.id, { batchNotice: true });
         }
       } else {
         // ⚠ exceptSelf を渡した時は、まとめて選ぶ側だけでなくここでも候補を絞る
@@ -2998,10 +3012,13 @@ async function runAction(action, ctx, helpers) {
           const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount2 - i }), 候補id2);
           if (!chosen) break;
           discardedNames2.push(cardDisplayName(chosen.cardId));
-          await helpers.discardAndSync(chosen.id);
+          捨てた札2.push(chosen.cardId);
+          await helpers.discardAndSync(chosen.id, { batchNotice: true });
         }
       }
       if (discardedNames2.length === 0) return false;
+      // 【#711】捨てた札を**1つのミニモーダル**にまとめて全員へ（捨て札は公開情報）。
+      helpers.revealDiscardedCards?.(ctx.player, 捨てた札2);
       // 捨て札は公開情報なので、何を捨てたかを全員へ告知する（選べる罠と同じ形）。
       await helpers.announceEffectReason?.(
         ctx.cardId,
@@ -3031,19 +3048,25 @@ async function runAction(action, ctx, helpers) {
         );
         if (Array.isArray(picked) && picked.length > 0) ordered = picked.slice(0, discardCount);
       }
+      // 【#711】まとめて1つのミニモーダルに出すため、捨てた札の id も控える。
+      const 捨てた札 = [];
       if (ordered) {
         for (const token of ordered) {
           discardedNames.push(cardDisplayName(token.cardId));
-          await helpers.discardAndSync(token.id);
+          捨てた札.push(token.cardId);
+          await helpers.discardAndSync(token.id, { batchNotice: true });
         }
       } else {
         for (let i = 0; i < discardCount; i++) {
           const chosen = await helpers.pickHandCard(ctx.player, t("ce.pickDiscardN", { n: discardCount - i }));
           if (!chosen) break;
           discardedNames.push(cardDisplayName(chosen.cardId));
-          await helpers.discardAndSync(chosen.id);
+          捨てた札.push(chosen.cardId);
+          await helpers.discardAndSync(chosen.id, { batchNotice: true });
         }
       }
+      // 【#711】捨てた札を**1つのミニモーダル**にまとめて全員へ（捨て札は公開情報）。
+      if (捨てた札.length > 0) helpers.revealDiscardedCards?.(ctx.player, 捨てた札);
       // お知らせ（ユーザー要望「選べる罠で何を捨てたか全員にモーダルで一覧表示したい」）:
       // 捨て札は公開情報のため、捨てたカードの一覧を全員へ告知する（effect_reasonモーダル）。
       if (discardedNames.length > 0) {
@@ -4051,10 +4074,14 @@ async function runAction(action, ctx, helpers) {
             { drawPer }
           );
           if (Array.isArray(chosen)) {
+            // 【#711】まとめて1つのミニモーダルに（捨て札は公開情報）。
+            const 捨てた札 = [];
             for (const token of chosen) {
-              await helpers.discardAndSync(token.id);
+              捨てた札.push(token.cardId);
+              await helpers.discardAndSync(token.id, { batchNotice: true });
               discarded++;
             }
+            if (捨てた札.length > 0) helpers.revealDiscardedCards?.(ctx.player, 捨てた札);
             if (discarded > 0) {
               await helpers.drawCards(ctx.player, discarded * drawPer);
               await helpers.announceEffectReason?.(
@@ -4510,9 +4537,13 @@ async function runAction(action, ctx, helpers) {
       // 違い、自分の手札だけを全て捨てる。
       const handTokens = getHandTokens(ctx.player);
       if (handTokens.length === 0) return false;
+      // 【#711】まとめて1つのミニモーダルに（1枚ごとに出すと同じ場所で上書きし合う）。
+      const 捨てた全部 = [];
       for (const token of handTokens) {
-        await helpers.discardAndSync(token.id);
+        捨てた全部.push(token.cardId);
+        await helpers.discardAndSync(token.id, { batchNotice: true });
       }
+      if (捨てた全部.length > 0) helpers.revealDiscardedCards?.(ctx.player, 捨てた全部);
       return true;
     }
     case VERBS.DISCARD_ONE_HAND_CARD: {

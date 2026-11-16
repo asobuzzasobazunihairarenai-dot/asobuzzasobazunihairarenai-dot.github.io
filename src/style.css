@@ -7737,6 +7737,14 @@ body.is-phone-device #admin-panel {
      本文領域を2行分(=1.05rem×1.6×2≈3.4rem)で固定し、1行でも2行でも同じ高さにしてブレを無くす。 */
   min-height: 3.4rem;
   white-space: pre-wrap;
+  /* 🔴【#700・続き745】「物語チュートリアルの改行位置」。
+     ①行頭に来てはいけない字（、。」！？等）を行頭に送らない＝**全端末で効く**
+     ②文節の切れ目で折る（Chrome 119+。効かない端末では黙って無視されるだけ）
+     ③行の長さを均す（最後の行に1文字だけ残る、を防ぐ）
+     ⚠ #680/#681（ホームの札）と同じ手当て。 */
+  line-break: strict;
+  word-break: auto-phrase;
+  text-wrap: pretty;
 }
 .eidos-dialogue-choices {
   display: flex;
@@ -28580,3 +28588,27 @@ body.is-tablet-device .deck-chooser-row { gap: 1rem; }
 .deck-box-3d.is-flat .deck-box-3d-inner { transform: none !important; }
 .deck-box-3d.is-flat .deck-box-face:not(.is-front) { display: none; }
 .deck-box-3d.is-flat .deck-box-face.is-front { transform: none !important; }
+
+/* 🔴【#712・続き745】「パックを開けるページが全体的に虹色にチカチカする」
+   正体は2つ重なっていた:
+   ① 71枚のカードを**原寸(433角)**で並べていたので、端末が持ちきれず**絵を捨てては
+      読み直す**（7色の札が順に点滅して見える）。⇒ 小さい版へ（card-face-display.js）。
+   ② その71枚のうち ONLY の10枚が**それぞれ 2.4秒の無限アニメーション**を回していた。
+      一覧の中では「どれが ONLY か」が分かれば足りるので、**光らせずに金の枠だけ**にする。
+   ⚠ 1枚ずつ大きく見せる所（パック開封・拡大）の光は**そのまま**（あそこは主役なので）。 */
+.card-pack-collection .is-only-card {
+  animation: none;
+  outline-color: rgba(246, 201, 69, 0.8);
+}
+
+/* 🔴【#708・続き745】白（無色）がロックエリアに置かれた時の演出。
+   黒の烙印（.black-seal）と**同じ骨組みを色だけ変えて**使う（演出を2つ書かない）。
+   ⚠ ルール上の扱いは何も変えていない——白黒は今までどおり「置く」だけでロックではない。
+   ⚠ 黒は紫の烙印が沈み込む絵。白は**澄んだ光が差す**方へ振る。 */
+.black-seal.is-white { --seal-color: #e8f4ff; }
+.black-seal.is-white .black-seal-smoke {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(214, 236, 255, 0.5) 42%, transparent 72%);
+}
+.black-seal.is-white .black-seal-ring {
+  box-shadow: 0 0 0.9rem rgba(232, 244, 255, 0.95), inset 0 0 0.7rem rgba(255, 255, 255, 0.75);
+}
