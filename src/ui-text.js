@@ -76,6 +76,10 @@ const UI = {
     "oui.cardSetHint": "あなたが「ゲームを開始する」を押した時の選択が、この部屋の全員に効きます。ランク戦では使われません（必ずリメイクです）。",
     // --- この対局の山札（deck-choice-ui.js・続き743） ---
     "deckChoice.title": "この対局の山札",
+    "deckChoice.open.host": "山札を選ぶ",
+    "deckChoice.open.guest": "候補を見る",
+    "deckChoice.done": "とじる",
+    "deckChoice.testOnly": "🧪 テスト用（管理者のみ・箱はありません）",
     "deckChoice.spinHint": "箱は指でくるくる回せます（裏も見えます）",
     "deckChoice.current.none": "まだ決まっていません（標準の山札で始まります）",
     "deckChoice.current.official": "いま選ばれている山札：{name}",
@@ -2532,6 +2536,10 @@ const UI = {
     "oui.cardSetHint": "Whatever is selected when you press Start applies to everyone in this room. Ranked matches never use it (they are always Remake).",
     // --- Deck for this match (deck-choice-ui.js) ---
     "deckChoice.title": "Deck for this match",
+    "deckChoice.open.host": "Choose the deck",
+    "deckChoice.open.guest": "See the candidates",
+    "deckChoice.done": "Close",
+    "deckChoice.testOnly": "🧪 Test only (admin, no box art)",
     "deckChoice.spinHint": "Drag a box to spin it (the back is readable too)",
     "deckChoice.current.none": "Not chosen yet (the standard deck will be used)",
     "deckChoice.current.official": "Current deck: {name}",

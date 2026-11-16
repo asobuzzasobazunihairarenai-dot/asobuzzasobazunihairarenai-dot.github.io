@@ -382,6 +382,45 @@ if (firstEdSrc) {
   }
 }
 
+// --- 9. ONLY カードの一覧が、サーバー側の写しとズレていないか ---------------------------
+// 🔴【続き744】マイ山札で山を組む時、ONLY は**1種1枚まで**という上限がある。その判定を
+//   Edge Function 側でも持つ必要があるが、あちらのカードの表には `only` の印が無いので
+//   **id の一覧（ONLY_CARD_IDS）を別に持っている**。ズレると「ONLY を7枚積んだ山札が通る」
+//   という、見た目には分からない形で出るので毎回照合する。
+//   ⚠ `count === 1` では代用できない（black-faded-cat や 1st の白は1枚刷りだが ONLY ではない）。
+{
+  let edge3 = null;
+  try {
+    edge3 = read("supabase/functions/so7-apply-action.ts");
+  } catch (e) {
+    edge3 = null;
+  }
+  if (edge3) {
+    const i = edge3.indexOf("const ONLY_CARD_IDS = new Set<string>([");
+    const j = i < 0 ? -1 : edge3.indexOf("]);", i);
+    if (i < 0 || j < 0) {
+      note("ONLY カードの一覧がサーバー側に見つからない（supabase/functions/so7-apply-action.ts の ONLY_CARD_IDS）");
+    } else {
+      const 写し = new Set(
+        edge3.slice(i, j).split("\n").slice(1)
+          .map((行) => (行.match(/"([^"]+)"/) || [])[1])
+          .filter(Boolean),
+      );
+      // 正は src/cards-data-ex0.js の `only: true`。印の直前にある id を拾う
+      //   （この表は1行1枚で書かれている。形が変わったら下の件数0で落ちるので気づける）。
+      const ex0Src = read("src/cards-data-ex0.js");
+      const 正 = new Set();
+      for (const m of ex0Src.matchAll(/id:\s*"([a-z0-9-]+)"[^\n]*only:\s*true/g)) 正.add(m[1]);
+      if (正.size === 0) {
+        console.error("❌ 検査そのものが怪しい: 手元の ONLY カードが0件");
+        process.exit(2);
+      }
+      for (const id of 正) if (!写し.has(id)) note("ONLY: サーバー側の写しに無い: " + id + " → so7-apply-action.ts の ONLY_CARD_IDS");
+      for (const id of 写し) if (!正.has(id)) note("ONLY: サーバー側の写しに余計な id がある: " + id);
+    }
+  }
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);

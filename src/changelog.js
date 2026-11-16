@@ -93,7 +93,7 @@ export const CHANGELOG = [
       "**ランク戦のシーズンが半年ごと**になりました（1月と7月に新しいシーズンが始まります）。⚠ シーズンの区切り方が変わっただけで、いまのランクが下がることはありません。",
       "パックのコレクションに**リメイク版のカードも並ぶ**ようになり、**赤から色の順**に並ぶようになりました。",
       "**ランク戦の部屋（結果がレートに反映される部屋）**を、ふつうの部屋と同じように**一覧から**作って入れるようになりました。一覧では 🏆 が付きます。⚠ ランクの部屋は**パスワードが必須**です——一覧に出るので、合言葉を教えた人だけが入れるようにするためです。",
-      "フレンドリーマッチの待合に**「この対局の山札」**が出るようになりました。**公式の山札は実物の箱**（リメイク／0th拡張／1st EDITION）で並び、**指でくるくる回すと裏まで読めます**。**どれを使うかは部屋を立てた人が決めます**が、**候補の一覧は部屋の全員が見られます**。「おまかせ」を選ぶと、始める時にその中から1つが選ばれます。自分のマイ山札も**候補として部屋に出せます**（出すか出さないかは毎回あなたが決めます。出していない山札は誰にも見えません）。⚠ マイ山札で実際に遊べるようにする準備はまだ途中で、いま選んでも盤面は標準の山札で始まります。",
+      "フレンドリーマッチの待合に**「この対局の山札」**が出るようになりました。「山札を選ぶ」を押すと**画面いっぱいに箱が並び**、**公式の山札が実物の箱**（リメイク／1st EDITION）で出ます。**箱は指でくるくる回せて、裏まで読めます**（裏には物語の文とパッケージ内容が印刷されています）。**どれを使うかは部屋を立てた人が決めます**が、**候補の一覧は部屋の全員が見られます**。「おまかせ」を選ぶと、始める時にその中から1つが選ばれます。自分のマイ山札も**候補として部屋に出せます**（出すか出さないかは毎回あなたが決めます。出していない山札は誰にも見えません）。⚠ マイ山札で実際に遊べるようにする準備はまだ途中で、いま選んでも盤面は標準の山札で始まります。",
     ],
     itemsEn: [
       "The \"Is this square OK?\" check now shows the top card on that square. The board is tilted and the cards are small, so until now the only way to check a card was to tap it. If the top card is face down it is not shown, only a note saying so, since revealing it would give away a card before it is flipped.",
@@ -107,7 +107,7 @@ export const CHANGELOG = [
       "Ranked seasons now last six months, starting in January and in July. Only the length changed; your current rank is not lowered.",
       "The pack collection now also lists the remake cards, and is ordered by colour starting from red.",
       "Ranked rooms (where the result affects your rank) are now created and joined from the room list, just like ordinary rooms. They are marked with a trophy. Note that a ranked room needs a password: it appears in the list, so only people you share the password with can join.",
-      "The friendly-match lobby now has a \"Deck for this match\" panel. The official decks (Remake, 0th Expansion, 1st EDITION) appear as the real retail boxes, and you can drag one to spin it and read the back. The host decides which deck is used, but everyone in the room can see the candidates. Picking Random leaves the choice to be drawn when the match starts. You can also offer your own custom deck to the room; it is your choice each time, and decks you do not offer stay invisible to everyone. Custom decks are not live yet, so picking one still starts the match with the standard deck.",
+      "The friendly-match lobby now has a \"Deck for this match\" line. Pressing \"Choose the deck\" fills the screen with the boxes: the official decks (Remake and 1st EDITION) appear as the real retail boxes, and you can drag one to spin it and read the back, where the story text and the component list are printed. The host decides which deck is used, but everyone in the room can see the candidates. Picking Random leaves the choice to be drawn when the match starts. You can also offer your own custom deck to the room; it is your choice each time, and decks you do not offer stay invisible to everyone. Custom decks are not live yet, so picking one still starts the match with the standard deck.",
     ],
     fixes: [
       "効果の処理が終わる前に手札のカードを連打すると、使用確認が出せてしまったのを直しました。",
@@ -156,6 +156,10 @@ export const CHANGELOG = [
       "🔴 **開始時に「何も決めていない部屋」では山札の確定に触らない。** `so7_resolve_deck_choice` は未設定を `remake` と答えるので、そのまま使うと**管理者が選んだセットや端末の設定が黙ってリメイクに戻る**。⇒ 先に `so7_list_stack_offers` で choice が在るかを見て、在る時だけ確定させる。",
       "⚠ **実測（`scratchpad/_p743.mjs`・ローカルの Supabase・2つの文脈）38項目が合格。** 🔴 **撮って3つ直した（数字だけでは気づけない）**: ①箱が互いに重なっていた（108px の箱が 5.4rem の札からはみ出していた）⇒ 76px ＋ ロビーを 24rem→27rem。②アイボリーの箱が明テーマの地に埋もれて消えていた ⇒ 札に薄い地＋面の縁を濃く＋下に落ちる影。③`<select>` の地はブラウザが白く描くのに字は継承で明るいまま＝**暗テーマで読めなかった**（教訓15 の裏返し）。",
       "⚠ **ヘッドレスでは rAF が壁時計どおりに進まない**（続き735 と同じ）。「離すと元の角度へ戻る」を秒で待って3回空振りしたので、**落ち着くまで見張る**形に直した。",
+      "🔴 **【続き744】ユーザー判断で「モーダルの中」をやめて画面全体にした**（「このモーダル形式ダサいかも！ 画面全体が黒い半透明でおおわれて、そこにモーダル無しで箱が並んでみたいな画面全体でやった方がかっこよくない？」）。そのとおりで、ロビー（min(24rem,92vw)）に押し込めると箱が小さくなり、**回して裏を読む**という一番おもしろい所が死ぬ。⇒ ロビーには**1行の要約**だけ置き、押すと `#deck-chooser`（z 2300・ロビー2200 より手前／オプションの帯2700 より後ろ）が開く形にした。⚠ 開いている間は**ロビーを visibility:hidden** にする——半透明なので、隠さないとロビーの文字（『ターンタイマー ON』等）が箱の名前と重なって読めない（撮って見つけた）。⚠ body にステージ倍率の transform が掛かっているので `position:fixed` はステージ基準になるが、**その外側は元から黒いレターボックス**なので画面は全部覆われている（この app の全画面の画面はどれも同じ条件）。",
+      "🔴 **【続き744】0th拡張を公式山札から外した**（ユーザー判断「0th拡張もこれも旧0thの拡張です。これはブースターパック形式で販売されました。なのでこれは公式山札として並べなくていいです。」）。⇒ 大きな箱は**リメイクと1st EDITIONの2つだけ**。0th拡張と「まぜる」は**管理者のテスト用**として小さく別に出す（箱の絵は無い）。",
+      "🔴 **【続き744・③】マイ山札で山を組む所を Edge Function に書いた**（`buildDeckFromRecipe`）。公式の山札カスタマイズルール（7色×14ちょうど・虹7ちょうど・無色7以下・同名7まで・ONLYは1種1枚）を**ここ1か所でだけ**検める——SQL は形しか見ていないので、山を組む唯一の場所で弾けば抜け道が無い。⚠ **ONLY の判定に `count === 1` は使えない**（black-faded-cat や 1st の白は1枚刷りだが ONLY ではない）ので id の一覧を持ち、`tools/check-cards.mjs` が src/cards-data-ex0.js の `only: true` と毎回照合する（わざと1つ変えて落ちることを確かめた）。🔴 **貼る前に動かした**: TS から関数を切り出して型注釈を**数えた置換**で外し、Node で 22項目——標準・エディション混成・ONLY7枚の細工・1種8枚・**同じ id を2回送る細工**・でたらめ・無色0枚／8枚以上。**どれも正（src/my-stack.js）と完全に一致**。",
+      "⚠ **【続き744】新しいコードの置き場所で検査が1本落ちた。** `tools/check-mixed-deck.mjs` は「`const MIXED_PER_COLOR` 〜 `function deckPoolForCardSet`」を切り出して**そのまま動かす**ので、その間に型注釈つきの関数を入れると `Unexpected token ':'` で落ちる。⇒ `deckPoolForCardSet` の**後ろ**へ動かした。**教訓: 機械が切り出して走らせている範囲の中に、新しいコードを置かない。**",
     ],
     devItemsEn: [],
   },

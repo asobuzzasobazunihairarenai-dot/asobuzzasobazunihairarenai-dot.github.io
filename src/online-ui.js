@@ -39,7 +39,7 @@ import {
   resolveRoomDeckChoice,
 } from "./online.js";
 // 【続き743】この対局の山札（公式の箱／みんなのマイ山札／おまかせ）。
-import { buildDeckChoiceSection } from "./deck-choice-ui.js";
+import { buildDeckChoiceSummary, closeDeckChooser } from "./deck-choice-ui.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 // 【2026-11-10】部屋ごとのカードセット（管理者だけ選べる）。card-set.js は何も import しない葉。
 import { getCardSet, CARD_SETS } from "./card-set.js";
@@ -342,13 +342,14 @@ function 山札選びの節(gameId) {
   if (lobbyDeckChoice && lobbyDeckChoiceGameId === gameId) return lobbyDeckChoice;
   lobbyDeckChoice?.destroy?.();
   lobbyDeckChoiceGameId = gameId;
-  lobbyDeckChoice = buildDeckChoiceSection(gameId, {
+  lobbyDeckChoice = buildDeckChoiceSummary(gameId, {
     // 公式山札が選ばれたら、開始時に送るセットもそれに合わせる（2つの値がズレないように）。
     onCardSetPick: (v) => { pendingRoomCardSet = v; },
   });
   return lobbyDeckChoice;
 }
 function 山札選びを片付ける() {
+  closeDeckChooser(); // 画面全体の選び場が開いたままロビーが閉じないように
   lobbyDeckChoice?.destroy?.();
   lobbyDeckChoice = null;
   lobbyDeckChoiceGameId = null;

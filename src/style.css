@@ -6240,8 +6240,8 @@ body.spotlight-mode #spotlight-overlay {
 }
 .online-lobby-card {
   pointer-events: auto;
-  /* 【続き743】「この対局の山札」の箱4つが1行に収まるよう 24rem → 27rem へ広げた。 */
-  width: min(27rem, 94vw);
+  /* 【続き744】箱は画面全体の選び場へ移したので、ロビーの幅は元の 24rem に戻した。 */
+  width: min(24rem, 92vw);
   max-height: 50.625rem; /* 90vh相当 */
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.96);
@@ -28317,131 +28317,227 @@ body.is-tablet-device .my-page-title-chip .my-page-title-progress-num {
 }
 
 /* ============================================================================
-   この対局の山札（deck-choice-ui.js / deck-box-3d.js・続き743）
-   ユーザー要望「みんなのマイ山札及び公式山札の中から部屋主が選ぶ」
-             「公式山札のビジュアルはセブンの販売時の箱に」
-             「箱を指でくるくる回して裏とかも見えるとおもしろいかも!」
-   🔴 **文字色を決め打ちしない**（明暗2テーマある＝教訓15）。地と枠だけ決めて、字は継承する。
+   この対局の山札（deck-choice-ui.js / deck-box-3d.js・続き743 → 744 で作り直し）
+   🔴【続き744】ユーザー判断「このモーダル形式ダサいかも！ 画面全体が黒い半透明でおおわれて、
+      そこにモーダル無しで箱が並んでみたいな画面全体でやった方がかっこよくない？」
+      ⇒ ロビーには**1行の要約**だけ。押すと**画面全体**（枠も札も無く、箱だけが並ぶ）。
+   🔴 **文字色を決め打ちしない**（明暗2テーマある＝教訓15）。ただし画面全体の覆いは
+      **常に黒**なので、その中だけは明るい字で固定してよい（地と対になっているため）。
    🔴 差し色は --so7-accent（続き741）。v2 では金、既定では空色になる。
    ============================================================================ */
-.deck-choice {
+
+/* ---- ① ロビーの中の1行 ---- */
+.deck-choice-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   text-align: left;
-  margin: 0 0 0.8rem;
-  padding: 0.6rem;
+  margin: 0 0 0.7rem;
+  padding: 0.45rem 0.55rem;
   border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 0.5rem;
+  border-radius: 0.45rem;
   background: rgba(148, 163, 184, 0.07);
 }
-.deck-choice.is-unavailable { display: none; } /* サーバーがまだ対応していない部屋では出さない */
-.deck-choice-title { font-weight: bold; font-size: 0.95rem; margin-bottom: 0.25rem; }
-.deck-choice-current { font-size: 0.8rem; opacity: 0.85; margin-bottom: 0.55rem; }
-.deck-choice-sub { font-weight: bold; font-size: 0.85rem; margin: 0.7rem 0 0.3rem; }
-.deck-choice-note,
-.deck-choice-empty { font-size: 0.75rem; opacity: 0.7; line-height: 1.5; }
-.deck-choice-note { margin-top: 0.5rem; }
-
-/* 公式山札の並び。幅が足りなければ折り返す（ロビーは min(24rem, 92vw) と狭い）。 */
-.deck-choice-boxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
+.deck-choice-summary.is-unavailable { display: none; } /* サーバーがまだ対応していない部屋では出さない */
+.deck-choice-summary-label { font-size: 0.72rem; opacity: 0.7; flex: 0 0 auto; }
+.deck-choice-summary-current {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.deck-choice-box {
-  position: relative;
-  width: 5.4rem;
+/* 🔴 flex の中のボタンは既定で縮む＝中で折り返して縦長になる（続き732 の実害）。 */
+.deck-choice-summary-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--so7-accent, #38bdf8);
+  background: rgba(56, 189, 248, 0.14);
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ---- ② 画面全体の選び場 ---- */
+#deck-chooser {
+  position: fixed;
+  inset: 0;
+  /* ⚠ ロビー(2200)より手前・オプションの帯(2700)より後ろ（続き75 の並び／続き734 の教訓）。 */
+  z-index: 2300;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.3rem 0.15rem 0.25rem;
-  border: 1px solid transparent;
-  border-radius: 0.4rem;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 1.2rem 1rem 1.6rem;
   box-sizing: border-box;
-  /* 🔴 アイボリーの箱（リメイク／0th拡張）は、明テーマの地だと輪郭が消える。
-     札そのものに薄い地を敷いて、箱が「乗っている」ように見せる。 */
-  background: rgba(70, 80, 100, 0.09);
+  overflow-y: auto;
+  /* 🔴 枠も札も無い。黒い半透明が直接画面を覆う（ユーザー判断）。 */
+  background: radial-gradient(ellipse at 50% 40%, rgba(16, 22, 32, 0.74), rgba(0, 0, 0, 0.88) 78%);
+  /* 🔴 backdrop-filter は使わない（#634 で実機が落ちた家族・#715 で勝利演出から外したばかり）。 */
+  color: #f1f5f9;
+  font-family: sans-serif;
+  animation: deck-chooser-in 0.18s ease-out both;
 }
-.deck-choice-box.is-pickable { cursor: pointer; }
-.deck-choice-box.is-selected {
-  border-color: var(--so7-accent, #38bdf8);
-  background: rgba(148, 163, 184, 0.14);
+@keyframes deck-chooser-in { from { opacity: 0; } to { opacity: 1; } }
+/* 🔴 開いている間はロビーを隠す。半透明なので、隠さないとロビーの文字（ターンタイマー ON
+   など）が箱の名前と重なって読めなくなる（撮って見つけた）。盤面は透けたままでよい。 */
+body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
+/* ✕ はオプションの帯（画面右上のアイコン列）と重なるので、1段下げて内側へ入れる。 */
+#deck-chooser > .modal-close-x {
+  position: absolute;
+  top: 3.4rem;
+  right: 1rem;
+  z-index: 1;
 }
-.deck-choice-box-name {
-  font-size: 0.7rem;
+.deck-chooser-title {
+  font-size: 1.15rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+}
+.deck-chooser-current { font-size: 0.82rem; opacity: 0.8; }
+.deck-chooser-hint { font-size: 0.72rem; opacity: 0.55; }
+.deck-chooser-note { font-size: 0.75rem; opacity: 0.7; max-width: 32rem; text-align: center; line-height: 1.5; }
+
+.deck-chooser-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1.6rem;
+  margin: 0.4rem 0 0.1rem;
+}
+.deck-chooser-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem;
+  border-radius: 0.5rem;
+  transition: transform 0.18s ease-out;
+}
+.deck-chooser-item.is-pickable { cursor: pointer; }
+.deck-chooser-item.is-pickable:hover { transform: translateY(-3px); }
+/* 🔴 選ばれている印は outline（box-shadow は複数ルールで合成されない＝教訓10。
+   ここは箱自身が影を持つので、重ねずに outline で囲う）。 */
+.deck-chooser-item.is-selected {
+  outline: 2px solid var(--so7-accent, #38bdf8);
+  outline-offset: 0.3rem;
+}
+.deck-chooser-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.deck-chooser-name {
+  font-size: 0.85rem;
   text-align: center;
   line-height: 1.25;
   /* 行頭に来てはいけない字を禁じる＋文節で折る（#680/#681 と同じ手当て）。 */
   line-break: strict;
   word-break: auto-phrase;
 }
-.deck-choice-box-ribbon {
-  position: absolute;
-  top: 0.1rem;
-  right: 0.1rem;
-  font-size: 0.6rem;
-  padding: 0.05rem 0.25rem;
-  border-radius: 0.2rem;
-  background: var(--so7-accent, #38bdf8);
-  color: #0b1220;
-  font-weight: bold;
-  pointer-events: none;
-}
-.deck-choice-box-placeholder {
-  width: 4.75rem;
-  height: 4.75rem;
+.deck-chooser-dice {
+  /* 箱（最大220px）と釣り合う大きさ。小さすぎると「おまかせ」だけ格下に見える。 */
+  width: 9rem;
+  height: 9rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
-  border: 1px dashed rgba(148, 163, 184, 0.5);
-  border-radius: 0.3rem;
+  font-size: 3rem;
+  border: 1px dashed rgba(226, 232, 240, 0.45);
+  border-radius: 0.4rem;
+  background: rgba(226, 232, 240, 0.06);
   cursor: pointer;
 }
+.deck-chooser-dice.is-plain { width: 5rem; height: 5rem; font-size: 2rem; }
 
-/* みんなのマイ山札 */
-.deck-choice-stack-list { display: flex; flex-direction: column; gap: 0.25rem; }
-.deck-choice-stack {
+/* ---- みんなのマイ山札 ---- */
+.deck-chooser-stacks {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: min(34rem, 94vw);
+  margin-top: 0.4rem;
+}
+.deck-chooser-sub { font-size: 0.8rem; font-weight: bold; opacity: 0.85; }
+.deck-chooser-sub.is-test { margin-top: 0.5rem; opacity: 0.6; font-weight: normal; font-size: 0.72rem; }
+.deck-chooser-empty { font-size: 0.75rem; opacity: 0.6; }
+.deck-chooser-stack-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.deck-chooser-stack {
+  display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.25rem 0.4rem;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(226, 232, 240, 0.3);
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.07);
   font-size: 0.8rem;
+  max-width: 100%;
 }
-.deck-choice-stack.is-selected { border-color: var(--so7-accent, #38bdf8); }
-.deck-choice-stack-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.deck-choice-stack-owner { flex: 0 0 auto; font-size: 0.7rem; opacity: 0.75; }
-.deck-choice-offer { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.4rem; }
-/* 🔴 <select> の地はブラウザが白く描くのに、字は継承で明るいままになる＝暗テーマで読めない
-   （教訓15 の裏返し。実際に撮って見つけた）。ここは2色とも決め打ちして対にする。 */
-.deck-choice-select {
-  flex: 1 1 auto;
-  min-width: 0;
+.deck-chooser-stack.is-pickable { cursor: pointer; }
+.deck-chooser-stack.is-selected { border-color: var(--so7-accent, #38bdf8); background: rgba(56, 189, 248, 0.18); }
+.deck-chooser-stack-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-chooser-stack-owner { font-size: 0.7rem; opacity: 0.7; }
+.deck-chooser-offer { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem; }
+.deck-chooser-test-row { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
+/* 🔴 <select> の地はブラウザが白く描くのに、字は継承で明るいままになる＝読めない
+   （教訓15 の裏返し。続き743 で実際に撮って見つけた）。2色とも決め打ちして対にする。 */
+.deck-chooser-select {
+  min-width: 8rem;
+  max-width: 14rem;
   font-size: 0.8rem;
-  padding: 0.2rem;
+  padding: 0.25rem;
   color: #1f2937;
   background: #fff;
   border: 1px solid rgba(148, 163, 184, 0.6);
   border-radius: 0.25rem;
 }
 /* 🔴 flex の中のボタンは既定で縮む＝中で折り返して縦長になる（続き732 の実害）。 */
-.deck-choice-mini-btn {
+.deck-chooser-mini-btn {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  font-size: 0.72rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
   border: 1px solid var(--so7-accent, #38bdf8);
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.14);
   color: inherit;
   cursor: pointer;
 }
-.deck-choice-mini-btn.is-quiet { border-color: rgba(148, 163, 184, 0.5); background: transparent; }
-.deck-choice-mini-btn:disabled { opacity: 0.55; cursor: default; }
+.deck-chooser-mini-btn.is-quiet { border-color: rgba(226, 232, 240, 0.35); background: transparent; }
+.deck-chooser-mini-btn.is-on { background: rgba(56, 189, 248, 0.32); }
+.deck-chooser-mini-btn:disabled { opacity: 0.55; cursor: default; }
+.deck-chooser-done {
+  margin-top: 0.6rem;
+  padding: 0.5rem 2rem;
+  font-size: 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(226, 232, 240, 0.45);
+  background: rgba(226, 232, 240, 0.1);
+  color: inherit;
+  cursor: pointer;
+}
+
+/* スマホ（実画面が 0.478 倍＝#453・#569 の罠）では字と箱を少し詰める。 */
+body.is-phone-device #deck-chooser,
+body.is-tablet-device #deck-chooser { gap: 0.4rem; padding: 0.8rem 0.6rem 1.1rem; }
+body.is-phone-device .deck-chooser-row,
+body.is-tablet-device .deck-chooser-row { gap: 1rem; }
 
 /* ---- 箱（CSSの疑似3D）。教訓1: preserve-3d の要素に filter を付けない（影は box-shadow）。 ---- */
 .deck-box-3d {

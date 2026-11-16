@@ -221,6 +221,88 @@ function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; coun
   return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// マイ山札（部屋主が選んだ「みんなのマイ山札」）で山を組む（続き744・③）
+//
+// 🔴 **公式ルールに照らして検めるのはここだけ。** SQL（so7_offer_my_stack）は形しか見ていない
+//   （配列か・件数・count が 1..7 か）。**山を組む場所が1つしか無いので、ここで弾けば抜け道が無い。**
+//   2か所で検めると必ずズレる。
+//
+// ■ 公式の山札カスタマイズルール（https://www.asobuzz.net/variant-rules）
+//   ① 赤橙黄緑青桃紫 … 各**14枚ちょうど** ／ 虹 … **7枚ちょうど** ／ 無色（白+黒）… **7枚以下**
+//   ② 同じ名前のカードは **7枚まで**
+//   ※ **ONLYカードは1種類につき1枚まで**
+//
+// 🔴 **src/my-stack.js の buildMyStackNormalCards と同じ考え方**（あちらが正。ここは写し）。
+//   揃っていないグループだけ標準へ落とす（全部捨てるより、直し忘れた1色だけが戻る方が事故が小さい）。
+const MY_STACK_MAX_SAME = 7;
+const MY_STACK_MAX_ONLY = 1;
+// 🔴 ONLY カード（絵の左下に ONLY と印字）。**`count === 1` では代用できない**
+//   （black-faded-cat や 1st の白は1枚刷りだが ONLY ではない）。
+//   🔴 **src/cards-data-ex0.js の `only: true` と同じ顔ぶれ**（tools/check-cards.mjs が照合する）。
+const ONLY_CARD_IDS = new Set<string>([
+  "ex0-red-joyner",
+  "ex0-orange-mccool",
+  "ex0-yellow-little-mouse",
+  "ex0-green-peterhood",
+  "ex0-blue-jake",
+  "ex0-pink-yaeza",
+  "ex0-purple-vivian",
+  "ex0-white-someones-shadow",
+  "ex0-white-dragon",
+  "ex0-black-vood-contract",
+]);
+// 無色（白・黒）は**1つの枠**として扱う（公式ルール①）。
+function myStackGroupOf(color: string): string {
+  return color === "white" || color === "black" ? "colorless" : color;
+}
+function buildDeckFromRecipe(
+  recipe: unknown,
+  baseCards: { id: string; color: string; count: number }[],
+  sets: { id: string; color: string; count: number }[][],
+): { id: string; color: string; count: number }[] {
+  // 枠（グループごとの枚数）は標準の山札から数える。7色と虹は**ちょうど**、無色だけ**以下**。
+  const quota: Record<string, { n: number; exact: boolean }> = {};
+  for (const c of baseCards) {
+    const g = myStackGroupOf(c.color);
+    quota[g] = { n: (quota[g]?.n ?? 0) + (c.count ?? 1), exact: g !== "colorless" };
+  }
+  // 選べる札（リメイク＋0th拡張＋1st を全部。マイ山札はエディションを混ぜられる遊び方）。
+  const byId = new Map<string, { id: string; color: string; count: number }>();
+  for (const list of sets) for (const c of list) if (!byId.has(c.id)) byId.set(c.id, c);
+
+  // 🔴 同じ id が2回来ても足し合わせない（足すと上限を越えられてしまう）。**最初の1つだけ**採る。
+  const want = new Map<string, number>();
+  for (const r of Array.isArray(recipe) ? recipe : []) {
+    const id = String((r as { id?: unknown })?.id ?? "");
+    if (!id || want.has(id)) continue;
+    const n = Math.floor(Number((r as { count?: unknown })?.count) || 0);
+    if (n > 0) want.set(id, n);
+  }
+
+  const out: { id: string; color: string; count: number }[] = [];
+  for (const [g, q] of Object.entries(quota)) {
+    const picked: { id: string; color: string; count: number }[] = [];
+    let total = 0;
+    for (const [id, raw] of want) {
+      const c = byId.get(id);
+      if (!c || myStackGroupOf(c.color) !== g) continue;
+      const cap = ONLY_CARD_IDS.has(id) ? MY_STACK_MAX_ONLY : MY_STACK_MAX_SAME;
+      const n = Math.min(raw, cap);
+      if (n > 0) {
+        picked.push({ id: c.id, color: c.color, count: n });
+        total += n;
+      }
+    }
+    // ⚠ 無色は「0枚」も正しい（7枚以下）。7色・虹は 0 なら必ず不正（exact）。
+    const ok = q.exact ? total === q.n : total <= q.n;
+    if (ok) out.push(...picked);
+    else out.push(...baseCards.filter((c) => myStackGroupOf(c.color) === g).map((c) => ({ ...c })));
+  }
+  return out;
+}
+
+
 const FIRST_CARDS: { id: string; color: string }[] = [
   { id: "first-red", color: "red" },
   { id: "first-orange", color: "orange" },
@@ -739,7 +821,12 @@ function reduce(current: GameState, action: any): GameState {
       // 0th拡張のテストモード（管理者のみ・src/card-set.js）。開始を押した人の選択が
       // action.cardSet で届く。🔴 **山札を組むのはここだけ**なので、ここが見ないと
       // クライアントで何を選んでもオンラインではリメイクの山札になる。
-      const cardPool = deckPoolForCardSet(action.cardSet);
+      // 【続き744】部屋主が「みんなのマイ山札」を選んだ時は、そのレシピで組む（action.deckRecipe）。
+      // 🔴 公式ルールの検めは buildDeckFromRecipe の中だけ（SQL は形しか見ていない）。
+      const 山のレシピ = (action as { deckRecipe?: unknown }).deckRecipe;
+      const cardPool = Array.isArray(山のレシピ) && 山のレシピ.length > 0
+        ? buildDeckFromRecipe(山のレシピ, NORMAL_CARDS, [NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS])
+        : deckPoolForCardSet(action.cardSet);
       let pool = expandDeck(cardPool);
       if (!includeBlackWhite) {
         pool = pool.filter((cardId) => {
