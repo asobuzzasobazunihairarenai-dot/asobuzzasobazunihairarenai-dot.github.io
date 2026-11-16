@@ -4228,3 +4228,325 @@ from so7_games g
 left join so7_game_passwords p on p.game_id = g.id
 where g.status = 'open';
 grant select on so7_games_list to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 【2026-11-16・続き742】フレンドリーマッチ「どの山札で遊ぶか」を開始前に決める
+--
+-- ユーザー要望: 「みんなのマイ山札および公式山札の中から部屋主が選ぶ。そのラインナップは
+--   全プレイヤーも見られるようにする。部屋主はランダム方式で選ぶことも選べる。」
+--
+-- 🔴 なぜ「マイ山札をサーバーへ預ける表」にしなかったか（最初はそう設計しかけた）:
+--   マイ山札は**その端末の中（localStorage）**に在る。そして、その人が部屋に居る時は
+--   **その端末もそこに在る**。⇒ 個人の持ち物を丸ごとサーバーへ預ける必要はなく、
+--   **部屋に出した時だけ**写せばよい。こちらの方が良い点が3つある:
+--     ①他人の山札を読む権限が「同じ部屋に居るか」だけで済む（個人の表への他人の read が要らない）
+--     ②出すか出さないかを**本人が毎回決められる**（黙って全部見える、にならない）
+--     ③端末の中の形をそのまま使えるので、移行も同期も要らない
+--
+-- 🔴 **レシピの中身（公式ルールに合っているか）は、ここでは検めない。**
+--   ここは形だけ見る（配列か・件数・count が 1..7 か）。**本当の検めは山札を組む所
+--   ＝ Edge Function（so7-apply-action.ts の deckPoolForCardSet）で行う**。
+--   山を組む所が1か所しかないので、そこで弾けば抜け道が無い。2か所で検めると必ずズレる。
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── ① 部屋に出された山札（ラインナップ） ──────────────────────────────────
+-- 同じ人が複数のマイ山札を出せる（stack_key は端末側のマイ山札のid）。
+create table if not exists so7_game_stack_offers (
+  game_id text not null references so7_games(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  stack_key text not null,
+  name text not null,
+  card_set text not null default 'remake',
+  recipe jsonb not null,                 -- [{"id":"card-xxx","count":7}, ...]
+  offered_at timestamptz not null default now(),
+  primary key (game_id, user_id, stack_key)
+);
+alter table so7_game_stack_offers enable row level security;
+
+-- 読める人＝**その部屋に席がある人**（ラインナップは全員に見せる、というユーザー要望どおり）。
+drop policy if exists "so7_game_stack_offers_select" on so7_game_stack_offers;
+create policy "so7_game_stack_offers_select" on so7_game_stack_offers for select to authenticated
+  using (exists (
+    select 1 from so7_game_seats s
+    where s.game_id = so7_game_stack_offers.game_id and s.user_id = auth.uid()
+  ));
+
+-- 書けるのは**自分の行だけ**、しかも**その部屋に席がある間だけ**。
+-- （user_id = auth.uid() を with check に入れてあるので、他人の名前では出せない）
+drop policy if exists "so7_game_stack_offers_insert" on so7_game_stack_offers;
+create policy "so7_game_stack_offers_insert" on so7_game_stack_offers for insert to authenticated
+  with check (
+    user_id = auth.uid()
+    and exists (select 1 from so7_game_seats s
+                where s.game_id = so7_game_stack_offers.game_id and s.user_id = auth.uid())
+  );
+drop policy if exists "so7_game_stack_offers_update" on so7_game_stack_offers;
+create policy "so7_game_stack_offers_update" on so7_game_stack_offers for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "so7_game_stack_offers_delete" on so7_game_stack_offers;
+create policy "so7_game_stack_offers_delete" on so7_game_stack_offers for delete to authenticated
+  using (user_id = auth.uid());
+
+create index if not exists so7_game_stack_offers_game_idx on so7_game_stack_offers (game_id);
+
+-- ── ② 部屋主が決めた「この対局の山札」 ────────────────────────────────────
+-- 形は3通り:
+--   {"mode":"official","cardSet":"remake"}
+--   {"mode":"stack","userId":"...","stackKey":"...","name":"...","cardSet":"...","recipe":[...]}
+--   {"mode":"random"}                       ← 開始時に下の resolve が1回だけ引いて上書きする
+-- ⚠ 列を足すだけなので、既存の対局は null＝今までどおり標準の山で動く。
+alter table so7_games add column if not exists deck_choice jsonb;
+
+-- レシピの「形」だけを見る（中身の正しさは Edge Function が見る）。
+create or replace function so7_stack_recipe_is_sane(p_recipe jsonb)
+returns boolean
+language sql
+immutable
+as $$
+  select
+    p_recipe is not null
+    and jsonb_typeof(p_recipe) = 'array'
+    and jsonb_array_length(p_recipe) between 1 and 200
+    and not exists (
+      select 1 from jsonb_array_elements(p_recipe) e
+      where jsonb_typeof(e) <> 'object'
+         or e->>'id' is null
+         or length(e->>'id') > 120
+         or (e->>'count') is null
+         or (e->>'count') !~ '^[0-9]+$'
+         or (e->>'count')::int < 1
+         or (e->>'count')::int > 7
+    );
+$$;
+
+-- 部屋主＝**その部屋にいちばん早く着席した人**（created_by 等の専用列は無い。
+-- so7_create_room が作った直後に本人が着席するので joined_at 最古が部屋主＝online.js と同じ判定）。
+create or replace function so7_room_host(p_game_id text)
+returns uuid
+language sql
+stable
+as $$
+  select user_id from so7_game_seats
+  where game_id = p_game_id
+  order by joined_at asc, seat asc
+  limit 1;
+$$;
+
+-- ── ③ 山札を部屋に出す／引っ込める ────────────────────────────────────────
+-- ⚠ RLS で足りるが、形の検めを1か所に置きたいので関数にする（画面側は1つ呼ぶだけ）。
+create or replace function so7_offer_my_stack(
+  p_game_id text,
+  p_stack_key text,
+  p_name text,
+  p_card_set text,
+  p_recipe jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if not exists (select 1 from so7_game_seats where game_id = p_game_id and user_id = v_uid) then
+    raise exception 'not_in_room';
+  end if;
+  if not so7_stack_recipe_is_sane(p_recipe) then
+    raise exception 'bad_recipe';
+  end if;
+  -- 1人が出せるのは4つまで（ラインナップが読めない長さにならないように）
+  if (select count(*) from so7_game_stack_offers
+      where game_id = p_game_id and user_id = v_uid and stack_key <> p_stack_key) >= 4 then
+    raise exception 'too_many_offers';
+  end if;
+  insert into so7_game_stack_offers (game_id, user_id, stack_key, name, card_set, recipe)
+  values (p_game_id, v_uid, p_stack_key, left(coalesce(p_name, 'マイ山札'), 40),
+          coalesce(p_card_set, 'remake'), p_recipe)
+  on conflict (game_id, user_id, stack_key) do update
+    set name = excluded.name,
+        card_set = excluded.card_set,
+        recipe = excluded.recipe,
+        offered_at = now();
+end;
+$$;
+
+create or replace function so7_withdraw_my_stack(p_game_id text, p_stack_key text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  delete from so7_game_stack_offers
+  where game_id = p_game_id and user_id = v_uid
+    and (p_stack_key is null or stack_key = p_stack_key);
+end;
+$$;
+
+-- ── ④ ラインナップを読む（全員が見られる） ────────────────────────────────
+-- ⚠ 「誰の山札か」の名前は **so7_game_seats.display_name** から取る（着席時に写してある）。
+--    so7_user_profiles を引きに行くと、本人しか読めない行まで触ることになる。
+create or replace function so7_list_stack_offers(p_game_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_rows jsonb;
+begin
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if not exists (select 1 from so7_game_seats where game_id = p_game_id and user_id = v_uid) then
+    raise exception 'not_in_room';
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'userId', o.user_id,
+           'stackKey', o.stack_key,
+           'name', o.name,
+           'cardSet', o.card_set,
+           'recipe', o.recipe,
+           'ownerName', coalesce(s.display_name, 'プレイヤー'),
+           'mine', (o.user_id = v_uid)
+         ) order by o.offered_at asc), '[]'::jsonb)
+    into v_rows
+  from so7_game_stack_offers o
+  left join so7_game_seats s on s.game_id = o.game_id and s.user_id = o.user_id
+  where o.game_id = p_game_id;
+  return jsonb_build_object(
+    'offers', v_rows,
+    'choice', (select deck_choice from so7_games where id = p_game_id),
+    'hostId', so7_room_host(p_game_id),
+    'iamHost', (so7_room_host(p_game_id) = v_uid)
+  );
+end;
+$$;
+
+-- ── ⑤ 部屋主が決める ──────────────────────────────────────────────────────
+create or replace function so7_set_deck_choice(p_game_id text, p_choice jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_mode text := p_choice->>'mode';
+  v_status text;
+  v_offer so7_game_stack_offers%rowtype;
+  v_final jsonb;
+begin
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if so7_room_host(p_game_id) is distinct from v_uid then raise exception 'not_host'; end if;
+  select status into v_status from so7_games where id = p_game_id;
+  if v_status is null then raise exception 'game_not_found'; end if;
+  -- 🔴 始まった後に山札は変えられない（盤面が食い違う）
+  if v_status <> 'open' then raise exception 'already_started'; end if;
+
+  if v_mode = 'official' then
+    v_final := jsonb_build_object('mode', 'official',
+                                  'cardSet', coalesce(p_choice->>'cardSet', 'remake'));
+  elsif v_mode = 'random' then
+    v_final := jsonb_build_object('mode', 'random');
+  elsif v_mode = 'stack' then
+    select * into v_offer from so7_game_stack_offers
+    where game_id = p_game_id
+      and user_id = (p_choice->>'userId')::uuid
+      and stack_key = p_choice->>'stackKey';
+    if not found then raise exception 'offer_not_found'; end if;
+    v_final := jsonb_build_object(
+      'mode', 'stack', 'userId', v_offer.user_id, 'stackKey', v_offer.stack_key,
+      'name', v_offer.name, 'cardSet', v_offer.card_set, 'recipe', v_offer.recipe);
+  else
+    raise exception 'bad_mode';
+  end if;
+
+  update so7_games set deck_choice = v_final where id = p_game_id;
+  return v_final;
+end;
+$$;
+
+-- ── ⑥ ランダムを「1回だけ」引いて確定する ────────────────────────────────
+-- 🔴 **引くのはサーバー**。部屋主の端末で引くと、理屈の上では引き直せてしまう。
+-- 🔴 **何度呼んでも同じ結果**（既に確定していたらそれを返すだけ）。このアプリの乱数の
+--    決まりごと（結果を確定値として配る＝docs/game-state-design.md）そのまま。
+-- 候補＝ラインナップに出ている山札 ＋ 公式の山札（p_official_sets で画面側が渡す）。
+create or replace function so7_resolve_deck_choice(p_game_id text, p_official_sets text[] default array['remake'])
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_choice jsonb;
+  v_offer so7_game_stack_offers%rowtype;
+  v_n int;
+  v_pick int;
+  v_final jsonb;
+begin
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  if not exists (select 1 from so7_game_seats where game_id = p_game_id and user_id = v_uid) then
+    raise exception 'not_in_room';
+  end if;
+  select deck_choice into v_choice from so7_games where id = p_game_id;
+  -- 何も決めていない＝標準の山（今までどおり）
+  if v_choice is null then
+    return jsonb_build_object('mode', 'official', 'cardSet', 'remake', 'rolled', false);
+  end if;
+  -- ランダム以外は、もう確定しているのでそのまま返す
+  if coalesce(v_choice->>'mode', '') <> 'random' then
+    return v_choice || jsonb_build_object('rolled', false);
+  end if;
+
+  -- 🔴 引くのは**部屋主だけ**（全員が同時に呼ぶと競るため）。他の人は「まだ」を受け取って待つ。
+  if so7_room_host(p_game_id) is distinct from v_uid then
+    return jsonb_build_object('mode', 'random', 'pending', true);
+  end if;
+
+  v_n := (select count(*) from so7_game_stack_offers where game_id = p_game_id)
+       + coalesce(array_length(p_official_sets, 1), 0);
+  if v_n <= 0 then
+    v_final := jsonb_build_object('mode', 'official', 'cardSet', 'remake');
+  else
+    v_pick := floor(random() * v_n)::int;  -- 0 .. v_n-1
+    if v_pick < coalesce(array_length(p_official_sets, 1), 0) then
+      v_final := jsonb_build_object('mode', 'official',
+                                    'cardSet', p_official_sets[v_pick + 1]);
+    else
+      select * into v_offer from so7_game_stack_offers
+      where game_id = p_game_id
+      order by offered_at asc, stack_key asc
+      offset (v_pick - coalesce(array_length(p_official_sets, 1), 0))
+      limit 1;
+      v_final := jsonb_build_object(
+        'mode', 'stack', 'userId', v_offer.user_id, 'stackKey', v_offer.stack_key,
+        'name', v_offer.name, 'cardSet', v_offer.card_set, 'recipe', v_offer.recipe);
+    end if;
+  end if;
+
+  -- 🔴 まだ random のままの時だけ書く（同時に2回来ても、先に書いた方が残る）
+  update so7_games set deck_choice = v_final
+  where id = p_game_id and coalesce(deck_choice->>'mode', '') = 'random';
+  select deck_choice into v_choice from so7_games where id = p_game_id;
+  return coalesce(v_choice, v_final) || jsonb_build_object('rolled', true);
+end;
+$$;
+
+revoke execute on function so7_offer_my_stack(text, text, text, text, jsonb) from public;
+grant  execute on function so7_offer_my_stack(text, text, text, text, jsonb) to authenticated;
+revoke execute on function so7_withdraw_my_stack(text, text) from public;
+grant  execute on function so7_withdraw_my_stack(text, text) to authenticated;
+revoke execute on function so7_list_stack_offers(text) from public;
+grant  execute on function so7_list_stack_offers(text) to authenticated;
+revoke execute on function so7_set_deck_choice(text, jsonb) from public;
+grant  execute on function so7_set_deck_choice(text, jsonb) to authenticated;
+revoke execute on function so7_resolve_deck_choice(text, text[]) from public;
+grant  execute on function so7_resolve_deck_choice(text, text[]) to authenticated;
+revoke execute on function so7_room_host(text) from public;
+grant  execute on function so7_room_host(text) to authenticated;
