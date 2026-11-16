@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-16",
     summary: [
+      "マスを選ぶ確認に、そのマスの一番上のカードが出るようになりました",
+      "その確認を切る時に、警告が出るようになりました",
       "観戦者も声を出せるようになりました（画面の左上に「観客席」）",
       "観戦中、その人の手札を1押しでのぞけるようになりました",
       "見ているカードのマスが光るようになりました",
@@ -65,6 +67,8 @@ export const CHANGELOG = [
       "ランク戦の部屋を、部屋一覧から作って入れるようにしました",
     ],
     summaryEn: [
+      "The square-choice check now shows the top card on that square",
+      "Turning that check off now warns you first",
       "Spectators can now cheer (a gallery appears at the top left)",
       "While spectating, one tap now peeks at that player's hand",
       "The cell of the card you are looking at now lights up",
@@ -76,6 +80,8 @@ export const CHANGELOG = [
       "Ranked rooms are now created and joined from the room list",
     ],
     items: [
+      "カード効果でマスを選ぶ時の「このマスでいいですか？」に、**そのマスの一番上のカードが出る**ようになりました。盤面は傾いていて札も小さいので、これまでは「中身を見るために押す」しか確かめる道がありませんでした。⚠ 一番上が**裏向きの時は出しません**（「裏向きです」とだけ出ます）。中身が見えてしまうと、めくる前に分かってしまうためです。",
+      "この確認を切る時に、**先に警告が出る**ようになりました。切ると「マスを押したその瞬間に確定」するので、見るつもりで押した札がそのまま選ばれてしまいます。確認の中の「今後表示しない」も、**1回では切れず**、もう一度押して確かめる形にしました。",
       "**観戦中にエモートが出せる**ようになりました。観戦バナーの「エモート」から送ると、見ている全員の画面の**左上「観客席」**に数秒だけ流れます。⚠ 席が無いので名前は出ません（全部「観客」）。うるさい時は観客席の 🔇 で隠せます（この端末だけ）。",
       "観戦中、相手の名前の横の**「手札をのぞく」**を押すと、その人の視点に移って**その人の手札だけ**が表向きになります。⚠ 部屋が「公開情報のみ」の観戦を選んでいる時は出ません（その部屋は元から手札が見えない決まりなので）。",
       "場のカードを拡大して見ている間、**そのカードが乗っているマスが光る**ようになりました。盤面は傾いていて拡大は画面の端に出るので、どれを見ているのか分かりにくかったためです。",
@@ -87,6 +93,8 @@ export const CHANGELOG = [
       "**ランク戦の部屋（結果がレートに反映される部屋）**を、ふつうの部屋と同じように**一覧から**作って入れるようになりました。一覧では 🏆 が付きます。⚠ ランクの部屋は**パスワードが必須**です——一覧に出るので、合言葉を教えた人だけが入れるようにするためです。",
     ],
     itemsEn: [
+      "The \"Is this square OK?\" check now shows the top card on that square. The board is tilted and the cards are small, so until now the only way to check a card was to tap it. If the top card is face down it is not shown, only a note saying so, since revealing it would give away a card before it is flipped.",
+      "Turning that check off now warns you first. With it off, tapping a square commits the instant you touch it, so a card you tapped just to look at gets chosen. The \"Don't show this again\" button inside the check now also takes two presses instead of one.",
       "Spectators can now send emotes. Use \"Emote\" on the spectator banner and it appears for a few seconds in the gallery at the top left of everyone's screen. Spectators have no seat, so no names are shown. The mute button in the gallery hides them on this device.",
       "While spectating, \"Peek at hand\" next to a player's name switches to their view and reveals only their hand. It does not appear when the room is being watched in public-information-only mode, since hands are hidden there by design.",
       "While you are looking at a card on the board, the cell it sits on now lights up. The board is tilted and the zoom appears at the edge of the screen, so it was hard to tell which card you were looking at.",
@@ -98,6 +106,8 @@ export const CHANGELOG = [
       "Ranked rooms (where the result affects your rank) are now created and joined from the room list, just like ordinary rooms. They are marked with a trophy. Note that a ranked room needs a password: it appears in the list, so only people you share the password with can join.",
     ],
     fixes: [
+      "効果の処理が終わる前に手札のカードを連打すると、使用確認が出せてしまったのを直しました。",
+      "お知らせのモーダルが、画面の正しい場所に出ていなかったのを直しました。",
       "ショップでポヨンを押した時、特定の動きで体の下半分が消えていたのを直しました。",
       "パックの画面で、4つの枠の高さがそろっていなかったのを直しました。",
       "パックの画面で「パックを持っていません」などの知らせが見落とされやすかったので、モーダルで出すようにしました。",
@@ -105,6 +115,8 @@ export const CHANGELOG = [
       "不具合報告が送れなくなることがあったのを直しました。送れなかった時は理由をその場に出すようにし、ログを添えられない時でも本文だけは必ず届くようにしました。",
     ],
     fixesEn: [
+      "Fixed being able to open the use confirmation by tapping a hand card repeatedly before an effect had finished resolving.",
+      "Fixed notice dialogs not appearing in the right place on screen.",
       "Fixed Poyon losing the lower half of its body during certain motions in the shop.",
       "Fixed the four stat boxes on the pack screen having different heights.",
       "Messages such as \"You have no packs\" on the pack screen now appear as a dialog, so they are not missed.",
@@ -112,6 +124,13 @@ export const CHANGELOG = [
       "Fixed bug reports sometimes failing to send. The reason is now shown on the spot, and if the logs cannot be attached the comment is still sent on its own.",
     ],
     devItems: [
+      "🔴 **【#651】報告の settings は `cellConfirm: true`＝確認は出ていた。** 「収穫と種まきでカードを確認したらそのカードがもらえました」。行動ログでも到達（16:26:56.888）から `pickup_to_hand`（16:27:03.301）まで**6.4秒**あり、確認を挟む時間は十分あった。⇒ **足りなかったのは「切り替え」ではなく「情報」**だった——確認は「このマスでいいですか？」と聞くだけで、**そのマスに何が乗っているかは言っていなかった**。⇒ 表向きの一番上の札を確認の中に出す（公開情報なので見せて構わない）。裏向きは card を渡さず faceDown だけ立てる（中身を漏らさない）。⚠ 文は「このマスの一番上のカード」だけにした——効果ごとに「手に入れます」「捨てます」と書き分けると、この1か所で全カードの文言を抱えることになる。",
+      "⚠ **【#651】既定は元から「出す」だった**（`localStorage` に \"0\" が入っている時だけ切れる）ので、「デフォにする」は**変更が要らなかった**。足したのは**切る時の警告**の方（ユーザー要望）: オプション画面は新設の `showConfirmModal` で聞き、確認の中の「今後表示しない」は**2段押し**にした（モーダルの中に別のモーダルを重ねない＝あちらは自前の覆い z 10610 を持っているので、重ねると「閉じ方が2つある」状態になる）。#236「押した覚えがないまま切れていた」にも2段押しが効く。",
+      "🔴 **【#642】「確認を開く前にしか条件を見ていなかった」のが本体。** 「スラム上がりの役人を使った直後に…手札の経済成長を連打してたら使用確認モーダルを出せてしまった」。使用確認は5か所で `if (await confirmTouchAction(…)) runAutoHandEffect(…)` の形で呼ばれており、**開いている間に状況が変わる**（前の効果が解決中・フェイズが終わる）のに閉じた後は何も確かめていなかった。⇒ `confirmHandEffectUseNow` を1つ作って**5か所ともそこを通す**（同じ理由の門番を5つ書くと必ず1つ直し漏れる＝続き698 の教訓）。①開く前に `isAnyEffectProcessingBusy()` を見る（**どのカードでも**。これまでは『いつでも使える』札だけが見ていた）②**閉じた後にもう一度**見る。⚠ 黙って無視せず一言出す（#729 の教訓）。取り残しには #93 のウォッチドッグが別に居る。",
+      "🔴 **続き740 で作った `showNoticeModal` の見た目を、1行も書いていなかった。** `position` が無いので z-index も効かず、画面のいちばん下に素の文字として並ぶ状態だった（v2 の `[id$=\"-modal\"]` は枠と地だけ当てるので、v2 でも「置き場所の無い箱」になる）。**「出した」と「見えている」は別**（何度目か）。⇒ 地・枠・中央寄せ・明暗2テーマ・スマホの字の大きさまで足し、2択の `showConfirmModal` と共用にした。",
+      "⚠ **【#604】調べて不具合ではなかった**（賄賂1枚でハンドフェイズが止まるのは、1st のジュエルの手札効果が【財力＝１】で使えるため＝正しい。続き697 で説明済み）のに、**対処済みの名簿へ入れ忘れていた**ので報告者の画面に「まだ対処されていません」と出続けていた。足した。",
+      "🔴 **押す所の色を一括でそろえた（v2 のみ）。** このアプリの差し色は空色 `#38bdf8` / `rgba(56,189,248,…)` で、style.css に**162か所べた書き**されていた。色の値ではセレクタを書けないので、まず**1つの変数（`--so7-accent`）へ寄せた**——**既定値はいまと同じ空色**なので既定の画面は1色も変わらない（実測で確認）。そのうえで **v2 の「画面の装い」の中だけ**金に差し替える（明テーマはより濃い金＝薄い金はアイボリーに埋もれる＝教訓15）。⚠ **盤面（`#game-table` / `#arena`）は打ち消して空色のまま**——あそこの光は「選べる」「到達した」という盤面の意味を持っているし、続き699 で学んだとおり画面全体に被せると良くなる所と悪くなる所が同時に起きて、どこが効いたのか判断できなくなる。やめる時はこの1ブロックを消すだけ。",
+      "⚠ **CLAUDE.md を 313,782 → 93,234 バイト**（41件 → 続き730〜741 の12件）。続き698〜729 の30件を docs/dev-log.md の**末尾**へ移した。🔴 **差し込み先は「## Phase 1 の直前」ではない**——いまの dev-log は「続き1..637 → Phase 1 → 続き638..697」の並びなので、Phase 1 の前に入れると 637 と 638 の間に割り込む。⇒ **末尾**に足し、「前の最後の見出しが続き697か」を先に確かめる形にした。機械で13項目を照合（番号の集合が前後で一致／移した本文が1回だけ完全一致で在る／続き730以降と dev-log の元の分が1バイトも変わっていない／文字数の足し算）。",
       "🔴 **【ポヨン】原因は画像ファイルの書き出しだった。** ブラウザ自身のwebp展開器に1コマずつ出させて測ったら、poyon の idle/yawn で絵の量が中央値の 25〜63% まで落ちていた（他のペットは全コマ同じ）。正体はアニメーションwebp の**捨て方(disposal)=1**——差分で書き出されたコマの前でそれが付くと、前のコマが消えてから小さな差分だけが描かれる＝はみ出た所（体の下半分）が透明になる。🔴 **全部まとめて0にするのは誤り**（実測で判明）: 歩きは体が移動するので消すのが正しく、消さないと古い絵が残って積もった。⇒ **崩れるコマの直前の1コマだけ**を狙って6本・6ビットだけ直した。直す前と後で80本すべてを測り、**崩れていなかった72本は1画素も変わっていない**ことを確かめた。⚠ 残る2本（poyon-front-walk のコマ4／poyon-left-idle のコマ0）はフラグでは直せない（絵の書き出し直しが要る）。",
       "⚠ 新しい検査 `tools/check-pet-sprites.mjs`（`npm run check:all` と CI のブラウザ側に登録）。ヘッダだけでは「壊れている」と「意図どおり」を分けられなかったので、**描いて面積を数える**。わざと壊すと名指しで落ちることを確かめてある。",
       "🔴 **【#690】枠の高さがそろっていなかった正体は align-items の消し忘れ。** `.card-pack-stat` は続き728 でも定義されていて `display:flex; align-items: baseline` を持っている。続き737 で `display: grid` に変えたが、**書いていない項目は前の規則のまま残る**ので baseline が生き続け、grid の既定の引き伸ばしが効かなくなっていた＝下の行（0 / 7）を持つ2つだけ背が高い。⇒ `align-items: stretch` を明示。**教訓: 同じセレクタを後から書き直す時は、前の規則が持っている項目を数えてから書く。**",

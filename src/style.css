@@ -1,4 +1,7 @@
 :root {
+  /* 🔴【続き741】このアプリの差し色（空色 #38bdf8）。style.css の 162 か所がこれを使う。
+     v2 では画面の装いの中だけ金に差し替える（src/ui-v2.css）。**既定の値は変えない。** */
+  --so7-accent: 56, 189, 248;
   --color-red: #c70025;
   --color-orange: #ee781f;
   --color-yellow: #fabe00;
@@ -316,6 +319,98 @@ body.is-tablet-device .opening-setup-never {
   body.is-tablet-device .opening-setup-section { margin-top: 0.8rem; }
 }
 
+/* 🔴【続き741】共通の知らせ／2択モーダル（ui-helpers.js の showNoticeModal / showConfirmModal）。
+   ⚠ **続き740 で showNoticeModal を作った時、この見た目を1行も書いていなかった。**
+     `position` が無いので z-index も効かず、画面のいちばん下に素の文字として並ぶ状態だった
+     （v2 の `[id$="-modal"]` が枠と地だけ当てるので、v2 でも「置き場所の無い箱」になる）。
+     **作ったのに見た目を書いていない＝「出した」と「見えている」は別**（何度目か）。
+   ⚠ id が `-modal` で終わるので、v2 の装丁（角0・金の細枠）は自動で当たる。
+   ⚠ 明暗2テーマなので、地と文字色は下の theme-light で出し分ける（教訓15）。 */
+#so7-notice-modal,
+#so7-confirm-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(30rem, 92%);
+  box-sizing: border-box;
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.6rem;
+  padding: 1.6rem 1.4rem 1.2rem;
+  color: #e2e8f0;
+  font-family: sans-serif;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  max-height: 50.625rem; /* 90vh相当（vh はステージ基準では小さく評価される＝続き613） */
+  overflow-y: auto;
+}
+.so7-notice-modal-title {
+  font-size: 1.15rem;
+  font-weight: bold;
+  margin-bottom: 0.7rem;
+}
+.so7-notice-modal-body {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.so7-notice-modal-ok,
+.so7-confirm-modal-yes {
+  margin-top: 1.1rem;
+  padding: 0.5rem 1.4rem;
+  font-size: 0.9rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.so7-notice-modal-ok {
+  background: rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  color: inherit;
+}
+/* 2択の「はい」は**危ない方**なので、押す所だと分かる色にする（ただし既定の焦点は「やめる」）。 */
+.so7-confirm-modal-yes {
+  background: rgba(190, 70, 70, 0.22);
+  border: 1px solid rgba(220, 110, 110, 0.65);
+  color: inherit;
+}
+.so7-confirm-modal-buttons {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+body.theme-light #so7-notice-modal,
+body.theme-light #so7-confirm-modal {
+  background: #fdfbf5;
+  border-color: rgba(176, 141, 63, 0.6);
+  color: #3a3326;
+}
+body.theme-light .so7-notice-modal-ok {
+  background: rgba(107, 92, 60, 0.1);
+  border-color: rgba(176, 141, 63, 0.6);
+}
+/* スマホ・タブレットはステージを縮めて描くので、既定のままでは実画面で半分以下になる
+   （#453 と同じ罠）。PC の値は一字も変えない。 */
+body.is-phone-device #so7-notice-modal,
+body.is-tablet-device #so7-notice-modal,
+body.is-phone-device #so7-confirm-modal,
+body.is-tablet-device #so7-confirm-modal {
+  width: min(62rem, 94%);
+  padding: 2.2rem 2.2rem 1.8rem;
+  border-radius: 1rem;
+}
+body.is-phone-device .so7-notice-modal-title,
+body.is-tablet-device .so7-notice-modal-title { font-size: 2.2rem; }
+body.is-phone-device .so7-notice-modal-body,
+body.is-tablet-device .so7-notice-modal-body { font-size: 1.7rem; }
+body.is-phone-device .so7-notice-modal-ok,
+body.is-tablet-device .so7-notice-modal-ok,
+body.is-phone-device .so7-confirm-modal-yes,
+body.is-tablet-device .so7-confirm-modal-yes { font-size: 1.7rem; padding: 0.8rem 2rem; }
+
 /* 初回起動時のBGM設定モーダル（first-run-bgm.js）。 */
 #first-run-bgm-modal {
   position: fixed;
@@ -375,8 +470,8 @@ body.is-tablet-device .opening-setup-never {
   width: 100%;
   padding: 0.55rem 1rem;
   margin-bottom: 0.8rem;
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  background: rgba(var(--so7-accent), 0.12);
+  border: 1px solid rgba(var(--so7-accent), 0.6);
   border-radius: 0.4rem;
   color: #e2e8f0;
   font-family: sans-serif;
@@ -384,7 +479,7 @@ body.is-tablet-device .opening-setup-never {
   cursor: pointer;
 }
 .first-run-bgm-preview:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 .first-run-bgm-ok {
   display: inline-block;
@@ -802,7 +897,7 @@ body.mini-lock-active .hand-reveal-bottom {
 }
 /* 手動配置（宣言）と公開ドローを、枠線の色で視覚的に区別する（ユーザー要望）。 */
 .hand-reveal-card.is-manual {
-  border: 2px solid rgba(56, 189, 248, 0.85); /* 水色 */
+  border: 2px solid rgba(var(--so7-accent), 0.85); /* 水色 */
 }
 .hand-reveal-card.is-drawn {
   border: 2px solid rgba(250, 204, 21, 0.85); /* 黄色 */
@@ -2364,7 +2459,7 @@ body.reduce-glow .rainbow-lock-sweep {
    場合に上書きされて消えてしまう（box-shadowは複数ルールの値を合成しない）。outlineは
    他のどのルールも使っていないプロパティなので、確実に見えるようoutlineだけで表現する。 */
 .hover-active {
-  outline: 2px solid rgba(56, 189, 248, 0.85);
+  outline: 2px solid rgba(var(--so7-accent), 0.85);
   outline-offset: 1px;
 }
 
@@ -2375,7 +2470,7 @@ body.reduce-glow .rainbow-lock-sweep {
   outline: none;
 }
 .piece.hover-active :is(.piece-face, .piece-glow) {
-  box-shadow: 0 0 0.4rem 0.12rem rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 0.4rem 0.12rem rgba(var(--so7-accent), 0.9);
 }
 
 /* 表向きカードにカーソルを乗せた時の拡大プレビュー。main.jsのupdatePreview()が
@@ -2510,7 +2605,7 @@ body.is-tablet-device .card-preview-swipe-hint {
   margin-bottom: 0.9rem;
 }
 #changelog-back:hover {
-  border-color: rgba(56, 189, 248, 0.7);
+  border-color: rgba(var(--so7-accent), 0.7);
 }
 body.theme-light #changelog-back {
   color: #3a3326;
@@ -3222,7 +3317,7 @@ body.theme-light #contact-result-modal {
   white-space: nowrap;
 }
 #card-context-menu button:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 
 /* モーダル外クリックで閉じられるようにするための透明な全画面オーバーレイ。
@@ -3412,9 +3507,9 @@ body.is-phone-device #turn-hint-bar {
 .lobby-card-set-box {
   margin: 0.6rem 0 0.2rem;
   padding: 0.5rem 0.6rem;
-  border: 1px solid rgba(56, 189, 248, 0.45);
+  border: 1px solid rgba(var(--so7-accent), 0.45);
   border-radius: 0.4rem;
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(var(--so7-accent), 0.08);
   text-align: left;
 }
 .lobby-card-set-label {
@@ -3440,8 +3535,8 @@ body.is-phone-device #turn-hint-bar {
   cursor: pointer;
 }
 .lobby-card-set-btn.is-selected {
-  background: rgba(56, 189, 248, 0.9);
-  border-color: rgba(56, 189, 248, 0.9);
+  background: rgba(var(--so7-accent), 0.9);
+  border-color: rgba(var(--so7-accent), 0.9);
   color: #0b1220;
   font-weight: bold;
 }
@@ -3521,7 +3616,7 @@ body.is-phone-device #phase-guide-bar {
   cursor: pointer;
 }
 .turn-timer-base-clock .icon-action-button-icon-wrap {
-  border-color: var(--turn-timer-base-clock-color, #38bdf8);
+  border-color: var(--turn-timer-base-clock-color, rgb(var(--so7-accent)));
 }
 .turn-timer-base-clock-value {
   font-variant-numeric: tabular-nums;
@@ -3553,7 +3648,7 @@ body.is-phone-device #phase-guide-bar {
   align-items: center;
   gap: 0.1rem;
   background: rgba(15, 23, 32, 0.9);
-  border: 1px solid var(--turn-timer-base-clock-color, #38bdf8);
+  border: 1px solid var(--turn-timer-base-clock-color, rgb(var(--so7-accent)));
   border-radius: 1rem;
   padding: 0 0.25rem;
 }
@@ -3710,8 +3805,8 @@ body.is-phone-device #phase-guide-bar {
   z-index: 2;
 }
 .icon-action-button:hover .icon-action-button-icon-wrap {
-  background: rgba(56, 189, 248, 0.18);
-  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(var(--so7-accent), 0.18);
+  border-color: rgba(var(--so7-accent), 0.6);
   transform: scale(1.06);
 }
 /* ユーザー報告「ホバー簡易説明がアイコンの裏に行ってしまっている」（再発）。
@@ -3841,7 +3936,7 @@ body.icon-rearrange-mode #draw-button,
 body.icon-rearrange-mode #end-turn-button,
 body.icon-rearrange-mode #options-menu-button {
   cursor: grab;
-  outline: 2px dashed rgba(56, 189, 248, 0.7);
+  outline: 2px dashed rgba(var(--so7-accent), 0.7);
   outline-offset: 3px;
   border-radius: 50%;
 }
@@ -3851,7 +3946,7 @@ body.icon-rearrange-mode #draw-button.is-rearranging,
 body.icon-rearrange-mode #end-turn-button.is-rearranging,
 body.icon-rearrange-mode #options-menu-button.is-rearranging {
   cursor: grabbing;
-  outline-color: #38bdf8;
+  outline-color: rgb(var(--so7-accent));
 }
 
 /* 管理者モードの「自分専用ステータスエリア再配置モード」がONの間、対象の要素に
@@ -3864,7 +3959,7 @@ body.self-status-rearrange-mode .self-status-card-back-thumb,
 body.self-status-rearrange-mode .self-status-playmat-thumb,
 body.self-status-rearrange-mode #self-status-online {
   cursor: grab;
-  outline: 2px dashed rgba(56, 189, 248, 0.7);
+  outline: 2px dashed rgba(var(--so7-accent), 0.7);
   outline-offset: 3px;
 }
 body.self-status-rearrange-mode .self-status-large-avatar.is-rearranging,
@@ -3873,7 +3968,7 @@ body.self-status-rearrange-mode .self-status-card-back-thumb.is-rearranging,
 body.self-status-rearrange-mode .self-status-playmat-thumb.is-rearranging,
 body.self-status-rearrange-mode #self-status-online.is-rearranging {
   cursor: grabbing;
-  outline-color: #38bdf8;
+  outline-color: rgb(var(--so7-accent));
 }
 
 /* 盤面拡大ボタン: 拡大中は色を、2段階目「もっと拡大」はさらに別の色を、というアイコン版。 */
@@ -4163,11 +4258,11 @@ body.diagnostic-flatten-3d.is-touch-device #priority-transfer-buttons {
    持っている座席のボタンだけ、ゆっくり明滅する水色の光でひと目で分かるようにする
    （is-selfの金色リングとは別レイヤーなので、自分が優先権を持っている時は両方重なって見える）。 */
 @keyframes priority-transfer-glow {
-  0%, 100% { box-shadow: 0 0 0.3rem 0.05rem rgba(56, 189, 248, 0.6); }
-  50% { box-shadow: 0 0 0.6rem 0.2rem rgba(56, 189, 248, 0.95); }
+  0%, 100% { box-shadow: 0 0 0.3rem 0.05rem rgba(var(--so7-accent), 0.6); }
+  50% { box-shadow: 0 0 0.6rem 0.2rem rgba(var(--so7-accent), 0.95); }
 }
 .priority-transfer-btn.has-priority {
-  border-color: #38bdf8;
+  border-color: rgb(var(--so7-accent));
   animation: priority-transfer-glow 1.6s ease-in-out infinite;
 }
 
@@ -4323,8 +4418,8 @@ body.is-phone-device .priority-transfer-label .phase-guide-tooltip {
   animation: end-turn-emphasis-glow 1.2s ease-in-out infinite;
 }
 @keyframes end-turn-emphasis-glow {
-  0%, 100% { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 0.15rem rgba(56, 189, 248, 0.9); }
-  50% { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 0.35rem rgba(56, 189, 248, 0.3); }
+  0%, 100% { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 0.15rem rgba(var(--so7-accent), 0.9); }
+  50% { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 0.35rem rgba(var(--so7-accent), 0.3); }
 }
 @keyframes turn-timer-warning-blink {
   0%, 100% { opacity: 1; }
@@ -5241,9 +5336,9 @@ body.is-phone-device .priority-transfer-label .phase-guide-tooltip {
 }
 /* 【③】めくれて起きた到達は「N コンボ」。連鎖（金）と一目で区別できるよう水色にする。 */
 .arrival-chain-badge.is-combo {
-  border-color: rgba(56, 189, 248, 0.85);
-  text-shadow: 0 0 0.4rem rgba(56, 189, 248, 0.9);
-  box-shadow: 0 0 calc(0.2rem + var(--arrival-chain-level, 2) * 0.12rem) rgba(56, 189, 248, 0.75);
+  border-color: rgba(var(--so7-accent), 0.85);
+  text-shadow: 0 0 0.4rem rgba(var(--so7-accent), 0.9);
+  box-shadow: 0 0 calc(0.2rem + var(--arrival-chain-level, 2) * 0.12rem) rgba(var(--so7-accent), 0.75);
 }
 
 /* 連鎖中の到達は、オーラ自体も少し強くする。 */
@@ -6213,9 +6308,9 @@ body.spotlight-mode #spotlight-overlay {
 .lobby-icon-toggle.is-on {
   opacity: 1;
   filter: none;
-  border-color: rgba(56, 189, 248, 0.85);
-  background: rgba(56, 189, 248, 0.14);
-  box-shadow: 0 0 0.7rem rgba(56, 189, 248, 0.35);
+  border-color: rgba(var(--so7-accent), 0.85);
+  background: rgba(var(--so7-accent), 0.14);
+  box-shadow: 0 0 0.7rem rgba(var(--so7-accent), 0.35);
   color: #e2e8f0;
 }
 .lobby-icon-toggle-img {
@@ -6240,7 +6335,7 @@ body.spotlight-mode #spotlight-overlay {
   color: #94a3b8;
 }
 .lobby-icon-toggle.is-on .lobby-icon-toggle-state {
-  background: rgba(56, 189, 248, 0.9);
+  background: rgba(var(--so7-accent), 0.9);
   color: #06202e;
 }
 /* ライトテーマ */
@@ -6363,7 +6458,7 @@ body.theme-light .my-page-rank-group .rank-badge-dot { background: rgba(30, 41, 
   font-size: 0.82rem;
 }
 .my-page-cosmetic-btn:hover .my-page-cosmetic-thumb {
-  border-color: rgba(56, 189, 248, 0.7);
+  border-color: rgba(var(--so7-accent), 0.7);
 }
 /* 「選択中」サムネ（ユーザー要望「それぞれ何に着せ替え中か分かるように」）。ボタン内に
    ラベルの下へ現在の選択の画像を小さく出す。ペット「なし」等は文字で示す。 */
@@ -6393,14 +6488,14 @@ body.theme-light .my-page-rank-group .rank-badge-dot { background: rgba(30, 41, 
 
 /* マイページ レイアウト編集モード（profile-layout-editor.js、管理者専用の製作者ツール）。 */
 .profile-layout-editing .profile-layout-item {
-  outline: 1px dashed rgba(56, 189, 248, 0.85);
+  outline: 1px dashed rgba(var(--so7-accent), 0.85);
   cursor: move;
 }
 .profile-layout-handle {
   position: absolute;
   width: 12px;
   height: 12px;
-  background: #38bdf8;
+  background: rgb(var(--so7-accent));
   border: 1px solid #fff;
   border-radius: 2px;
   z-index: 5;
@@ -6423,7 +6518,7 @@ body.theme-light .my-page-rank-group .rank-badge-dot { background: rgba(30, 41, 
   gap: 0.6rem;
   align-items: center;
   background: rgba(15, 23, 32, 0.95);
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  border: 1px solid rgba(var(--so7-accent), 0.6);
   border-radius: 0.5rem;
   padding: 0.3rem 0.8rem;
   color: #e2e8f0;
@@ -6431,7 +6526,7 @@ body.theme-light .my-page-rank-group .rank-badge-dot { background: rgba(30, 41, 
 }
 .profile-layout-toolbar button {
   padding: 0.25rem 0.7rem;
-  background: #38bdf8;
+  background: rgb(var(--so7-accent));
   color: #0f172a;
   border: none;
   border-radius: 0.35rem;
@@ -6582,15 +6677,15 @@ body.is-phone-device #self-status-bug-report .bug-report-icon-emoji {
   font-size: 0.75rem;
 }
 .header-tool-button:hover {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(var(--so7-accent), 0.15);
+  border-color: rgba(var(--so7-accent), 0.6);
 }
 .header-tool-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 /* ライトテーマ: 既定は暗い地＋白文字で、ライトのモーダル上でも静止時は読めるが、ホバーの
-   background: rgba(56,189,248,0.15)（ほぼ透明）だと下のライト地が透けて“薄い水色地＋白文字”に
+   background: rgba(var(--so7-accent), 0.15)（ほぼ透明）だと下のライト地が透けて“薄い水色地＋白文字”に
    なり読めなくなる（ユーザー報告「ゲームを開始する等をホバーすると見にくい」）。ライトテーマでは
    白地＋濃い文字にし、ホバーも濃いシアン文字でコントラストを保つ。 */
 body.theme-light .header-tool-button {
@@ -7226,8 +7321,8 @@ body.theme-light .action-log-window-title {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 #online-panel-home-btn:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.15);
 }
 body.theme-light #online-panel-home-btn {
   background: rgba(176, 141, 63, 0.12);
@@ -7983,8 +8078,8 @@ body.theme-light .daily-bonus-modal-note {
   cursor: pointer;
 }
 #shop-panel-back:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 #shop-panel-title {
   font-weight: bold;
@@ -8591,7 +8686,7 @@ body.shop-adjust-mode .shop-item-color-swatch {
   margin-bottom: 0.9rem;
 }
 #options-menu-back:hover {
-  border-color: rgba(56, 189, 248, 0.7);
+  border-color: rgba(var(--so7-accent), 0.7);
 }
 body.theme-light #options-menu-back {
   color: #3a3326;
@@ -8686,7 +8781,7 @@ body.shop-open #options-menu-panel {
   white-space: nowrap;
 }
 .options-menu-item:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 .options-menu-section-title {
   font-weight: bold;
@@ -8758,7 +8853,7 @@ body.shop-open #options-menu-panel {
   cursor: pointer;
 }
 .options-menu-section-reset-btn:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
   color: #e2e8f0;
 }
 .options-menu-details-content {
@@ -8820,8 +8915,8 @@ body.shop-open #options-menu-panel {
 #options-menu-panel.is-basic-view > .options-menu-details:hover,
 #options-menu-panel.is-basic-view > .options-menu-detail-entry:hover,
 #options-menu-panel.is-basic-view > .options-menu-item:hover {
-  border-color: rgba(56, 189, 248, 0.55);
-  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(var(--so7-accent), 0.55);
+  background: rgba(var(--so7-accent), 0.1);
 }
 /* 中身の並びも揃える: 左に名前、右に操作。 */
 #options-menu-panel.is-basic-view > .options-menu-item,
@@ -8891,8 +8986,8 @@ body.shop-open #options-menu-panel {
 }
 
 .options-menu-detail-entry:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 .options-menu-detail-entry-title {
   font-size: 0.8rem;
@@ -8984,7 +9079,7 @@ body.options-menu-open #options-menu-panel {
 }
 .options-menu-segment-btn.is-selected {
   background: #0891b2;
-  border-color: #38bdf8;
+  border-color: rgb(var(--so7-accent));
   color: #fff;
   font-weight: bold;
 }
@@ -9002,7 +9097,7 @@ body.options-menu-open #options-menu-panel {
   flex: 1;
 }
 .options-menu-shortcut-row.is-highlighted {
-  background: rgba(56, 189, 248, 0.3);
+  background: rgba(var(--so7-accent), 0.3);
 }
 .options-menu-shortcut-key {
   padding: 0.2rem 0.5rem;
@@ -9015,7 +9110,7 @@ body.options-menu-open #options-menu-panel {
   font-family: monospace;
 }
 .options-menu-shortcut-key:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 .options-menu-shortcut-clear {
   width: 1.3rem;
@@ -9303,8 +9398,8 @@ body.diagnostic-flatten-3d.is-touch-device #hand-shuffle-button {
    より詳細度の高いルール（.hover-active.is-my-turn-glow、詳細度0,3,0）を用意し、
    1つのbox-shadow値の中に両方の光を層として含めることで両立させる。 */
 @keyframes piece-own-turn-glow-hover {
-  0%, 100% { box-shadow: 0 0 0.4rem 0.12rem rgba(56, 189, 248, 0.9), 0 0 0.25rem 0.05rem var(--piece-turn-glow-color, transparent); }
-  50% { box-shadow: 0 0 0.4rem 0.12rem rgba(56, 189, 248, 0.9), 0 0 1rem 0.4rem var(--piece-turn-glow-color, transparent); }
+  0%, 100% { box-shadow: 0 0 0.4rem 0.12rem rgba(var(--so7-accent), 0.9), 0 0 0.25rem 0.05rem var(--piece-turn-glow-color, transparent); }
+  50% { box-shadow: 0 0 0.4rem 0.12rem rgba(var(--so7-accent), 0.9), 0 0 1rem 0.4rem var(--piece-turn-glow-color, transparent); }
 }
 .piece.hover-active.is-my-turn-glow :is(.piece-face, .piece-glow) {
   animation: piece-own-turn-glow-hover 2.6s ease-in-out infinite;
@@ -9358,7 +9453,7 @@ body.reduce-glow .turn-timer-rope-name {
    視覚的手がかりは維持する（アニメーションだけ止める）。 */
 body.reduce-glow #end-turn-button.is-emphasized {
   animation: none !important;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 0.2rem rgba(56, 189, 248, 0.7) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 0.2rem rgba(var(--so7-accent), 0.7) !important;
 }
 body.reduce-glow #end-turn-button.turn-timer-warning-glow,
 body.reduce-glow #priority-transfer-buttons.turn-timer-warning-glow {
@@ -10503,7 +10598,7 @@ body.lite-render .table-background-bg {
   font-size: 0.75rem;
 }
 .card-arrival-modal-pin:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 /* 「キープ」ボタン（ユーザー要望2026-08-08）。押すとターンを跨いでも残る。 */
 .card-arrival-modal-keep {
@@ -10871,8 +10966,8 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.5);
 }
 #timer-toggle-button:hover:not(:disabled) {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(var(--so7-accent), 0.25);
+  border-color: rgba(var(--so7-accent), 0.6);
 }
 #timer-toggle-button:disabled {
   opacity: 0.4;
@@ -10889,13 +10984,13 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   transform: translate(-50%, -50%);
   z-index: 10440;
   background: linear-gradient(160deg, #422006, #1c1004);
-  border: 2px solid #38bdf8;
+  border: 2px solid rgb(var(--so7-accent));
   border-radius: 0.7rem;
   padding: 0.8rem 1.4rem;
   text-align: center;
   font-family: sans-serif;
   color: #fef3c7;
-  box-shadow: 0 0 1.5rem rgba(56, 189, 248, 0.5), 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 1.5rem rgba(var(--so7-accent), 0.5), 0 10px 30px rgba(0, 0, 0, 0.6);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -11070,7 +11165,7 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   width: min(28rem, 92vw);
   z-index: 10601;
   background: rgba(15, 23, 32, 0.98);
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  border: 1px solid rgba(var(--so7-accent), 0.4);
   border-radius: 0.7rem;
   padding: 1.3rem 1.4rem 1.1rem;
   color: #e2e8f0;
@@ -11141,7 +11236,7 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   overflow-y: auto;
   z-index: 10701;
   background: rgba(15, 23, 32, 0.98);
-  border: 1px solid rgba(56, 189, 248, 0.5);
+  border: 1px solid rgba(var(--so7-accent), 0.5);
   border-radius: 0.7rem;
   padding: 1.1rem 1.2rem 1rem;
   color: #e2e8f0;
@@ -11164,8 +11259,8 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   display: block;
   margin: 0.4rem 0 0 auto;
   padding: 0.4rem 1.1rem;
-  background: rgba(56, 189, 248, 0.18);
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  background: rgba(var(--so7-accent), 0.18);
+  border: 1px solid rgba(var(--so7-accent), 0.6);
   border-radius: 0.4rem;
   color: #e2e8f0;
   cursor: pointer;
@@ -11462,7 +11557,7 @@ body.reduce-glow .turn-announce-label.is-self {
   font-size: 2.6rem;
   letter-spacing: 0.15em;
   color: #e0f2fe;
-  text-shadow: 0 0 0.8rem rgba(56, 189, 248, 0.8), 0 4px 12px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 0 0.8rem rgba(var(--so7-accent), 0.8), 0 4px 12px rgba(0, 0, 0, 0.7);
 }
 .phase-announce-ruby {
   display: block;
@@ -11532,7 +11627,7 @@ body.reduce-glow .turn-announce-label.is-self {
   z-index: 1001;
   display: none;
   padding: 0.5rem 1.1rem;
-  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
+  background: linear-gradient(160deg, rgb(var(--so7-accent)), #0ea5e9);
   border: none;
   border-radius: 0.5rem;
   color: #04121f;
@@ -11541,7 +11636,7 @@ body.reduce-glow .turn-announce-label.is-self {
   font-size: 0.9rem;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 0 1rem rgba(56, 189, 248, 0.55), 0 6px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 1rem rgba(var(--so7-accent), 0.55), 0 6px 14px rgba(0, 0, 0, 0.5);
 }
 #phase-automation-mydeck-button:hover:not(:disabled) {
   filter: brightness(1.1);
@@ -11627,13 +11722,13 @@ body.reduce-glow #phase-automation-skip-button {
 /* フェイズ案内板（phase-guide.js）で、今のフェイズのボタンだけ光らせる
    （phase-guide.js冒頭コメントで「将来の土台」として予告されていた仕組み）。 */
 #phase-guide-bar button.is-current-phase {
-  outline: 2px solid rgba(56, 189, 248, 0.9);
+  outline: 2px solid rgba(var(--so7-accent), 0.9);
   outline-offset: 2px;
   animation: phase-guide-current-glow 1.8s ease-in-out infinite;
 }
 @keyframes phase-guide-current-glow {
-  0%, 100% { box-shadow: 0 0 0.4rem 0.05rem rgba(56, 189, 248, 0.6); }
-  50% { box-shadow: 0 0 1rem 0.3rem rgba(56, 189, 248, 0.9); }
+  0%, 100% { box-shadow: 0 0 0.4rem 0.05rem rgba(var(--so7-accent), 0.6); }
+  50% { box-shadow: 0 0 1rem 0.3rem rgba(var(--so7-accent), 0.9); }
 }
 body.reduce-glow #phase-guide-bar button.is-current-phase {
   animation: none;
@@ -11811,7 +11906,7 @@ body.phase-lock-picking .hand-card:not(.phase-lock-highlight):not(.card-effect-t
   font-weight: bold;
   font-size: 1.1rem;
   letter-spacing: 0.2em;
-  color: #38bdf8;
+  color: rgb(var(--so7-accent));
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 .hand-effect-use-modal img,
@@ -11931,13 +12026,13 @@ body.phase-lock-picking .hand-card:not(.phase-lock-highlight):not(.card-effect-t
   gap: 0.8rem;
   padding: 1.2rem 1.5rem;
   background: linear-gradient(160deg, #0b2e4a, #041524);
-  border: 2px solid #38bdf8;
+  border: 2px solid rgb(var(--so7-accent));
   border-radius: 0.9rem;
   opacity: 0;
   pointer-events: auto;
   cursor: pointer;
   transition: opacity 0.25s ease, transform 0.25s ease;
-  box-shadow: 0 0 1.8rem rgba(56, 189, 248, 0.5), 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 1.8rem rgba(var(--so7-accent), 0.5), 0 20px 50px rgba(0, 0, 0, 0.6);
 }
 .draw-targets-modal.show {
   opacity: 1;
@@ -12018,7 +12113,7 @@ body.theme-light .draw-targets-modal-name {
   width: min(20rem, 80vw);
   padding: 0.7rem 1rem;
   background: rgba(15, 23, 32, 0.92);
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  border: 1px solid rgba(var(--so7-accent), 0.6);
   border-radius: 0.6rem;
   text-align: center;
   transform: translate(-50%, -50%) scale(0.94);
@@ -12117,16 +12212,16 @@ body.theme-light .draw-targets-modal-name {
 }
 .hand-effect-option-picker-btn {
   padding: 0.6rem 0.8rem;
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
   color: #e2e8f0;
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  border: 1px solid rgba(var(--so7-accent), 0.6);
   border-radius: 0.4rem;
   cursor: pointer;
   font-family: sans-serif;
   font-size: 0.85rem;
 }
 .hand-effect-option-picker-btn:hover {
-  background: rgba(56, 189, 248, 0.4);
+  background: rgba(var(--so7-accent), 0.4);
 }
 .hand-effect-option-picker-btn.is-unusable {
   background: rgba(100, 116, 139, 0.15);
@@ -12510,16 +12605,16 @@ body.is-phone-device .bug-report-submit {
 }
 .declare-colors-modal-confirm {
   padding: 0.6rem 1.2rem;
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
   color: #e2e8f0;
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  border: 1px solid rgba(var(--so7-accent), 0.6);
   border-radius: 0.4rem;
   cursor: pointer;
   font-family: sans-serif;
   font-size: 0.85rem;
 }
 .declare-colors-modal-confirm:hover:not(:disabled) {
-  background: rgba(56, 189, 248, 0.4);
+  background: rgba(var(--so7-accent), 0.4);
 }
 /* ライト配色（theme-light=全体 / theme-light-ingame=盤面）時は明るいパネルに（ユーザー報告）。 */
 body.theme-light .declare-colors-modal,
@@ -13283,8 +13378,8 @@ body.victory-celebration-active #option-area {
   padding: 1.8rem 1.5rem;
   border-radius: 1rem;
   background: linear-gradient(160deg, #0c4a6e, #082f49);
-  border: 2px solid #38bdf8;
-  box-shadow: 0 0 2.5rem 0.4rem rgba(56, 189, 248, 0.5), 0 20px 60px rgba(0, 0, 0, 0.7);
+  border: 2px solid rgb(var(--so7-accent));
+  box-shadow: 0 0 2.5rem 0.4rem rgba(var(--so7-accent), 0.5), 0 20px 60px rgba(0, 0, 0, 0.7);
   text-align: center;
   z-index: 10530;
   font-family: sans-serif;
@@ -13347,8 +13442,8 @@ body.victory-celebration-active #option-area {
 }
 /* 登っていく途中でフォーカスされている行（一時的な明滅）。 */
 .rank-reveal-climb-row.is-climb-focus {
-  background: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6) inset;
+  background: rgba(var(--so7-accent), 0.22);
+  box-shadow: 0 0 0 1px rgba(var(--so7-accent), 0.6) inset;
 }
 /* 自分の行（到達前は控えめにマーク）。 */
 .rank-reveal-climb-row.is-self .rr-name {
@@ -13409,7 +13504,7 @@ body.victory-celebration-active #option-area {
   line-height: 1.6;
   color: #e0f2fe;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  border: 1px solid rgba(var(--so7-accent), 0.35);
   border-radius: 0.5rem;
   padding: 0.6rem 0.7rem;
 }
@@ -13424,7 +13519,7 @@ body.victory-celebration-active #option-area {
   font-family: sans-serif;
   font-size: 0.95rem;
   font-weight: bold;
-  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
+  background: linear-gradient(160deg, rgb(var(--so7-accent)), #0ea5e9);
   color: #082f49;
 }
 .rank-reveal-cta-btn:hover { filter: brightness(1.08); }
@@ -14100,10 +14195,10 @@ body.is-phone-device .center-reveal-next-btn {
 }
 .quick-start-toggle button:hover,
 .quick-start-counts button:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 .quick-start-toggle button.is-selected {
-  background: rgba(56, 189, 248, 0.35);
+  background: rgba(var(--so7-accent), 0.35);
   border-color: #7dd3fc;
   font-weight: bold;
 }
@@ -14773,8 +14868,8 @@ body.cpu-battle-mode #quick-start-bar {
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 .opening-screen-menu-btn:hover {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.85);
+  background: rgba(var(--so7-accent), 0.25);
+  border-color: rgba(var(--so7-accent), 0.85);
   transform: translateY(-0.15rem);
 }
 /* ローカル1人用「CPU戦」の入口ボタン（cpu-battle.js）。ログインボタンの下に少し離して置き、
@@ -14784,7 +14879,7 @@ body.cpu-battle-mode #quick-start-bar {
   font-size: 0.95rem;
   padding: 0.7rem 1.9rem;
   background: rgba(8, 145, 178, 0.4);
-  border-color: rgba(56, 189, 248, 0.7);
+  border-color: rgba(var(--so7-accent), 0.7);
 }
 .opening-screen-cpu-btn:hover {
   background: rgba(8, 145, 178, 0.6);
@@ -14843,7 +14938,7 @@ body.cpu-battle-mode #quick-start-bar {
 }
 .opening-trial-btn.is-primary {
   background: rgba(8, 145, 178, 0.6);
-  border-color: rgba(56, 189, 248, 0.9);
+  border-color: rgba(var(--so7-accent), 0.9);
 }
 .opening-trial-desc {
   font-family: sans-serif;
@@ -14972,7 +15067,7 @@ body.is-phone-device .opening-trial-desc {
   padding: 0.3rem 0.7rem;
   border-radius: 0.3rem;
   background: rgba(15, 23, 32, 0.4);
-  border: 1px solid rgba(56, 189, 248, 0.45);
+  border: 1px solid rgba(var(--so7-accent), 0.45);
   color: rgba(125, 211, 252, 0.85);
   cursor: pointer;
   opacity: 0;
@@ -15334,14 +15429,14 @@ body.is-phone-device .opening-lang-toggle-seg.is-current {
   letter-spacing: 0.05em;
   padding: 0.85rem 2.2rem;
   border-radius: 2rem;
-  background: rgba(56, 189, 248, 0.18);
-  border: 1px solid rgba(56, 189, 248, 0.7);
+  background: rgba(var(--so7-accent), 0.18);
+  border: 1px solid rgba(var(--so7-accent), 0.7);
   color: #f1f5f9;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 .opening-login-primary-btn:hover:not(:disabled) {
-  background: rgba(56, 189, 248, 0.32);
+  background: rgba(var(--so7-accent), 0.32);
   transform: translateY(-0.1rem);
 }
 .opening-login-primary-btn:disabled { opacity: 0.6; cursor: default; }
@@ -16124,7 +16219,7 @@ body.reduce-glow .cell.card-effect-target-cell .board-card {
   pointer-events: none;
   opacity: 0;
   background: linear-gradient(160deg, rgba(6, 40, 52, 0.94), rgba(4, 18, 28, 0.94));
-  border: 2px solid #38bdf8;
+  border: 2px solid rgb(var(--so7-accent));
   border-radius: 0.6rem;
   padding: 0.5rem 1.2rem;
   color: #e0f2fe;
@@ -16132,7 +16227,7 @@ body.reduce-glow .cell.card-effect-target-cell .board-card {
   font-weight: bold;
   font-size: 0.9rem;
   white-space: nowrap;
-  box-shadow: 0 0 1.5rem rgba(56, 189, 248, 0.4), 0 10px 25px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 1.5rem rgba(var(--so7-accent), 0.4), 0 10px 25px rgba(0, 0, 0, 0.5);
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 #cpu-step-hint.show {
@@ -16141,8 +16236,8 @@ body.reduce-glow .cell.card-effect-target-cell .board-card {
   animation: cpu-step-hint-blink 1.1s ease-in-out infinite;
 }
 @keyframes cpu-step-hint-blink {
-  0%, 100% { border-color: #38bdf8; box-shadow: 0 0 1.5rem rgba(56, 189, 248, 0.4), 0 10px 25px rgba(0, 0, 0, 0.5); }
-  50% { border-color: #bae6fd; box-shadow: 0 0 2.6rem rgba(56, 189, 248, 0.9), 0 10px 25px rgba(0, 0, 0, 0.5); }
+  0%, 100% { border-color: rgb(var(--so7-accent)); box-shadow: 0 0 1.5rem rgba(var(--so7-accent), 0.4), 0 10px 25px rgba(0, 0, 0, 0.5); }
+  50% { border-color: #bae6fd; box-shadow: 0 0 2.6rem rgba(var(--so7-accent), 0.9), 0 10px 25px rgba(0, 0, 0, 0.5); }
 }
 body.reduce-glow #cpu-step-hint.show {
   animation: none;
@@ -16255,13 +16350,13 @@ body.reduce-glow .hand-card.is-anytime-usable-glow {
    「あなたが選んだ結果、ここに戻ってくる」という情報表示専用（クリック対象ではない）
    ことが分かるよう青系にする。 */
 .cell.card-effect-placement-target {
-  outline: 3px dashed rgba(56, 189, 248, 0.9);
+  outline: 3px dashed rgba(var(--so7-accent), 0.9);
   outline-offset: -3px;
   animation: card-effect-placement-target-pulse 1.6s ease-in-out infinite;
 }
 @keyframes card-effect-placement-target-pulse {
-  0%, 100% { box-shadow: inset 0 0 0.6rem rgba(56, 189, 248, 0.3); }
-  50% { box-shadow: inset 0 0 1.2rem rgba(56, 189, 248, 0.6); }
+  0%, 100% { box-shadow: inset 0 0 0.6rem rgba(var(--so7-accent), 0.3); }
+  50% { box-shadow: inset 0 0 1.2rem rgba(var(--so7-accent), 0.6); }
 }
 body.reduce-glow .cell.card-effect-placement-target {
   animation: none;
@@ -16709,7 +16804,7 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
     rgba(248, 113, 113, 0.5),
     rgba(251, 191, 36, 0.5),
     rgba(74, 222, 128, 0.5),
-    rgba(56, 189, 248, 0.5),
+    rgba(var(--so7-accent), 0.5),
     rgba(167, 139, 250, 0.5),
     rgba(244, 114, 182, 0.5),
     rgba(248, 113, 113, 0.5)
@@ -16897,8 +16992,8 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   cursor: pointer;
 }
 #codex-page-back:hover {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(var(--so7-accent), 0.15);
+  border-color: rgba(var(--so7-accent), 0.6);
 }
 #codex-page-title {
   font-size: 1.4rem;
@@ -16975,7 +17070,7 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 2rem 1.6rem 1.6rem;
-  background: radial-gradient(1000px 300px at 50% -10%, rgba(56, 189, 248, 0.12), transparent 60%),
+  background: radial-gradient(1000px 300px at 50% -10%, rgba(var(--so7-accent), 0.12), transparent 60%),
     linear-gradient(160deg, rgba(20, 28, 40, 0.98), rgba(8, 12, 20, 0.99));
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 1rem;
@@ -17014,8 +17109,8 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
 }
 .home-match-choice-option:hover {
   transform: translateY(-0.3rem);
-  border-color: rgba(56, 189, 248, 0.7);
-  box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.5), 0 0 1.2rem rgba(56, 189, 248, 0.25);
+  border-color: rgba(var(--so7-accent), 0.7);
+  box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.5), 0 0 1.2rem rgba(var(--so7-accent), 0.25);
 }
 .home-match-choice-option-icon {
   font-size: 3.4rem;
@@ -17043,8 +17138,8 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   cursor: pointer;
 }
 .home-match-choice-cancel:hover {
-  border-color: rgba(56, 189, 248, 0.8);
-  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(var(--so7-accent), 0.8);
+  background: rgba(var(--so7-accent), 0.18);
 }
 /* CPU戦の強さ選択（対戦モード選択モーダル内、ユーザー要望2026-08-09）。 */
 .home-match-choice-difficulty {
@@ -17084,7 +17179,7 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   transition: background 0.15s ease;
 }
 .home-match-choice-details-toggle:hover {
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(var(--so7-accent), 0.15);
 }
 .home-match-choice-difficulty-hint.is-details-note {
   text-align: right;
@@ -17105,10 +17200,10 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   border-right: none;
 }
 .home-match-choice-segment-btn:hover {
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(var(--so7-accent), 0.15);
 }
 .home-match-choice-segment-btn.is-selected {
-  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
+  background: linear-gradient(160deg, rgb(var(--so7-accent)), #0ea5e9);
   color: #06202e;
 }
 .home-match-choice-difficulty-hint {
@@ -17138,11 +17233,11 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   transition: background 0.15s ease, color 0.15s ease;
 }
 .home-match-choice-rule-btn:hover {
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(var(--so7-accent), 0.15);
 }
 .home-match-choice-rule-btn.is-selected {
-  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
-  border-color: rgba(56, 189, 248, 0.7);
+  background: linear-gradient(160deg, rgb(var(--so7-accent)), #0ea5e9);
+  border-color: rgba(var(--so7-accent), 0.7);
   color: #06202e;
 }
 /* ライトテーマ */
@@ -17228,8 +17323,8 @@ body.theme-light .home-match-choice-cancel:hover {
   margin-bottom: 1rem;
 }
 #profile-page-back:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 #profile-page-title {
   font-size: 1.2rem;
@@ -17825,8 +17920,8 @@ body.theme-light-ingame #ranked-result-modal .ranked-result-promote-line {
   margin-bottom: 1rem;
 }
 #ranking-page-back:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 #ranking-page-title {
   font-size: 1.2rem;
@@ -17849,8 +17944,8 @@ body.theme-light-ingame #ranked-result-modal .ranked-result-promote-line {
   padding: 0;
 }
 #ranking-page-info-btn:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  color: #38bdf8;
+  border-color: rgba(var(--so7-accent), 0.7);
+  color: rgb(var(--so7-accent));
 }
 #ranking-info-modal {
   position: fixed;
@@ -17931,8 +18026,8 @@ body.theme-light-ingame #ranked-result-modal .ranked-result-promote-line {
   cursor: pointer;
 }
 .ranking-page-tab.is-active {
-  background: rgba(56, 189, 248, 0.2);
-  border-color: rgba(56, 189, 248, 0.7);
+  background: rgba(var(--so7-accent), 0.2);
+  border-color: rgba(var(--so7-accent), 0.7);
   color: #e2e8f0;
   font-weight: bold;
 }
@@ -18728,20 +18823,20 @@ body.theme-light #mdb-save {
      前面。フォーカス時は見た目の強調（枠・光）だけを足す。 */
   z-index: 100056;
   border-radius: 0.5rem;
-  outline: 2px solid rgba(56, 189, 248, 0.95);
+  outline: 2px solid rgba(var(--so7-accent), 0.95);
   outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.35), 0 0 22px 6px rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 0 4px rgba(var(--so7-accent), 0.35), 0 0 22px 6px rgba(var(--so7-accent), 0.55);
   animation: bug-report-intro-pulse 1.3s ease-in-out infinite;
 }
 @keyframes bug-report-intro-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.3), 0 0 18px 4px rgba(56, 189, 248, 0.45); }
-  50% { box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.5), 0 0 30px 10px rgba(56, 189, 248, 0.7); }
+  0%, 100% { box-shadow: 0 0 0 4px rgba(var(--so7-accent), 0.3), 0 0 18px 4px rgba(var(--so7-accent), 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(var(--so7-accent), 0.5), 0 0 30px 10px rgba(var(--so7-accent), 0.7); }
 }
 #bug-report-intro-modal {
   position: relative;
   width: min(30rem, 90vw);
   background: rgba(15, 23, 32, 0.98);
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  border: 1px solid rgba(var(--so7-accent), 0.4);
   border-radius: 0.7rem;
   padding: 1.4rem 1.3rem 1.2rem;
   color: #e2e8f0;
@@ -18779,7 +18874,7 @@ body.theme-light #mdb-save {
   color: #cbd5e1;
 }
 .bug-report-intro-ok {
-  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+  background: linear-gradient(180deg, rgb(var(--so7-accent)), #0ea5e9);
   border: none;
   border-radius: 0.45rem;
   color: #04121f;
@@ -18802,7 +18897,7 @@ body.theme-light #mdb-save {
   gap: 0.25rem;
   padding: 0.5rem 0.7rem;
   background: rgba(15, 23, 32, 0.96);
-  border: 1px solid rgba(56, 189, 248, 0.55);
+  border: 1px solid rgba(var(--so7-accent), 0.55);
   border-radius: 0.55rem;
   box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.55);
   pointer-events: none;
@@ -18839,7 +18934,7 @@ body.theme-light #mdb-save {
 .my-deck-owner-tooltip-label {
   font-size: 0.62rem;
   font-weight: bold;
-  color: #38bdf8;
+  color: rgb(var(--so7-accent));
   letter-spacing: 0.04em;
 }
 
@@ -19222,7 +19317,7 @@ body.theme-light .mdl-deck-count {
   text-align: left;
 }
 .mdb-note-menu-btn:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--so7-accent), 0.2);
 }
 
 /* ── マイページ右下：メインデッキのビジュアル＋「マイデッキ編集」ボタン（profile-page.js）──
@@ -19555,7 +19650,7 @@ body.theme-light .mdb-setting-btn {
   cursor: pointer;
 }
 .mds-action-random {
-  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+  background: linear-gradient(180deg, rgb(var(--so7-accent)), #0ea5e9);
   color: #04121f;
 }
 .mds-action-new {
@@ -21198,7 +21293,7 @@ body.full-screen-page-active #turn-round-counter {
   transform: scale(1);
 }
 .turn-event-stock-chip:hover {
-  border-color: rgba(56, 189, 248, 0.85);
+  border-color: rgba(var(--so7-accent), 0.85);
 }
 .turn-event-stock-chip-face {
   position: relative;
@@ -21248,7 +21343,7 @@ body.full-screen-page-active #turn-round-counter {
 }
 #turn-event-stock-prev-label:hover {
   color: rgba(226, 232, 240, 0.95);
-  border-color: rgba(56, 189, 248, 0.7);
+  border-color: rgba(var(--so7-accent), 0.7);
 }
 #turn-event-stock-prev-list {
   display: flex;
@@ -22651,6 +22746,50 @@ body.theme-light .victory-preview-row > span { color: #6b6152; }
   padding: 0.1rem 0.3rem;
 }
 .cell-confirm-dontshow:hover { color: #e2e8f0; }
+/* 🔴【#651・続き741】そのマスの一番上のカードを、この確認の中で見せる。
+   ⚠ カードは**正方形**（このゲームの物理カードが正方形）。
+   ⚠ 色は決め打ちしない（明暗2テーマ＝教訓15）。地はカードの絵が入るので触らない。 */
+.cell-confirm-card {
+  /* 🔴 `position: relative` が**必須**。showCardFace が差し込む `.card-face-mount` は
+     `position: absolute; inset: 0` なので、この枠が positioned でないと**モーダル全体に広がる**
+     （実測: 枠 90x90 なのにカード面が 187x232 でモーダルを覆い、下の文と重なっていた）。
+     ⚠ showCardFace は「まだ DOM に入っていない要素には position を足さない」作り
+     （detached だと getComputedStyle が常に static を返して誤判定するため）。
+     **だから CSS 側で positioned にしておくのがこの関数の約束**（あの関数のコメントにそう書いてある）。 */
+  position: relative;
+  overflow: hidden;
+  width: 7rem;
+  height: 7rem;
+  align-self: center;
+  background-size: cover;
+  background-position: center;
+  border-radius: 0.3rem;
+  box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.45);
+}
+/* ⚠ 裏面の絵は JS で敷く（選んでいるカード裏スキンを反映するため＝getCardBackImagePath）。 */
+.cell-confirm-card-note {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  text-align: center;
+}
+/* 「今後表示しない」の2段押しで出る警告。危ないことをしようとしていると分かる色にする。 */
+.cell-confirm-warn {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: center;
+  color: #fca5a5;
+  max-width: 18rem;
+}
+.cell-confirm-dontshow.is-warning {
+  color: #fca5a5;
+  font-weight: bold;
+}
+body.is-phone-device .cell-confirm-card,
+body.is-tablet-device .cell-confirm-card { width: 12rem; height: 12rem; }
+body.is-phone-device .cell-confirm-card-note,
+body.is-tablet-device .cell-confirm-card-note { font-size: 1.3rem; }
+body.is-phone-device .cell-confirm-warn,
+body.is-tablet-device .cell-confirm-warn { font-size: 1.4rem; max-width: 32rem; }
 /* 🔴【#453・2026-11-10】**スマホでは小さすぎた。** 報告「このマスでいいですかモーダルが
    小さい気がします！もう少し大きい方が見やすくないですか？」（iPhone 932x430・
    ステージ倍率 0.473 からの報告）。ステージを縮めて描くので、1.05rem の見出しは
@@ -23111,7 +23250,7 @@ body.theme-light #update-progress {
   height: 100%;
   width: 0%;
   border-radius: 0.2rem;
-  background: linear-gradient(90deg, #38bdf8, #22d3ee);
+  background: linear-gradient(90deg, rgb(var(--so7-accent)), #22d3ee);
   transition: width 0.2s ease;
 }
 
@@ -23554,7 +23693,7 @@ body.board-3d-on #game-table { position: relative; z-index: 1; }
   animation: piece-own-turn-glow 2.6s ease-in-out infinite;
 }
 .board-3d-glow.is-hover {
-  box-shadow: 0 0 0.4rem 0.12rem rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 0.4rem 0.12rem rgba(var(--so7-accent), 0.9);
 }
 .board-3d-glow.is-turn.is-hover {
   animation: piece-own-turn-glow-hover 2.6s ease-in-out infinite;
@@ -24490,8 +24629,8 @@ body.theme-light-ingame .ranked-waiting-requeue {
   cursor: pointer;
 }
 .ranking-choice-item:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.14);
 }
 body.theme-light #ranking-choice-menu,
 body.theme-light-ingame #ranking-choice-menu {
@@ -25671,8 +25810,8 @@ body.is-tablet-device #ranked-practice-banner {
 #deck-viewer-back:hover,
 #my-stack-back:hover,
 #card-pack-back:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 /* 明るいテーマでも他の「戻る」と同じ色に（教訓15。#mdl-back / #profile-page-back と同じ値）。 */
 body.theme-light #deck-viewer-back,
@@ -25925,8 +26064,8 @@ body.theme-light #my-stack-panel {
 }
 /* オンの時だけ色を持たせる（押してある／押していないが形で分かるように）。 */
 .my-stack-toggle.is-on {
-  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
-  border-color: rgba(56, 189, 248, 0.8);
+  background: linear-gradient(160deg, rgb(var(--so7-accent)), #0ea5e9);
+  border-color: rgba(var(--so7-accent), 0.8);
   color: #06202e;
 }
 .my-stack-actions {
@@ -25947,8 +26086,8 @@ body.theme-light #my-stack-panel {
 }
 .my-stack-action-btn:hover,
 .home-match-choice-stack-edit:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 /* 「組み方を編集」は段を1つ下げて置く（切り替えの帯と並べると押し間違える）。 */
 .home-match-choice-stack-edit {
@@ -25994,8 +26133,8 @@ body.theme-light .my-stack-toggle {
   background: rgba(148, 163, 184, 0.12);
 }
 .my-stack-rail-btn.is-on {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.14);
   font-weight: bold;
 }
 body.theme-light .my-stack-rail-btn.is-on {
@@ -26108,8 +26247,8 @@ body.theme-light .my-stack-rail-btn.is-on {
   cursor: pointer;
 }
 .my-stack-step-btn:hover:not(:disabled) {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.14);
 }
 .my-stack-step-btn:disabled {
   opacity: 0.3;
@@ -26268,8 +26407,8 @@ body.theme-light #card-pack-panel {
   font-weight: bold;
   font-family: inherit;
   color: #06202e;
-  background: linear-gradient(160deg, #38bdf8, #0ea5e9);
-  border: 1px solid rgba(56, 189, 248, 0.8);
+  background: linear-gradient(160deg, rgb(var(--so7-accent)), #0ea5e9);
+  border: 1px solid rgba(var(--so7-accent), 0.8);
   border-radius: 0.4rem;
   cursor: pointer;
 }
@@ -26284,8 +26423,8 @@ body.theme-light #card-pack-panel {
   cursor: pointer;
 }
 .card-pack-sub-btn:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(var(--so7-accent), 0.7);
+  background: rgba(var(--so7-accent), 0.12);
 }
 body.theme-light .card-pack-sub-btn {
   border-color: rgba(176, 141, 63, 0.5);
@@ -26477,7 +26616,7 @@ body.is-tablet-device .card-pack-new {
 .card-pack-bar > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+  background: linear-gradient(90deg, rgb(var(--so7-accent)), #0ea5e9);
 }
 
 /* コレクション（52種）。🔴 格子にする（書き忘れると縦1列になる＝実際になった）。 */

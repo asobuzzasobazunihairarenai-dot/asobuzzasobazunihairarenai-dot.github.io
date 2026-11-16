@@ -9134,7 +9134,17 @@ async function requestCellChoiceForEffect__inner(candidates, hint, options = {})
         : loc?.zone === "lock"
           ? "game.cellConfirm.titleLock"
           : undefined;
-    const confirmed = await confirmCellChoice(el, hint, { titleKey });
+    // 🔴【#651・続き741】**そのマスに何が乗っているか**を確認の中で見せる。
+    //   報告は `cellConfirm: true`＝確認は出ていたのに「カードを確認したら貰えた」＝
+    //   足りなかったのは切り替えではなく**情報**だった（詳しい経緯は cell-confirm.js）。
+    //   ⚠ 裏向きは card を渡さず faceDown だけ立てる（中身を漏らさない）。
+    const 上の札 = loc ? findTopCardAt(loc) : null;
+    const 見せる = 上の札 && 上の札.faceUp ? 上の札.cardId : null;
+    const confirmed = await confirmCellChoice(el, hint, {
+      titleKey,
+      cardId: 見せる,
+      faceDown: !!(上の札 && !上の札.faceUp),
+    });
     if (confirmed === null) return null; // 【#352】期限切れで閉じられた＝選ぶのをやめた
     if (confirmed) return loc;
     // 「選び直す」→ もう一度ハイライトから
@@ -10666,7 +10676,7 @@ async function tryUseLockedUsableCard(tokenId) {
   }
   render();
   if (canUseHandEffect(useToken.cardId, useToken.id, owner)) {
-            if (await confirmTouchAction(t("game.confirm.useCard", { card: cardDisplayName(useToken.cardId) }), { cardId: useToken.cardId })) {
+            if (await confirmHandEffectUseNow(useToken, owner)) {
       runAutoHandEffect(useToken.cardId, useToken.id, owner);
     }
   } else if (!canPayHandEffectCost(useToken.cardId, useToken.id, owner)) {
@@ -10718,6 +10728,40 @@ function noteCpuHandEffectMisfire(tokenId, cardId) {
 }
 function isCpuHandEffectExhausted(tokenId) {
   return (cpuHandEffectAttempts.get(cpuHandEffectAttemptKey(tokenId)) ?? 0) >= CPU_HAND_EFFECT_ATTEMPT_LIMIT;
+}
+
+// 🔴【#642・2026-11-16・続き741】手札の「○○を使用しますか？」を開く**唯一の入口**。
+//   ユーザー報告「スラム上がりの役人を使った直後に、フェイズ終了となる前に手札の経済成長を
+//   連打してたら使用確認モーダルを出せてしまった」。
+//
+//   原因は**確認の前にしか条件を見ていなかった**こと。5か所とも
+//     if (await confirmTouchAction(…)) runAutoHandEffect(…)
+//   の形で、**開いている間に状況が変わる**（前の効果が解決中・フェイズが終わる）のに、
+//   閉じた後は何も確かめずに走らせていた。連打すると、解決中の隙にモーダルが開ける。
+//
+//   ⇒ ①開く前に「ほかの効果が解決中でないか」を見る（**どのカードでも**。これまでは
+//      『いつでも使える』札だけが見ていた＝ふだんの手札フェイズは素通りだった）
+//     ②**閉じた後にもう一度**見る（これが報告の本体）
+//   ⚠ 門番は1か所に置く——同じ理由の門番を5つ書くと必ず1つ直し漏れる（続き698 の教訓）。
+//   ⚠ 取り残し（busy が下りない）に備えて #93 のウォッチドッグが別に居るので、
+//     ここで永久に押せなくなることはない。黙って無視せず、必ず一言出す。
+async function confirmHandEffectUseNow(token, player) {
+  if (!token) return false;
+  if (isAnyEffectProcessingBusy()) {
+    logAction("diag-hand-use-confirm-blocked", { cardId: token.cardId ?? null, player: player ?? null, when: "before" });
+    showQuickNote(t("game.handEffect.busyNow"));
+    return false;
+  }
+  if (!(await confirmTouchAction(t("game.confirm.useCard", { card: cardDisplayName(token.cardId) }), { cardId: token.cardId }))) {
+    return false;
+  }
+  // 🔴 ここが #642 の直し。開いている間に世界が動いているかもしれない。
+  if (isAnyEffectProcessingBusy() || !canUseHandEffect(token.cardId, token.id, player)) {
+    logAction("diag-hand-use-confirm-blocked", { cardId: token.cardId ?? null, player: player ?? null, when: "after" });
+    showQuickNote(t("game.handEffect.busyNow"));
+    return false;
+  }
+  return true;
 }
 
 async function runAutoHandEffect(cardId, cardTokenId, player) {
@@ -18244,7 +18288,7 @@ async function tryUsePublicDrawCardByTap(tokenId, player) {
   if (usableAnytime && effectProcessingBusy) return;
   if (!isSelfHandPhase() && !(usableAnytime && !effectProcessingBusy)) return;
   if (canUseHandEffect(token.cardId, token.id, player)) {
-    if (await confirmTouchAction(t("game.confirm.useCard", { card: cardDisplayName(token.cardId) }), { cardId: token.cardId })) {
+    if (await confirmHandEffectUseNow(token, player)) {
       runAutoHandEffect(token.cardId, token.id, player);
     }
   } else if (!canPayHandEffectCost(token.cardId, token.id, player)) {
@@ -18614,7 +18658,7 @@ async function onDragEnd(e) {
         ) {
           render();
           if (canUseHandEffect(draggedToken.cardId, draggedToken.id, cardSourceLocation.player)) {
-            if (await confirmTouchAction(t("game.confirm.useCard", { card: cardDisplayName(draggedToken.cardId) }), { cardId: draggedToken.cardId })) {
+            if (await confirmHandEffectUseNow(draggedToken, cardSourceLocation.player)) {
               runAutoHandEffect(draggedToken.cardId, draggedToken.id, cardSourceLocation.player);
             }
           } else if (!canPayHandEffectCost(draggedToken.cardId, draggedToken.id, cardSourceLocation.player)) {
@@ -18768,7 +18812,7 @@ async function onDragEnd(e) {
         ) {
           render();
           if (canUseHandEffect(useToken.cardId, useToken.id, clickPlayer)) {
-            if (await confirmTouchAction(t("game.confirm.useCard", { card: cardDisplayName(useToken.cardId) }), { cardId: useToken.cardId })) {
+            if (await confirmHandEffectUseNow(useToken, clickPlayer)) {
               runAutoHandEffect(useToken.cardId, useToken.id, clickPlayer);
             }
           } else if (!canPayHandEffectCost(useToken.cardId, useToken.id, clickPlayer)) {
@@ -18798,7 +18842,7 @@ async function onDragEnd(e) {
           if (isSelfHandPhase() || (isUsableAnytime && !effectProcessingBusy)) {
             render();
             if (canUseHandEffect(clickedToken.cardId, clickedToken.id, clickPlayer)) {
-              if (await confirmTouchAction(t("game.confirm.useCard", { card: cardDisplayName(clickedToken.cardId) }), { cardId: clickedToken.cardId })) {
+              if (await confirmHandEffectUseNow(clickedToken, clickPlayer)) {
                 runAutoHandEffect(clickedToken.cardId, clickedToken.id, clickPlayer);
               }
             } else if (!canPayHandEffectCost(clickedToken.cardId, clickedToken.id, clickPlayer)) {

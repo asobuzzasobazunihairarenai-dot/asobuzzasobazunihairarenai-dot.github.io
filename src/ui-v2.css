@@ -2344,3 +2344,66 @@ body.ui-v2 #profile-mainstack::before {
   height: 2px;
   background: linear-gradient(90deg, #d8b24c, #c79a47);
 }
+
+/* ===========================================================================
+   【続き741】押す所の色を一括でそろえる（ユーザー要望「全部やろう」）
+   ---------------------------------------------------------------------------
+   このアプリの差し色は **空色 #38bdf8 ＝ rgba(56,189,248,…)** で、style.css の中に
+   162 か所べた書きされていた（ボタンの地・枠・リンク・選ばれているタブ・入力欄の縁…）。
+   アイボリーと金で出来ている v2 の世界では、**そこだけが別世界の色**に見える。
+
+   🔴 **色の値ではセレクタを書けない**ので、まず style.css 側を1つの変数
+   （`--so7-accent`）に寄せた。**既定値はいまと同じ空色**なので、
+   **既定の画面は1色も変わらない**（実測で確認）。
+   ここでは **v2 の「画面の装い」の中だけ**を金に差し替える。
+
+   ⚠ **盤面には当てない**（`#game-table` 以下・マス・カード・駒・ロックエリア）。
+     あそこの光は「選べる」「到達した」といった**盤面の意味**を持っているし、
+     続き699 で学んだとおり**画面全体に被せると良くなる所と悪くなる所が同時に起きて、
+     どこが効いたのか判断できなくなる**。
+   ⚠ 変数は**継承**するので、container に1つ書けば中の全部に届く
+     （1つずつ書くと必ず書き漏らす＝続き718 の -panel の穴）。
+   ⚠ やめる時は**この1ブロックを消すだけ**で、既定の空色へ丸ごと戻る。
+   =========================================================================== */
+body.ui-v2 [id$="-modal"]:not(#victory-modal):not(#sleight-ritual-modal),
+body.ui-v2 [id$="-panel"]:not(#eidos-dialogue-panel):not(#admin-panel):not(#card-dev-mode-panel),
+body.ui-v2 .home-match-choice-panel,
+body.ui-v2 #emote-picker,
+body.ui-v2 #ranking-choice-menu,
+body.ui-v2 .generic-confirm-modal,
+body.ui-v2 .game-intro-modal,
+body.ui-v2 .phase-skip-modal,
+body.ui-v2 #home-screen,
+body.ui-v2 #codex-page,
+body.ui-v2 #profile-page,
+body.ui-v2 #ranking-page,
+body.ui-v2 #my-deck-page,
+body.ui-v2 #my-deck-list-page,
+body.ui-v2 #my-stack-panel,
+body.ui-v2 #card-pack-panel,
+body.ui-v2 #opening-screen.is-v2 {
+  /* 真鍮〜金（素材の真鍮 #b08d3f と、罫で使っている #d8b24c の間） */
+  --so7-accent: 176, 141, 63;
+}
+/* ⚠ 明るいテーマでは、薄い金はアイボリーの地に埋もれる。**少し濃い金**にする（教訓15）。 */
+body.ui-v2.theme-light [id$="-modal"]:not(#victory-modal):not(#sleight-ritual-modal),
+body.ui-v2.theme-light [id$="-panel"]:not(#eidos-dialogue-panel):not(#admin-panel):not(#card-dev-mode-panel),
+body.ui-v2.theme-light .home-match-choice-panel,
+body.ui-v2.theme-light #home-screen,
+body.ui-v2.theme-light #codex-page,
+body.ui-v2.theme-light #profile-page,
+body.ui-v2.theme-light #ranking-page,
+body.ui-v2.theme-light #my-deck-page,
+body.ui-v2.theme-light #my-deck-list-page,
+body.ui-v2.theme-light #my-stack-panel,
+body.ui-v2.theme-light #card-pack-panel,
+body.ui-v2.theme-light #opening-screen.is-v2 {
+  --so7-accent: 138, 103, 41;
+}
+/* 🔴 盤面は**必ず既定の空色に戻す**。上の規則は `[id$="-panel"]` 等で広く当たるので、
+   盤面がその中（例: 全画面ページの中に置かれた盤面）に入っても巻き込まれないように、
+   ここで打ち消す。**順番は後ろが勝つ**ので、この位置に置くことに意味がある。 */
+body.ui-v2 #game-table,
+body.ui-v2 #arena {
+  --so7-accent: 56, 189, 248;
+}

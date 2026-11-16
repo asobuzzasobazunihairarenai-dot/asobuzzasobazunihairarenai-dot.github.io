@@ -129,7 +129,12 @@ export function showNoticeModal(文, { 見出し = null, onClose = null } = {}) 
     backdrop.remove();
     onClose?.();
   };
-  const backdrop = createBackdrop(close, { zIndex: 100200 });
+  // 🔴【続き741】`dim: true` が要る。既定（dim:false）だと覆いが**透明なだけでなく
+  //   `so7-modal-backdrop` の目印も付かない**ので、盤面の自前の当たり判定
+  //   （elementsFromPoint＝教訓4）が**覆いを透かして下の手札・駒を掴む**（#225 の実害）。
+  //   ⚠ `blocksGame: false`——これは対局の流れに属さないお知らせなので、
+  //     開いているだけでフェイズが止まってはいけない（続き455 の実害）。
+  const backdrop = createBackdrop(close, { zIndex: 100200, dim: true, blocksGame: false });
   modal.style.zIndex = "100201";
   modal.appendChild(createModalCloseX(close));
   if (見出し) {
@@ -159,4 +164,65 @@ export function showNoticeModal(文, { 見出し = null, onClose = null } = {}) 
   window.addEventListener("keydown", onKey, true);
   setTimeout(() => ok.focus?.(), 0);
   return close;
+}
+
+// 【続き741】「本当にやめていいですか？」の2択。showNoticeModal の兄弟で、**同じ見た目**を使う
+//   （id が `-modal` で終わるので v2 の装丁も自動で当たる）。
+//   ⚠ ネイティブの `confirm()` は使わない——端末によっては出ない／見た目が別世界になるため。
+//   ⚠ **既定は「やめない」**（覆いを押す・Esc・✕ はすべて false）＝危ない方を既定にしない。
+//   ⚠ 盤面の確認モーダル（cell-confirm）の中からは呼ばない。あちらは自分の覆いを持っていて、
+//     その上に重ねると「閉じ方が2つある」状態になる（あちらは2段押しで警告している）。
+export function showConfirmModal(文, { 見出し = null, はい = null, いいえ = null } = {}) {
+  const 既に = document.getElementById("so7-confirm-modal");
+  if (既に) 既に.remove();
+  return new Promise((resolve) => {
+    let 済み = false;
+    const modal = document.createElement("div");
+    modal.id = "so7-confirm-modal";
+    const finish = (v) => {
+      if (済み) return;
+      済み = true;
+      window.removeEventListener("keydown", onKey, true);
+      modal.remove();
+      backdrop.remove();
+      resolve(v);
+    };
+    // dim / blocksGame の理由は showNoticeModal と同じ（上のコメント）。
+    const backdrop = createBackdrop(() => finish(false), { zIndex: 100200, dim: true, blocksGame: false });
+    modal.style.zIndex = "100201";
+    modal.appendChild(createModalCloseX(() => finish(false)));
+    if (見出し) {
+      const h = document.createElement("div");
+      h.className = "so7-notice-modal-title";
+      h.textContent = 見出し;
+      modal.appendChild(h);
+    }
+    const body = document.createElement("div");
+    body.className = "so7-notice-modal-body";
+    setTextWithCoin(body, 文);
+    modal.appendChild(body);
+    const row = document.createElement("div");
+    row.className = "so7-confirm-modal-buttons";
+    const yes = document.createElement("button");
+    yes.type = "button";
+    yes.className = "so7-confirm-modal-yes";
+    yes.textContent = はい || t("common.yes");
+    yes.addEventListener("click", () => finish(true));
+    const no = document.createElement("button");
+    no.type = "button";
+    no.className = "so7-notice-modal-ok";
+    no.textContent = いいえ || t("common.no");
+    no.addEventListener("click", () => finish(false));
+    // ⚠ 「やめる」を先に置く（押し間違えても危ない方へ行かない）。
+    row.appendChild(no);
+    row.appendChild(yes);
+    modal.appendChild(row);
+    const onKey = (e) => {
+      if (e.key === "Escape") finish(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    setTimeout(() => no.focus?.(), 0);
+  });
 }

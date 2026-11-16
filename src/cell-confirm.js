@@ -13,6 +13,9 @@
 // の3点で、必ず対象マスが見えている状態で確認できるようにする。
 import { t } from "./ui-text.js";
 import { createBackdrop, createOpenGuard } from "./ui-helpers.js";
+// 【#651】表向きのカードを敷く所は全部ここを通す（#686 の総点検＝続き737）。
+import { paintCardFace } from "./card-face-display.js";
+import { getCardBackImagePath } from "./cards-data.js";
 // 【重要】body 自体がステージ変形(translate+scale)を持つので、実画面座標をそのまま
 // left/top に入れると二重にかかる（続き355）。必ずローカル座標へ直してから使う。
 import { stageClientToLocal, showQuickNote } from "./main.js";
@@ -103,6 +106,43 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
       modal.appendChild(hintEl);
     }
 
+    // 🔴【#651・続き741】**何のカードの話なのかを、この確認の中で見せる。**
+    //   ユーザー報告「収穫と種まきでカードを確認したら、そのカードがもらえました」。
+    //   報告の settings は `cellConfirm: true`＝**確認は出ていた**（効果開始から確定まで6.4秒）。
+    //   足りなかったのは「切り替え」ではなく**情報**——確認は「このマスでいいですか？」と
+    //   聞くだけで、**そのマスに何が乗っているかは言っていなかった**。盤面は傾いていて札も
+    //   小さいので、「中身を見るために押す」しか確かめる道が無かった。
+    //   ⇒ 表向きの札はここに出す（公開情報なので見せて構わない）。
+    //   ⚠ **裏向きは絶対に出さない**（中身が漏れる）。「裏向きです」とだけ言う。
+    if (opts.cardId || opts.faceDown) {
+      const 札枠 = document.createElement("div");
+      札枠.className = "cell-confirm-card";
+      if (opts.cardId) {
+        paintCardFace(札枠, opts.cardId);
+      } else {
+        // ⚠ 選んでいるカード裏スキンを反映する（決め打ちの絵を敷かない）。
+        札枠.classList.add("is-facedown");
+        札枠.style.backgroundImage = `url("${getCardBackImagePath(null)}")`;
+      }
+      modal.appendChild(札枠);
+      // ⚠ 文を出すのは**裏向きの時だけ**。表向きは絵がそのまま答えなので、
+      //   「このマスの一番上のカード」と書き足しても読む物が増えるだけ（撮って決めた）。
+      //   ⚠ 効果ごとに「手に入れます」「捨てます」と書き分けることもしない——
+      //     この1か所で全カードの文言を抱えることになり、必ずズレる。
+      if (!opts.cardId) {
+        const 説明 = document.createElement("div");
+        説明.className = "cell-confirm-card-note";
+        説明.textContent = t("game.cellConfirm.faceDownCard");
+        modal.appendChild(説明);
+      }
+    }
+
+    // 「今後表示しない」の2段押しで出す警告（最初は隠しておく）。
+    const warnEl = document.createElement("div");
+    warnEl.className = "cell-confirm-warn";
+    warnEl.style.display = "none";
+    modal.appendChild(warnEl);
+
     const buttons = document.createElement("div");
     buttons.className = "contact-approval-buttons";
     const finish = (result) => {
@@ -134,8 +174,22 @@ export function confirmCellChoice(cellEl, hint, opts = {}) {
     dontShow.className = "cell-confirm-dontshow";
     dontShow.type = "button";
     dontShow.textContent = t("game.confirm.never");
+    // 🔴【#651・続き741】**2段押し**にした（ユーザー要望「本当にオフにしていいか警告を出す」）。
+    //   ⚠ ここで別の確認モーダルを重ねない——このモーダルは自分の覆い(z 10610)を持っているので、
+    //     上に重ねると「閉じ方が2つある」状態になる。ボタン自身が警告に化ける方が確実。
+    //   ⓘ #236 の「押した覚えがないまま切れていた」にもこれが効く（1回では切れない）。
+    let 警告済み = false;
     dontShow.addEventListener("click", (ev) => {
       if (blocked(ev)) return;
+      if (!警告済み) {
+        警告済み = true;
+        dontShow.textContent = t("game.cellConfirm.neverAgain");
+        dontShow.classList.add("is-warning");
+        warnEl.textContent = t("game.cellConfirm.neverWarn");
+        warnEl.style.display = "";
+        placeNextToCell(modal, cellEl); // 1行増えた分、位置を取り直す
+        return;
+      }
       setCellConfirmEnabled(false, "dont-show");
       // 何が起きたのか分かるように一言残す（#236: 押した覚えがないまま切れていて、
       // 「モーダルが出ない不具合」に見えていた）。戻し方もここで伝える。

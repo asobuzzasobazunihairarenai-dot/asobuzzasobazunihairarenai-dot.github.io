@@ -55,7 +55,7 @@ import {
   setAfkCpuDifficulty,
 } from "./cpu-battle-state.js";
 import { SHORTCUT_TARGETS, getShortcut, setShortcut, registerShortcutSettingsOpener } from "./player-buttons.js";
-import { createBackdrop } from "./ui-helpers.js";
+import { createBackdrop, showConfirmModal } from "./ui-helpers.js";
 import {
   isFlightAnimationDisabled,
   setFlightAnimationDisabled,
@@ -1235,7 +1235,23 @@ export function initOptionsMenu() {
             // （マス選択は頻度が段違いに高いので、こちらだけ切りたいのが自然なため）。
             content.appendChild(
               buildCheckboxRow(t("opt.chk.cellConfirm"), isCellConfirmEnabled(), (checked) => {
-                setCellConfirmEnabled(checked, "options");
+                // 🔴【#651・続き741】**切る時だけ**警告を出す（ユーザー要望）。
+                //   #651 の報告は「カードを確認したら、そのカードがもらえた」——この確認を
+                //   切ると**押した瞬間に確定**するので、その事故が起きる。入れる時は無警告。
+                if (checked) {
+                  setCellConfirmEnabled(true, "options");
+                  return;
+                }
+                // ⚠ いったんオンに戻してから聞く（聞いている間だけ切れている状態を作らない）。
+                setCellConfirmEnabled(true, "options");
+                renderContent();
+                showConfirmModal(t("cellConfirm.offWarn"), {
+                  見出し: t("cellConfirm.offWarnTitle"),
+                  はい: t("cellConfirm.offWarnYes"),
+                }).then((ok) => {
+                  if (ok) setCellConfirmEnabled(false, "options");
+                  renderContent();
+                });
               })
             );
             // 【#489】追色コストの候補が1枚しか無い時に、選ばせずに払う。既定は切。
