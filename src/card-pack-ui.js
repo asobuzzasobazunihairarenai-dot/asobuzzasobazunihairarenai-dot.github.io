@@ -19,6 +19,8 @@
 //   （黙って空の画面になると、何が起きているか分からない）。
 
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
+import { NORMAL_CARDS } from "./cards-data.js";
+import { sortCardDefsByColor } from "./card-sort.js";
 import { FIRST_ED_NORMAL_CARDS } from "./cards-data-1st.js";
 import { getCardImagePath, getCardBackImagePath, hasNoPrintedFace, getCardDefinition } from "./cards-data.js";
 import { showCardFace, paintCardFace } from "./card-face-display.js";
@@ -42,7 +44,7 @@ import {
   adminGrantAllCards,
   adminResetCards,
 } from "./card-packs.js";
-import { createModalCloseX, createBackdrop, setTextWithCoin, CURRENCY_ICON } from "./ui-helpers.js";
+import { createModalCloseX, createBackdrop, setTextWithCoin, CURRENCY_ICON, showNoticeModal } from "./ui-helpers.js";
 // 🔴【続き735】開封の演出（ユーザー要望「ポケポケみたいにめちゃ豪華に」）。
 //   ⚠ 画面を**作り直したのではない**——引いた7枚をそのまま渡すだけで、
 //     パックの画面（持ち物・コレクション）は今までどおりその後ろに残る。
@@ -51,8 +53,27 @@ import { t } from "./ui-text.js";
 
 // パックに入り得る札＝**まだアプリで公開していない**0th拡張と 1st EDITION の通常カード。
 // ⓘ リメイクの33種は最初から全員が上限まで持っている（標準の山札そのもの）ので入れない。
+// パックから出る札（＝持ち物として数える札）。0th拡張と 1st EDITION の通常カード。
+// ⚠ サーバー（so7_pack_pool）と同じ顔ぶれでなければならない。tools/check-card-packs.mjs が照合する。
 export function getPackPool() {
   return [...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS];
+}
+
+// 🔴【#691・続き740】**コレクションに出す**顔ぶれ。ユーザー要望
+//   「オレンジから始まってるのが気になる。紅の鉄拳からが本来？
+//     あと一応リメイクのカードも並べない？コレクションっていうとあった方が良い気もする。」
+//   ⇒ ①**リメイクの33種も並べる**（最初から全員が7枚ずつ持っている＝7/7 で出る。
+//      「集める対象」ではないが、コレクションとしては**在るべき**）
+//     ②**色の順に並べ直す**（赤→橙→黄→緑→青→桃→紫→なないろ→白→黒）。
+//   ⚠ パックの**中身**（getPackPool）は1枚も変えていない——あれはサーバーの写しなので、
+//     ここで顔ぶれを変えると検査が落ちる。**出す時だけ**別に組む。
+export function getCollectionPool() {
+  return sortCardDefsByColor([...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS]);
+}
+
+// その札が「パックで集める側」か（＝リメイクの33種ではないか）。
+function 拡張の札か(id) {
+  return getPackPool().some((d) => d.id === id);
 }
 function capOf(def) {
   return def?.only ? 1 : COPY_MAX;
@@ -123,6 +144,9 @@ function ボタン(文, 中身, { 主役 = false, 無効 = false } = {}) {
     } catch (err) {
       知らせ = 文言にする(err);
       生のエラー = 生の文(err);
+      // 🔴【#692】押して駄目だった理由は**モーダル**で出す（画面のすみの1行は見落とされる）。
+      //   ⚠ 文は今までどおり画面にも残す（モーダルを閉じた後も読めるように）。
+      showNoticeModal(知らせ, { 見出し: t("packs.noticeTitle") });
     } finally {
       忙しい = false;
       再描画();
@@ -347,12 +371,20 @@ function ウィークリーの区画() {
   return box;
 }
 
+// その札を何枚持っているか。**リメイクの33種は最初から全員が上限まで持っている**
+// （card-packs.js の copiesOf と同じ決まり。ここで別の数え方をするとズレる）。
+function 枚数(c, def) {
+  if (!拡張の札か(def.id)) return COPY_MAX;
+  return Math.max(0, Math.floor(Number(c.cards[def.id]) || 0));
+}
+
 // ── ⑥ コレクション ─────────────────────────────────────────────────────────
 function コレクションの区画() {
   const c = getCollection();
   const box = document.createElement("div");
-  const pool = getPackPool();
-  const 持っている = pool.filter((d) => (c.cards[d.id] || 0) > 0).length;
+  // 🔴【#691】リメイクの33種も並べる＋色の順（getCollectionPool）。
+  const pool = getCollectionPool();
+  const 持っている = pool.filter((d) => 枚数(c, d) > 0).length;
   box.appendChild(節(t("packs.collection", { n: 持っている, total: pool.length })));
 
   // 🔴【続き737】どこまで集まったかを**帯**で見せる（数字だけだと進んだ実感が出ない）。
@@ -374,7 +406,7 @@ function コレクションの区画() {
   const grid = document.createElement("div");
   grid.className = "card-pack-collection";
   for (const def of pool) {
-    const n = Math.min(Number(c.cards[def.id]) || 0, capOf(def));
+    const n = Math.min(枚数(c, def), capOf(def));
     const cell = document.createElement("div");
     cell.className = "card-pack-cell" + (n === 0 ? " is-missing" : "");
     const face = 小さい札(def.id, "3.4rem");
@@ -390,6 +422,7 @@ function コレクションの区画() {
     cnt.textContent = `${n} / ${capOf(def)}` + (def.only ? "　ONLY" : "");
     cell.appendChild(cnt);
     // ワイルドカードで1枚もらう。⚠ 上限まで持っている札には出さない（無駄打ちさせない）。
+    // ⚠ リメイクの33種は**最初から全員7枚**なので、ここは必ず素通りする。
     const 持ちワイルド = def.only ? c.onlyCards : c.wildCards;
     if (n < capOf(def) && 持ちワイルド > 0) {
       cell.appendChild(

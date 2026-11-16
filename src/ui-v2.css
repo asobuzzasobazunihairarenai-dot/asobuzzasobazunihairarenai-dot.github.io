@@ -2271,7 +2271,7 @@ body.ui-v2 .options-v2-body > details.options-menu-details {
      v2 の時だけ上書きしているので、?ui=0 では今までどおりの位置に戻る。 */
 /* 中身は縦の真ん中へ（上に寄せると下半分が空いて、作りかけに見える）。 */
 body.ui-v2 #profile-page-card {
-  padding-right: 23rem;
+  padding-right: 21rem;
   box-sizing: border-box;
   flex: 1 1 auto;
   display: flex;
@@ -2280,19 +2280,34 @@ body.ui-v2 #profile-page-card {
 body.ui-v2 #profile-page-card > div {
   width: 100%;
 }
-/* 3列目＝メインデッキ。上端を中身の1行目にそろえて置く（右下に沈めない）。 */
-body.ui-v2 #profile-maindeck {
-  top: 50%;
-  right: 5rem;
+/* 🔴【#688 #689・続き740】3列目を**2段**にした（メインデッキ／マイ山札）。
+   ユーザー指摘:「マイ山札小さくないですか？ｗ」「アバターの枠の天面とメインデッキの
+   枠の天面が揃ってないの気にならないですか？」「マイ山札という要素が増えたので
+   マイページ全体のレイアウトを再構築しよう！」
+   ⇒ ①**2つを同じ大きさの札**にして縦に並べる ②**天面を中身の1行目にそろえる**
+     （--profile-side-top は profile-page.js が描いた後に測って入れる）。
+   ⚠ 縦中央(top:50%)をやめたのは、**天面がそろわない**から（中身の高さで動く）。
+   ⚠ 既定（?ui=0）の座標は1つも触っていない。 */
+body.ui-v2 #profile-maindeck,
+body.ui-v2 #profile-mainstack {
+  right: 4rem;
   bottom: auto;
   width: 10.5rem;
-  transform: translateY(-50%) scale(1.95);
-  transform-origin: center right;
+  /* 倍率は profile-page.js が「入る大きさ」に決める（既定 1.5）。 */
+  transform: scale(var(--profile-side-scale, 1.5));
+  transform-origin: top right;
   padding: 0.6rem 0.5rem 0.7rem;
   box-sizing: border-box;
   border: 1px solid var(--v2-gold-soft, rgba(176, 141, 63, 0.45));
   border-radius: 0;
   box-shadow: 0 12px 30px -24px rgba(120, 96, 48, 0.9);
+}
+body.ui-v2 #profile-maindeck {
+  top: var(--profile-side-top, 7rem);
+}
+body.ui-v2 #profile-mainstack {
+  /* 1つ目の実際の高さ（測って入れる）のぶんだけ下へ。 */
+  top: calc(var(--profile-side-top, 7rem) + var(--profile-deck-h, 23rem));
 }
 body.ui-v2.theme-light #profile-maindeck {
   background: var(--v2-paper, #fffdf8);
@@ -2311,14 +2326,21 @@ body.ui-v2 #profile-maindeck::before {
   background: linear-gradient(90deg, #d8b24c, #c79a47);
 }
 
-/* ═══ 【2026-11-15・続き735・#676】v2 のマイページ: メイン山札の箱 ═══
-   v2 ではメインデッキが**縦中央**（top:50% / scale 1.95）なので、上に残る高さは
-   実測 232px しかない（箱は 264px 要る）。⇒ **デッキの下**へ置き、右端をそろえる。
-   ⚠ メインデッキの位置・倍率には触らない（続き724 で詰めた3列の割り付けを壊さない）。 */
-body.ui-v2 #profile-mainstack {
-  top: auto;
-  bottom: 1rem;
-  right: 5rem;
-  transform: scale(1.1);
-  transform-origin: bottom right;
+/* ⚠【続き740】ここに在った「山札は左下・1.1倍」は、上の2段の規則に置き換えた
+   （ユーザー指摘「マイ山札小さくないですか？ｗ」）。 */
+/* 山札の地と天の罫も、メインデッキと同じにする（2つで1つの列に見えるように）。 */
+body.ui-v2.theme-light #profile-mainstack {
+  background: var(--v2-paper, #fffdf8);
+}
+body.ui-v2:not(.theme-light) #profile-mainstack {
+  background: rgba(255, 253, 248, 0.06);
+}
+body.ui-v2 #profile-mainstack::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #d8b24c, #c79a47);
 }

@@ -13900,7 +13900,7 @@ async function runContractBrandCurseOnLock(player, brandId) {
         // ユーザー要望2026-08-16「置く系の効果はどこに置いたか行動ログに記載してほしい」。烙印は
         // ロックエリアに表向きで見えていた公開カードなので、名前と座標を出してよい（revealName:true）。
         const brandCoord = actionLogCoordLabel(dest);
-        logAction("place", { player, cardId: "black-contract-brand", location: dest, faceDown: true, revealName: true });
+        logAction("place", { player, cardId: "black-contract-brand", location: dest, faceDown: true, revealName: true, from: "self" });
         // (2) 「烙印を盤面へ裏向きで置いた」を明示。ロックエリアから外れて盤面に移ったことが
         //     一目でわからないので、移動後に別モーダルで知らせる（どのマスに置いたかも添える）。
         await announceEffectReasonForEffect(
@@ -14410,6 +14410,16 @@ function updateSpectatorBanner() {
       spectatorBannerEl.id = "spectator-banner";
       const label = document.createElement("span");
       label.className = "spectator-banner-label";
+      // 🔴【#653・続き740】観戦者も声を出せるように（ユーザー要望）。
+      //   席のアバターからは出せない（席が無い）ので、ここに置く。
+      const emoteBtn = document.createElement("button");
+      emoteBtn.type = "button";
+      emoteBtn.className = "spectator-banner-emote";
+      emoteBtn.textContent = t("game.spectate.emote");
+      emoteBtn.addEventListener("click", () => openEmotePicker(emoteBtn));
+      spectatorBannerEl.appendChild(emoteBtn);
+      spectatorBannerEl._emoteBtn = emoteBtn;
+
       const exitBtn = document.createElement("button");
       exitBtn.type = "button";
       exitBtn.className = "spectator-banner-exit";
@@ -14451,6 +14461,26 @@ function updateSpectatorBanner() {
             render();
           });
           seatsEl.appendChild(btn);
+          // 🔴【#654・続き740】ユーザー要望「**観戦時、そのプレイヤーの手札を
+          //   のぞき見するボタンもあるといいかも**」。
+          //   仕組みは既に在った（視点の切り替え＋『視点の人の手札だけ表向き』）が、
+          //   **2つを続けて押さないと辿り着けない**ので気づかれていなかった。
+          //   ⇒ 1押しで「その人を見る＋その人の手札だけ表向き」にする。
+          //   ⚠ 『すべて』モードの時だけ出す。『公開情報のみ』は**元から手札が見えない**
+          //     ——部屋を立てた人がそう決めているので、ここで開けてはいけない。
+          if (getSpectateMode() === "all") {
+            const peek = document.createElement("button");
+            peek.type = "button";
+            peek.className = "spectator-banner-peek";
+            peek.textContent = t("game.spectate.peek");
+            peek.title = t("game.spectate.peekTip", { name: getPlayerName(p) });
+            peek.addEventListener("click", () => {
+              setSpectateViewSeat(p);
+              setSpectateOneHand(true);
+              render();
+            });
+            seatsEl.appendChild(peek);
+          }
         }
       }
     }
@@ -16215,12 +16245,31 @@ function showCardPreviewFor(cardId, clientX, clientY) {
   }
   showCardFace(preview, cardId, getCardImagePath(cardId));
   applyPreviewNote(preview, null); // モーダル内のカードには注意書きを付けない
+  markPreviewSquare(null); // 【#645】モーダルの中の札は盤面のマスと関係ない
   positionPreviewPanel(preview, clientX, clientY);
   preview.style.display = "block";
 }
 
 function hideCardPreview() {
   if (previewEl) previewEl.style.display = "none";
+  markPreviewSquare(null);
+}
+
+// 🔴【#645・続き740】ユーザー要望「**場のカードの表面を見てる間、どのマスのカードを
+//   見ているのか場のマスがハイライトされているといい**」。
+//   盤面は傾いていて、拡大は画面の端に出るので「どれを見ているか」が分かりにくい。
+//   ⇒ 拡大している間だけ、そのカードが乗っている**マス（またはロックのスロット）**に印を付ける。
+//   ⚠ 印は **outline** で付ける（.cell は既に box-shadow を持っていて、
+//     box-shadow は複数の規則で合成されない＝教訓10）。
+//   ⚠ render() は盤面を作り直す（innerHTML=""）ので、覚えている要素が外れていることがある。
+//     外れていても class を外すだけなので害は無いが、isConnected を見て無駄を省く。
+let previewSquareEl = null;
+function markPreviewSquare(el) {
+  const 四角 = el && el.closest ? el.closest(".cell, .lock-slot") : null;
+  if (四角 === previewSquareEl) return;
+  if (previewSquareEl?.isConnected) previewSquareEl.classList.remove("is-preview-source");
+  previewSquareEl = 四角;
+  if (previewSquareEl) previewSquareEl.classList.add("is-preview-source");
 }
 
 // ユーザー要望2026-09-02: 緑のキューブ ヴァーディアン(first-green)の公開ドローで引いたカードは
@@ -16331,8 +16380,10 @@ function updatePreview(el, clientX, clientY) {
   if (!cardId) {
     applyPreviewSwipeHint(preview, null);
     preview.style.display = "none";
+    markPreviewSquare(null); // 【#645】見るのをやめたら印も消す
     return;
   }
+  markPreviewSquare(el); // 【#645】いま見ているカードのマスに印を付ける
   // テキストモードならカード面を合成して被せ、画像モードなら従来通り背景画像を敷く。
   showCardFace(preview, cardId, getCardImagePath(cardId));
   applyPreviewNote(preview, getPreviewNoteFor(el));
@@ -19007,12 +19058,19 @@ function buildFriendlyLogItems() {
       player = e.detail.player;
       const co = actionLogCoordLabel(e.detail.location);
       const fd = e.detail.faceDown ? t("game.log.faceDown") : "";
+      // 🔴【#656・続き740】ユーザーの問い「**手札から置いたか山札から置いたか**
+      //   プレイヤー全員にわかるようになってましたっけ？」⇒ **なっていなかった**
+      //   （どちらも「カードを裏向きで置きました」になる）。出どころを頭に出す。
+      //   ⚠ 出どころは**公開情報**（手札から出したのか山札から出したのかは全員が見ている）。
+      //     伏せているのは**中身**だけなので、ここに出しても隠し事は漏れない。
+      const 出どころ =
+        e.detail.from === "hand" ? t("game.log.fromHand") : e.detail.from === "deck" ? t("game.log.fromDeck") : "";
       const where = co ? t("game.log.coordSuffix", { coord: co }) : e.detail.location.zone === "lock" ? t("game.log.lockArea") : "";
       if (e.detail.revealName && e.detail.cardId) {
         const name = cardDisplayName(e.detail.cardId);
-        msg = t("game.log.placedNamed", { card: name, fd, where });
+        msg = 出どころ + t("game.log.placedNamed", { card: name, fd, where });
       } else {
-        msg = t("game.log.placedCard", { fd, where });
+        msg = 出どころ + t("game.log.placedCard", { fd, where });
       }
     } else if (e.category === "diag-gate-invasion-received") {
       msg = t("game.gateAuto.happened");

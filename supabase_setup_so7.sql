@@ -1662,16 +1662,34 @@ as $$
   end;
 $$;
 
--- 現在のシーズンID（JSTの年月）。cronは使わず、シーズン切替は「新シーズンに初めて
+-- 現在のシーズンID（JSTの**半年**）。cronは使わず、シーズン切替は「新シーズンに初めて
 -- ランク戦に触れた時」に下の関数群が遅延で適用する。
+--
+-- 🔴【#697・続き740】ユーザー判断で**1か月 → 半年**にした（'2026-11' → '2026-H2'）。
+--   前期 = 1〜6月（H1）／後期 = 7〜12月（H2）。
+--   ⚠ **形が変わるので、そのままだと既存の行が全部「古いシーズン」扱いになり、次に
+--     ランク戦へ触れた瞬間に全員が2ランク下げられる。** それを避けるため、下に
+--     「古い形の season_id を新しい形へ読み替える」移行を置いてある（1回で済み、
+--     何度流しても安全）。
 create or replace function so7_ranked_current_season()
 returns text
 language sql
 stable
 set search_path = public, extensions
 as $$
-  select to_char((now() at time zone 'Asia/Tokyo'), 'YYYY-MM');
+  select to_char((now() at time zone 'Asia/Tokyo'), 'YYYY')
+      || '-H'
+      || (case when extract(month from (now() at time zone 'Asia/Tokyo')) <= 6 then '1' else '2' end);
 $$;
+
+-- 🔴【#697・続き740】移行: 古い形（'YYYY-MM'）の season_id を新しい形（'YYYY-H1'/'YYYY-H2'）へ
+--   読み替える。**降格を起こさないため**の読み替えで、ランクやゲージには一切触らない。
+--   何度流しても同じ結果になる（既に新しい形の行は正規表現に当たらない）。
+update so7_ranked_players
+   set season_id = substring(season_id from 1 for 4)
+       || '-H'
+       || (case when substring(season_id from 6 for 2)::int <= 6 then '1' else '2' end)
+ where season_id ~ '^[0-9]{4}-[0-9]{2}$';
 
 -- 【内部エンジン】1人のプレイヤーにポイント差分dを適用する。docs/ranked-spec.mdの
 -- ゲージ処理（繰越・後ろから消灯=クランプ・0未満なし・シーズン中降格なし・レジェンドはLP）と

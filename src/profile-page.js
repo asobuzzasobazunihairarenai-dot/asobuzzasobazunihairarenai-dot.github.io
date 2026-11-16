@@ -74,6 +74,7 @@ async function renderProfileBody() {
     await renderMyPageBody(bodyEl, closeProfilePage);
     applyProfileLayout(bodyEl); // PROFILE_LAYOUT適用＋編集モードなら移動/リサイズ配線
     fitProfilePageContent();
+    alignProfileSideColumn();
   } finally {
     // 途中で失敗しても必ず見せる（白いままにしない方が実害が小さい）。
     骨?.remove();
@@ -89,6 +90,78 @@ async function renderProfileBody() {
 // スマホでは上端の安全余白（--page-top-safe。オプションの帯のぶん約1.65倍）が加わってさらに
 // はみ出すが、**実測してから縮める**ので端末ごとの違いに自動で追随する。
 // レイアウト編集モードでは触らない（ドラッグで座標を決めている最中に倍率が変わると混乱するため）。
+// 🔴【#688 #689・続き740】右の列（メインデッキ／マイ山札）の**天面を中身にそろえる**。
+//   ユーザー指摘「アバターの枠の天面とメインデッキの枠の天面が揃ってないの気になりませんか？」。
+//   中身（左2列）は**縦の真ん中**に置かれる＝天面の位置は中身の高さで決まるので、
+//   CSS だけでは追えない。**描いた後に測って**変数へ入れる。
+//   ⚠ 既定（?ui=0）では何も起きない（変数を読むのは v2 の規則だけ）。
+//   ⚠ 2つ目の箱の位置は「1つ目の高さ」で決まるので、**先に1つ目を測ってから**入れる。
+// 中身とデッキの箱の大きさを見張って、変わったら測り直す。
+// ⚠ 測り直しの中で自分がまた呼ばれないよう、観測は1回だけ張る（要素も毎回同じ）。
+// ⚠ ResizeObserver が無い環境では、代わりに数回だけ測り直す（最後の保険）。
+let 観測者 = null;
+function 観測を始める() {
+  if (観測者 || !overlayEl || !bodyEl) return;
+  const 的 = [bodyEl, overlayEl.querySelector("#profile-maindeck")].filter(Boolean);
+  if (typeof ResizeObserver !== "function") {
+    for (const ms of [120, 400, 900]) setTimeout(() => alignProfileSideColumn(), ms);
+    return;
+  }
+  観測者 = new ResizeObserver(() => {
+    if (!overlayEl?.isConnected) {
+      観測者?.disconnect();
+      観測者 = null;
+      return;
+    }
+    alignProfileSideColumn();
+  });
+  for (const el of 的) 観測者.observe(el);
+}
+
+function alignProfileSideColumn() {
+  if (!overlayEl || !bodyEl) return;
+  if (!document.body.classList.contains("ui-v2")) return;
+  const 外 = overlayEl.getBoundingClientRect();
+  // 中身のいちばん上＝左の列の最初の札の天面。
+  let 天 = Infinity;
+  for (const el of bodyEl.querySelectorAll(":scope > * > *, :scope > *")) {
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    if (r.top < 天) 天 = r.top;
+  }
+  if (!Number.isFinite(天)) return;
+  // 🔴🔴 **物差しをそろえる。** getBoundingClientRect が返すのは**実画面px**だが、
+  //   CSS の top に入るのは**ステージpx**（body がステージ倍率で変形している）。
+  //   そのまま入れると倍率のぶんだけズレる——実測で 288 と書いたつもりが 238 に出た。
+  //   ⇒ 倍率は overlay 自身から出す（見えている高さ ÷ レイアウト上の高さ）。
+  //   （続き725 で自分が書いた教訓「どちらの物差しかを先に決める」を、ここで踏んだ。）
+  const 倍率 = overlayEl.offsetHeight > 0 ? 外.height / overlayEl.offsetHeight : 1;
+  const ステージpx = (実px) => Math.round(実px / (倍率 || 1));
+  overlayEl.style.setProperty("--profile-side-top", ステージpx(天 - 外.top) + "px");
+  // 🔴 実測で分かった: **1回測るだけでは足りない**。中身は通信を待って後から伸びるし、
+  //   デッキの箱も絵を読み込んでから高さが決まる（実測で 206 → 260 に伸びた＝
+  //   山札が40px 食い込んでいた）。⇒ **大きさが変わったら測り直す**。
+  観測を始める();
+  // 1つ目（メインデッキ）の実際の高さ＋間を、2つ目の天面として渡す。
+  const 箱 = overlayEl.querySelector("#profile-maindeck");
+  // 🔴 2つの札が画面の下からはみ出さないよう、**入る大きさに決める**。
+  //   実測で、既定の1.5倍だと中身が高い時に 24px はみ出した。
+  //   ⚠ 高さは `offsetHeight`（**変形前**のレイアウト上の高さ＝ステージpx）で考える。
+  //     `getBoundingClientRect` は変形後なので、倍率を掛けると二重になる。
+  const 山 = overlayEl.querySelector("#profile-mainstack");
+  const 間 = 14;
+  const 下の余白 = 16;
+  if (箱) {
+    const 天 = parseFloat(overlayEl.style.getPropertyValue("--profile-side-top")) || 0;
+    const 使える = Math.max(120, ステージpx(外.height) - 天 - 下の余白);
+    const 素の高さ = (箱.offsetHeight || 0) + (山?.offsetHeight || 0);
+    let 倍 = 1.5;
+    if (素の高さ > 0) 倍 = Math.max(0.85, Math.min(1.5, (使える - 間) / 素の高さ));
+    overlayEl.style.setProperty("--profile-side-scale", String(Math.round(倍 * 1000) / 1000));
+    overlayEl.style.setProperty("--profile-deck-h", Math.round((箱.offsetHeight || 0) * 倍) + 間 + "px");
+  }
+}
+
 function fitProfilePageContent() {
   const page = overlayEl;
   const card = document.getElementById("profile-page-card");
@@ -107,6 +180,8 @@ function fitProfilePageContent() {
   card.style.transformOrigin = "top center";
   card.style.transform = `scale(${k})`;
   card.style.marginBottom = `${-Math.round(cardH * (1 - k))}px`;
+  // 縮めたら天面も動くので、測り直す。
+  alignProfileSideColumn();
 }
 
 export function openProfilePage(onClose) {
@@ -284,6 +359,8 @@ export function openProfilePage(onClose) {
 }
 
 export function closeProfilePage() {
+  観測者?.disconnect();
+  観測者 = null;
   window.removeEventListener("resize", fitProfilePageContent);
   overlayEl?.remove();
   overlayEl = null;

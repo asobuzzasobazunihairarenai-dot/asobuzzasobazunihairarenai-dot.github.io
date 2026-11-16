@@ -12,7 +12,11 @@ import { showRankExplanationModal } from "./rank-explain.js";
 import { isProfileLayoutEditMode } from "./profile-layout-editor.js";
 import { getPlayerName, getPlayerAvatar, setPlayerName } from "./player-identity.js";
 import { fetchStatsProfile } from "./stats-profile.js";
-import { TITLE_DEFS, computeUnlockedTitleKeys, getTitleGroups, formatTitle } from "./titles.js";
+import { TITLE_DEFS, computeUnlockedTitleKeys, getTitleGroups, formatTitle, titleProgress } from "./titles.js";
+// 【#650・続き740】収集系の称号に要る数。どちらも**葉**なので輪にならない。
+import { getCollection } from "./card-packs.js";
+import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
+import { FIRST_ED_NORMAL_CARDS } from "./cards-data-1st.js";
 import { openStatsPlayerLinkModal } from "./stats-player-link.js";
 import { buildFriendsButton, refreshFriendRequestBadge } from "./friends-ui.js"; // フレンド機能（2026-09-04）
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
@@ -576,6 +580,26 @@ function openTitleCollectionModal(favTitleEl) {
 // 称号コレクション（ユーザー要望2026-08-28「称号はコレクションしていく感じで！その中から１つ
 // お気に入りを選んでステータスに明示するイメージ」）。解禁は保存せず、その場の戦績から毎回
 // 判定する（titles.js のコメント参照）。選んだ1つだけを players.title_key へ保存する。
+// 【#650・続き740】いま持っているカード・アイテムの数を数えて stats に足す。
+function 集めた数を足す(stats) {
+  try {
+    const 全部 = [...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS];
+    const 持ち = getCollection()?.cards || {};
+    stats.cardsTotal = 全部.length;
+    stats.cardKinds = 全部.filter((d) => (Number(持ち[d.id]) || 0) > 0).length;
+    stats.onlyKinds = 全部.filter((d) => d.only && (Number(持ち[d.id]) || 0) > 0).length;
+  } catch (e) {
+    /* パックの準備がまだなら 0 のまま＝その称号が解禁されないだけ */
+  }
+  try {
+    const sh = getShopCompletionStats();
+    stats.itemsOwned = sh.owned;
+    stats.itemsTotal = sh.total;
+  } catch (e) {
+    /* 同上 */
+  }
+}
+
 async function renderTitleCollection(container) {
   container.innerHTML = "";
   const heading = document.createElement("div");
@@ -589,6 +613,10 @@ async function renderTitleCollection(container) {
   container.appendChild(status);
 
   const [stats, currentKey] = await Promise.all([fetchMyTitleStats(), fetchMyTitleKey()]);
+  // 🔴【#650・続き740】収集系の称号に要る数を足す。
+  //   ⚠ online.js では数えられない（shop-content.js → online.js と輪になる）ので、
+  //     **ここで**足してから渡す。取れない時は0＝解禁されないだけ。
+  集めた数を足す(stats);
   const unlocked = new Set(computeUnlockedTitleKeys(stats));
   let selectedKey = currentKey;
 
@@ -606,6 +634,14 @@ async function renderTitleCollection(container) {
       const gh = document.createElement("div");
       gh.className = "my-page-titles-group-name";
       gh.textContent = group.name;
+      // 【#650】群ごとに「取った数 / 全部」（どこが埋まっていないかが分かる）。
+      const gn = document.createElement("span");
+      gn.className = "my-page-titles-group-count";
+      gn.textContent = t("mypage.titleGroupCount", {
+        got: group.titles.filter((d) => unlocked.has(d.key)).length,
+        total: group.titles.length,
+      });
+      gh.appendChild(gn);
       g.appendChild(gh);
       const row = document.createElement("div");
       row.className = "my-page-titles-row";
@@ -621,6 +657,27 @@ async function renderTitleCollection(container) {
         chip.innerHTML = has
           ? `<span>${t(def.labelKey)}</span>`
           : `<span class="my-page-title-icon">🔒</span><span>？？？</span>`;
+        // 🔴【#650・続き740】ユーザー要望「**集めたくなるようなUIまたは工夫**」。
+        //   鍵のままでも**あとどれだけか**が見えれば、次の1つを目指せる。
+        //   ⚠ 名前は伏せたまま（2026-08-28 のユーザー判断「名前だけ伏せる」）。
+        if (!has) {
+          const pr = titleProgress(def, stats);
+          if (pr) {
+            const bar = document.createElement("span");
+            bar.className = "my-page-title-progress";
+            const fill = document.createElement("span");
+            fill.className = "my-page-title-progress-fill";
+            fill.style.width = Math.round(pr.ratio * 100) + "%";
+            bar.appendChild(fill);
+            chip.appendChild(bar);
+            const num = document.createElement("span");
+            num.className = "my-page-title-progress-num";
+            num.textContent = t("mypage.titleProgressBar", { now: pr.now, need: pr.need });
+            chip.appendChild(num);
+            // もう少しで取れるものは目立たせる（半分を超えたら）。
+            if (pr.ratio >= 0.5) chip.classList.add("is-almost");
+          }
+        }
         chip.title = has
           ? t("mypage.titleTip", { desc: t(def.descKey), extra: selectedKey === def.key ? t("mypage.titleTipUnset") : "" })
           : t("mypage.titleLocked", { desc: t(def.descKey) });

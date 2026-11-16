@@ -21,41 +21,77 @@ import { t } from "./ui-text.js"; // UI英語化フェーズ10（文言は ui-te
 export const TITLE_DEFS = [
   // ── 戦績（対戦数）──────────────────────────────────────────────
   { key: "debut", labelKey: "title.debut.label", descKey: "title.debut.desc", groupKey: "title.group.record",
-    test: (s) => s.matchesCount >= 1 },
+    test: (s) => s.matchesCount >= 1, goal: (s) => ({ now: s.matchesCount, need: 1 }) },
   { key: "regular", labelKey: "title.regular.label", descKey: "title.regular.desc", groupKey: "title.group.record",
-    test: (s) => s.matchesCount >= 10 },
+    test: (s) => s.matchesCount >= 10, goal: (s) => ({ now: s.matchesCount, need: 10 }) },
   { key: "veteran", labelKey: "title.veteran.label", descKey: "title.veteran.desc", groupKey: "title.group.record",
-    test: (s) => s.matchesCount >= 30 },
+    test: (s) => s.matchesCount >= 30, goal: (s) => ({ now: s.matchesCount, need: 30 }) },
   { key: "pillar", labelKey: "title.pillar.label", descKey: "title.pillar.desc", groupKey: "title.group.record",
-    test: (s) => s.matchesCount >= 50 },
+    test: (s) => s.matchesCount >= 50, goal: (s) => ({ now: s.matchesCount, need: 50 }) },
   // ── 戦績（勝利）────────────────────────────────────────────────
   { key: "first-win", labelKey: "title.first-win.label", descKey: "title.first-win.desc", groupKey: "title.group.record",
-    test: (s) => s.winsCount >= 1 },
+    test: (s) => s.winsCount >= 1, goal: (s) => ({ now: s.winsCount, need: 1 }) },
   { key: "winner5", labelKey: "title.winner5.label", descKey: "title.winner5.desc", groupKey: "title.group.record",
-    test: (s) => s.winsCount >= 5 },
+    test: (s) => s.winsCount >= 5, goal: (s) => ({ now: s.winsCount, need: 5 }) },
   { key: "winner10", labelKey: "title.winner10.label", descKey: "title.winner10.desc", groupKey: "title.group.record",
-    test: (s) => s.winsCount >= 10 },
+    test: (s) => s.winsCount >= 10, goal: (s) => ({ now: s.winsCount, need: 10 }) },
   // ── 戦績（勝率。試合数が少ないうちは付かないように10戦以上を条件にする）──────
   { key: "sharp", labelKey: "title.sharp.label", descKey: "title.sharp.desc", groupKey: "title.group.record",
-    test: (s) => s.matchesCount >= 10 && s.winRate >= 50 },
+    test: (s) => s.matchesCount >= 10 && s.winRate >= 50, goal: (s) => ({ now: Math.round(s.winRate), need: 50 }) },
   { key: "dominant", labelKey: "title.dominant.label", descKey: "title.dominant.desc", groupKey: "title.group.record",
-    test: (s) => s.matchesCount >= 10 && s.winRate >= 70 },
+    test: (s) => s.matchesCount >= 10 && s.winRate >= 70, goal: (s) => ({ now: Math.round(s.winRate), need: 70 }) },
   // ── ランク戦の段位 ──────────────────────────────────────────────
   { key: "ranked-debut", labelKey: "title.ranked-debut.label", descKey: "title.ranked-debut.desc", groupKey: "title.group.ranked",
-    test: (s) => s.rank !== null && s.rank !== undefined },
+    test: (s) => s.rank !== null && s.rank !== undefined, goal: (s) => ({ now: s.rank === null || s.rank === undefined ? 0 : 1, need: 1 }) },
   { key: "rank-gold", labelKey: "title.rank-gold.label", descKey: "title.rank-gold.desc", groupKey: "title.group.ranked",
-    test: (s) => (s.rank ?? -1) >= 2 },
+    test: (s) => (s.rank ?? -1) >= 2, goal: (s) => ({ now: Math.max(0, s.rank ?? 0), need: 2 }) },
   { key: "rank-diamond", labelKey: "title.rank-diamond.label", descKey: "title.rank-diamond.desc", groupKey: "title.group.ranked",
-    test: (s) => (s.rank ?? -1) >= 4 },
+    test: (s) => (s.rank ?? -1) >= 4, goal: (s) => ({ now: Math.max(0, s.rank ?? 0), need: 4 }) },
   { key: "rank-legend", labelKey: "title.rank-legend.label", descKey: "title.rank-legend.desc", groupKey: "title.group.ranked",
-    test: (s) => (s.rank ?? -1) >= 6 },
+    test: (s) => (s.rank ?? -1) >= 6, goal: (s) => ({ now: Math.max(0, s.rank ?? 0), need: 6 }) },
   // ── 貢献（不具合報告。テストプレイを支えてくれた人への称号）────────────────
   { key: "reporter1", labelKey: "title.reporter1.label", descKey: "title.reporter1.desc", groupKey: "title.group.contrib",
-    test: (s) => s.bugReports >= 1 },
+    test: (s) => s.bugReports >= 1, goal: (s) => ({ now: s.bugReports, need: 1 }) },
   { key: "reporter5", labelKey: "title.reporter5.label", descKey: "title.reporter5.desc", groupKey: "title.group.contrib",
-    test: (s) => s.bugReports >= 5 },
+    test: (s) => s.bugReports >= 5, goal: (s) => ({ now: s.bugReports, need: 5 }) },
   { key: "reporter10", labelKey: "title.reporter10.label", descKey: "title.reporter10.desc", groupKey: "title.group.contrib",
-    test: (s) => s.bugReports >= 10 },
+    test: (s) => s.bugReports >= 10, goal: (s) => ({ now: s.bugReports, need: 10 }) },
+  // ── 【#650・続き740】ここから下はユーザー要望「もっと称号を増やそう！」で足した分 ──
+  //   ⚠ 解禁は保存しないので、足した瞬間に過去の持ち物から自動で埋まる。
+  { key: "collector1", labelKey: "title.collector1.label", descKey: "title.collector1.desc", groupKey: "title.group.collect",
+    test: (s) => (s.cardKinds ?? 0) >= 1, goal: (s) => ({ now: s.cardKinds ?? 0, need: 1 }) },
+  { key: "collector10", labelKey: "title.collector10.label", descKey: "title.collector10.desc", groupKey: "title.group.collect",
+    test: (s) => (s.cardKinds ?? 0) >= 10, goal: (s) => ({ now: s.cardKinds ?? 0, need: 10 }) },
+  { key: "collector26", labelKey: "title.collector26.label", descKey: "title.collector26.desc", groupKey: "title.group.collect",
+    test: (s) => (s.cardKinds ?? 0) >= 26, goal: (s) => ({ now: s.cardKinds ?? 0, need: 26 }) },
+  { key: "collector-all", labelKey: "title.collector-all.label", descKey: "title.collector-all.desc", groupKey: "title.group.collect",
+    test: (s) => (s.cardsTotal ?? 0) > 0 && (s.cardKinds ?? 0) >= (s.cardsTotal ?? 0), goal: (s) => ({ now: s.cardKinds ?? 0, need: s.cardsTotal ?? 0 }) },
+  { key: "only-hunter", labelKey: "title.only-hunter.label", descKey: "title.only-hunter.desc", groupKey: "title.group.collect",
+    test: (s) => (s.onlyKinds ?? 0) >= 3, goal: (s) => ({ now: s.onlyKinds ?? 0, need: 3 }) },
+  { key: "dresser10", labelKey: "title.dresser10.label", descKey: "title.dresser10.desc", groupKey: "title.group.collect",
+    test: (s) => (s.itemsOwned ?? 0) >= 10, goal: (s) => ({ now: s.itemsOwned ?? 0, need: 10 }) },
+  { key: "dresser30", labelKey: "title.dresser30.label", descKey: "title.dresser30.desc", groupKey: "title.group.collect",
+    test: (s) => (s.itemsOwned ?? 0) >= 30, goal: (s) => ({ now: s.itemsOwned ?? 0, need: 30 }) },
+  { key: "dresser-all", labelKey: "title.dresser-all.label", descKey: "title.dresser-all.desc", groupKey: "title.group.collect",
+    test: (s) => (s.itemsTotal ?? 0) > 0 && (s.itemsOwned ?? 0) >= (s.itemsTotal ?? 0), goal: (s) => ({ now: s.itemsOwned ?? 0, need: s.itemsTotal ?? 0 }) },
+  { key: "matches100", labelKey: "title.matches100.label", descKey: "title.matches100.desc", groupKey: "title.group.record",
+    test: (s) => s.matchesCount >= 100, goal: (s) => ({ now: s.matchesCount, need: 100 }) },
+  { key: "winner25", labelKey: "title.winner25.label", descKey: "title.winner25.desc", groupKey: "title.group.record",
+    test: (s) => s.winsCount >= 25, goal: (s) => ({ now: s.winsCount, need: 25 }) },
+  { key: "winner50", labelKey: "title.winner50.label", descKey: "title.winner50.desc", groupKey: "title.group.record",
+    test: (s) => s.winsCount >= 50, goal: (s) => ({ now: s.winsCount, need: 50 }) },
+  { key: "steady", labelKey: "title.steady.label", descKey: "title.steady.desc", groupKey: "title.group.record",
+    test: (s) => s.matchesCount >= 10 && s.winRate >= 60, goal: (s) => ({ now: Math.round(s.winRate), need: 60 }) },
+  { key: "rank-silver", labelKey: "title.rank-silver.label", descKey: "title.rank-silver.desc", groupKey: "title.group.ranked",
+    test: (s) => (s.rank ?? -1) >= 1, goal: (s) => ({ now: Math.max(0, s.rank ?? 0), need: 1 }) },
+  { key: "rank-platinum", labelKey: "title.rank-platinum.label", descKey: "title.rank-platinum.desc", groupKey: "title.group.ranked",
+    test: (s) => (s.rank ?? -1) >= 3, goal: (s) => ({ now: Math.max(0, s.rank ?? 0), need: 3 }) },
+  { key: "rank-master", labelKey: "title.rank-master.label", descKey: "title.rank-master.desc", groupKey: "title.group.ranked",
+    test: (s) => (s.rank ?? -1) >= 5, goal: (s) => ({ now: Math.max(0, s.rank ?? 0), need: 5 }) },
+  { key: "legend100", labelKey: "title.legend100.label", descKey: "title.legend100.desc", groupKey: "title.group.ranked",
+    test: (s) => (s.legendPoints ?? 0) >= 100, goal: (s) => ({ now: s.legendPoints ?? 0, need: 100 }) },
+  { key: "reporter25", labelKey: "title.reporter25.label", descKey: "title.reporter25.desc", groupKey: "title.group.contrib",
+    test: (s) => s.bugReports >= 25, goal: (s) => ({ now: s.bugReports, need: 25 }) },
 ];
 
 export function getTitleDef(key) {
@@ -78,6 +114,13 @@ export function computeUnlockedTitleKeys(stats) {
     winRate: stats?.winRate ?? 0,
     rank: stats?.rank ?? null,
     bugReports: stats?.bugReports ?? 0,
+    // 【#650・続き740】収集系の称号で使う。取れていない情報は0＝解禁されないだけ。
+    cardKinds: stats?.cardKinds ?? 0,
+    cardsTotal: stats?.cardsTotal ?? 0,
+    onlyKinds: stats?.onlyKinds ?? 0,
+    itemsOwned: stats?.itemsOwned ?? 0,
+    itemsTotal: stats?.itemsTotal ?? 0,
+    legendPoints: stats?.legendPoints ?? 0,
   };
   return TITLE_DEFS.filter((t) => {
     try {
@@ -101,4 +144,30 @@ export function getTitleGroups() {
     g.titles.push(def);
   }
   return groups;
+}
+
+// 【#650・続き740】その称号まで**あとどれだけ**か。{ now, need, ratio } または null。
+//   ⚠ 進みを持たない称号（条件が数で言えないもの）は null を返す。
+export function titleProgress(def, stats) {
+  if (!def?.goal) return null;
+  try {
+    const g = def.goal({
+      matchesCount: stats?.matchesCount ?? 0,
+      winsCount: stats?.winsCount ?? 0,
+      winRate: stats?.winRate ?? 0,
+      rank: stats?.rank ?? null,
+      bugReports: stats?.bugReports ?? 0,
+      cardKinds: stats?.cardKinds ?? 0,
+      cardsTotal: stats?.cardsTotal ?? 0,
+      onlyKinds: stats?.onlyKinds ?? 0,
+      itemsOwned: stats?.itemsOwned ?? 0,
+      itemsTotal: stats?.itemsTotal ?? 0,
+      legendPoints: stats?.legendPoints ?? 0,
+    });
+    if (!g || !(g.need > 0)) return null;
+    const now = Math.max(0, Math.min(Number(g.now) || 0, g.need));
+    return { now, need: g.need, ratio: now / g.need };
+  } catch (e) {
+    return null;
+  }
 }

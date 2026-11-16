@@ -27650,9 +27650,18 @@ body.is-tablet-device .pkc-onlybadge { font-size: 1.3rem; height: 3rem; }
 }
 
 /* ① 持ち物の4つの札 */
+/* 🔴【#690・続き740】ユーザー指摘「枠のサイズが違うのが少し気になる」。
+   正体は **align-items の消し忘れ**だった——`.card-pack-stat` はこの上（続き728）でも
+   定義されていて、そちらが `display:flex; align-items: baseline` を持っている。
+   ここで `display: grid` に変えても、**書いていない項目は前の規則のまま残る**ので
+   `align-items: baseline` が生き続け、grid の既定の「引き伸ばし」が効かなくなっていた
+   ＝下の行（0 / 7）を持つ2つだけ背が高い。⇒ `stretch` を明示して4つとも同じ高さにする。
+   ⚠ 教訓: 同じセレクタを後から書き直す時は、**前の規則が持っている項目を数えてから**書く。
+   「display を変えたら直る」ではなく「消し忘れた項目が残る」。 */
 .card-pack-stat {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
   gap: 0.6rem;
   max-width: 46rem;
   margin: 0 auto;
@@ -27662,6 +27671,9 @@ body.is-tablet-device .pkc-onlybadge { font-size: 1.3rem; height: 3rem; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* 下の行（0 / 7）を持つ札と持たない札で中身の高さが違うので、**数字を下へそろえる**
+     （枠の高さは上の stretch でそろう。中身まで上詰めだと、そろっていないように見える）。 */
+  justify-content: flex-start;
   gap: 0.1rem;
   padding: 0.5rem 0.4rem 0.6rem;
   border: 1px solid rgba(176, 141, 63, 0.45);
@@ -27917,3 +27929,249 @@ body.is-tablet-device .daily-ring-task-title { font-size: 1.6rem; }
 .profile-skeleton-bar:nth-child(4) { animation-delay: 0.36s; }
 .profile-skeleton-bar:nth-child(5) { animation-delay: 0.48s; }
 .profile-skeleton-bar:nth-child(6) { animation-delay: 0.6s; }
+
+/* ═══════════ 【#688・続き740】マイ山札: 複数の山札の切り替え ═══════════
+   ユーザー要望「**マイ山札はマイデッキと同じく複数設定できるようにしましょう**」。
+   ⚠ 色は決め打ちしない（教訓15。明暗2テーマある）。地と字はパネルから継ぎ、
+     違いは枠・太さ・不透明度で出す。選ばれている1つだけ地を持たせる。
+   ⚠ 大きさは rem（ステージ1600x900 基準）。スマホは下の is-phone-device で上げる。 */
+.my-stack-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+.my-stack-tab {
+  padding: 0.36rem 0.8rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.my-stack-tab.is-on {
+  background: rgba(148, 163, 184, 0.22);
+  border-color: rgba(148, 163, 184, 0.75);
+  font-weight: bold;
+}
+.my-stack-tab.is-add {
+  border-style: dashed;
+  opacity: 0.85;
+}
+.my-stack-tabs-tools {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+.my-stack-tab-tool {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.74rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  opacity: 0.85;
+}
+/* 「持っているカードだけ」が押してある時（オン／オフが形で分かるように）。 */
+.my-stack-action-btn.is-on {
+  background: rgba(148, 163, 184, 0.22);
+  border-color: rgba(148, 163, 184, 0.75);
+  font-weight: bold;
+}
+/* 🔴 スマホ・タブレットは実画面が 0.478 倍になるので、読ませる字と押す所を上げる
+   （#453・#569 と同じ罠。続き725 で同じ画面を一度上げている）。 */
+body.is-phone-device .my-stack-tab,
+body.is-tablet-device .my-stack-tab {
+  font-size: 1.5rem;
+  padding: 0.6rem 1.1rem;
+  max-width: 20rem;
+}
+body.is-phone-device .my-stack-tab-tool,
+body.is-tablet-device .my-stack-tab-tool {
+  font-size: 1.25rem;
+  padding: 0.5rem 0.9rem;
+}
+
+/* ═══════════ 【#645・続き740】いま拡大して見ているカードのマスを光らせる ═══════════
+   ユーザー要望「場のカードの表面を見てる間、**どのマスのカードを見ているのか場のマスが
+   ハイライトされているといい**」。盤面は傾いていて拡大は画面の端に出るので、
+   「どれを見ているか」が分かりにくかった。
+   🔴 印は **outline** で付ける——`.cell` は既に box-shadow を持っていて、
+      box-shadow は複数の規則で合成されない（後で効いた方で丸ごと上書き＝教訓10）。
+   ⚠ outline はレイアウトに影響しない（盤面の49マスの大きさを1pxも動かさない＝教訓11）。
+   ⚠ `pointer-events` には触らない（当たり判定は elementsFromPoint の自前判定＝教訓4）。 */
+.cell.is-preview-source,
+.lock-slot.is-preview-source {
+  outline: 2px solid rgba(255, 232, 160, 0.95);
+  outline-offset: -2px;
+  z-index: 4;
+}
+
+/* ═══════════ 【#653・続き740】観客席（観戦者のエモート）═══════════
+   ユーザー要望「観戦中に観戦者としてエモートできるといい。**観客席とか左上にあるといいかな？**」。
+   ⚠ **押せない**（pointer-events: none）。このアプリの当たり判定は elementsFromPoint の
+     自前判定なので、透明でも拾われると盤面の操作を奪う（教訓4）。消音ボタンだけ auto に戻す。
+   ⚠ 色は決め打ちしない…と言いたいが、ここは**盤面の上に重なる浮遊物**で、明暗どちらの
+     テーマでも盤面は暗い木目の上に出る。読めることを優先して、自前で地と字を持つ。
+   ⚠ 大きさは rem（ステージ1600x900 基準）。 */
+#spectator-emote-gallery {
+  position: fixed;
+  left: 0.8rem;
+  top: 5rem;
+  z-index: 3300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  pointer-events: none;
+  max-width: 20rem;
+}
+.spectator-emote-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.82rem;
+  color: #fdf6e3;
+  background: rgba(24, 20, 16, 0.72);
+  border-left: 3px solid rgba(216, 178, 76, 0.9);
+  border-radius: 0 0.3rem 0.3rem 0;
+  animation: spectator-emote-in 220ms ease-out both;
+}
+.spectator-emote-line.is-self {
+  border-left-color: rgba(120, 200, 255, 0.95);
+}
+.spectator-emote-who {
+  font-size: 0.68rem;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+.spectator-emote-text {
+  font-weight: bold;
+}
+.spectator-emote-mute {
+  align-self: flex-start;
+  pointer-events: auto;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: inherit;
+  background: rgba(24, 20, 16, 0.55);
+  border: 1px solid rgba(216, 178, 76, 0.5);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.spectator-emote-mute:hover {
+  opacity: 1;
+}
+@keyframes spectator-emote-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 【#654】観戦バナーの「手札をのぞく」。席のボタンのすぐ後ろに小さく並べる。 */
+.spectator-banner-peek {
+  margin-left: 0.15rem;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.68rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px dashed rgba(216, 178, 76, 0.6);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.spectator-banner-emote {
+  margin-left: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(216, 178, 76, 0.6);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+/* 🔴 スマホ・タブレットは実画面が 0.478 倍。読ませる字と押す所を上げる（#453・#569 の罠）。 */
+body.is-phone-device .spectator-emote-line,
+body.is-tablet-device .spectator-emote-line {
+  font-size: 1.45rem;
+}
+body.is-phone-device .spectator-emote-who,
+body.is-tablet-device .spectator-emote-who {
+  font-size: 1.15rem;
+}
+body.is-phone-device .spectator-banner-peek,
+body.is-tablet-device .spectator-banner-peek {
+  font-size: 1.15rem;
+  padding: 0.35rem 0.7rem;
+}
+body.is-phone-device .spectator-banner-emote,
+body.is-tablet-device .spectator-banner-emote {
+  font-size: 1.3rem;
+  padding: 0.4rem 0.9rem;
+}
+
+/* ═══════════ 【#650・続き740】称号コレクション: あとどれだけかを見せる ═══════════
+   ユーザー要望「もっと称号を増やそう！そして**集めたくなるようなUIまたは工夫**をしたい」。
+   ⇒ 鍵のままでも「3 / 10」と進みが見えるようにし、半分を超えたものに印を付けた。
+   ⚠ 名前は伏せたまま（2026-08-28 のユーザー判断「称号の名前だけ伏せましょう」）。
+   ⚠ 色は決め打ちしない（教訓15）。地と字はモーダルから継ぎ、違いは枠・不透明度で出す。 */
+.my-page-titles-group-count {
+  margin-left: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: normal;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+.my-page-title-chip .my-page-title-progress {
+  display: block;
+  width: 100%;
+  height: 3px;
+  margin-top: 0.22rem;
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.my-page-title-chip .my-page-title-progress-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #d8b24c, #f0cf7a);
+}
+.my-page-title-chip .my-page-title-progress-num {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.64rem;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+/* もう少しで取れるものは、枠を強めて「次の1つ」に見えるようにする。
+   🔴 box-shadow は複数の規則で合成されない（教訓10）ので、枠の色と太さだけで差を出す。 */
+.my-page-title-chip.is-almost {
+  border-color: rgba(216, 178, 76, 0.85);
+  opacity: 1;
+}
+/* 🔴 スマホ・タブレットは実画面が 0.478 倍（#453・#569 の罠）。 */
+body.is-phone-device .my-page-titles-group-count,
+body.is-tablet-device .my-page-titles-group-count {
+  font-size: 1.2rem;
+}
+body.is-phone-device .my-page-title-chip .my-page-title-progress-num,
+body.is-tablet-device .my-page-title-chip .my-page-title-progress-num {
+  font-size: 1.1rem;
+}

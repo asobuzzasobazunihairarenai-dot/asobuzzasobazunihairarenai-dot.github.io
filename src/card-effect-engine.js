@@ -2682,7 +2682,8 @@ async function runAction(action, ctx, helpers) {
           }
           // ユーザー要望2026-08-16「置く系の効果はどこに置いたか行動ログに記載してほしい」。
           // source:"self"は効果カード自身＝公開情報なので名前を出す（faceUp指定なら表向き）。
-          logAction("place", { player: ctx.player, cardId: ctx.cardId, location: dest, faceDown: !action.faceUp, revealName: true });
+          // 【#656】出どころ（効果カード自身／手札／山札）を残す。文は main.js が組む。
+          logAction("place", { player: ctx.player, cardId: ctx.cardId, location: dest, faceDown: !action.faceUp, revealName: true, from: "self" });
         } else if (action.source === "hand") {
           // #336: 直前に拾った札をそのまま置き直すのは完全な空振り。CPUの自動選択でだけ避ける
           // （人間は今までどおり選べる＝#203のテストが通る）。
@@ -2695,12 +2696,12 @@ async function runAction(action, ctx, helpers) {
           if (!handToken) continue;
           await helpers.moveAndSync(handToken.id, { zone: "cell", row: dest.row, col: dest.col });
           // 手札から裏向きで置いた＝中身は非公開。座標だけ記録し、名前は伏せる（cardIdを含めない）。
-          logAction("place", { player: ctx.player, location: { zone: "cell", row: dest.row, col: dest.col }, faceDown: true, revealName: false });
+          logAction("place", { player: ctx.player, location: { zone: "cell", row: dest.row, col: dest.col }, faceDown: true, revealName: false, from: "hand" });
         } else {
           // "deck"（山札）: 手札からではなく山札の一番上を直接そのマスへ置く。
           await helpers.placeFromDeck(dest);
           // 山札から裏向きで置いた＝中身は非公開。座標だけ記録し、名前は伏せる。
-          logAction("place", { player: ctx.player, location: dest, faceDown: true, revealName: false });
+          logAction("place", { player: ctx.player, location: dest, faceDown: true, revealName: false, from: "deck" });
         }
         // ユーザー要望「配置後ここに配置したよがわかるように配置場所をしっかり
         // ハイライトしてください。マスの枠だけでなくカードの面も」。マスハイライト用の

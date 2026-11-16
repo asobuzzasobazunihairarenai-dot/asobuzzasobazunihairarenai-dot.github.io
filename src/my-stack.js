@@ -185,27 +185,58 @@ export function randomRecipeOf(sets, baseCards) {
 }
 
 // ── 覚えておく側（localStorage） ─────────────────────────────────────────
+//
+// 🔴【#688・続き740】ユーザー要望「**マイ山札はマイデッキと同じく複数設定できるように**」。
+//   ⇒ 覚える形を `{ enabled, stacks: [{id,name,recipe}], selectedId }` にした。
+//   ⚠ **古い形（{enabled, recipe}）は読み込みの時に1つの山札へ移す**（名前は画面側が
+//     後から付ける。ここは葉なので文言を持てない）。移行は読むだけで済み、
+//     古い鍵は上書きされるまで触らない。
+//   ⚠ 既存の口（getMyStackRecipe など）は**選ばれている1つ**に働く＝呼び出し側は無変更。
 const KEY = "so7-my-stack-v1";
+export const MAX_MY_STACKS = 8; // 増やしすぎると選ぶのが大変になるので上限を置く
 
 let 有効 = false;
-let 組み方 = {};
+let 山札たち = []; // [{ id, name, recipe }]
+let 選んでいる = null;
+
+function 新しいid() {
+  return "ms_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+}
+function 組み方を整える(o) {
+  const out = {};
+  for (const [k, v] of Object.entries(o || {})) {
+    const n = Math.floor(Number(v) || 0);
+    if (typeof k === "string" && n > 0) out[k] = n;
+  }
+  return out;
+}
+
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) {
     const o = JSON.parse(raw);
     if (o && typeof o === "object") {
       有効 = !!o.enabled;
-      if (o.recipe && typeof o.recipe === "object") {
-        for (const [k, v] of Object.entries(o.recipe)) {
-          const n = Math.floor(Number(v) || 0);
-          if (typeof k === "string" && n > 0) 組み方[k] = n;
+      if (Array.isArray(o.stacks)) {
+        for (const st of o.stacks) {
+          if (!st || typeof st !== "object") continue;
+          山札たち.push({
+            id: typeof st.id === "string" && st.id ? st.id : 新しいid(),
+            name: typeof st.name === "string" ? st.name : "",
+            recipe: 組み方を整える(st.recipe),
+          });
         }
+        選んでいる = typeof o.selectedId === "string" ? o.selectedId : null;
+      } else if (o.recipe && typeof o.recipe === "object") {
+        // 古い形（1つだけ）からの移行。名前は空のまま＝画面側が既定の名前を出す。
+        山札たち.push({ id: 新しいid(), name: "", recipe: 組み方を整える(o.recipe) });
       }
     }
   }
 } catch (e) {
   // プライベートウィンドウ等で読めないことがある。標準の山札のままで困らない。
 }
+if (山札たち.length > 0 && !山札たち.some((x) => x.id === 選んでいる)) 選んでいる = 山札たち[0].id;
 
 // オンラインの間は黙らせる（上の説明参照）。
 let 止めている = false;
@@ -213,20 +244,64 @@ export function setMyStackSuspended(b) {
   止めている = !!b;
 }
 
+function 今の山札() {
+  return 山札たち.find((x) => x.id === 選んでいる) || null;
+}
+
 export function isMyStackEnabled() {
   return 有効;
 }
 export function getMyStackRecipe() {
-  return { ...組み方 };
+  return { ...(今の山札()?.recipe || {}) };
 }
 // 実際に山札へ効くか（画面の「山札一覧」もこれを見る）。
 export function isMyStackActive() {
-  return 有効 && !止めている && Object.keys(組み方).length > 0;
+  return 有効 && !止めている && Object.keys(今の山札()?.recipe || {}).length > 0;
+}
+
+// ── 複数の山札 ───────────────────────────────────────────────────────────
+export function getMyStacks() {
+  return 山札たち.map((x) => ({ id: x.id, name: x.name, recipe: { ...x.recipe } }));
+}
+export function getSelectedStackId() {
+  return 今の山札()?.id || null;
+}
+export function selectMyStack(id) {
+  if (!山札たち.some((x) => x.id === id)) return false;
+  選んでいる = id;
+  保存();
+  return true;
+}
+// 新しい山札を足して、それを選ぶ。recipe を渡さなければ空（画面側が標準から始める）。
+export function createMyStack(name, recipe) {
+  if (山札たち.length >= MAX_MY_STACKS) return null;
+  const st = { id: 新しいid(), name: typeof name === "string" ? name : "", recipe: 組み方を整える(recipe) };
+  山札たち.push(st);
+  選んでいる = st.id;
+  保存();
+  return st.id;
+}
+export function renameMyStack(id, name) {
+  const st = 山札たち.find((x) => x.id === id);
+  if (!st) return false;
+  st.name = typeof name === "string" ? name.slice(0, 24) : "";
+  保存();
+  return true;
+}
+// ⚠ 最後の1つは消させない（消すと「どれを編集しているのか」が無くなる）。
+export function deleteMyStack(id) {
+  if (山札たち.length <= 1) return false;
+  const i = 山札たち.findIndex((x) => x.id === id);
+  if (i < 0) return false;
+  山札たち.splice(i, 1);
+  if (選んでいる === id) 選んでいる = 山札たち[Math.min(i, 山札たち.length - 1)].id;
+  保存();
+  return true;
 }
 
 function 保存() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ enabled: 有効, recipe: 組み方 }));
+    localStorage.setItem(KEY, JSON.stringify({ enabled: 有効, stacks: 山札たち, selectedId: 選んでいる }));
   } catch (e) {
     /* 覚えられなくても、そのセッションの間は効く */
   }
@@ -243,13 +318,17 @@ export function setMyStackEnabled(b) {
   有効 = !!b;
   保存();
 }
+// 選ばれている山札の組み方を書き換える。1つも無ければ作る（初めて開いた時）。
 export function setMyStackRecipe(recipe) {
-  const next = {};
-  for (const [k, v] of Object.entries(recipe || {})) {
-    const n = Math.floor(Number(v) || 0);
-    if (typeof k === "string" && n > 0) next[k] = n;
+  const next = 組み方を整える(recipe);
+  let st = 今の山札();
+  if (!st) {
+    st = { id: 新しいid(), name: "", recipe: next };
+    山札たち.push(st);
+    選んでいる = st.id;
+  } else {
+    st.recipe = next;
   }
-  組み方 = next;
   保存();
 }
 

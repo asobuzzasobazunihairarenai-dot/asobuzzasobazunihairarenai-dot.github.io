@@ -111,3 +111,52 @@ export function setTextWithCoin(el, 文) {
   });
   return el;
 }
+
+// 🔴【#692・続き740】ユーザー要望「『パックを持っていません』とかはモーダルでした方が
+//   よくないですか？」。画面のすみに1行で出すと**気づかれない**（#729 で「押しても何も
+//   起きない」と言われたのも、理由が出ていなかったのが半分だった）。
+//
+// ⚠ id が `-modal` で終わる＝新しい見た目（?ui=v2）の装丁が**自動で当たる**（続き707）。
+// ⚠ 地と文字色は決め打ちしない（明暗2テーマ＝教訓15）。既存のモーダルの地を使う。
+// ⚠ 出口は3つ（✕・覆いを押す・OKボタン）。
+export function showNoticeModal(文, { 見出し = null, onClose = null } = {}) {
+  const 既に = document.getElementById("so7-notice-modal");
+  if (既に) 既に.remove();
+  const modal = document.createElement("div");
+  modal.id = "so7-notice-modal";
+  const close = () => {
+    modal.remove();
+    backdrop.remove();
+    onClose?.();
+  };
+  const backdrop = createBackdrop(close, { zIndex: 100200 });
+  modal.style.zIndex = "100201";
+  modal.appendChild(createModalCloseX(close));
+  if (見出し) {
+    const h = document.createElement("div");
+    h.className = "so7-notice-modal-title";
+    h.textContent = 見出し;
+    modal.appendChild(h);
+  }
+  const body = document.createElement("div");
+  body.className = "so7-notice-modal-body";
+  setTextWithCoin(body, 文);
+  modal.appendChild(body);
+  const ok = document.createElement("button");
+  ok.type = "button";
+  ok.className = "so7-notice-modal-ok";
+  ok.textContent = t("common.ok");
+  ok.addEventListener("click", close);
+  modal.appendChild(ok);
+  document.body.appendChild(backdrop);
+  document.body.appendChild(modal);
+  // ⚠ キーボードでも閉じられるように（Esc）。1回きりで自分を外す。
+  const onKey = (e) => {
+    if (e.key !== "Escape") return;
+    window.removeEventListener("keydown", onKey, true);
+    close();
+  };
+  window.addEventListener("keydown", onKey, true);
+  setTimeout(() => ok.focus?.(), 0);
+  return close;
+}

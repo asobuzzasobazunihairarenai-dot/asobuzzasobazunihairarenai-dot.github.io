@@ -28,6 +28,7 @@ import {
   MIN_DECK_SIZE,
   SPECIAL_TAX_RATIO,
 } from "./my-deck.js";
+import { CARD_COLOR_ORDER } from "./card-sort.js";
 // デッキごとの駒スキン・ペット・裏面の選択に使うピッカー（onSelectでグローバルを変えず値だけ
 // 受け取る）は、クリック時に動的importする。静的importにすると piece-skins→shop-content→
 // piece-skins の循環でモジュール評価順が崩れ、SKIN_VARIANTS のTDZ→起動時ブラックスクリーンに
@@ -56,7 +57,8 @@ const MDB_COLOR_HEX = {
 };
 
 // デッキ一覧の並び順（色→スペシャル）。MTGAのように種類ごとにまとめて見せる。
-const COLOR_ORDER = ["red", "orange", "yellow", "green", "blue", "pink", "purple", "rainbow", "white", "black"];
+// 🔴【続き740】色の順は src/card-sort.js に1つだけ置いた（同じ表が3か所にあった）。
+const COLOR_ORDER = CARD_COLOR_ORDER;
 
 let overlayEl = null;
 let collectionEl = null;

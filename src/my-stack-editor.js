@@ -27,6 +27,14 @@ import {
   setMyStackEnabled,
   getMyStackRecipe,
   setMyStackRecipe,
+  // 【#688・続き740】複数のマイ山札
+  MAX_MY_STACKS,
+  getMyStacks,
+  getSelectedStackId,
+  selectMyStack,
+  createMyStack,
+  renameMyStack,
+  deleteMyStack,
 } from "./my-stack.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName } from "./card-text.js";
@@ -96,6 +104,26 @@ function 候補を縛る(list) {
 
 function cardDisplayName(cardId) {
   return getCardName(cardId) || getCardDefinition(cardId)?.name || cardId;
+}
+
+// 🔴【#688・続き740】ユーザー要望「**持っているカードだけ表示などもできるように**」。
+//   ⚠ 既定は**オフ**——0枚の札も見えている方が「何を集めればいいか」が分かる。
+//     ただし札が増えるほど並びが長くなるので、**畳める口**を用意する。
+//   ⚠ リメイクの33種は最初から上限まで持っているので、この絞り込みでは消えない。
+const 所持のみKEY = "so7-my-stack-owned-only";
+let 所持のみ = false;
+try {
+  所持のみ = localStorage.getItem(所持のみKEY) === "1";
+} catch (e) {
+  /* 読めなくても既定（オフ）で困らない */
+}
+function 所持のみを設定(b) {
+  所持のみ = !!b;
+  try {
+    localStorage.setItem(所持のみKEY, 所持のみ ? "1" : "0");
+  } catch (e) {
+    /* 覚えられなくても、そのセッションの間は効く */
+  }
 }
 
 let panel = null;
@@ -262,7 +290,16 @@ function 中身を組む() {
   head.appendChild(headN);
   right.appendChild(head);
 
-  const cands = 候補を縛る(candidatesByGroup(候補のセット()).get(開いているグループ));
+  const 全部 = 候補を縛る(candidatesByGroup(候補のセット()).get(開いているグループ));
+  // 🔴【#688】「持っているカードだけ表示」。**いま入れている札は 0枚でも消さない**
+  //   （消すと「減らす」ができなくなる＝袋小路になる）。
+  const cands = 所持のみ ? 全部.filter((c) => c.持ち > 0 || (Number(下書き[c.id]) || 0) > 0) : 全部;
+  if (所持のみ && 全部.length > cands.length) {
+    const n = document.createElement("div");
+    n.className = "my-stack-note";
+    n.textContent = t("mystack.hiddenByFilter", { n: 全部.length - cands.length });
+    right.appendChild(n);
+  }
   if (cands.length <= 1) {
     const only = document.createElement("div");
     only.className = "my-stack-note";
@@ -317,7 +354,92 @@ function 上の行を組む() {
     });
     actions.appendChild(b);
   }
+  // 🔴【#688】「持っているカードだけ表示」。
+  const only = document.createElement("button");
+  only.type = "button";
+  only.className = "my-stack-action-btn" + (所持のみ ? " is-on" : "");
+  only.textContent = 所持のみ ? t("mystack.ownedOnlyOn") : t("mystack.ownedOnlyOff");
+  only.addEventListener("click", () => {
+    所持のみを設定(!所持のみ);
+    再描画();
+  });
+  actions.appendChild(only);
+
   row.appendChild(actions);
+  return row;
+}
+
+// 🔴【#688・続き740】山札の切り替え（マイデッキと同じく**複数**持てる）。
+//   ⚠ 名前は空でもよい（既定の名前を出す）。**最後の1つは消せない**。
+function 既定の名前(i) {
+  return t("mystack.defaultName", { n: i + 1 });
+}
+function 山札の列を組む() {
+  const row = document.createElement("div");
+  row.className = "my-stack-tabs";
+  const 一覧 = getMyStacks();
+  const 選択 = getSelectedStackId();
+  一覧.forEach((st, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "my-stack-tab" + (st.id === 選択 ? " is-on" : "");
+    b.textContent = st.name || 既定の名前(i);
+    b.addEventListener("click", () => {
+      if (st.id === 選択) return;
+      selectMyStack(st.id);
+      下書き = getMyStackRecipe();
+      if (Object.keys(下書き).length === 0) {
+        下書き = defaultRecipeOf(標準の表());
+        setMyStackRecipe(下書き);
+      }
+      再描画();
+    });
+    row.appendChild(b);
+  });
+  if (一覧.length < MAX_MY_STACKS) {
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "my-stack-tab is-add";
+    add.textContent = t("mystack.newStack");
+    add.addEventListener("click", () => {
+      // 新しい山札は**標準の山札から**始める（空から112枚を手で埋めるのは無理）。
+      createMyStack(既定の名前(getMyStacks().length), defaultRecipeOf(標準の表()));
+      下書き = getMyStackRecipe();
+      再描画();
+    });
+    row.appendChild(add);
+  }
+  const 手 = document.createElement("div");
+  手.className = "my-stack-tabs-tools";
+  const ren = document.createElement("button");
+  ren.type = "button";
+  ren.className = "my-stack-tab-tool";
+  ren.textContent = t("mystack.rename");
+  ren.addEventListener("click", () => {
+    const i = 一覧.findIndex((x) => x.id === 選択);
+    const 今 = i >= 0 ? 一覧[i].name || 既定の名前(i) : "";
+    const 次 = window.prompt(t("mystack.renamePrompt"), 今);
+    if (次 === null) return;
+    renameMyStack(選択, 次.trim());
+    再描画();
+  });
+  手.appendChild(ren);
+  if (一覧.length > 1) {
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "my-stack-tab-tool";
+    del.textContent = t("mystack.deleteStack");
+    del.addEventListener("click", () => {
+      const i = 一覧.findIndex((x) => x.id === 選択);
+      const 名 = i >= 0 ? 一覧[i].name || 既定の名前(i) : "";
+      if (!window.confirm(t("mystack.deleteConfirm", { name: 名 }))) return;
+      deleteMyStack(選択);
+      下書き = getMyStackRecipe();
+      再描画();
+    });
+    手.appendChild(del);
+  }
+  row.appendChild(手);
   return row;
 }
 
@@ -352,6 +474,7 @@ function buildPanel(close) {
 
   再描画 = () => {
     inner.textContent = "";
+    inner.appendChild(山札の列を組む());
     inner.appendChild(上の行を組む());
     inner.appendChild(中身を組む());
   };

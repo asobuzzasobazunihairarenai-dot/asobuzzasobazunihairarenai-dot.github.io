@@ -16,7 +16,7 @@
 // オンライン中の配信はhand_effect_use等と同じ「見た目だけの合図」パターン
 // （broadcastEmote/onEmoteEvents、online.js）。
 
-import { getSelfSeat, isOnlineMode, broadcastEmote, onEmoteEvents } from "./online.js";
+import { getSelfSeat, isOnlineMode, broadcastEmote, onEmoteEvents, isSpectatingGame } from "./online.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ10
 import { stageClientToLocal, stageDelta } from "./main.js";
 
@@ -120,8 +120,19 @@ export function openEmotePicker(anchorEl) {
 }
 
 function sendEmote(emoteKey) {
-  const player = getSelfSeat();
   const text = t(emoteKey);
+  // 🔴【#653・続き740】ユーザー要望「**観戦中に観戦者としてエモートできるといい。
+  //   観客席とか左上にあるといいかな？**」。
+  //   ⚠ 観戦者には席が無い（getSelfSeat() は**見ている席**を返す＝続き712 の #652/#655 と
+  //     同じ罠）。席の吹き出しに混ぜると「その人が言った」ことになってしまうので、
+  //     **別の入れ物（観客席）**へ出す。
+  //   ⚠ 名前は出さない（席が無い＝名乗る所が無い）。全部「観客」。
+  if (isSpectatingGame()) {
+    showSpectatorEmote(text, true);
+    if (isOnlineMode()) broadcastEmote({ spectator: true, text, key: emoteKey });
+    return;
+  }
+  const player = getSelfSeat();
   const shown = showEmoteBubble(player, text);
   // 自分の盤面アバターがデフォルト非表示（isSelfBoardAvatarVisible()）の場合、
   // 送信者自身には何も見えなくなってしまうため、大アバター（ステータスエリア）を
@@ -202,8 +213,88 @@ function closeEmoteMuteMenu() {
 // 受信側（自分以外のクライアントから届いたエモート）。自分自身の発信はsendEmote内で
 // 既にローカル表示済みのため、自分の座席からの合図は無視する（hand_effect_use受信側と
 // 同じ判定パターン）。
-onEmoteEvents(({ player, text, key }) => {
+onEmoteEvents(({ player, text, key, spectator }) => {
+  // 🔴【#653】**観客の合図が先**。観戦中は getSelfSeat() が「見ている席」を返すので、
+  //   下の席の判定に落とすと取りこぼす（続き712 の #652/#655 と同じ罠）。
+  if (spectator) {
+    showSpectatorEmote(key ? t(key) : text, false);
+    return;
+  }
   if (player === getSelfSeat()) return;
   // キーがあれば自分の言語で表示（無ければ送信者の文字列をそのまま＝古いクライアント対策）。
   showEmoteBubble(player, key ? t(key) : text);
 });
+
+// ── 観客席（#653）───────────────────────────────────────────────────────
+// 画面の左上に、観客の声が数秒だけ積まれて消える。
+// ⚠ **押せない**（pointer-events: none）。当たり判定は elementsFromPoint の自前判定なので、
+//   透明でも拾われると盤面の操作を奪う（教訓4）。
+// ⚠ うるさい時のために「観客の声を隠す」を用意する（端末に覚える）。
+const SPECTATOR_EMOTE_MS = 3600;
+const 観客ミュートKEY = "so7-mute-spectator-emotes";
+let 観客ミュート = false;
+try {
+  観客ミュート = localStorage.getItem(観客ミュートKEY) === "1";
+} catch (e) {
+  /* 読めなくても既定（出す）で困らない */
+}
+export function isSpectatorEmoteMuted() {
+  return 観客ミュート;
+}
+export function setSpectatorEmoteMuted(b) {
+  観客ミュート = !!b;
+  try {
+    localStorage.setItem(観客ミュートKEY, 観客ミュート ? "1" : "0");
+  } catch (e) {
+    /* 覚えられなくても、そのセッションの間は効く */
+  }
+}
+
+let 観客席El = null;
+function 観客席() {
+  if (観客席El?.isConnected) return 観客席El;
+  観客席El = document.createElement("div");
+  観客席El.id = "spectator-emote-gallery";
+  // 🔴 うるさい時にその場で止められるように。**対局している人には観戦バナーが出ない**ので、
+  //   止める口はここに置くしかない（設定の奥に入れても見つからない）。
+  //   ⚠ 入れ物は pointer-events: none（教訓4）。このボタンだけ auto に戻す。
+  const 消す = document.createElement("button");
+  消す.type = "button";
+  消す.className = "spectator-emote-mute";
+  消す.textContent = "🔇";
+  消す.title = t("game.spectate.muteOn");
+  消す.addEventListener("click", () => {
+    setSpectatorEmoteMuted(true);
+    観客席El?.remove();
+    観客席El = null;
+  });
+  観客席El.appendChild(消す);
+  document.body.appendChild(観客席El);
+  return 観客席El;
+}
+export function showSpectatorEmote(text, 自分) {
+  // 自分が出した声は、隠していても自分には見せる（押した手応えが無くなるため）。
+  if (観客ミュート && !自分) return;
+  const 席 = 観客席();
+  const line = document.createElement("div");
+  line.className = "spectator-emote-line" + (自分 ? " is-self" : "");
+  const who = document.createElement("span");
+  who.className = "spectator-emote-who";
+  who.textContent = 自分 ? t("emote.spectatorSelf") : t("emote.spectator");
+  line.appendChild(who);
+  const body = document.createElement("span");
+  body.className = "spectator-emote-text";
+  body.textContent = text;
+  line.appendChild(body);
+  席.appendChild(line);
+  // 積みすぎない（古いものから消す）。
+  // ⚠ 先頭は消音ボタンなので、消すのは2つ目以降（行だけ）。
+  while (席.querySelectorAll(".spectator-emote-line").length > 4) 席.querySelector(".spectator-emote-line").remove();
+  setTimeout(() => {
+    line.remove();
+    if (席.querySelectorAll(".spectator-emote-line").length === 0) {
+      席.remove();
+      if (観客席El === 席) 観客席El = null;
+    }
+  }, SPECTATOR_EMOTE_MS);
+}

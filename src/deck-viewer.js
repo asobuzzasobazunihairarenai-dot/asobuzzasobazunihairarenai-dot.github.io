@@ -25,6 +25,7 @@ import { getCardName, getCardNote } from "./card-text.js"; // UI英語化フェ�
 import { t } from "./ui-text.js"; // UI英語化フェーズ12
 // 【続き722】対局中かどうか（席が決まっていれば対局中）。state.js は葉なので循環しない。
 import { getState } from "./state.js";
+import { sortCardDefsByColor } from "./card-sort.js";
 
 // 表示用カード名（英語なら英語名、日本語ならcards-data.jsの名前）。
 function cardDisplayName(cardId) {
@@ -322,17 +323,9 @@ function buildPanel(close) {
 // 🔴【#640】**出す時だけ**色で並べ直す（表そのものは触らない＝サーバー側の写しと
 //   ズレない）。同じ色の中の順は変えない（安定）ので、既に色で揃っている一覧は
 //   1枚も動かない。動くのは**表の末尾に足された札**（紅の鉄拳）だけ。
-const 色の順 = ["red", "orange", "yellow", "green", "blue", "pink", "purple", "rainbow", "white", "black"];
-function 色でそろえる(defs) {
-  return (defs || [])
-    .map((c, i) => ({ c, i }))
-    .sort((a, b) => {
-      const x = 色の順.indexOf(a.c.color);
-      const y = 色の順.indexOf(b.c.color);
-      return (x < 0 ? 99 : x) - (y < 0 ? 99 : y) || a.i - b.i;
-    })
-    .map((o) => o.c);
-}
+// 🔴【続き740】色の順は **src/card-sort.js に1つだけ**置いた（ここ・マイデッキ編集・
+//   コレクションの3か所に同じ表が生まれかけたため）。
+const 色でそろえる = sortCardDefsByColor;
 export function buildDeckSections(opts = {}) {
   const wrap = document.createElement("div");
   // 🔴 対局中（山札一覧）は **getDeckNormalCards()** をそのまま出す——あれが
