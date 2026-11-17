@@ -130,9 +130,34 @@ function splitFirstHandCost(text) {
 // タイトル中の「漢字の連続」に順番で対応する（紅蓮→ぐれん, 火山→かざん）。数が合わない時は
 // 誤ったルビを避けてルビ無しにフォールバックする。
 const KANJI_RE = /[一-鿿々〆〇]/;
+// ルビの span を1つ作って base に差す（「漢字のかたまり」用と「題名ぜんぶ」用で共用）。
+// 【#194】<ruby>/<rt> は使わない。Safari が ruby 内部ボックスへの position 指定を
+// 尊重せず、ルビが行の高さを食ってタイトルが下へ押し出される（＝効果文と重なる）ため。
+// 普通の span なら、どのエンジンでも「ベースの真上に浮かせる」が同じように効く。
+function makeRubyRun(text, reading) {
+  const base = document.createElement("span");
+  base.className = "card-face-title-run";
+  base.textContent = text;
+  const rt = document.createElement("span");
+  rt.className = "card-face-title-rt";
+  rt.setAttribute("aria-hidden", "true"); // 読み上げでは本文（漢字）だけでよい
+  rt.textContent = reading;
+  base.appendChild(rt);
+  return base;
+}
 function applyTitleRuby(el, name, rubyStr) {
   el.textContent = "";
-  const readings = String(rubyStr || "").split(/[\s　]+/).filter(Boolean);
+  const raw = String(rubyStr || "");
+  // 先頭が "*" なら**題名ぜんぶに1つ**のルビ（固有名の読み）。
+  // 0th拡張「我忘れの白き龍」の印刷カードが「ノクスアエル」を題名全体の上に振っており、
+  // 漢字のかたまりごとの仕組みでは表せないため。
+  if (raw.startsWith("*")) {
+    const reading = raw.slice(1).trim();
+    if (!reading) { el.textContent = name; return; }
+    el.appendChild(makeRubyRun(name, reading));
+    return;
+  }
+  const readings = raw.split(/[\s　]+/).filter(Boolean);
   if (!readings.length) { el.textContent = name; return; }
   // name を「漢字の連続」と「それ以外」のランに分割
   const runs = [];
@@ -149,18 +174,7 @@ function applyTitleRuby(el, name, rubyStr) {
   let ri = 0;
   for (const run of runs) {
     if (run.kanji) {
-      // 【#194】<ruby>/<rt> は使わない。Safari が ruby 内部ボックスへの position 指定を
-      // 尊重せず、ルビが行の高さを食ってタイトルが下へ押し出される（＝効果文と重なる）ため。
-      // 普通の span なら、どのエンジンでも「ベースの真上に浮かせる」が同じように効く。
-      const base = document.createElement("span");
-      base.className = "card-face-title-run";
-      base.textContent = run.text;
-      const rt = document.createElement("span");
-      rt.className = "card-face-title-rt";
-      rt.setAttribute("aria-hidden", "true"); // 読み上げでは本文（漢字）だけでよい
-      rt.textContent = readings[ri++];
-      base.appendChild(rt);
-      el.appendChild(base);
+      el.appendChild(makeRubyRun(run.text, readings[ri++]));
     } else {
       el.appendChild(document.createTextNode(run.text));
     }

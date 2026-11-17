@@ -52,6 +52,36 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-18",
+    summary: [
+      "0th拡張のカードの題名に、実物どおりのふりがなが付きました",
+    ],
+    summaryEn: [
+      "0th expansion card titles now show the furigana printed on the real cards",
+    ],
+    items: [
+      "**0th拡張の33種類**のカードの題名に、**実物のカードと同じふりがな**が付きました（「迷いの森」なら「まよ／もり」、「色寄せの笛」なら「いろよ／ふえ」というふうに）。実物の印刷データから1枚ずつ読んで写したものなので、**実物とまったく同じ**です。「我忘れの白き龍」のように、題名ぜんぶに1つのふりがな（ノクスアエル）が付くカードも、実物どおりに出ます。",
+    ],
+    itemsEn: [
+      "All 33 of the 0th expansion cards now show the same furigana (reading aids) that are printed on the real cards. They were read off the actual print data one card at a time, so they match the physical cards exactly. Cards like \"Noxael, the White Dragon\", where a single reading sits over the whole title, are shown that way too.",
+    ],
+    fixes: [
+      "一部のカードで、実物にはあるふりがなが出ていなかったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed furigana missing from a few cards that have them printed on the real card.",
+    ],
+    devItems: [
+      "🔴 **0th拡張のふりがなの出どころは印刷データそのもの**（G:\\マイドライブ\\Adobeクラウド書き出し\\…\\カード （0th）拡張\\①②③⑤_表_入稿用（0th拡張）*.ai）。アウトライン化済みで**文字は字形**になっており、pdf.js の getTextContent では取り出せない（部分フォントに ToUnicode が無い＝制御文字が返る）。⇒ **描いて1枚ずつ読んだ**（scratchpad/_ai_pages.mjs → _title_strips.mjs）。①=ブースターの表紙・②=9枚・③=23枚・⑤=1枚で、ちょうど33種。",
+      "🔴 **読みの数が「漢字のかたまり」の数と合わないと、画面では黙ってルビ無しに落ちる**（applyTitleRuby のフォールバック）。間違いに気づけないので、**生成ツールの中で同じ数え方をして突き合わせ、合わなければ止める**ようにした（tools/gen-ex0-text.mjs / gen-card-text.mjs）。わざと1つ減らして落ちることを確かめてある。",
+      "⚠ **「我忘れの白き龍」だけは仕組みの外だった。** 印刷カードは「ノクスアエル」を**題名全体の上**に1つ振っており、漢字のかたまりごとでは表せない。⇒ titleRuby の先頭が \"*\" なら**題名ぜんぶに1つ**という書き方を足した（card-renderer.js）。実測でルビの中心と題名の中心が1px以内で一致。",
+      "⚠ **「足下の隠し財産」の「あしもと」だけは印刷カードに無い**（印字は「隠し財産」で、「足下の」はアプリ側で後から付いた名前。「鑑定士の技」も印字は -ブルーアイズ- で、-トゥルーアイズ- はアプリ側の名前）。読みは自明なのでこちらで補った。",
+      "🔴 **リメイク側にも取りこぼしが2件あった**（black-contract-brand「誘惑の黒の烙印」＝ゆうわく／くろ／らくいん、eternal-pink「結ばれの一本桜」＝むす／いっぽんざくら）。**元テキストにはちゃんと書いてあった**のに、gen-card-text.mjs のふりがな行の判定が「行頭が空白で始まる」で、その2件だけ**字下げを忘れていた**ので拾えていなかった。⇒ 字下げ無しでも拾うようにしたが、拾うのは**カードとカードの間**・**かなと空白だけの行**・**読みの数が次のカード名のかたまり数と一致する時**だけ（本文の折り返し行を飲み込まないため）。",
+      "🔴🔴 **手元の「カード効果　テキスト.txt」と公開中の src/card-text.ja.js は、効果文が4か所ずれている**（txt の方が古い）。pink-party は**選択肢が別物**（「相手１人を１マス移動させ…」↔「場の任意の２枚をオープンする。」）、ほか3件は「このカード」↔「これ」の言い回し。⇒ 作り直すと**カードの効果が黙って巻き戻る**ので、今回は作り直さず、ふりがな2件だけを当てた。gen-card-text.mjs の先頭に警告を書いた。**次に走らせる人は git diff を1行ずつ読むこと。**",
+      "⚠ gen-card-text.mjs は元テキストを「./カード効果　テキスト.txt」で読むが、あれは git 管理外で**ワークツリーには無い**。環境変数 SO7_CARD_TEXT で大元のフォルダを指せるようにした。",
+    ],
+  },
+  {
     date: "2026-11-17",
     summary: [
       "チャレンジの報酬を受け取ると、セヴルが所持金まで飛んでいくようになりました",

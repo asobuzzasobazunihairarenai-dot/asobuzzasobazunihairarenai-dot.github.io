@@ -1,7 +1,20 @@
 // カード効果テキスト.txt を cardId -> {basic, arrival, hand, flavor} に構造化するパーサ（検証用）。
+//
+// 🔴🔴 **走らせる前に必ず読むこと（続き748）**
+//   手元の「カード効果　テキスト.txt」と、いま公開されている src/card-text.ja.js は
+//   **効果文が4か所ずれている**（txt の方が古い言い回しのまま）。何も考えずに走らせて
+//   上書きすると、**カードの効果が黙って巻き戻る**。2026-11-17 時点のずれ:
+//     - pink-party       🔴 選択肢が別物（「相手１人を１マス移動させ…」↔「場の任意の２枚をオープンする。」）
+//     - orange-mass-change / white-radiance / first-noir  「このカード」↔「これ」の言い回し
+//   ⇒ 走らせたら **git diff を1行ずつ読んで**、ふりがな以外が動いていないか確かめる。
+//   ⇒ 直すなら「txt を今の文に合わせる」のが筋（txt が原本なので）。
+//
 import { readFileSync } from "node:fs";
 
-const TXT = "./カード効果　テキスト.txt";
+// ⚠ 元のテキストは git 管理外（アナログ版の中身そのもの）。**ワークツリーには無い**ので、
+//   大元のフォルダを指す道を用意しておく（続き748）。例:
+//   SO7_CARD_TEXT="D:/7 SHADES OF SEVEN remake デジタル版/カード効果　テキスト.txt" node tools/gen-card-text.mjs
+const TXT = process.env.SO7_CARD_TEXT || "./カード効果　テキスト.txt";
 
 // cards-data.js の名前↔id（手打ちで転記。パーサ検証専用）。
 const NAME_TO_ID = {
@@ -57,29 +70,70 @@ let activeSection = null; // 直近に見た ● or ■（効果セクション�
 const append = (id, key, text) => { result[id][key] += (result[id][key] ? "\n" : "") + text; };
 
 let pendingRuby = ""; // "・名前"行の直前にある全角スペース始まりの読み行（例: "　ぐれん　かざん"）
+let pendingRuby字下げ無し = ""; // 🔴 下の【取りこぼし】参照
 const RUBY_LINE = /^[ 　]+\S/; // 行頭が空白（半角/全角）で始まる
 const HAS_KANA = /[぀-ゟ]/;
+const KANJI_RE = /[一-鿿々〆〇]/;
+const KANA_ONLY = /^[ぁ-ゖァ-ヺーｰ\s　]+$/; // かなと空白だけで出来た行
+
+// 名前の中の「漢字のかたまり」の数（card-renderer.js の applyTitleRuby と同じ数え方）。
+// 読みの数がこれと合わないと、画面では**黙ってルビ無しに落ちる**。
+const 漢字のかたまり数 = (name) => {
+  let n = 0, i = 0;
+  while (i < name.length) {
+    const k = KANJI_RE.test(name[i]);
+    let j = i + 1;
+    while (j < name.length && KANJI_RE.test(name[j]) === k) j++;
+    if (k) n++;
+    i = j;
+  }
+  return n;
+};
+const 読みの数 = (s) => String(s || "").split(/[\s　]+/).filter(Boolean).length;
+const ルビの問題 = [];
+const ルビ無し = [];
 
 for (const line of lines) {
   const t = line.trim();
-  if (SEP.test(t)) { cur = null; inNote = false; activeSection = null; pendingRuby = ""; continue; }
+  if (SEP.test(t)) { cur = null; inNote = false; activeSection = null; pendingRuby = ""; pendingRuby字下げ無し = ""; continue; }
   // ふりがな行: "・名前"の直前、行頭が空白で、ひらがなを含み、マーカーで始まらない行を保留する。
   if (!inNote && RUBY_LINE.test(line) && HAS_KANA.test(t) && !t.startsWith("・") && !/^[★●■ΩΘ※]/.test(t)) {
-    pendingRuby = t; continue;
+    pendingRuby = t; pendingRuby字下げ無し = ""; continue;
+  }
+  // 🔴【取りこぼし】元のテキストでは**字下げを忘れている**ふりがな行がある
+  //   （「結ばれの一本桜」「誘惑の黒の烙印」の2件。印刷カードにはルビが在るのに、
+  //   上の規則に当たらず titleRuby が空のまま出ていた＝続き748 で見つけた）。
+  //   字下げ無しでも拾うが、拾うのは **カードとカードの間（区切り線の後＝cur が無い所）**だけ。
+  //   ⚠ カードの本文の中で拾うと、**かなだけの折り返し行を飲み込んで文が欠ける**。
+  //   さらに**かなと空白だけの行**で、しかも**読みの数が次に来るカード名の
+  //   漢字のかたまり数とぴったり合う**時だけ採る（勝手な拾い過ぎを防ぐ）。
+  if (!cur && !inNote && !pendingRuby && t && KANA_ONLY.test(t) && !t.startsWith("・")) {
+    pendingRuby字下げ無し = t; continue;
   }
   if (t.startsWith("・")) {
     const text = t.slice(1).trim();
     // 効果セクション中（●や■の後）の "・" は選択肢＝そのセクションへ追記。それ以外は新カード名。
-    if (cur && activeSection && !inNote) { append(cur.id, activeSection, "・" + text); pendingRuby = ""; continue; }
+    if (cur && activeSection && !inNote) { append(cur.id, activeSection, "・" + text); pendingRuby = ""; pendingRuby字下げ無し = ""; continue; }
     const id = idByNorm.get(norm(text));
     cur = id ? { id, name: text } : null;
     inNote = false; activeSection = null;
-    if (id) result[id] = { flavor: "", basic: "", subtitle: "", arrival: "", hand: "", titleRuby: pendingRuby };
+    if (id) {
+      const かたまり = 漢字のかたまり数(text);
+      let ruby = pendingRuby;
+      if (!ruby && pendingRuby字下げ無し && かたまり > 0 && 読みの数(pendingRuby字下げ無し) === かたまり) {
+        ruby = pendingRuby字下げ無し; // 字下げを忘れている行を拾った
+      }
+      if (ruby && 読みの数(ruby) !== かたまり) {
+        ルビの問題.push("ふりがなの数が合わない: " + id + "「" + text + "」漢字のかたまり " + かたまり + " ／ 読み " + 読みの数(ruby) + "（" + ruby + "）");
+      }
+      if (!ruby && かたまり > 0) ルビ無し.push(id + "「" + text + "」");
+      result[id] = { flavor: "", basic: "", subtitle: "", arrival: "", hand: "", titleRuby: ruby };
+    }
     else if (text) console.warn("UNMATCHED name:", JSON.stringify(text));
-    pendingRuby = "";
+    pendingRuby = ""; pendingRuby字下げ無し = "";
     continue;
   }
-  pendingRuby = "";
+  pendingRuby = ""; pendingRuby字下げ無し = "";
   if (!cur) continue;
   if (t.startsWith("※")) { inNote = true; activeSection = null; continue; }
   if (inNote) continue;
@@ -90,6 +144,19 @@ for (const line of lines) {
   else if (t.startsWith("■")) { append(cur.id, "hand", t.slice(1).trim()); activeSection = "hand"; }
   else if (activeSection && t) { append(cur.id, activeSection, t); } // 折り返しの続き行
 }
+
+// ===== ふりがなの検算（続き748）=====
+// 読みの数が「漢字のかたまり」の数と合っていないと、画面では**黙ってルビ無しに落ちる**。
+// 間違いに気づけないので、ここで止める。
+if (ルビの問題.length) {
+  console.error("🔴 ふりがながおかしい " + ルビの問題.length + " 件:");
+  for (const p of ルビの問題) console.error("  " + p);
+  process.exit(2);
+}
+// ⚠ こちらは**止めない**（ファーストの8枚のように、印刷カードにも元からルビが無いものがある）。
+//   ただし黙らせない——増えたら元のテキストを疑うこと。
+console.log("ふりがな: 付いた " + Object.values(result).filter((r) => r.titleRuby).length + " 件");
+if (ルビ無し.length) console.log("ふりがなが無い（漢字を含む題名）" + ルビ無し.length + " 件: " + ルビ無し.join(" / "));
 
 const ids = Object.keys(result);
 console.log("matched cards:", ids.length);

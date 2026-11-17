@@ -37,6 +37,70 @@ const 元by = new Map(元.map((x) => [x.no, x]));
 // 色寄せの笛（15〜21）は元の表では1つの塊。7色ぶんに配る。
 const 元を引く = (no) => 元by.get(no) || (Number(no) >= 15 && Number(no) <= 21 ? 元by.get("15〜21") : null);
 
+// ===== 題名のふりがな（ルビ）=====
+// 🔴 出どころは**印刷データそのもの**:
+//   G:\マイドライブ\Adobeクラウド書き出し\ゲーム\7 SHADES OF SEVEN\★コンポーネント\
+//     カード （0th）拡張\ ①②③⑤_表_入稿用（0th拡張）*.ai（アウトライン化済み＝文字は字形）
+//   文字は取り出せない（部分フォントに ToUnicode が無い）ので、pdf.js で描いて1枚ずつ読んだ。
+//   ⇒ scratchpad/_ai_pages.mjs ／ _title_strips.mjs（続き748）。
+//
+// 書き方は card-text-1st.ja.js と同じで、**漢字のかたまりごとの読みを全角スペース区切り**。
+//   例「迷いの森」＝ 迷 と 森 の2かたまり ⇒ "まよ　もり"
+// 先頭の "*" は**題名ぜんぶに1つ**のルビ（固有名の読み。印刷カードがそう振っている）。
+const EX0_TITLE_RUBY = {
+  "ex0-orange-bus": "",                    // オレンジバス（漢字なし）
+  "ex0-yellow-reach-cancel": "",           // リーチキャンセル（漢字なし）
+  "ex0-green-lost-forest": "まよ　もり",
+  "ex0-blue-appraiser": "かんていし　わざ", // 印字は「鑑定士の技 -ブルーアイズ-」（名前だけ後で変わった）
+  "ex0-pink-wish-for-peace": "へいわ　ねが",
+  // ⚠ 印字は「隠し財産」で、「足下の」はアプリ側で後から付いた名前。
+  //    よって「あしもと」だけは**印刷カードに無い**（読みは自明なのでこちらで補った）。
+  "ex0-purple-hidden-fortune": "あしもと　かく　ざいさん",
+  "ex0-red-beginning": "あか",
+  "ex0-orange-bus-stop": "",               // バスストップ（漢字なし）
+  "ex0-yellow-gate-charge": "",            // ゲートチャージ（漢字なし）
+  "ex0-green-creation": "だいちそうぞう",
+  "ex0-blue-strict-watch": "げんじゅうけいかい",
+  "ex0-pink-mystic-fruit": "ふしぎ　かじつ",
+  "ex0-purple-redo-key": "なお",
+  "ex0-flute-red": "いろよ　ふえ",
+  "ex0-flute-orange": "いろよ　ふえ",
+  "ex0-flute-yellow": "いろよ　ふえ",
+  "ex0-flute-green": "いろよ　ふえ",
+  "ex0-flute-blue": "いろよ　ふえ",
+  "ex0-flute-pink": "いろよ　ふえ",
+  "ex0-flute-purple": "いろよ　ふえ",
+  "ex0-red-joyner": "はし　びと　そうじゅつ",
+  "ex0-orange-mccool": "いのうしゃ",
+  "ex0-yellow-little-mouse": "だいとうぞく　てぐせ",
+  "ex0-green-peterhood": "もり　たみ　にちじょう",
+  "ex0-blue-jake": "れきしか　きおくじゅつ",
+  "ex0-pink-yaeza": "みわく",
+  "ex0-purple-vivian": "こうえん",
+  "ex0-white-pure-burger": "",             // ピュアバーガー（漢字なし）
+  "ex0-white-someones-shadow": "だれ　しろ",
+  "ex0-white-dragon": "*ノクスアエル",      // 題名ぜんぶに1つ（印刷カードがそう振っている）
+  "ex0-black-bad-burger": "",              // バッドバーガー（漢字なし）
+  "ex0-black-vood-contract": "ぞく　けいやく",
+  "ex0-red-crimson-fist": "くれない　てっけん",
+};
+
+// 🔴 card-renderer.js の applyTitleRuby と**同じ数え方**で、読みの数が合うかをここで検める。
+//   合っていないと画面では**黙ってルビ無しに落ちる**（＝間違いに気づけない）ので、
+//   作る時に止める。
+const KANJI_RE = /[一-鿿々〆〇]/;
+const 漢字のかたまり数 = (name) => {
+  let n = 0, i = 0;
+  while (i < name.length) {
+    const k = KANJI_RE.test(name[i]);
+    let j = i + 1;
+    while (j < name.length && KANJI_RE.test(name[j]) === k) j++;
+    if (k) n++;
+    i = j;
+  }
+  return n;
+};
+
 const J = (s) => JSON.stringify(s);
 const 問題 = [];
 const ja = [];
@@ -49,9 +113,19 @@ for (const c of EX0_CARDS) {
   const t = src.文;
   if (!t.arrival && !t.hand) 問題.push("到達も手札も空: " + c.id);
 
+  const ruby = EX0_TITLE_RUBY[c.id];
+  if (ruby === undefined) 問題.push("ふりがなの欄が無い: " + c.id + "（EX0_TITLE_RUBY に足す）");
+  if (ruby && !ruby.startsWith("*")) {
+    const 読み数 = ruby.split(/[\s　]+/).filter(Boolean).length;
+    const かたまり = 漢字のかたまり数(c.name);
+    if (読み数 !== かたまり) {
+      問題.push("ふりがなの数が合わない: " + c.id + "「" + c.name + "」漢字のかたまり " + かたまり + " ／ 読み " + 読み数 + "（" + ruby + "）");
+    }
+  }
+
   // 色寄せの笛は「これと同色の」なので、7色ぶん同じ文でよい（色は枠と色データが持つ）。
   ja.push(
-    "  " + J(c.id) + ": { flavor: " + J(t.flavor || "") + ", titleRuby: \"\", basic: " + J(t.basic || "") +
+    "  " + J(c.id) + ": { flavor: " + J(t.flavor || "") + ", titleRuby: " + J(ruby || "") + ", basic: " + J(t.basic || "") +
     ", subtitle: \"\", arrival: " + J(t.arrival || "") + ", hand: " + J(t.hand || "") + " },"
   );
 
