@@ -353,3 +353,186 @@ export function buildCardFace(cardId, { showFlavor = true } = {}) {
 
   return face;
 }
+
+// ===== 本物のカード面を canvas へ写す（霧散演出など、canvas が要る所のため）=====
+//
+// 🔴🔴【#709・#710・続き746】報告「拡張カードの霧散演出で効果文のフォント・配置がおかしい」
+//   「ジュエルの効果発動時もカードテキストおかしい。総点検だね。」
+//
+//   原因は**組版が2つ在ったこと**。0th拡張・1st EDITION は文字を焼き込んだ絵を持たないので、
+//   霧散演出（card-dissolve.js）は canvas に文字を自分で描いていた。ところがその組版は
+//   このファイル（＝本物）とは**別物の手書き**で、余白も字の大きさも違い、仕切り線も無く、
+//   効果文をカード高さの 93% まで垂れ流していた。報告に付いていた実測がそれを示している:
+//
+//        本物（報告の cardFace）: 題名 上52.5% / 効果 上58%・高さ8.2% / 仕切り 67.6%
+//        canvas の手書き:        題名 54.5%  / 効果 60% 〜 **93%**   / 仕切り **無し**
+//
+//   ⇒ canvas 側で組み直すのをやめ、**本物の DOM を画面外で組んで測り、それを写す**。
+//     組版の持ち主はこのファイル1つになるので、CSS を直せば霧散演出にも同じだけ効く。
+//
+//   ⓘ 報告の `fontsReady` は "loaded" だった＝書体の読み込み待ちが原因**ではなかった**。
+//     ただし canvas は webfont の読み込みを待たない（未読込なら黙って serif に落ちる）ので、
+//     呼ぶ側で `await document.fonts.ready` しておくこと（tools/check-canvas-fonts.mjs が見張る）。
+//
+//   ⚠ 折り返しは**自分で計算しない**。ブラウザが組んだ行の箱（Range.getClientRects）を
+//     そのまま写す。自前で折り返すと DOM と1行ズレて、最後の行が枠からはみ出す。
+//   ⚠ 影は canvas の shadow をそのまま使う（縁取りで代用すると、ぼかし影が硬い線になって
+//     にじんで太く見える。どちらも続き746 で実際にやって、撮って気づいた）。
+//   ⚠ 見るのは**文字の節**であって要素ではない。ルビ付きの題名のように「文字と子要素の
+//     両方を持つ」要素があり、要素だけ見ると題名が丸ごと落ちる。
+// CSS の text-shadow（最初の1つ）を canvas の影に読み替える。
+// 🔴 **縁取り（strokeText）で代用しない。** CSS のそれは「ぼかした影」なので、
+//   同じ太さの硬い線で描くと**にじんで太く見える**（続き746 で実際にそうなり、撮って気づいた）。
+//   canvas には影そのものがあるので、本物の値をそのまま渡す。
+// 形: "rgba(0, 0, 0, 0.7) 0px 1.299px 3.464px, rgba(0, 0, 0, 0.5) 0px 0px 1.5px"
+function 影を読む(textShadow) {
+  if (!textShadow || textShadow === "none") return null;
+  const 最初 = String(textShadow).split(/,(?![^(]*\))/)[0];
+  const 色 = /(rgba?\([^)]*\)|#[0-9a-f]{3,8})/i.exec(最初);
+  if (!色) return null;
+  const 数 = [...最初.replace(色[1], "").matchAll(/(-?[\d.]+)px/g)].map((m) => +m[1]);
+  return { 色: 色[1], x: 数[0] || 0, y: 数[1] || 0, ぼかし: 数[2] || 0 };
+}
+
+// 背景画像（●到達・■手札のアイコン）の読み込み置き場。同じ絵を何度も読まない。
+const 絵の控え = new Map();
+function 絵を読む(url) {
+  if (絵の控え.has(url)) return 絵の控え.get(url);
+  const p = new Promise((res) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => res(null); // 読めなくても演出は止めない
+    i.src = url;
+  });
+  絵の控え.set(url, p);
+  return p;
+}
+
+export async function paintCardFaceTextToCanvas(g, cardId, 辺) {
+  if (!g || !cardId || typeof document === "undefined" || !document.body) return false;
+  const host = getFitHost();
+  const 前の中身 = host.innerHTML;
+  try {
+    host.innerHTML = "";
+    const face = buildCardFace(cardId);
+    // 🔴 隠しホストは `visibility:hidden`（自動縮小の実測用）。そのままだと**子孫が全部それを継ぐ**ので、
+    //   下の「見えていない要素は飛ばす」で**1文字も描かれない**（続き746 で実際にそうなった。
+    //   仕切り線だけ出て文字が無い＝原因が分かりにくい形）。位置は画面の外（left:-99999px）なので、
+    //   見えるようにしても人の目には触れない。
+    face.style.visibility = "visible";
+    host.appendChild(face);
+    const 枠 = host.getBoundingClientRect();
+    if (!枠.width || !枠.height) return false;
+    // 🔴🔴 物差しが2つある。取り違えると字だけが別の大きさになる（続き746 で実際にやった。
+    //   続き725・740 と同じ形）:
+    //     ・getBoundingClientRect() … **実画面px**。body にステージ倍率の transform が
+    //       掛かっているので、433px の箱が 271px として返る。
+    //     ・getComputedStyle().fontSize / .width … **CSS px**。倍率の影響を受けない。
+    //   ⇒ 箱の位置は「実画面px ÷ ステージ倍率」で CSS px に直してから canvas へ移す。
+    //     字の大きさは最初から CSS px なので、ステージ倍率で割ってはいけない。
+    const CSS辺 = parseFloat(getComputedStyle(host).width) || 433;
+    const ステージ = 枠.width / CSS辺; // ホスト自身から出す（外から渡さない＝ズレない）
+    const 倍 = 辺 / CSS辺; // CSS px → canvas px
+    const 位置 = (実画面px) => (実画面px / ステージ) * 倍; // 実画面px → canvas px
+
+    // 仕切り線（本物にだけ在って、手書きには無かったもの）
+    for (const el of face.querySelectorAll(".card-face-divider")) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const cs = getComputedStyle(el);
+      const 色 = cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" ? cs.backgroundColor : cs.borderTopColor;
+      if (!色 || 色 === "rgba(0, 0, 0, 0)") continue;
+      g.fillStyle = 色;
+      g.fillRect(位置(r.left - 枠.left), 位置(r.top - 枠.top), 位置(r.width), Math.max(1, 位置(r.height)));
+    }
+
+    // 🔴 **折り返しを自分で計算しない。** ブラウザが組んだ行の箱をそのまま写す。
+    //   ①自前で折り返すと DOM と1行ズレて、最後の行が枠からはみ出す（続き746 で実際にそうなった）
+    //   ②中央寄せ・右寄せの計算も要らない（行の箱の左端をそのまま使えばよい）
+    //   ⚠ 見るのは**文字の節**であって要素ではない。ルビ付きの題名のように
+    //     「文字と子要素の両方を持つ」要素があり、要素だけ見ると題名が丸ごと落ちる。
+    const 行を取る = (tn) => {
+      const 文 = tn.data;
+      const rg = document.createRange();
+      const 出 = [];
+      let 開始 = 0;
+      let 今 = null;
+      for (let i = 0; i < 文.length; i++) {
+        rg.setStart(tn, i);
+        rg.setEnd(tn, i + 1);
+        const r = rg.getBoundingClientRect();
+        if (!r.width && !r.height) continue; // 箱を持たない文字（改行など）
+        if (今 && Math.abs(r.top - 今.top) > 0.5) {
+          出.push({ 文: 文.slice(開始, i), left: 今.left, top: 今.top });
+          開始 = i;
+          今 = null;
+        }
+        if (!今) 今 = { top: r.top, left: r.left };
+        else 今.left = Math.min(今.left, r.left);
+      }
+      if (今) 出.push({ 文: 文.slice(開始), left: 今.left, top: 今.top });
+      return 出;
+    };
+
+    // ●到達 / ■手札 のアイコン（背景画像）。本物に在るものは写す。
+    // ⚠ 読み込みは1回だけ控えるので、2枚目以降の霧散では待ち時間ゼロ。
+    const アイコン = [];
+    for (const el of face.querySelectorAll("*")) {
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") continue;
+      const m = /url\(["']?([^"')]+)["']?\)/.exec(cs.backgroundImage || "");
+      if (!m) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      アイコン.push({ url: m[1], r });
+    }
+    for (const a of アイコン) {
+      const im = await 絵を読む(a.url);
+      if (!im) continue;
+      g.drawImage(im, 位置(a.r.left - 枠.left), 位置(a.r.top - 枠.top), 位置(a.r.width), 位置(a.r.height));
+    }
+
+    let 描いた = 0;
+    const 歩く = (親) => {
+      for (const node of 親.childNodes) {
+        if (node.nodeType === 1) {
+          const cs0 = getComputedStyle(node);
+          if (cs0.display !== "none" && cs0.visibility !== "hidden") 歩く(node);
+          continue;
+        }
+        if (node.nodeType !== 3) continue;
+        if (!node.data || !node.data.trim()) continue;
+        const cs = getComputedStyle(親);
+        const 字 = parseFloat(cs.fontSize) * 倍; // ⚠ fontSize は CSS px。ステージ倍率で割らない
+        if (!(字 > 0)) continue;
+        g.font = (cs.fontStyle !== "normal" ? cs.fontStyle + " " : "") + cs.fontWeight + " " + 字 + "px " + cs.fontFamily;
+        g.textAlign = "left"; // 揃えはブラウザが済ませてある（行の箱の左端がそのまま答え）
+        g.textBaseline = "top";
+        const 影 = 影を読む(cs.textShadow);
+        if (影) {
+          g.shadowColor = 影.色;
+          g.shadowOffsetX = 影.x * 倍;
+          g.shadowOffsetY = 影.y * 倍;
+          g.shadowBlur = 影.ぼかし * 倍;
+        } else {
+          g.shadowColor = "transparent";
+          g.shadowOffsetX = g.shadowOffsetY = g.shadowBlur = 0;
+        }
+        g.fillStyle = cs.color;
+        for (const 行 of 行を取る(node)) {
+          if (!行.文.trim()) continue;
+          g.fillText(行.文, 位置(行.left - 枠.left), 位置(行.top - 枠.top));
+          描いた++;
+        }
+        g.shadowColor = "transparent";
+        g.shadowOffsetX = g.shadowOffsetY = g.shadowBlur = 0;
+      }
+    };
+    歩く(face);
+    return 描いた > 0;
+  } catch (e) {
+    return false; // 測れない環境では、絵だけで出す（今までどおり）
+  } finally {
+    host.innerHTML = 前の中身;
+  }
+}

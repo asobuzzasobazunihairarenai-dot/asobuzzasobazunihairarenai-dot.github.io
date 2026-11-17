@@ -5,9 +5,10 @@
 // 演出レイヤーのみ（ゲームロジック・状態は一切変更しない）。canvasはステージ(body)直下・
 // pointer-events:none で、ステージ座標(1600×900)にそのまま描く（他の演出ゴーストと同じ考え方）。
 import { getCardDefinition, getCardImagePath, hasNoPrintedFace } from "./cards-data.js";
-// 【#667】霧散演出の中に効果文を焼き込むため（0th拡張・1st EDITION は絵に文字が無い）。
-// card-text.js は i18n しか取り込まない葉なので、循環しない。
-import { getCardText, getCardName } from "./card-text.js";
+// 【#667・#709・#710】霧散演出の中に効果文を焼き込むため（0th拡張・1st EDITION は絵に文字が無い）。
+// 組版は card-renderer.js が持つ（本物のカード面を測って写す＝組版を2つ持たない）。
+// card-renderer.js が取り込むのは葉だけ（cards-data / card-text / i18n / card-layout-config）なので循環しない。
+import { paintCardFaceTextToCanvas } from "./card-renderer.js";
 import { isArrivalEffectDisabled } from "./motion-prefs.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { playPulseThump } from "./sound.js";
@@ -165,27 +166,16 @@ function loadImage(src) {
 //     1秒ほどで崩れていく絵なので）。位置は card-renderer.js の実測コメント
 //     「下パネルの下辺はカード高さの約95%」に合わせてある。
 const DISSOLVE_TEXT_SIZE = 433; // カード画像の実寸（#223 以来この大きさのまま）
-function bakeCardTextIfNeeded(img, cardId) {
+// 🔴🔴【#709・#710・続き746】**手書きの組版をやめた。**
+//   ここには以前、canvas へ文字を描く組版が**べた書き**されていた（余白 14%/86%・題名 54.5%・
+//   効果文 60%〜93%・白い縁取り）。ところがそれは本物（card-renderer.js ＝ CSS）とは別物で、
+//   本物は 題名52.5% / 効果58%・高さ8.2% / 仕切り線67.6% だった（報告 #709 の実測が示している）。
+//   ＝ **同じカードの組版が2つ在った**ので、CSS を直してもここは直らず、ここを直しても CSS に
+//   反映されない。報告「フォントとか配置がおかしい」はその食い違いそのもの。
+//   ⇒ 組版の持ち主（card-renderer.js）に canvas へ写す口を1つ置いて、そこを呼ぶだけにした。
+//   ⚠ ここに組版を書き戻さないこと。直すなら CSS（card-layout-config.js / style.css）を直す。
+async function bakeCardTextIfNeeded(img, cardId) {
   if (!img || !cardId || !hasNoPrintedFace(cardId)) return img;
-  let txt = null;
-  try {
-    txt = getCardText(cardId);
-  } catch {
-    return img;
-  }
-  const 行 = [];
-  for (const k of ["subtitle", "basic", "arrival", "hand"]) {
-    const v = txt && txt[k];
-    if (v) 行.push(String(v));
-  }
-  const 名 = (() => {
-    try {
-      return getCardName(cardId) || getCardDefinition(cardId)?.name || "";
-    } catch {
-      return "";
-    }
-  })();
-  if (!行.length && !名) return img;
   const S = DISSOLVE_TEXT_SIZE;
   const c = document.createElement("canvas");
   c.width = c.height = S;
@@ -193,61 +183,10 @@ function bakeCardTextIfNeeded(img, cardId) {
   if (!g) return img;
   noteBlackboxWeight("card-dissolve-text"); // 433x433 ＝ 約0.75MB。張った瞬間を控える。
   g.drawImage(img, 0, 0, S, S);
-  const 左 = S * 0.14;
-  const 右 = S * 0.86;
-  const 幅 = 右 - 左;
-  // 名前（下パネルの上端あたり）
-  if (名) {
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    g.font = "700 " + Math.round(S * 0.052) + "px 'Shippori Mincho B1', serif";
-    g.lineWidth = Math.round(S * 0.014);
-    g.strokeStyle = "rgba(255,255,255,0.9)";
-    g.strokeText(名, S / 2, S * 0.545, 幅);
-    g.fillStyle = "#1a1a1a";
-    g.fillText(名, S / 2, S * 0.545, 幅);
-  }
-  // 効果文（折り返しは1文字ずつ測って足す＝日本語は語の途中でも折れるため）
-  const 上 = S * 0.6;
-  const 下 = S * 0.93;
-  let 字 = Math.round(S * 0.042);
-  let 組み = [];
-  for (let 回 = 0; 回 < 8; 回++) {
-    g.font = Math.round(字) + "px 'Shippori Mincho B1', serif";
-    組み = [];
-    for (const 文 of 行) {
-      let 今 = "";
-      for (const ch of 文) {
-        if (ch === "\n") {
-          組み.push(今);
-          今 = "";
-          continue;
-        }
-        const 次 = 今 + ch;
-        if (g.measureText(次).width > 幅 && 今) {
-          組み.push(今);
-          今 = ch;
-        } else {
-          今 = 次;
-        }
-      }
-      if (今) 組み.push(今);
-    }
-    if (組み.length * (字 * 1.32) <= 下 - 上 || 字 <= S * 0.022) break;
-    字 *= 0.88;
-  }
-  g.textAlign = "left";
-  g.textBaseline = "top";
-  g.lineWidth = Math.max(2, Math.round(字 * 0.3));
-  g.strokeStyle = "rgba(255,255,255,0.92)";
-  g.fillStyle = "#1a1a1a";
-  let y = 上;
-  for (const 行文 of 組み) {
-    g.strokeText(行文, 左, y);
-    g.fillText(行文, 左, y);
-    y += 字 * 1.32;
-    if (y > 下) break;
-  }
+  // 本物のカード面を画面外で組んで測り、同じ箱・同じ書体で写す。
+  // 写せなかった時（測れない環境）は絵だけ＝今までどおりに倒す。
+  // ⚠ 非同期なのは ●到達／■手札 のアイコン（背景画像）を待つため。2枚目からは控えから出る。
+  if (!(await paintCardFaceTextToCanvas(g, cardId, S))) return img;
   return c;
 }
 
@@ -271,10 +210,17 @@ export async function playCardDissolve(usedCardId, opts = {}) {
   const [cardImgRaw, costImgRaw] = await Promise.all([
     loadImage(getCardImagePath(usedCardId)),
     costCardId ? loadImage(getCardImagePath(costCardId)) : Promise.resolve(null),
+    // 🔴【続き746】**canvas は webfont の読み込みを待たない。** 未読込のまま文字を描くと、
+    //   `'Shippori Mincho B1', serif` が黙って serif に落ちる（例外もログも出ない）。
+    //   絵を読む待ち時間に相乗りさせるので、ふだんは1ミリも遅くならない。
+    //   ⚠ 読み込みに失敗しても演出は止めない（書体が違っても出る方がよい）。
+    //   ⓘ #709 の報告では fontsReady が "loaded" だったので、これは**原因ではなかった**。
+    //     それでも残る潜在の罠なので塞いでおく（tools/check-canvas-fonts.mjs が見張る）。
+    document.fonts?.ready?.catch?.(() => {}) ?? Promise.resolve(),
   ]);
   // 【#667】文字を焼き込んだ絵を持たない札は、ここで文字を描いてから粒子にする。
-  const cardImg = bakeCardTextIfNeeded(cardImgRaw, usedCardId);
-  const costImg = bakeCardTextIfNeeded(costImgRaw, costCardId);
+  const cardImg = await bakeCardTextIfNeeded(cardImgRaw, usedCardId);
+  const costImg = await bakeCardTextIfNeeded(costImgRaw, costCardId);
   const usedColor = colorInfoFor(usedCardId);
   const costColor = costCardId ? colorInfoFor(costCardId) : usedColor;
 

@@ -7179,6 +7179,22 @@ body.theme-light .action-log-window-title {
     filter: none;
   }
 }
+/* 【#703・続き746】もらったセヴルが、押した所から所持金の欄まで飛んでいく。
+   ⚠ body にステージ倍率の transform が掛かっているので、position:fixed はステージ基準。
+     出発も到着も getBoundingClientRect（＝実画面px）で取って left/top に入れているが、
+     **どちらも同じ物差し**なので差分（translate）は正しい。片方だけ CSS px で取ると
+     ズレる（続き746 で霧散演出の方で実際に踏んだ）。
+   ⚠ filter も canvas も使わない（#634・#441 の家族）。動かすのは transform と opacity だけ。 */
+.currency-fly-coin {
+  position: fixed;
+  z-index: 10800;
+  width: 1.6rem;
+  height: 1.6rem;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  filter: none;
+  will-change: transform, opacity;
+}
 .currency-award-float {
   position: fixed;
   transform: translate(-50%, 0);
@@ -18333,9 +18349,20 @@ body.is-phone-device .hand-effect-option-picker {
    のままだと、scale()は要素自身の中心を基準に左右均等へ膨らむため、画面左端近くに
    置かれたこの要素は依然として左半分が画面外にはみ出してしまう（実機確認で発覚）。
    transform-originを左端（0% 50%）にし、拡大が常に右方向にだけ伸びるようにする。 */
+/* 🔴【#705・続き746】報告「盤面をよけるモーダルでも盤面が一部見えない」（932x430 のスマホ横）。
+   「盤面を見る」で左端へ寄せるところまでは効いていたが、**スマホ用の拡大（既定1.8倍）が
+   そのまま掛かったまま**なので、モーダルは 275px 幅で居座り、実測で
+     ・7×7の盤面に **39px 食い込み**（盤面の左端 331 に対しモーダルの右端 370）
+     ・西側のロックエリア（276〜）と山札（128〜）も隠す
+   という状態だった。拡大は「読みやすさ」のためだが、**覗いている間の目的は盤面を見ること**
+   なので、その間だけ拡大を控える（専用のつまみ）。あわせて左端へもう少し寄せる。
+   ⚠ ふだん（覗いていない時）の大きさは1ミリも変えない——押しやすさの話は別。
+   ⚠ 倍率の式は上の規則と同じ形で書く（片方だけ変えるとまたズレる＝#583 の教訓）。 */
 body.is-phone-device .hand-effect-option-picker.is-peeking {
   transform-origin: 0% 50%;
-  transform: translate(0, -50%) scale(calc(0.9 * var(--center-modal-scale-phone, 1)));
+  transform: translate(0, -50%) scale(calc(0.9 * var(--center-modal-scale-phone-peek, 1.25)));
+  max-height: calc(88% / (0.9 * var(--center-modal-scale-phone-peek, 1.25)));
+  left: 0.25rem;
 }
 /* オプションのドロップダウン（#options-menu-panel）は画面中央固定ではなく右上
    アイコンから吊り下がる別方式のため、上の一括調整には含まれない——ユーザー

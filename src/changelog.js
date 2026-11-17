@@ -52,6 +52,48 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-17",
+    summary: [
+      "チャレンジの報酬を受け取ると、セヴルが所持金まで飛んでいくようになりました",
+    ],
+    summaryEn: [
+      "Claiming a challenge reward now sends the Sevre flying to your balance",
+    ],
+    items: [
+      "デイリーチャレンジの報酬を受け取ると、**セヴルが押したボタンから、画面の上にある所持金のところまで飛んでいく**ようになりました。着いたところで所持金が光って「+◯◯」が浮かびます。⚠ 動きを減らす設定にしている方には飛びません（光るのは出ます）。",
+    ],
+    itemsEn: [
+      "When you claim a daily challenge reward, the Sevre now flies from the button you pressed up to your balance at the top of the screen. It lands with a flash and a floating \"+N\". If you have reduced motion turned on, the coins do not fly, but the flash still appears.",
+    ],
+    fixes: [
+      "相手の効果でカードがオープンされたとき、足元の到達効果が起きないことがあったのを直しました。",
+      "相手の効果なのに、カードやマスを選ぶ案内がこちらに出ることがあったのを直しました。",
+      "カードが霧散する演出で、効果文の書体と位置が崩れていたのを直しました。",
+      "「盤面を見る」を押しても盤面の一部が隠れたままだったのを直しました。",
+      "同じカードでも、手札から使った時と到達で発動した時とで動きが違うことがあったのを直しました。",
+      "効果が不発に終わったとき、何も出ずに終わることがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed arrival effects sometimes not firing when an opponent's effect flipped the card under your piece.",
+      "Fixed prompts to choose a card or a square appearing for you when the effect belonged to an opponent.",
+      "Fixed the font and layout of the effect text in the card-dissolve animation.",
+      "Fixed part of the board staying hidden after pressing \"Look at the board\".",
+      "Fixed the same card behaving differently depending on whether it was played from hand or triggered on arrival.",
+      "Fixed effects ending silently when nothing happened.",
+    ],
+    devItems: [
+      "🔴 **#704 の正体は「helpers の表が2つあること」だった。** カードの動詞の本体（runAction）は**手札効果と到達効果の両方が通る**のに、main.js はそこへ渡す口を2つの表（runAutoHandEffect の中／buildArrivalEffectHelpers）で持っている。片方に足し忘れると、engine は 「helpers.◯◯?.()」 と optional で呼ぶので**例外もログも出ず、ただ何も起きない**。数えたら**8件**食い違っていた（到達側に無い: maybeTriggerArrivalForPlacedCard〈=#704〉/ showForcedDiscardReveal / publicDrawReturningTokens / markDiscardAtTurnEnd / handleArrivalDestination、手札側に無い: announceCardAddedToHand / announceFizzle / announceDrawTargets）。全部そろえた。",
+      "🔴 **検査が在ったのに見逃していた。** 「tools/check-effect-helpers.mjs」 は #477 のために作られていたが、「省略可（「?.」）で戻り値を捨てている呼び出しは**見せ方だけ**なので数えない」と決めていた。その中に 「await helpers.maybeTriggerArrivalForPlacedCard?.(…)」 ＝**到達効果の連鎖をまるごと起こす口**が混ざっていた（見逃していた名前は全部で28件）。⇒ 規則を逆にして、**「本当に見せ方だけ」を理由つきの名簿にし、それ以外は全部要る**ことにした。穴を戻すと名指しで落ちることを確かめてある。",
+      "🔴 **#706 の正体は「選ぶ権利を持つ席を、到達の入口だけ立てていなかった」。** 効果エンジンを走らせる入口は4つ（手札効果・委任・【状況】カード・到達効果）あり、**到達だけ** effectChoiceSeatOverride を立てていなかった。立てないと判定が「その時の優先権の持ち主」に落ちるので、到達した人と優先権の持ち主が違う場面（強制移動・入れ替え・他人の駒を動かす効果）で**相手の選択がこちらに出る**。#471・#483・#496/#506・#606/#609 と同じ形で**7回目**。⇒ 到達の入口でも立てて finally で戻す＋「isCpuSelectingNow」 の既定値そのものを「選ぶ席 → 優先権」の順に直した（席を渡さない4か所が**既定で正しく**なった）。新しい検査 「tools/check-effect-seat.mjs」 が入口4つを毎回数える。",
+      "🔴 **#709/#710 の正体は「カードの組版が2つ在ったこと」。** 霧散演出（card-dissolve.js）は canvas へ文字を**手書きで**組んでいて、本物（card-renderer.js＝CSS）とは別物だった。報告に付いていた実測がそれを示していた——本物は 題名52.5% / 効果58%・高さ8.2% / 仕切り67.6% なのに、手書きは 題名54.5% / 効果60%〜**93%** / 仕切り**無し**。⇒ 手書きの87行を捨て、**本物の DOM を画面外で組んで測り、そのまま写す**形にした（「paintCardFaceTextToCanvas」）。折り返しもブラウザの行の箱をそのまま使う（自前で折り返すと1行ズレて枠からはみ出す）。影は canvas の shadow を使う（縁取りで代用するとにじんで太く見える）。本物と並べて撮って確かめた。",
+      "⚠ **物差しの取り違えを2回やった。** 「body」 にステージ倍率の transform が掛かっているので 「getBoundingClientRect()」 は**実画面px**、「getComputedStyle().fontSize」 は **CSS px**。霧散の文字で 1.6倍に、セヴルの飛翔で出発点が 95px ずれた。どちらも**撮って**気づいた。続き725・740 で自分が書いた教訓そのもの。",
+      "⚠ 新しい検査 「tools/check-canvas-fonts.mjs」: ①canvas は webfont の読み込みを待たない（未読込なら黙って serif に落ちる）ので、非汎用の書体で描く所は 「document.fonts」 を待っているか ②カードの組版を card-renderer.js 以外に書いていないか。⚠ 作った直後、**自分が書いたコメントの中の 「document.fonts」 で合格していた**ので、コメントを落としてから数えるように直した。",
+      "⚠ **#705 は「スマホ用の拡大が、覗いている間もそのまま掛かっていた」。** 「盤面を見る」で左端へ寄せるところまでは効いていたが、拡大（既定1.8倍）はそのままなので 275px 幅で居座り、実測で7×7の盤面に **39px 食い込み**・西のロックエリアと山札も隠していた。⇒ 覗いている間だけ専用のつまみ（既定1.25倍）に下げ、左端へもう少し寄せた。実測で**盤面とロックエリアの重なり 0**（932x430）。ふだんの大きさは変えていない。",
+      "⚠ **#704 の診断（続き714 で仕込んだ 「diag-flip-arrival」）が効いた。** 報告のログに「cell 6,3 / revealedCardId green-joint-construction / 駒がいる true / 駒の持ち主 A」がそのまま焼き付いていて、**呼んではいるのに到達が起きていない**ことが一目で分かった。読みだけでは決められない所に計器を置いておくと、次の報告で答えが出る。",
+    ],
+    devItemsEn: [],
+  },
+  {
     date: "2026-11-16",
     summary: [
       "マスを選ぶ確認に、そのマスの一番上のカードが出るようになりました",

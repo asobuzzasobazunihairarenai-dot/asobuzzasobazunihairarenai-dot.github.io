@@ -9,7 +9,7 @@
 
 import { getCachedUser, getMyCurrencyBalance, openShop } from "./online.js";
 import { getOptionArea } from "./option-area.js";
-import { createBackdrop, createModalCloseX } from "./ui-helpers.js";
+import { createBackdrop, createModalCloseX, CURRENCY_ICON } from "./ui-helpers.js";
 import { toStageLocalRect, STAGE_WIDTH } from "./main.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
@@ -170,4 +170,70 @@ export function showCurrencyAwardEffect(amount) {
   floatEl.style.top = `${rect.top}px`;
   document.body.appendChild(floatEl);
   setTimeout(() => floatEl.remove(), 1700);
+}
+
+// 【#703・続き746】ユーザー要望「チャレンジ報酬を受けるとき、セヴルがオプションエリアの
+//   所持金のとこに入ってく演出入れるのどう？」。
+//
+//   もらった場所（押したボタン）から、オプションエリアの所持金まで**セヴルが飛んでいく**。
+//   着いたら、既にある showCurrencyAwardEffect（アイコンが光る＋「+N」が浮かぶ）へ繋ぐので、
+//   「光る」ところの作りは**2つに分かれない**。
+//
+//   ⚠ 新しい絵は1枚も足していない（既に使っている assets/icons/currency.png を飛ばすだけ）。
+//   ⚠ canvas も filter も使わない（#441・#607 で実機が落ちた全画面 canvas の家族／
+//     #634 の backdrop-filter。動かすのは transform と opacity だけ）。
+//   ⚠ **飛ばせなくても必ず光る**。所持金の欄が画面に無い時（出していない画面）でも、
+//     「もらった」ことが伝わらないのが一番悪い。
+//   ⚠ 動きを減らす設定の人には飛ばさない（光るのは出す）。
+const SEVRE_FLY_MS = 620;
+export function flyCurrencyToBalance(fromEl, amount, opts = {}) {
+  const 枚 = Math.max(1, Math.min(5, opts.coins ?? 3));
+  const 的 = document.getElementById("currency-display");
+  const 出 = () => showCurrencyAwardEffect(amount);
+  if (!的 || !fromEl || amount <= 0) return void 出();
+  let 減らす = false;
+  try {
+    減らす = !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  } catch {}
+  if (減らす) return void 出();
+
+  // 🔴🔴 物差しに注意（続き740・746 で2回踏んだ）。`position: fixed` でも、body に
+  //   ステージ倍率の transform が掛かっているので **left/top はステージ座標**。
+  //   getBoundingClientRect() が返すのは**実画面px**なので、そのまま入れると
+  //   まったく違う場所から飛ぶ。toStageLocalRect で揃えてから使う。
+  const a0 = fromEl.getBoundingClientRect();
+  const b0 = 的.getBoundingClientRect();
+  if (!a0.width || !b0.width) return void 出();
+  const a1 = toStageLocalRect(a0);
+  const b1 = toStageLocalRect(b0);
+  const a = { left: a1.left, top: a1.top, width: a1.right - a1.left, height: a1.bottom - a1.top };
+  const 着く = { x: (b1.left + b1.right) / 2, y: (b1.top + b1.bottom) / 2 };
+
+  for (let i = 0; i < 枚; i++) {
+    const coin = document.createElement("img");
+    coin.className = "currency-fly-coin";
+    coin.src = CURRENCY_ICON;
+    coin.alt = "";
+    coin.setAttribute("aria-hidden", "true");
+    // 出発は押した所の中。少しばらけさせて「何枚か飛んだ」感を出す。
+    const ずれX = (Math.random() - 0.5) * a.width * 0.6;
+    const ずれY = (Math.random() - 0.5) * a.height * 0.6;
+    coin.style.left = a.left + a.width / 2 + ずれX + "px";
+    coin.style.top = a.top + a.height / 2 + ずれY + "px";
+    document.body.appendChild(coin);
+    const 遅れ = i * 70;
+    const 進める = () => {
+      coin.style.transition = `transform ${SEVRE_FLY_MS}ms cubic-bezier(.4,0,.2,1), opacity 160ms ease ${SEVRE_FLY_MS - 160}ms`;
+      coin.style.transform =
+        "translate(-50%,-50%) translate(" +
+        (着く.x - (a.left + a.width / 2 + ずれX)) + "px," +
+        (着く.y - (a.top + a.height / 2 + ずれY)) + "px) scale(0.55)";
+      coin.style.opacity = "0";
+    };
+    // 🔴 rAF だけに頼らない（画面が見えていない間は進まず、コインが残る＝#360 の家族）。
+    setTimeout(() => requestAnimationFrame(進める), 遅れ + 16);
+    setTimeout(() => coin.remove(), 遅れ + SEVRE_FLY_MS + 400);
+  }
+  // 最後の1枚が着く頃に光らせる（先に光ると「飛んで来た」ように見えない）。
+  setTimeout(出, (枚 - 1) * 70 + SEVRE_FLY_MS - 120);
 }

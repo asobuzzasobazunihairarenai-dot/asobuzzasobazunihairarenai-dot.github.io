@@ -155,8 +155,50 @@ const switch外 = eng.slice(0, sw開き) + eng.slice(sw閉じ + 1);
 //    リトルマウスの到達効果は `const tok = await helpers.pickRandomFromOpponentHand?.(target)`
 //    と書いてあり、到達側の helpers にその口が無かった。`?.` なので例外は出ないが
 //    **undefined が返って break → 1枚も奪えない**。プレイヤーには「不発」に見える。
-//    ⇒ **戻り値を使っている省略可の呼び出しも落とす**。使っていない（announce 等の
-//      見せ方だけの）ものは、無くても結果が変わらないので対象外。
+//    ⇒ **戻り値を使っている省略可の呼び出しも落とす**。
+//
+// 🔴🔴【続き746・#704 の正体】**「戻り値を使っていない＝見せ方だけ」は間違いだった。**
+//    この検査は元々「戻り値を捨てている省略可の呼び出し」を**まるごと見逃していた**（28件）。
+//    理屈は「announce 等の見せ方だけなので無くても結果が変わらない」だったが、その中に
+//
+//        await helpers.maybeTriggerArrivalForPlacedCard?.({…}, revealedCardId);
+//
+//    が混ざっていた。これは見せ方ではなく**到達効果の連鎖をまるごと起こす口**で、
+//    到達効果の表にだけ無かったので「CPUの笛で足元がオープンされたのに到達効果が
+//    起きない」（#704。#508・#630 として2回再発）になっていた。
+//
+//    ⇒ 規則を**逆にした**: 戻り値を捨てていても**原則として要る**ものとして数え、
+//      「本当に見せ方だけ（無くても盤面もルールも同じ）」だけを下の名簿へ**理由つきで**書く。
+//      ⚠ 名簿へ足す時は「無くても盤面が変わらないか」を自分で確かめること。
+//        迷ったら足さない（足さなければ検査が落ちるだけで、害は無い）。
+const 見せ方だけ = new Set([
+  // ── お知らせ・公開（出なくても盤面とルールは同じ）
+  "announceCardAddedToHand", // 「誰が何を手札に入れたか」の中央モーダル
+  "announceCardsDiscarded", // まとめて捨てた札の公開（#673）
+  "announceColorsResolved", // 色宣言の結果の合図
+  "announceEffectNotice", // 非ブロックの軽い通知
+  "announceEffectReason", // 「○○によって」の説明
+  "announceFizzle", // 「何も起きませんでした」
+  "announceSteppedCard", // 踏んだ札を中央で見せる
+  "announceUse", // 手札効果の使用宣言の演出
+  "announceDrawTargets", // 誰がドロー対象かをアバターで
+  "revealCardToAll", // 1枚を中央で全員に見せる
+  "revealDiscardedCards", // 捨てた札を順番付きで見せる
+  "showForcedDiscardReveal", // 捨てさせた札を中央で見せる
+  "onCardAcquiredToHand", // 手に入れた札を光らせる＋お知らせ（中身は announce と render だけ）
+  "playAdditionalColorUse", // 追色コストの「吸収→霧散」の演出
+  // ── 画面の印（盤面の状態ではなく、光らせているだけ）
+  "clearPlacementTargets",
+  "markPlacedLocation",
+  "markPlacementTarget",
+  // ── 間・音・カメラ
+  "delay",
+  "holdCamera",
+  "holdForReveal",
+  "stopSuspenseSound",
+  "startSuspenseSound",
+  "celebrate",
+]);
 const ヘルパー名 = (s) => {
   const 要る = new Set();
   const 戻り値を使う = new Set();
@@ -174,6 +216,8 @@ const ヘルパー名 = (s) => {
   }
   // 1か所でも戻り値を使っていれば「要る」側に数える。
   for (const n of 戻り値を使う) 要る.add(n);
+  // 🔴【続き746】戻り値を捨てていても、**見せ方だけの名簿に無いものは要る**（上の長い注を参照）。
+  for (const n of 使い捨て) if (!見せ方だけ.has(n)) 要る.add(n);
   return { 要る, 使い捨て };
 };
 
@@ -202,12 +246,18 @@ function 関数の本体(名) {
   const 閉じ = 閉じ括弧(eng, 開き);
   return { 本体: eng.slice(開き, 閉じ + 1), 開き, 閉じ };
 }
-let 到達入口, 到達選択肢, 手札入口, 手札選択肢;
+let 到達入口, 到達選択肢, 手札入口, 手札選択肢, 状況入口;
 try {
   到達入口 = 関数の本体("export async function runArrivalEffect(");
   到達選択肢 = 関数の本体("async function runArrivalOptionsEffect(");
   手札入口 = 関数の本体("export async function runHandEffect(");
   手札選択肢 = 関数の本体("async function runHandEffectOption(");
+  // 🔴【続き746】【状況】カード（治安悪化・フェスティバル等）の入口。main.js は
+  //   `runSituationEffect(cardId, player, buildArrivalEffectHelpers(player))` と
+  //   **到達側の表**を渡すので、ここで使う口は**到達側だけ**に要る。
+  //   ⚠ これを「共通処理」に入れていたため、pickArrivalOption を手札側にも
+  //     要求して誤検知になっていた（到達専用の選択肢モーダルなので手札側には無くて正しい）。
+  状況入口 = 関数の本体("export async function runSituationEffect(");
 } catch (e) {
   console.error("🔴 エンジンの入口関数を取り出せなかった: " + e.message);
   process.exit(2);
@@ -215,11 +265,15 @@ try {
 // 入口3つと switch を抜いた残り＝本当に共通の処理。
 // ⚠ 位置は eng（元の全文）基準なので、eng から後ろの範囲から順に削る。
 let 残り = eng;
-for (const r of [{ 開き: sw開き, 閉じ: sw閉じ }, 到達入口, 到達選択肢, 手札入口, 手札選択肢].sort((a, b) => b.開き - a.開き)) {
+for (const r of [{ 開き: sw開き, 閉じ: sw閉じ }, 到達入口, 到達選択肢, 手札入口, 手札選択肢, 状況入口].sort((a, b) => b.開き - a.開き)) {
   残り = 残り.slice(0, r.開き) + 残り.slice(r.閉じ + 1);
 }
 const 本当に共通 = ヘルパー名(残り).要る;
-const 到達入口のヘルパー = new Set([...ヘルパー名(到達入口.本体).要る, ...ヘルパー名(到達選択肢.本体).要る]);
+const 到達入口のヘルパー = new Set([
+  ...ヘルパー名(到達入口.本体).要る,
+  ...ヘルパー名(到達選択肢.本体).要る,
+  ...ヘルパー名(状況入口.本体).要る, // 【状況】カードも到達側の表で走る（上記参照）
+]);
 const 手札入口のヘルパー = new Set([...ヘルパー名(手札入口.本体).要る, ...ヘルパー名(手札選択肢.本体).要る]);
 
 // ---- 3. 動詞が「どちら側から走り得るか」 ----
@@ -335,14 +389,18 @@ console.log(
 
 if (無い.length > 0) {
   for (const x of 無い) {
+    // ⚠ 症状の言い方を取り違えると、読む人を間違った方へ送る（続き746）。
+    //   `?.` 無しで呼んでいる＝例外で止まる／`?.` 付きで戻り値を使う＝undefined で不発／
+    //   `?.` 付きで戻り値を捨てている＝**例外もログも出ず、ただ起きない**（#704 がこれ）。
+    const 無防備 = new RegExp("helpers\\.\\s*" + x.ヘルパー + "\\s*\\(").test(eng);
+    const 症状 = 無防備
+      ? "例外になって、効果がそこで途中で止まる"
+      : "例外もログも出ず、**ただ何も起きない**（プレイヤーには「不発」に見える）";
     落ちる(
-      x.側 +
-        "効果の helpers に `" +
-        x.ヘルパー +
-        "` が無いのに、" +
-        x.動詞 +
-        " がそれを呼んで**戻り値を使っている**（例外になるか、undefined が返って黙って不発になる。" +
-        "どちらもプレイヤーには「不発」に見える）"
+      x.側 + "効果の helpers に `" + x.ヘルパー + "` が無いのに、" + x.動詞 + " がそれを呼んでいる。\n" +
+        "   ⇒ その経路では " + 症状 + "。\n" +
+        "   ⚠ 同じカードでも「手札から使った時」と「到達で発動した時」で**別の表**を通るので、" +
+        "片方だけに足すとこうなる（#704・#508・#630・#477・#478 は全部この形）。"
     );
   }
   console.error(

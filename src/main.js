@@ -8417,7 +8417,17 @@ let effectPickerHintEl = null;
 // 選択モーダルを隠して勝手にランダム自動解決してしまっていた。owner=人間の席 を渡せば誤判定を防ぐ。
 function isCpuSelectingNow(owner) {
   if (!isCpuBattleActive() || isOnlineMode()) return false;
-  const seat = owner ?? getState().priorityPlayer;
+  // 🔴🔴【#706・続き746】既定値を「優先権の持ち主」から「**いま選ぶ権利を持っている席**」へ。
+  //   この関数は「席を渡す呼び方」と「渡さない呼び方」が混在していて、渡さない4か所
+  //   （色宣言モーダル・どこから置くかモーダル・候補の光の貼り直し・選択の案内）は
+  //   **優先権の持ち主**で判断していた。ところが効果の最中は「選ぶ人 ≠ 優先権の人」に
+  //   なり得る（強制移動・入れ替え・委任・他人の駒を動かす効果）。
+  //   ⇒ #471・#483・#501・#506・#496・#600・#706 は全部この形で、これまでは
+  //     **呼び出し側に owner を渡して回る**形で1つずつ直していた＝足し忘れがまた起きる。
+  //   ⇒ 既定値そのものを正しくした。effectChoiceSeatOverride は効果の入口4つが
+  //     立てて finally で戻すので、効果の外では null ＝今までどおり優先権で判断する。
+  //   ⚠ つまり「渡さない呼び方」が**既定で正しい**ようになった。新しい所で渡し忘れても壊れない。
+  const seat = owner ?? effectChoiceSeatOverride ?? getState().priorityPlayer;
   return isPseudoCpuTarget(seat);
 }
 function showEffectPickerHint(text) {
@@ -10915,6 +10925,21 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
         // 緑のキューブ ヴァーディアン(first-green)（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END）用。
         publicDrawReturningTokens: publicDrawReturningTokensForEffect,
         markDiscardAtTurnEnd,
+        // 🔴【続き746】ここから下は「到達効果の表にだけ在って、手札効果の表に無かった」分。
+        //   理由と経緯は buildArrivalEffectHelpers の同じ見出しのコメントを参照。
+        //
+        // マスチェンジ（SWAP_POSITION）等で手に入れた札を「誰が何を取ったか」として出す。
+        //   手札効果から撃つと**何も出ていなかった**（入れ替えで札が手に入るのは公開情報）。
+        announceCardAddedToHand: (cardId, seat, wasFaceUp) => {
+          announceHandPickups(seat, [{ cardId, wasPublic: wasFaceUp }]);
+        },
+        // 条件を満たさず効果が不発に終わった時の「何も起きませんでした」。
+        //   手札効果側に無かったので、手札から撃って不発だと**黙って終わっていた**
+        //   （押したのに何も起きない＝#277 の家族）。
+        announceFizzle: announceEffectFizzleForEffect,
+        // 「誰がドロー対象か」をアバターで周知する（プレゼント＝DRAW_ALL_FEWEST_LOCKED）。
+        //   無いと落ちはしないが、文字のお知らせへ静かに落ちていた。
+        announceDrawTargets: announceDrawTargetsForEffect,
       }
     );
     setCurrentEffectCardForReason(null); // #4
@@ -11100,6 +11125,27 @@ function buildArrivalEffectHelpers(player) {
       // （宣言→相手の承認→奪う→ゲートへ強制移動）をそのまま使う。
       initiateContact: submitContactProposal,
       pickDiscardCost: (candidates, hint) => pickDiscardCostForEffect(player, candidates, hint, (tk) => tk.id),
+      // 🔴【続き746】ここから下は「手札効果の表にだけ在って、到達効果の表に無かった」分。
+      //   runAction（カードの動詞の本体）は**手札効果と到達効果の両方が通る**ので、片方の表に
+      //   足し忘れると「同じカードが、手札から使えば効くのに、到達で発動すると黙って効かない」
+      //   になる。呼び出しが `helpers.◯◯?.()` なので例外も出ず、**何も起きないだけ**で終わる。
+      //   ⇒ #704（CPUの笛で足元がオープンされたのに到達効果が起きない）の正体がこれ。
+      //      #508・#630 として2回直したのに再発し続けていたのは、直していたのが
+      //      「engine が呼んでいるか」で、**渡す表の方**を数えていなかったから。
+      //   ⚠ これ以降は tools/check-effect-helpers.mjs が毎回数える（足し忘れたら検査が落ちる）。
+      //
+      // 【#704】オープン／表向き配置した先に既に駒がいた時の到達判定。
+      //   笛・サフラン（FLIP_UP_TO_N_WITHIN_RANGE）とジャンプ台（PLACE_CARD）の両方で要る。
+      maybeTriggerArrivalForPlacedCard: maybeTriggerArrivalForPlacedCardForEffect,
+      // 【#298】セレスティア（DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS）で捨てさせた札を中央で公開。
+      showForcedDiscardReveal: showForcedDiscardRevealForEffect,
+      // 緑のキューブ ヴァーディアン（PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END 等）用。
+      //   🔴 これは `?.` 無しで呼ばれているので、無いと**その場で落ちて効果が途中で止まる**。
+      publicDrawReturningTokens: publicDrawReturningTokensForEffect,
+      markDiscardAtTurnEnd,
+      // 【#515】駒が動いた先のカードを開けて到達させる。到達側にはこれが無く、
+      //   弱い方（triggerArrivalAtIfFaceUp＝裏向きを開けない）へ落ちていた。
+      handleArrivalDestination: handleEffectArrivalDestination,
   };
 }
 
@@ -11108,10 +11154,28 @@ async function runAutoArrivalEffect(cardId, location, player) {
   const cardToken = findTopCardAt(location);
   if (!piece || !cardToken) return;
   await pauseForChainedCpuArrival(player); // 【#433】連鎖した時だけ、認知できる間を置く
-  const arrivedAt = await runArrivalEffect(
-    { cardId, player, pieceTokenId: piece.id, cardTokenId: cardToken.id, pieceLocation: location },
-    buildArrivalEffectHelpers(player)
-  );
+  // 🔴🔴【#706・続き746】「選ぶ権利を持つ席」を立ててから走らせる。
+  //   効果エンジンを走らせる入口は4つあって、3つ（手札効果・委任・【状況】カード）は
+  //   前から立てていたのに、**到達効果だけ立てていなかった**。
+  //   立てないと pickerOwner() が空になり、選択の判定が**その時の優先権の持ち主**に落ちる。
+  //   ⇒ 到達した人と優先権の持ち主が違う場面——強制移動・入れ替え・他人の駒を動かす効果——で、
+  //     **相手（CPU）が選ぶはずの案内やモーダルが、こちらに出る**。
+  //     報告「相手のトゥルーアイズの効果なのに『表面を見るマスを選んで』が私に表示された」（#706）
+  //     がこれ。#471（ヴィヴィアン）・#483（リトルマウス）・#506・#496 と**まったく同じ形**で、
+  //     それぞれ別の場所に手当てを足していたが、**到達の入口そのもの**が空だったのが根。
+  //   ⚠ 必ず finally で戻す（戻し忘れると以降ずっと別人が選ぶことになる）。
+  //   ⚠ `player ?? 前の選ぶ席` ＝ 到達した人が分からない時は、外側で立っている席をそのまま尊重する。
+  const 前の選ぶ席 = effectChoiceSeatOverride;
+  effectChoiceSeatOverride = player ?? 前の選ぶ席;
+  let arrivedAt;
+  try {
+    arrivedAt = await runArrivalEffect(
+      { cardId, player, pieceTokenId: piece.id, cardTokenId: cardToken.id, pieceLocation: location },
+      buildArrivalEffectHelpers(player)
+    );
+  } finally {
+    effectChoiceSeatOverride = 前の選ぶ席;
+  }
   clearEffectUiHighlights();
   render();
   // moveアクションの結果、新しいマスへ「到達」した場合は、通常の移動と同じように続けて

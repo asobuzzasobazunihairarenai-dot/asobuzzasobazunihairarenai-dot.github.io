@@ -127,7 +127,20 @@ function 題文(kind, 部分, n) {
   return t("packs.ch.unknown." + 部分, { n });
 }
 
-function ボタン(文, 中身, 無効) {
+// 【#703・続き746】もらったセヴルが、押したボタンから所持金の欄まで飛んでいく。
+// 🔴 **静的に import しない**。currency-display.js は online.js を取り込むので、
+//   この部品の約束（online.js を取り込まない＝輪を作らない）を破ってしまう。
+//   押した時だけ動的に取り込む（続き735 で teardownCpuBattle に使ったのと同じ手）。
+// ⚠ 失敗しても受け取り自体は済んでいるので、黙って見送る（演出のために報酬を失わせない）。
+async function セヴルを飛ばす(fromEl, 額) {
+  if (!(額 > 0) || !fromEl) return;
+  try {
+    const m = await import("./currency-display.js");
+    m.flyCurrencyToBalance?.(fromEl, 額);
+  } catch {}
+}
+
+function ボタン(文, 中身, 無効, 報酬 = 0) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "daily-ring-btn";
@@ -139,6 +152,9 @@ function ボタン(文, 中身, 無効) {
     b.disabled = true;
     try {
       await 中身();
+      // 🔴 **受け取れた時だけ**飛ばす（失敗したのにセヴルが飛ぶと嘘になる）。
+      //   描き直す前に出発点を押さえる——描き直すとこのボタンは DOM から消える。
+      void セヴルを飛ばす(b, 報酬);
     } catch (err) {
       // 失敗しても画面は壊さない。理由は札の中に出す。
       const n = cardEl?.querySelector(".daily-ring-note");
@@ -184,7 +200,8 @@ function 札を組む() {
         async () => {
           await claimDailyChallenge(Number(d.slot) || 0);
         },
-        !!d.claimed || !済
+        !!d.claimed || !済,
+        Number(d.reward) || 0 // 【#703】もらったぶんのセヴルが所持金へ飛ぶ
       )
     );
     el.appendChild(row);
