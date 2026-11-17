@@ -423,6 +423,57 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  // ── 2026-11-18（続き751）──────────────────────────────────────────────
+  714: {
+    ja: "直しました。「２マス移動する」と「２マス先に一気に移動する」を同じ扱いにしていました。途中のマスを飛び越せるのは「一気に」の時だけという決まりなので、貧民の行進と走書の赤歴　ジョイナールは途中のマスを普通に通る（カードが無い・駒がいる所は通れない）ようにしました。あわせて斜め隣にも行けるようになっています。",
+    en: "Fixed. \"Move 2 squares\" and \"move 2 squares in one go\" were treated the same. Only the \"in one go\" version may skip over the square in between, so the Paupers' March and Joynarl now walk through it normally (they cannot pass a square with no card or with a piece on it). They can also reach diagonal neighbours now.",
+  },
+  715: {
+    ja: "直しました。どのマスのカードから重ねるかを選べるようにしました。先に選んだマスのカードが下、後から選んだマスのカードが上になります。残りが1マスだけの時は聞きません。",
+    en: "Fixed. You now choose which square's cards to stack first. Squares picked earlier end up lower in the pile, later picks end up on top. You are not asked when only one square is left.",
+  },
+  716: {
+    ja: "直しました。場の中央に駒が立っているところへ【状況】カードが置かれた時、その人の到達効果を起こすようにしました。すでに中央にあるので置き直しは起きず、「不発」のお知らせが出ます（盤面は何も変わりません）。",
+    en: "Fixed. When a Situation card lands on the centre square while a piece is standing there, that player's arrival effect now triggers. Since the card is already at the centre it is not re-placed, so you get a \"no effect\" notice instead (nothing on the board changes).",
+  },
+  717: {
+    ja: "原因が分かり、直しました。#718 #719 と同じ出来事です。画面上部の「選んでください」の案内が、選択が終わった後も消えずに残っていたため、中央が塞がっている扱いのままフェイズも手番も進めなくなっていました。案内が残っていたら自動で消すようにしたので、同じ止まり方はしなくなります。",
+    en: "Diagnosed and fixed. This is the same incident as #718 and #719: the \"please choose\" banner at the top of the screen stayed on screen after the choice was over, so the game kept treating the centre as occupied and neither the phase nor the turn could advance. A stale banner is now cleared automatically.",
+  },
+  718: {
+    ja: "直しました。#717 #719 と同じ出来事です。選択が終わった後も案内だけが残っていたので、「選んでください」と出ているのに光る所が無い状態になっていました。案内が残っていたら自動で消すようにしました。",
+    en: "Fixed. Same incident as #717 and #719. The banner lingered after the choice was over, so it said \"please choose\" while nothing was highlighted. A stale banner is now cleared automatically.",
+  },
+  719: {
+    ja: "直しました。あなたの手番なのに進まなくなり、CPUが続けて打っているように見えていました。原因は画面上部の案内が消えずに残り、中央が塞がっている扱いのままフェイズも手番も進めなくなっていたことです（行動ログでは4分半止まっていました）。案内が残っていたら自動で消すようにしました。",
+    en: "Fixed. Your own turn stopped advancing, which made it look as though the CPU was taking consecutive turns. The cause was a banner at the top of the screen that never went away, leaving the game convinced the centre was occupied so neither the phase nor the turn could advance (the log shows it stuck for four and a half minutes). A stale banner is now cleared automatically.",
+  },
+  // ── 古い報告のうち、今回中身を追って直せた分（続き751）──────────────────
+  508: {
+    ja: "直しました（#630 #704 と同じ報告です）。カードがめくれた後に到達効果を起こす口が、カード効果から走った時だけ渡されていませんでした。渡す口の食い違い8件をまとめて直し、同じ抜けがまた起きないよう機械で数えるようにしています。お待たせしました。",
+    en: "Fixed (the same report as #630 and #704). The hook that fires an arrival effect after a card is turned over was missing on the path taken when a card effect runs it. Eight such mismatches were fixed together, and a check now counts them so the same gap cannot reappear. Sorry for the long wait.",
+  },
+  511: {
+    ja: "直しました。カードが飛んでいる間は実物を隠してゴーストだけ動かしていますが、その1秒ほどの間に画面を描き直すと、隠していない実物が作り直されて2枚に見えていました。描き直されても隠れたままにしました。お待たせしました。",
+    en: "Fixed. While a card flies, the real card is hidden and only a ghost moves, but if the board was re-drawn during that second the real card was recreated without the hidden flag, so you saw two. It now stays hidden across re-draws. Sorry for the long wait.",
+  },
+  512: {
+    ja: "直しました。ヴァーディアンの「ターン終了時、それらを捨てる」は、ターン終了ボタンと効果でターンを終える道では捨てていましたが、動けなくて山札から隣に置いて終わる道だけ捨てていませんでした。その道からも捨てるようにしました。お待たせしました。",
+    en: "Fixed. Vardian's \"discard them at the end of the turn\" ran when you pressed End Turn and when a card effect ended the turn, but not on the rescue path where you cannot move and place a card from the deck beside you. It now runs there too. Sorry for the long wait.",
+  },
+  513: {
+    ja: "直しました（#512 と同じ原因です）。ヴァーディアンの「ターン終了時に捨てる」が、動けなくて山札から隣に置いて終わる道だけ走っていませんでした。お待たせしました。",
+    en: "Fixed (same cause as #512). Vardian's end-of-turn discard was not running on the rescue path where you cannot move and place a card from the deck beside you. Sorry for the long wait.",
+  },
+  581: {
+    ja: "直しました。この効果は移動先を本人に選んでもらうのですが、返ってきたマスを候補と照らし合わせていなかったので、何かの理由で候補の外のマスが返ると駒がそこへ飛んでいました（行動ログでは距離3のマスでした）。候補の外は受け取らないようにし、同じ形の4か所すべてを直しました。お待たせしました。",
+    en: "Fixed. This effect asks the player themselves where to move, but the answer was never checked against the list of legal squares, so if an out-of-range answer arrived the piece jumped there (the log showed a square three away). Out-of-range answers are now rejected, and all four places with the same pattern were fixed. Sorry for the long wait.",
+  },
+  423: {
+    ja: "直りました（#649 と同じ原因です）。マイページは中身の大きさが決まってから縮める作りなのに、決まる前から見えていたので「広がってから中央へ寄る」ように見えていました。収まりが決まるまで中身を見せないようにしています。お待たせしました。",
+    en: "Fixed (same cause as #649). My Page scales itself down once the content's size is known, but the content was visible before that, so it looked like it expanded and then snapped toward the centre. The content is now hidden until the fit is settled. Sorry for the long wait.",
+  },
+
   // ── 2026-11-17（続き745・746）。名簿への追加が続き748 まで遅れた分 ──────────
   698: {
     ja: "直しました。パックの画面はカードを71枚いっぺんに並べますが、絵が1枚あたり433px角のままだったので、端末のメモリを50MB以上使って落ちていました。小さく並べる所だけ192px角の絵に替えて、10MBほどに減らしています。",

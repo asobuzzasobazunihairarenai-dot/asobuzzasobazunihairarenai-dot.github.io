@@ -3847,6 +3847,134 @@ export const CASES = [
       { kind: "tokenGone", id: "self" },
     ],
   },
+  // 🔴【#714・続き751】ここから2件は**同じ盤面**で「２マス移動」と「２マス先に一気に」を
+  //   並べて比べる。印字が違う＝動きも違う（一気にだけが途中のマスの有無を問わない）。
+  //   盤面（カードがあるマス）: (3,4) (3,5) (2,4) (1,3) (3,1)。駒Aは (3,3)。
+  //   距離2のマスは (1,3)(5,3)(3,1)(3,5)(2,2)(2,4)(4,2)(4,4) の8つ。そのうち
+  //     (3,5) … 途中 (3,4) にカードが在る → どちらでも行ける
+  //     (2,4) … 途中 (3,4) にカードが在る → どちらでも行ける（斜め隣）
+  //     (1,3) … 途中 (2,3) が**空** → 一気にだけ行ける
+  //     (3,1) … 途中 (3,2) が**空** → 一気にだけ行ける
+  //     残りはカードが無いので行き先にならない
+  {
+    name: "貧民の行進(手札): 「２マス移動」は一気にではない＝途中が空のマスは飛び越せない【#714】",
+    kind: "hand",
+    cardId: "1st-red-poor-march",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-poor-march", location: { zone: "hand", player: "A" } },
+        { id: "c34", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+        { id: "c35", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 5 } },
+        { id: "c24", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 4 } },
+        { id: "c13", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 1, col: 3 } },
+        { id: "c31", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 1 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-poor-march", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "moveBoost", player: "A", active: true, atOnce: false },
+      { kind: "moveCells", player: "A", cells: ["3,5", "2,4"] },
+    ],
+  },
+  {
+    name: "紫のキューブ ディメンション/first-purple(手札): 「２マス先に一気に」は途中を飛び越せる【#714】",
+    kind: "hand",
+    cardId: "first-purple",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-purple", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "cost", kind: "card", cardId: "purple-trial-ritual", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "c34", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+        { id: "c35", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 5 } },
+        { id: "c24", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 2, col: 4 } },
+        { id: "c13", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 1, col: 3 } },
+        { id: "c31", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 1 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-purple", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { discardCost: ["cost"] },
+    expect: [
+      { kind: "moveBoost", player: "A", active: true, atOnce: true },
+      { kind: "moveCells", player: "A", cells: ["3,5", "2,4", "1,3", "3,1"] },
+    ],
+  },
+  // 🔴【#715・続き751】食べ過ぎ: 重ねる順を本人が選ぶ。先に選んだマスのカードが下になる。
+  //   盤面: 駒Aは (3,3)。カードは (2,3) に1枚・(4,3) に2枚。(4,3) → (2,3) の順に選ぶ。
+  //   ⇒ (3,3) の重なりは 下から 合同建設・宴・試練の儀式。
+  {
+    name: "食べ過ぎ(到達): どのマスから重ねるかを選べる（先に選んだ方が下）【#715】",
+    kind: "arrival",
+    cardId: "1st-pink-overeating",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-pink-overeating", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "x1", kind: "card", cardId: "purple-trial-ritual", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "y1", kind: "card", cardId: "green-joint-construction", faceUp: true, location: { zone: "cell", row: 4, col: 3 } },
+        { id: "y2", kind: "card", cardId: "pink-party", faceUp: true, location: { zone: "cell", row: 4, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-pink-overeating", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 4, col: 3 }, { row: 2, col: 3 }] },
+    expect: [
+      { kind: "cellStackOrder", row: 3, col: 3, cards: ["green-joint-construction", "pink-party", "purple-trial-ritual"] },
+      { kind: "tokenFaceDown", id: "x1" }, // 「裏向きにして」
+      { kind: "tokenFaceDown", id: "y1" },
+      { kind: "tokenFaceDown", id: "y2" },
+      { kind: "called", name: "pickLocation", n: 1 }, // 2マス目は候補が1つなので聞かない
+    ],
+  },
+  // 🔴【#716・続き751】【状況】カードが中央へ飛んだ時、そこに駒が立っていればその人の到達を
+  //   起こす（起こした到達は「既に中央に在る」で即・不発になるので、盤面は変わらない）。
+  {
+    name: "治安悪化(到達): 中央に他人の駒が立っていれば、その人の到達を起こす【#716】",
+    kind: "arrival",
+    cardId: "1st-red-unrest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "B",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 5, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-unrest", faceUp: true, location: { zone: "cell", row: 5, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "B", cardId: "1st-red-unrest", cardTokenId: "self", pieceTokenId: "pieceB", pieceLocation: { zone: "cell", row: 5, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 }, // 中央へ置かれた
+      { kind: "called", name: "maybeTriggerArrivalForPlacedCard", arg: "3,3", n: 1 },
+    ],
+  },
+  {
+    name: "治安悪化(到達): 既に中央に在るなら置き直さず不発（到達も起こさない）【#537/#716】",
+    kind: "arrival",
+    cardId: "1st-red-unrest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-unrest", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-unrest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 }, // 動かさない
+      { kind: "called", name: "maybeTriggerArrivalForPlacedCard", n: 0 },
+      { kind: "tokenNotInHand", id: "self", player: "A" }, // 不発でも手札に行かない
+    ],
+  },
   {
     name: "治安悪化(状況): 財力５以上なら、ロックを１枚捨てる／手札４枚捨てるの２択",
     kind: "situation",
@@ -5080,6 +5208,24 @@ export function tokenById(res, id) { return res.tokens.find((t) => t.id === id);
 export function checkExpect(res, exp) {
   const t = exp.id ? tokenById(res, exp.id) : null;
   switch (exp.kind) {
+    // 🔴【#714】移動が伸びているか／それが「一気に」の方かを見る。
+    case "moveBoost": {
+      const v = (res.moveBoost || {})[exp.player];
+      if (!v) return `moveBoost が ${exp.player} について無い（runner が返していない）`;
+      if (exp.active != null && v.active !== !!exp.active) return `${exp.player} の移動強化が ${v.active}（期待 ${!!exp.active}）`;
+      if (exp.atOnce != null && v.atOnce !== !!exp.atOnce) return `${exp.player} の「一気に」が ${v.atOnce}（期待 ${!!exp.atOnce}）`;
+      return null;
+    }
+    // 🔴【#714】ムーブフェイズに出る移動候補のマスを**ちょうどこれだけ**か見る。
+    //   「一気に」でない２マス移動は途中のマスを通れないと候補に入らない＝ここで差が出る。
+    case "moveCells": {
+      const v = (res.moveBoost || {})[exp.player];
+      if (!v) return `moveBoost が ${exp.player} について無い（runner が返していない）`;
+      const 期待 = [...exp.cells].sort();
+      if (JSON.stringify(v.cells) !== JSON.stringify(期待))
+        return `${exp.player} の移動候補が ${JSON.stringify(v.cells)}（期待 ${JSON.stringify(期待)}）`;
+      return null;
+    }
     case "tokenZone":
       if (!t) return `token ${exp.id} が見つからない`;
       if (t.location.zone !== exp.zone) return `token ${exp.id} は zone=${t.location.zone}（期待 ${exp.zone}）`;

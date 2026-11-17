@@ -19,6 +19,7 @@ import {
   isAutoProcessingEnabled,
   getMoveCandidates,
   isMovementBoostActiveThisTurn,
+  isMovementBoostAtOnceThisTurn, // 🔴【#714】「一気に」の方かどうか
   isMovementDisabledThisTurn,
   // 0th拡張（やり直しのカギ）: 「その相手はこのターンにロックできない。」
   isLockDisabledThisTurn,
@@ -113,12 +114,21 @@ let findTopCardAtHelper = null;
 let notifyPlayerDecisionHelper = null;
 // 【#316】「動けないので山札から隣に1枚置いた」ことを画面で知らせる関数（main.jsから注入）。
 let announceMoveFallbackHelper = null;
-export function registerPhaseAutomationHelpers({ render, findTopCardAt, pickLocation, notifyPlayerDecision, announceMoveFallback }) {
+// 🔴【#512 #513・続き751】「ターン終了時に捨てる」の予約を流す関数（main.js から注入）。
+//   緑のキューブ ヴァーディアンの「２枚ドローして公開する。ターン終了時、それらを捨てる。」は
+//   main.js の pendingTurnEndDiscards に予約されるが、**流しているのは2か所だけ**だった
+//   （ターン終了ボタン／効果でターンを終える endTurnForEffect）。
+//   ここ＝**ムーブの救済でターンが終わる道**からは流していなかったので、公開ドローの2枚が
+//   手札に残った（報告「ヴァーディアンで引いたカードが捨てられずに手札に残存してます」）。
+// ⚠ 直接 import はできない（phase-automation → main の循環）ので、他と同じ注入の形にする。
+let flushTurnEndDiscardsHelper = null;
+export function registerPhaseAutomationHelpers({ render, findTopCardAt, pickLocation, notifyPlayerDecision, announceMoveFallback, flushTurnEndDiscards }) {
   renderHelper = render;
   findTopCardAtHelper = findTopCardAt;
   pickLocationHelper = pickLocation;
   notifyPlayerDecisionHelper = notifyPlayerDecision;
   announceMoveFallbackHelper = announceMoveFallback;
+  flushTurnEndDiscardsHelper = flushTurnEndDiscards;
 }
 // ムーブフェイズの救済（移動先も接触相手も無い時、山札から隣へ1枚置く）で、プレイヤーに
 // 置き先マスを選ばせるためのピッカー（main.jsのrequestCellChoiceForEffectを注入）。
@@ -1565,7 +1575,9 @@ export function computePhaseMoveCandidates(player) {
   const piece = getSelfPiece(player);
   if (!piece || piece.location.zone !== "cell") return null;
   const boosted = isMovementBoostActiveThisTurn(player);
-  const move = isMovementDisabledThisTurn(player) ? [] : getMoveCandidates(piece.location, boosted ? 2 : 1, boosted);
+  const move = isMovementDisabledThisTurn(player)
+    ? []
+    : getMoveCandidates(piece.location, boosted ? 2 : 1, isMovementBoostAtOnceThisTurn(player));
   const contact = getContactableCells(piece.location, player);
   return { move, contact };
 }
@@ -1588,7 +1600,11 @@ function reconcileMovePhase(player) {
   // 🔴 【#429】ここに元は「移動候補も接触相手も無い場合は既存のフォールバック（隣へ山札から
   // 1枚裏向きに置く＝『移動先が無い』時と同じ扱い、ルール上も妥当）が働く」と書いてあったが、
   // **これが誤りだった**（下の分岐で正しい扱いにしてある）。
-  const moveCandidates = isMovementDisabledThisTurn(player) ? [] : getMoveCandidates(piece.location, boosted ? 2 : 1, boosted);
+  // 🔴【#714】3つ目の引数は「一気に」かどうか。貧民の行進・ジョイナールは印字が
+  //   「２マス移動する」なので一気にではない（途中のマスを普通に通る）。
+  const moveCandidates = isMovementDisabledThisTurn(player)
+    ? []
+    : getMoveCandidates(piece.location, boosted ? 2 : 1, isMovementBoostAtOnceThisTurn(player));
   const contactCandidates = getContactableCells(piece.location, player);
   clearMovableHighlights();
   // ユーザー要望「移動先ハイライト時、範囲外のトーンを落としてほしい。ジャンプ台の時と
@@ -1747,6 +1763,14 @@ async function performMoveFallbackAndEndTurn(player, location) {
         const recoveryMs = target ? getPseudoCpuDeadlineMs() : 15000;
         setPriorityState({ player: nextPlayer, deadline: Date.now() + recoveryMs, phase: "base" });
       }
+    }
+    // 🔴【#512 #513・続き751】ターンを進める**前に**、「ターン終了時に捨てる」の予約を流す。
+    //   ターン終了ボタンの道（main.js）と同じ順番（publicDraw が手札へ合流する前に捨てる）。
+    //   ⚠ 失敗してもターンは必ず進める——ここで止まると手番が誰にも渡らない。
+    try {
+      await flushTurnEndDiscardsHelper?.(player);
+    } catch (err) {
+      console.error("performMoveFallbackAndEndTurn (flushTurnEndDiscards) failed", err);
     }
     if (isOnlineMode()) {
       nextTurn();

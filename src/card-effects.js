@@ -720,7 +720,7 @@ export const CARD_EFFECTS = {
   "first-purple": {
     handEffect: {
       cost: { verb: VERBS.DISCARD_SAME_COLOR, count: 1 },
-      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN }],
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, atOnce: true }],
     },
   },
 
@@ -2103,7 +2103,7 @@ export const CARD_EFFECTS = {
 
   // ── 1st EDITION の Eカード（残り5色） ──
 
-  // 赤き焔の書　フレイムドレイク（赤）
+  // 走書の赤歴　ジョイナール（赤）
   //   手札: 「【財力＝０】このターンの通常の移動は２マス移動する。」
   // ⚠ 既存の ANNOUNCE_MOVEMENT_BOOST_THIS_TURN をそのまま使う（ディメンションと同じ仕組み）。
   //   印字は「２マス移動する」で「一気に」が無いが、このアプリは途中のマスに止まる形を
@@ -2115,7 +2115,7 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 橙の渇望書　グリードアンバー（橙）
+  // 強欲の絵本　オレギャング（橙）
   //   手札: 「【財力＝１】任意の１マスのカードをすべてあなたの手札に加える。このターンを終了する。」
   "eternal-1st-orange": {
     handEffect: {
@@ -2124,7 +2124,7 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 黄金の富書　ゴールドリッチ（黄）
+  // 黄王学の薦め　ネロイズム（黄）
   //   手札: 「【財力＝２】次のあなたのターン開始時までプレイヤー全員は、財力を１多く計算する。
   //         この効果は１ターンに１度のみ得られる。」
   "eternal-1st-yellow": {
@@ -2135,7 +2135,7 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 桃色の情書　ピンクラブ（桃）
+  // 古紙恋書　ラブック（桃）
   //   手札: 「【財力＝５】相手プレイヤーを１人選ぶ。あなたの手札から任意の枚数選び、
   //         その相手の手札に加える。」
   // ⚠ 「任意の枚数」＝0枚でもよい（選ばなければそこで終わり＝不発）。
@@ -2146,7 +2146,7 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // 紫闇の魔書　パープルカオス（紫）
+  // 混沌の論文　カオスペーパー（紫）
   //   手札: 「【財力＝６】相手プレイヤーを１人選ぶ。その相手と手札をすべて交換する。
   //         このターンを終了する。」
   "eternal-1st-purple": {
@@ -2252,7 +2252,7 @@ export const CARD_EFFECTS = {
     handEffect: {
       wealth: { eq: 1 },
       usageLimit: { per: "turn", count: 1 },
-      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN }],
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, atOnce: true }],
     },
   },
 
@@ -2423,11 +2423,13 @@ function renderAction(action, context) {
     case VERBS.PUBLIC_DRAW_DISABLE_HAND_EFFECTS_CONDITIONAL_DISCARD:
       return `${count}枚ドロー。それらを公開する。それらの手札効果はこのターン使うことができない。その中に橙のカードがあったなら、あなたの手札をすべて捨て、あなたはこのターン移動できない。`;
     case VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN:
-      // 1st EDITION: 貧民の行進（noOpen）と基本走術（E赤）は印字が「２マス移動する」で
-      //   「一気に」が無い。ディメンション（リメイク）は今までどおり。
+      // 🔴【#714・続き751】「一気に」は言い回しではなく**実際の動きを変える条件**
+      //   （途中のマスのカード・駒の有無を問わなくなる）。⇒ **文も動きも atOnce で決める**
+      //   （以前は「何も指定が無ければ一気に」が既定だったので、貧民の行進と
+      //    走書の赤歴　ジョイナールまで一気に扱われていた）。
+      if (action.atOnce) return "このターンの通常の移動は２マス先に一気に移動する。";
       if (action.noOpen) return "このターン通常の移動では２マス移動し、移動先のカードはオープンしない。";
-      if (action.plain) return "このターンの通常の移動は２マス移動する。";
-      return "このターンの通常の移動は２マス先に一気に移動する。";
+      return "このターンの通常の移動は２マス移動する。"; // plain（既定）
     case VERBS.LOCK_ONE_HAND_CARD_EXCEPT_FINAL:
       // 🔴 1st EDITION（貴族の特権・ロックチェンジ）は印字が「あなたの**ロックエリアに**
       //   カードを１枚ロックする」。リメイク（セレナーデ等）は「あなたの手札を１枚ロックする」。

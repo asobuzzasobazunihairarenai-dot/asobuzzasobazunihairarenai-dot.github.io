@@ -48,6 +48,7 @@ import {
   rotatedActivePlayersFrom,
   isMovementDisabledThisTurn,
   isMovementBoostActiveThisTurn,
+  isMovementBoostAtOnceThisTurn, // 🔴【#714】ワープ演出は「一気に」の時だけ
   // 1st EDITION（貧民の行進）: 「このターン通常の移動では移動先のカードはオープンしない」。
   isMoveOpenSuppressedThisTurn,
   // 1st EDITION の【状況】カード（場の中央に置かれている間、全員のターン開始時に効く）。
@@ -1628,6 +1629,15 @@ function playCardFlipOpenGhost(rect, item) {
   }, CARD_FLIP_OPEN_MS + 30);
 }
 
+// 🔴【#511・続き751】**いま飛んでいる（着地演出の最中の）カード。**
+//   報告「オレンジバスを手札からマスに置く時、マスの上でオレンジバスが2枚に見えました」。
+//   playCardCellLanding は実カードを inline の visibility で隠してゴーストだけ飛ばすが、
+//   **飛んでいる約1秒の間に render() が走ると、その要素は作り直される**（オンラインは
+//   自分の操作のこだまが戻る hydrate で、ローカルでも別の演出から render が走る）。
+//   作り直された要素には inline の指定が無いので、**実物とゴーストが同時に見える**＝2枚。
+//   ⇒ flippingOpenTokenIds と同じ形で、作り直された方も隠す。
+const landingFlightTokenIds = new Set();
+
 function buildFlatCard(token) {
   const card = document.createElement("div");
   // 上記の演出中は、このカードだけ場所を確保したまま不可視にする（着地演出後にrender()で戻す）。
@@ -1635,6 +1645,8 @@ function buildFlatCard(token) {
   // めくれる演出の最中は、実物を場所だけ確保して隠す（ゴーストと二重に見えないように）。
   noteBoardCardFaceUp(token);
   if (flippingOpenTokenIds.has(token.id)) card.style.visibility = "hidden";
+  // 🔴【#511】着地演出の最中も同じ（上の説明を参照）。
+  if (landingFlightTokenIds.has(token.id)) card.style.visibility = "hidden";
   if (token.faceUp) {
     card.className = "board-card";
     // 盤面・ロックエリアのカードは既定で「イラストのみ画像」。
@@ -5363,6 +5375,10 @@ async function delegateToPlayerForEffect__inner(player, taskType, taskArg) {
   // しまう（相手のピッカー自体は相手本人の画面にしか出ないため）。既存の候補選択中
   // バナー（showEffectPickerHint）を使い、「待っている」ことだけでも伝える。
   showEffectPickerHint(t("game.waitingChoice", { name: getPlayerName(player) }));
+  // 🔴【#719・続き751】ここは activeEffectPicker を立てずにバナーを出す**唯一の道**なので、
+  //   下の見張り（バナー残留の watchdog）が「誰も選んでいないのに出ている」と誤判定しないよう、
+  //   待っている間だけ数えておく。⚠ 必ず finally で戻す（戻し忘れると見張りが永久に黙る）。
+  待っている委任の数++;
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   broadcastArrivalDelegateRequest({ player, taskType, requestId, taskArg });
   const result = await new Promise((resolve) => {
@@ -5400,6 +5416,7 @@ async function delegateToPlayerForEffect__inner(player, taskType, taskArg) {
       ? setTimeout(() => finish(false), delegationCoordinatorGiveUpMs())
       : null;
   });
+  待っている委任の数 = Math.max(0, 待っている委任の数 - 1); // 🔴【#719】数え戻す
   hideEffectPickerHint();
   logAction("diag-delegate", { phase: "resolved", player, taskType, result, returningPriorityTo: getState().turnPlayer ?? turnPlayer });
   restorePriorityToCurrentTurn(turnPlayer); // 【#567】ターンが進んでいたら今の人へ
@@ -7523,7 +7540,9 @@ async function performPhaseMoveToCell(location, actingSeat = getSelfSeat()) {
     // この演出が終わってから始まる（動き終わってから効果が出る方が分かりやすい）。
     // 【ユーザー要望2026-09-05】紫のキューブ ディメンションで移動範囲が伸びている時は、
     // ただ大きく跳ぶのではなく「ワープしている感じ」にする（効果の異質さが伝わるように）。
-    const moveStyle = isMovementBoostActiveThisTurn(player) ? "warp" : "hop";
+    // 🔴【#714】ワープに見せるのは「一気に」の時だけ。貧民の行進・ジョイナールは
+    //   普通に歩く移動なので、今までどおりの跳ねる演出にする。
+    const moveStyle = isMovementBoostAtOnceThisTurn(player) ? "warp" : "hop";
     // 【#379】ディメンションで伸びた移動（ワープ）だけはカメラが寄る。通常の移動は毎ターン
     // 起きるので決め所に入れていない（続き547）が、こちらは限られた場面の特別な移動。
     // 現れる側（移動先のマス）に寄せる。つまみで「寄り1・角度0」にすればここだけ切れる。
@@ -7870,6 +7889,45 @@ setInterval(() => {
   }
   cpuPickerWatch = { picker: null, since: 0, rescued: cpuPickerWatch.rescued + 1 };
   performPriorityTimeoutAutoAction();
+}, 500);
+
+// 🔴🔴【#719・続き751】**案内バナーが残ったまま対局が止まるのを、こちらで直す。**
+//   報告「ターン6とターン7が両方 CPUです」の行動ログでは、A（人間）の手番で
+//   `diag-notice-wait {reason:"modal", blocker:"picker-hint"}` と
+//   `diag-phase-deferred {phase:"move", via:"reconcile"}` が**4分半**続いていた。
+//   ＝「○○を選択してください」の案内バナー（#card-effect-picker-hint）が、選択が終わった後も
+//   `.show` のまま残っていた。あれは anim-gate の isBlockingModalVisible が
+//   「中央を塞いでいるもの」として数えるので、**残るだけでフェイズも手番も進まなくなる**。
+//   バナーは pointer-events:none のただの飾りなのに、居残るだけで対局が死ぬ。
+// 🔴 入口（出す4か所／消す5か所）を1つずつ直す形は採らなかった——`activeEffectPicker` を
+//   **resolve を呼ばずに null にする所が20か所以上**あり、1つ直しても次が残る（#477 の形）。
+//   ⇒ 「選択も委任も走っていないのにバナーが出ている」なら、こちらで消す。
+// ⚠ すぐには消さない。バナーを出してから activeEffectPicker を立てるまでに同じ処理の中の
+//   ごく短い窓があるので、**1.5秒続いた時だけ**消す。
+// ⚠ 消した時だけ1行残す（0しか出ない計器ではない。次の報告で「残っていたのか」が分かる）。
+//   残すのはバナーの文の先頭だけ——カード名や伏せ情報は載せない（報告にそのまま載るため）。
+let 待っている委任の数 = 0;
+let バナー残留を見つけた時刻 = 0;
+setInterval(() => {
+  try {
+    const hint = document.getElementById("card-effect-picker-hint");
+    const 出ている = !!hint && hint.classList.contains("show");
+    if (!出ている || activeEffectPicker || 待っている委任の数 > 0) {
+      バナー残留を見つけた時刻 = 0;
+      return;
+    }
+    if (!バナー残留を見つけた時刻) {
+      バナー残留を見つけた時刻 = Date.now();
+      return;
+    }
+    if (Date.now() - バナー残留を見つけた時刻 < 1500) return;
+    const 待った = Date.now() - バナー残留を見つけた時刻;
+    バナー残留を見つけた時刻 = 0;
+    try { logAction("diag-picker-hint-leak", { waited: 待った, head: String(hint.textContent || "").slice(0, 24) }); } catch (e) {}
+    hideEffectPickerHint();
+  } catch (e) {
+    /* DOM が無い等は無視（対局を止めない） */
+  }
 }, 500);
 
 export function performPriorityTimeoutAutoAction() {
@@ -9652,6 +9710,7 @@ function playCardCellLanding(sourceRect, cellLocation, tokenId, landFaceUp = fal
       ? `url("${getBoardCardImagePath(token実.cardId)}")`
       : paintedBackgroundImage(cardEl);
   cardEl.style.visibility = "hidden"; // 実カードを隠してゴーストだけ動かす（着地後に見せる）
+  landingFlightTokenIds.add(tokenId); // 🔴【#511】途中で作り直されても隠れたままにする
   flushBoard3d();
   const ghost = document.createElement("div");
   ghost.className = "setup-fly-card card-landing-ghost";
@@ -9699,7 +9758,12 @@ function playCardCellLanding(sourceRect, cellLocation, tokenId, landFaceUp = fal
       // 出るので、増殖する樹々・合同建設・白の意思のように何枚も配る効果では、そのまま
       // 「順番に光が飛ぶ」流れになる（配置は1枚ずつ await されるため）。
       spawnScatterSpark(cellEl, getState().tokens.find((tk) => tk.id === tokenId)?.cardId ?? null);
+      landingFlightTokenIds.delete(tokenId);
       cardEl.style.visibility = ""; // 実カードを見せる
+      // 🔴【#511】飛んでいる間に作り直されていたら、**いま在る要素**の方を見せる
+      //   （上の行が掴んでいるのは飛ぶ前の、もう画面に無い要素かもしれない）。
+      const 今の実カード = table.querySelector(`.board-card[data-token-id="${tokenId}"]`);
+      if (今の実カード && 今の実カード !== cardEl) 今の実カード.style.visibility = "";
       // 【#302】ここが肝。実物を見せた「その場で」WebGLも描き直す。次のフレームまで待つと、
       // 実機では 60〜200ms のあいだ「箱はあるが絵が無い」＝カードが一瞬消えて見える。
       flushBoard3d();
@@ -21829,6 +21893,8 @@ registerPhaseAutomationHelpers({
     const key = kind === "cant-move" ? "game.move.cantMoveTurnEnds" : "game.move.fallbackPlaced";
     void showEffectReasonModal(null, t(key, { name: getPlayerName(player) }));
   },
+  // 🔴【#512 #513・続き751】ムーブの救済でターンが終わる道からも「ターン終了時に捨てる」を流す。
+  flushTurnEndDiscards: flushPendingTurnEndDiscards,
 });
 initHelpButton();
 initRankingIcon();

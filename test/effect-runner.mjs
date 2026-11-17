@@ -372,7 +372,12 @@ export async function runOneCase(spec) {
       callLog.push(["initiateContactSteal", stealCount === undefined ? "既定" : String(stealCount)]);
     },
     markDiscardAtTurnEnd: (player, ids) => { callLog.push(["markDiscardAtTurnEnd", player, ids]); }, markPlacedLocation: (location, options) => { callLog.push(["markPlacedLocation", location, options?.holdMs ?? null]); }, markPlacementTarget: () => {},
-    maybeTriggerArrivalForPlacedCard: async () => {}, onCardAcquiredToHand: () => {},
+    // 🔴【#716】呼ばれたかどうかを検査したいので記録する（置いた先と札）。
+    //   本物は到達の連鎖をまるごと起こす口なので、ここでは走らせない（記録だけ）。
+    maybeTriggerArrivalForPlacedCard: async (location, cardId) => {
+      callLog.push(["maybeTriggerArrivalForPlacedCard", location ? location.row + "," + location.col : null, cardId]);
+    },
+    onCardAcquiredToHand: () => {},
     playAdditionalColorUse: () => {}, recordMoveVisited: (cell) => { if (cell && typeof cell.row === "number") visitedCells.set(cell.row + "," + cell.col, (visitedCells.get(cell.row + "," + cell.col) || 0) + 1); }, startSuspenseSound: () => {},
     stopSuspenseSound: () => {},
     // 【#619】本物は main.js の beginCameraHold/endCameraHold。見た目だけなので何もしない。
@@ -449,5 +454,22 @@ export async function runOneCase(spec) {
   //   「条件を満たしていたか」を見たい時は handUsable（下の diag）か、効果の結果で見る。
   const wealth = {};
   for (const p of S().activePlayers || []) wealth[p] = eng.getWealth?.(p) ?? null;
-  return { calls: callLog, tokens: S().tokens, piles: S().piles, diag, lockDisabled, wealth };
+  // 🔴【#714】「２マス先に一気に」と「２マス移動」の違いを検査するために、ムーブフェイズが
+  //   出す移動候補を**効果を走らせた後の盤面で**計算して添える（式は phase-automation.js の
+  //   reconcileMovePhase と同じ）。state には入らない計算値なので、結果に添えて返す。
+  const moveBoost = {};
+  for (const p of S().activePlayers || []) {
+    const piece = S().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
+    const active = !!eng.isMovementBoostActiveThisTurn?.(p);
+    const atOnce = !!eng.isMovementBoostAtOnceThisTurn?.(p);
+    const cells =
+      piece && piece.location.zone === "cell" && eng.getMoveCandidates
+        ? eng
+            .getMoveCandidates(piece.location, active ? 2 : 1, atOnce)
+            .map((c) => c.row + "," + c.col)
+            .sort()
+        : [];
+    moveBoost[p] = { active, atOnce, cells };
+  }
+  return { calls: callLog, tokens: S().tokens, piles: S().piles, diag, lockDisabled, wealth, moveBoost };
 }

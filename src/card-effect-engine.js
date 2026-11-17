@@ -284,12 +284,29 @@ function wasCardOpenedThisTurn(tokenId) {
 // 移動候補（phase-automation.jsのreconcileMovePhase）自体を、このターンの間だけ
 // count:1→2・atOnce:trueに切り替える必要がある。handEffectDisabledUntilTurnと同じ
 // 「turnNumberが一致する間だけ有効」の自動失効パターン。
-const movementBoostUntilTurn = new Map(); // player -> turnNumber
-function activateMovementBoostForTurn(player) {
-  movementBoostUntilTurn.set(player, getState().turnNumber);
+// 🔴【#714・続き751】ここは**印字が違う2種類の札**が通る。動きも違う:
+//   「２マス先に**一気に**移動する」（紫のキューブ ディメンション／1st ファースト紫）
+//     → 途中のマス（1マス目）のカード・駒の有無を**問わない**
+//       （docs/rulebook.md 289行目の補足「『一気に移動』なので1マス目のカードや相手の駒等の
+//        有無は問わない」）。
+//   「２マス移動する」（貧民の行進／走書の赤歴　ジョイナール）
+//     → 一気にではないので**途中のマスを普通に通る**＝そこにカードが無い／駒がいると通れない。
+//   以前はどちらも一気に扱っていたので、貧民の行進で**本来通れない所を飛び越せていた**
+//   （報告 #714「ニマス一気に移動になっちゃってる気がする」＝そのとおりだった。
+//    古い報告 #581「貧民の行進でCPUが3マス移動した気がする」も同じ所の話と思われる）。
+// ⚠ 一気にかどうかは**データの atOnce を見る**。noOpen / plain のような処理用のフラグから
+//   推測しない——印字（文）と処理が別々に動いてズレる（card-effects.js の同じ戒め）。
+const movementBoostUntilTurn = new Map(); // player -> { turn, atOnce }
+function activateMovementBoostForTurn(player, atOnce) {
+  movementBoostUntilTurn.set(player, { turn: getState().turnNumber, atOnce: !!atOnce });
 }
 export function isMovementBoostActiveThisTurn(player) {
-  return movementBoostUntilTurn.get(player) === getState().turnNumber;
+  return movementBoostUntilTurn.get(player)?.turn === getState().turnNumber;
+}
+// 伸びている移動が「一気に」の方か（移動候補の数え方と演出が変わる。上の説明を参照）。
+export function isMovementBoostAtOnceThisTurn(player) {
+  const v = movementBoostUntilTurn.get(player);
+  return !!v && v.turn === getState().turnNumber && !!v.atOnce;
 }
 
 // 1st EDITION（貧民の行進の手札効果）専用: 「このターン通常の移動では…移動先のカードは
@@ -1097,6 +1114,12 @@ function enumerateSurroundingOffsets() {
 // 駒なし」であることは、atOnceの有無に関わらず常に課す（旧実装はatOnce時にこの判定自体を
 // 丸ごとスキップしており、駒のいるマスや空きマスまで候補に出てしまうバグだった）。
 export function getMoveCandidates(fromLocation, count, atOnce) {
+  // 🔴【#714・続き751】「一気に」でない Nマス移動（N≧2）は**1マスずつ普通に歩く**。
+  //   途中のマスも「カードがあって駒がいない」でなければ通れない（免除されるのは
+  //   「一気に」の時だけ＝rulebook 289行目の補足）。行ける先はちょうど距離N のマス
+  //   （斜め隣も入る）だが、**通り道が無いマスは候補から落ちる**のが一気にとの違い。
+  // ⚠ N=1 はこの道を通らない（従来どおり上下左右の4マス。距離1のリングと同じ結果）。
+  if (!atOnce && count > 1) return getWalkingMoveCandidates(fromLocation, count);
   const candidates = [];
   const offsets = atOnce
     ? enumerateManhattanRing(count)
@@ -1109,6 +1132,53 @@ export function getMoveCandidates(fromLocation, count, atOnce) {
     candidates.push({ zone: "cell", row, col });
   }
   return candidates;
+}
+
+// 1マスずつ歩いて**ちょうど count マス**進める行き先の一覧（上の getMoveCandidates の説明）。
+// 遠ざかる向きだけを辿る（行ったり来たりは「移動」にならない）。途中のマスも行き先と
+// 同じ条件（カードがあって駒がいない）を課す。
+function getWalkingMoveCandidates(fromLocation, count) {
+  const 鍵 = (row, col) => row + "," + col;
+  const 距離 = (row, col) => Math.abs(row - fromLocation.row) + Math.abs(col - fromLocation.col);
+  let いま = new Map([[鍵(fromLocation.row, fromLocation.col), { row: fromLocation.row, col: fromLocation.col }]]);
+  for (let d = 1; d <= count; d++) {
+    const 次 = new Map();
+    for (const { row, col } of いま.values()) {
+      for (const { dr, dc } of DIRECTIONS) {
+        const r = row + dr;
+        const c = col + dc;
+        if (!inBounds(r, c)) continue;
+        if (距離(r, c) !== d) continue;
+        if (!hasCardAt(r, c) || hasPieceAt(r, c)) continue;
+        次.set(鍵(r, c), { row: r, col: c });
+      }
+    }
+    いま = 次;
+    if (いま.size === 0) break;
+  }
+  return [...いま.values()].map(({ row, col }) => ({ zone: "cell", row, col }));
+}
+
+// 🔴【#581・続き751】委任（delegateToPlayer "choose-cell"）の返事は、**候補の中に在るかを
+//   必ず確かめる。** 報告「貧民の行進でCPUが3マス移動した気がする」の行動ログでは、2歩目が
+//   (2,3)→(4,4)＝**距離3**。この効果の候補は必ず隣の4マスなので、**返事が候補の外**だった。
+//   ところが受け側は「row が数なら信じる」だけで、候補と突き合わせていなかった
+//   （4か所すべてそうだった）＝**返事が1つ狂うと、駒がルール上行けないマスへ飛ぶ。**
+// ⚠ 返事が候補の外なら null を返す（呼び出し側は「届かなかった時」と同じ道＝既定の候補へ
+//   落ちる。善処の原則）。どこで混ざったのかを後から追えるよう、診断を1行残す。
+// ⚠ 0しか出ない計器ではない（委任が返るたびに通る。おかしい時だけ1行出る）。
+function 委任のマスを候補に合わせる(返事, candidates, 札) {
+  if (!返事 || typeof 返事.row !== "number" || typeof 返事.col !== "number") return null;
+  const 当たり = (candidates || []).find((c) => c.row === 返事.row && c.col === 返事.col);
+  if (当たり) return { zone: "cell", row: 当たり.row, col: 当たり.col };
+  try {
+    logAction("diag-delegated-cell-outside", {
+      cardId: 札 ?? null,
+      answer: { row: 返事.row, col: 返事.col },
+      candidates: (candidates || []).map((c) => c.row + "," + c.col),
+    });
+  } catch (err) {}
+  return null;
 }
 
 // 「任意の1マス」（カードがあるマスに限る、1マスの1枚を対象にする効果向け）の候補一覧。
@@ -2445,13 +2515,18 @@ async function runAction(action, ctx, helpers) {
       // 移動候補（phase-automation.jsのreconcileMovePhase）自体をこのターンの間だけ
       // 2マス先・一気に（atOnce）へ切り替えるようにした（activateMovementBoostForTurn、
       // isMovementBoostActiveThisTurnで参照）。
-      activateMovementBoostForTurn(ctx.player);
+      // 🔴【#714】「一気に」かどうかはデータの atOnce で決まる（印字と対）。
+      activateMovementBoostForTurn(ctx.player, !!action.atOnce);
       // 🔴 1st EDITION（貧民の行進の手札効果）「…移動先のカードはオープンしない。」
       //   範囲を伸ばすのと対で、ムーブフェイズの自動オープンを止める印を立てる。
       if (action.noOpen) suppressMoveOpenForTurn(ctx.player);
       await helpers.announceEffectReason?.(
         ctx.cardId,
-        t(action.noOpen ? "ce.feMoveBoostNoOpen" : "ce.moveBoost", { name: helpers.getPlayerName(ctx.player) })
+        // 🔴【#714】「一気に」でない札（走書の赤歴　ジョイナール）に「一気に行えます」と
+        //   出していたので、言い方も3通りに分けた。
+        t(action.noOpen ? "ce.feMoveBoostNoOpen" : action.atOnce ? "ce.moveBoost" : "ce.moveBoostPlain", {
+          name: helpers.getPlayerName(ctx.player),
+        })
       );
       return true;
     }
@@ -3177,7 +3252,7 @@ async function runAction(action, ctx, helpers) {
         hintKey: "ce.ex0VivianMove",
         forPlayer: target,
       });
-      const dest = 返事 && typeof 返事.row === "number" ? { zone: "cell", row: 返事.row, col: 返事.col } : null;
+      const dest = 委任のマスを候補に合わせる(返事, cands, ctx.cardId); // 🔴【#581】候補の外は受けない
       if (!dest) return false;
       await helpers.moveAndSync(piece.id, dest);
       // 移動先が裏向きならオープンする（「移動」はオープンを伴う＝用語集）。
@@ -3664,7 +3739,7 @@ async function runAction(action, ctx, helpers) {
         hintKey: "ce.ex0MoveOtherPlayer",
         forPlayer: ctx.player,
       });
-      const dest = 返事 && typeof 返事.row === "number" ? { zone: "cell", row: 返事.row, col: 返事.col } : null;
+      const dest = 委任のマスを候補に合わせる(返事, cands, ctx.cardId); // 🔴【#581】候補の外は受けない
       if (!dest) return false;
       await helpers.moveAndSync(ctx.pieceTokenId, dest);
       helpers.recordMoveVisited?.(dest);
@@ -4622,6 +4697,19 @@ async function runAction(action, ctx, helpers) {
       const 中央札 = getState().tokens.find((tk) => tk.id === ctx.cardTokenId);
       if (中央札 && !中央札.faceUp) await helpers.flipCard(ctx.cardTokenId);
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.fePlacedAtCenter", { card: cardDisplayName(ctx.cardId) }));
+      // 🔴【#716・続き751】**中央に誰かの駒が立っているなら、その人の到達を起こす。**
+      //   報告「私が場の中央にいて、治安悪化が到達効果で私の足元に置かれた時、到達効果が
+      //   発動しなかった。発動しても不発だが不発モーダルは必要」。そのとおりで、ここは
+      //   置くだけで**何も知らせていなかった**（#659 と同じ「正しいのに黙っている」形）。
+      //   ⓘ 元は呼んでいなかった。すぐ上に「同じ札の『中央に置く』がまた動いて無限ループに
+      //     なりかねない」と書いてあったが、**#537 でその心配は消えている**——既に中央に
+      //     在る時は置き直さず false を返すので、起こした到達は**その場で不発**になって止まる。
+      //   ⚠ 札は手札にも行かない（【状況】5種はどれも addsCardToHandAfter:false で、
+      //     PLACE_SELF_AT_BOARD_CENTER は effectActionsHandleSelf にも入っていない）
+      //     ＝**盤面は1つも変わらず、不発を知らせるだけ**になる。
+      //   ⚠ 置く前に return した道（既に中央に在る＝#537）では呼ばない。あちらは
+      //     「駒が中央へ**歩いて来た**」時の話で、普通の到達の道で既に不発が出ている。
+      await helpers.maybeTriggerArrivalForPlacedCard?.({ ...BOARD_CENTER }, ctx.cardId);
       return true;
     }
     case VERBS.QUALIFYING_PLAYERS_DRAW_AND_MOVE: {
@@ -4665,8 +4753,8 @@ async function runAction(action, ctx, helpers) {
               hintKey: "ce.feMarchMoveFor",
               forPlayer: p,
             });
-            if (返事 && typeof 返事.row === "number") dest = { zone: "cell", row: 返事.row, col: 返事.col };
-            if (!dest) dest = cands[0]; // 委任が届かなかった時も「移動する」は守る（善処の原則）
+            dest = 委任のマスを候補に合わせる(返事, cands, ctx.cardId); // 🔴【#581】候補の外は受けない
+            if (!dest) dest = cands[0]; // 届かない・候補の外なら既定へ（「移動する」は守る＝善処の原則）
           }
           if (!dest) break;
           // 第4引数 true ＝既定の到達をさせない（＝裏の札をめくらない）。
@@ -4768,8 +4856,8 @@ async function runAction(action, ctx, helpers) {
           hintKey: "ce.feMoveOneFor",
           forPlayer: 相手,
         });
-        if (返事 && typeof 返事.row === "number") dest = { zone: "cell", row: 返事.row, col: 返事.col };
-        if (!dest) dest = cands[0];
+        dest = 委任のマスを候補に合わせる(返事, cands, ctx.cardId); // 🔴【#581】候補の外は受けない
+        if (!dest) dest = cands[0]; // 届かない・候補の外なら既定へ（「移動する」は守る＝善処の原則）
       }
       if (!dest) return false;
       await helpers.moveAndSync(piece.id, dest);
@@ -4794,18 +4882,37 @@ async function runAction(action, ctx, helpers) {
     case VERBS.STACK_ADJACENT_CARDS_ON_OWN_CELL: {
       // 食べ過ぎ（1st）到達「あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに重ねて置く。」
       // ⚠ 「隣」＝前後左右の4マス（用語集。「周囲」＝斜めも含む8マスとは別）。
-      // ⚠ 「カードを」＝そのマスのカード**全部**（枚数の指定が無い）。重ねる順は隣のマスの順。
+      // ⚠ 「カードを」＝そのマスのカード**全部**（枚数の指定が無い）。
       // 🔴 到達は起こさない（第6引数 true）。自分の足下へ**裏向きで**積むので、そもそも
       //   表向きのカードは現れない＝到達の条件を満たさない。
+      // 🔴【#715・続き751】**重ねる順は本人が選ぶ。**
+      //   報告「食べ過ぎの到達効果だけどどのマスのカードから重ねるか順番を選べるように
+      //   しなきゃダメじゃない？」。このゲームは「１番上の原則」が効くので、**どの札が
+      //   一番上に来るかは勝敗に関わる**＝向きの順で決めてしまってはいけなかった。
+      //   先に選んだマスのカードが下、後から選んだマスのカードが上になる（末尾＝一番上）。
+      //   ⚠ 残りが1マスだけなら聞かない（候補が1つの時は聞かないのが既定の作法）。
+      //   ⚠ 選ばずに閉じられた時は、残りを向きの順でそのまま積む——途中で止めると
+      //     「一部のマスだけ動いた」状態が残る（効果文は全部重ねると書いてある）。
       const here = ctx.pieceLocation;
       if (!here || here.zone !== "cell") return false;
-      let 積んだ = 0;
+      const 残りのマス = [];
       for (const { dr, dc } of DIRECTIONS) {
         const row = here.row + dr;
         const col = here.col + dc;
         if (!inBounds(row, col)) continue;
+        if (!hasCardAt(row, col)) continue;
+        残りのマス.push({ zone: "cell", row, col });
+      }
+      let 積んだ = 0;
+      while (残りのマス.length > 0) {
+        const 選んだ =
+          残りのマス.length === 1 && !ctx.forcePrompt
+            ? 残りのマス[0]
+            : await helpers.pickLocation([...残りのマス], t("ce.feStackPickNext"), { purpose: "place" });
+        const i = 残りのマス.findIndex((c) => 選んだ && c.row === 選んだ.row && c.col === 選んだ.col);
+        const 次 = i >= 0 ? 残りのマス.splice(i, 1)[0] : 残りのマス.shift();
         const stack = getState().tokens.filter(
-          (tk) => tk.kind === "card" && tk.location.zone === "cell" && tk.location.row === row && tk.location.col === col
+          (tk) => tk.kind === "card" && tk.location.zone === "cell" && tk.location.row === 次.row && tk.location.col === 次.col
         );
         for (const tk of stack) {
           if (tk.faceUp) await helpers.flipCard(tk.id); // 「裏向きにして」

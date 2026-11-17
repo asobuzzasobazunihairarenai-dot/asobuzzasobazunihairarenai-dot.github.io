@@ -1294,6 +1294,12 @@ const UI = {
     "ce.gambleLose": "残念、{name}は橙が出たため手札を全て捨て、このターンは移動できません。",
     "ce.gambleSafe": "{name}は橙が出ませんでした。手札はそのまま残ります！",
     "ce.moveBoost": "{name}はこのターン、通常の移動を２マス先まで一気に行えます（自己申告）。",
+    // 🔴【#714】「一気に」ではない２マス移動（貧民の行進・走書の赤歴　ジョイナール）。
+    //   一気にと違い、途中のマスは普通に通るので、カードが無い・駒がいる所は通れない。
+    "ce.moveBoostPlain": "{name}はこのターン、通常の移動で２マス動けます（一気にではないので、途中のマスにカードが無い・駒がいる所は通れません）。",
+    // 🔴【#715】食べ過ぎ: どのマスのカードから重ねるかを選ばせる。先に選んだ方が下になる
+    //   （「１番上の原則」があるので、どちらが上かを必ず書く）。
+    "ce.feStackPickNext": "次に重ねるマスを選んでください（先に選んだマスのカードが下、後から選んだマスのカードが上になります）",
     "ce.swapped": "{a}と{b}は駒の位置を入れ替えました。",
     // 【#659】入れ替えは「移動」ではないので、入れ替え先の裏向きのカードは開かない＝到達効果も起きない。
     "ce.swapFaceDownNoArrival": "入れ替え先のカードは裏向きのままです。入れ替えは移動ではないため、カードは開かず到達効果も起きません。",
@@ -3730,6 +3736,8 @@ const UI = {
     "ce.gambleLose": "Bad luck — orange came up, so {name} discards their whole hand and can't move this turn.",
     "ce.gambleSafe": "No orange for {name} — their hand is safe!",
     "ce.moveBoost": "This turn {name} may make their normal move up to 2 squares in one go (on the honor system).",
+    "ce.moveBoostPlain": "This turn {name} moves 2 squares on a normal move (not in one go, so they cannot pass through a square with no card or with a piece on it).",
+    "ce.feStackPickNext": "Choose the next square to stack (squares you pick earlier end up lower in the pile, later picks end up on top)",
     "ce.swapped": "{a} and {b} swapped places.",
     "ce.swapFaceDownNoArrival": "The card you swapped onto stays face down. Swapping is not a move, so the card is not turned over and no arrival effect happens.",
     "ce.fewestDraw": "{name} has locked the fewest, so they draw 1 card.",

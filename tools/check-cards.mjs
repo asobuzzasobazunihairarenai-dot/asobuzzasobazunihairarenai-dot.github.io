@@ -421,6 +421,46 @@ if (firstEdSrc) {
   }
 }
 
+// --- 8. card-effects.js のコメント見出しのカード名が実在するか ------------------
+// 🔴【続き751】1st EDITION の Eカード5枚のコメント見出しが、**実在しない名前**になっていた
+//   （「赤き焔の書　フレイムドレイク」等。正しくは「走書の赤歴　ジョイナール」）。
+//   コメントなので画面には1文字も出ないが、**読んだ人がその名前を本物だと信じてしまう**
+//   （実際に私がユーザーへ存在しないカード名で説明してしまった）。
+// ⚠ 見るのは「// <名前>（<色>…）」の形の見出し行だけ。本文の中でカード名に触れている
+//   コメントは山ほどあるので、そこまで見ると誤検知だらけになる。
+// ⚠ 比べる時は「番号の頭（3. ）」と「空白（全角も）」を落とす——見出しは番号付きのものや、
+//   名前の中の全角空白を半角で書いたものが混ざっている。
+{
+  const ならす = (x) => x.replace(/^\d+\.\s*/, "").replace(/[\s\u3000]+/g, "");
+  const 実名 = new Set();
+  for (const p of ["src/cards-data.js", "src/cards-data-1st.js", "src/cards-data-ex0.js"]) {
+    let src = null;
+    try {
+      src = read(p);
+    } catch (e) {
+      src = null;
+    }
+    if (!src) continue;
+    for (const m of src.matchAll(/name:\s*"([^"]+)"/g)) 実名.add(ならす(m[1]));
+  }
+  const 見出し = /^\s*\/\/ ([^\s/][^（]*)（(赤|橙|黄|緑|青|紫|桃|白|黒|虹)[^）]*）\s*$/;
+  const 見出し達 = [];
+  read("src/card-effects.js").split("\n").forEach((行, i) => {
+    const m = 行.match(見出し);
+    if (m) 見出し達.push({ line: i + 1, name: m[1].trim() });
+  });
+  // 🔴 探し方が空振りすると「0件＝合格」になるので、それらしい数が取れたかを先に見る。
+  if (実名.size < 50 || 見出し達.length < 20) {
+    console.error(`❌ 検査そのものが怪しい: 実名 ${実名.size}件 / 見出し ${見出し達.length}件`);
+    process.exit(2);
+  }
+  for (const h of 見出し達) {
+    if (!実名.has(ならす(h.name))) {
+      note(`コメント見出しのカード名が実在しない: src/card-effects.js:${h.line}「${h.name}」（cards-data*.js の name と突き合わせた）`);
+    }
+  }
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
