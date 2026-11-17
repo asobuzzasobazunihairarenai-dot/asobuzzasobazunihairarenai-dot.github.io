@@ -209,6 +209,67 @@ export const CASES = [
       { kind: "pieceAt", player: "B", row: 3, col: 3 },
     ],
   },
+  // 【#659・続き750】「マスチェンジ後の合同建設のカード拡大が出てこない」。
+  //   入れ替えは「移動」ではないので**裏向きの札は開かない**＝裏向きなら到達しないのが仕様。
+  //   報告の行動ログには到達が1行も無く、読みだけでは「仕様」と「不具合」を分けられなかった。
+  //   ⇒ **表向き／裏向きの2通りを常に検査する**（realArrivalChain で本当に走らせる）。
+  {
+    name: "マスチェンジ(到達): 入れ替え先が表向きなら、その到達効果が走る（#659）",
+    kind: "arrival",
+    cardId: "orange-mass-change",
+    realArrivalChain: true,
+    state: {
+      activePlayers: ["A", "B", "C", "D"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 3, col: 5 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "pieceD", kind: "piece", player: "D", location: { zone: "cell", row: 6, col: 6 } },
+        { id: "self", kind: "card", cardId: "orange-mass-change", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "dest", kind: "card", cardId: "green-joint-construction", faceUp: true, location: { zone: "cell", row: 3, col: 5 } },
+      ],
+      piles: { deck: ["red-jump-pad", "blue-choosable-trap", "green-growing-trees", "red-counter-lock"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "orange-mass-change", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 5 }, { row: 0, col: 3 }, { row: 0, col: 4 }, { row: 0, col: 5 }, { row: 1, col: 3 }], player: ["B"] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 5 },
+      { kind: "pieceAt", player: "B", row: 3, col: 3 },
+      // 🔴 ここが #659 の本体: 入れ替え先の表向きの札の到達が、ちゃんと走る。
+      { kind: "called", name: "delegateToPlayer", arg: "joint-construction", n: 4 },
+      // 表向きの時は「裏向きだから起きません」の断りを出さない（起きているので）。
+      // ⚠ 相手が1人だけだと「自動的に選びました」の通知が別に1つ出るので、**数ではなく鍵で**見る。
+      { kind: "called", name: "notice", arg: "ce.swapFaceDownNoArrival", n: 0 },
+    ],
+  },
+  {
+    name: "マスチェンジ(到達): 入れ替え先が裏向きなら到達しない（#659・入れ替えは移動ではない）",
+    kind: "arrival",
+    cardId: "orange-mass-change",
+    realArrivalChain: true,
+    state: {
+      activePlayers: ["A", "B", "C", "D"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 3, col: 5 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "pieceD", kind: "piece", player: "D", location: { zone: "cell", row: 6, col: 6 } },
+        { id: "self", kind: "card", cardId: "orange-mass-change", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "dest", kind: "card", cardId: "green-joint-construction", faceUp: false, location: { zone: "cell", row: 3, col: 5 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "orange-mass-change", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 5 }], player: ["B"] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 5 },
+      { kind: "pieceAt", player: "B", row: 3, col: 3 },
+      { kind: "called", name: "delegateToPlayer", arg: "joint-construction", n: 0 },
+      { kind: "tokenFaceDown", id: "dest" }, // 開かない（＝めくられていない）
+      // 🔴 黙って何も起きないと不具合に見える（#659 の報告そのもの）ので、理由を一言出す。
+      { kind: "called", name: "notice", arg: "ce.swapFaceDownNoArrival", n: 1 },
+    ],
+  },
   {
     name: "マスチェンジ(手札): 追色コストを払い、位置を入れ替える。カード自身は捨てる",
     kind: "hand",

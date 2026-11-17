@@ -55,15 +55,19 @@ export const CHANGELOG = [
     date: "2026-11-18",
     summary: [
       "0th拡張のカードの題名に、実物どおりのふりがなが付きました",
+      "マスチェンジで入れ替えた先のカードが開かない時、その理由が出るようになりました",
     ],
     summaryEn: [
       "0th expansion card titles now show the furigana printed on the real cards",
+      "Mass Change now explains why the card you swapped onto stays face down",
     ],
     items: [
       "**0th拡張の33種類**のカードの題名に、**実物のカードと同じふりがな**が付きました（「迷いの森」なら「まよ／もり」、「色寄せの笛」なら「いろよ／ふえ」というふうに）。実物の印刷データから1枚ずつ読んで写したものなので、**実物とまったく同じ**です。「我忘れの白き龍」のように、題名ぜんぶに1つのふりがな（ノクスアエル）が付くカードも、実物どおりに出ます。",
+      "マスチェンジで駒を入れ替えた先に**裏向きのカード**があると、これまでは何も起こらず、画面にも何も出ませんでした。**入れ替えは「移動」ではないのでカードは開かず、到達効果も起きません**——これはルールどおりなのですが、黙っていると不具合に見えます。これからは、その場で理由を一言お知らせします。⚠ 入れ替え先に**カードが無い**時は出しません（見れば分かるので）。",
     ],
     itemsEn: [
       "All 33 of the 0th expansion cards now show the same furigana (reading aids) that are printed on the real cards. They were read off the actual print data one card at a time, so they match the physical cards exactly. Cards like \"Noxael, the White Dragon\", where a single reading sits over the whole title, are shown that way too.",
+      "When Mass Change swaps you onto a face-down card, nothing used to happen and nothing was shown. Swapping is not a move, so the card is not turned over and no arrival effect fires — that is the rule, but in silence it looks like a bug. A short note now explains it. If the square has no card at all, nothing is shown, since that is obvious.",
     ],
     fixes: [
       "一部のカードで、実物にはあるふりがなが出ていなかったのを直しました。",

@@ -2780,6 +2780,13 @@ async function runAction(action, ctx, helpers) {
       //   ①入れ替え先の札が裏向きだった（＝仕様どおり。入れ替えは「移動」ではないので開かない）
       //   ②何か別の理由で到達が走らなかった、の2つで、**読みだけでは決められなかった**。
       //   ⇒ 入れ替え先に何があったかを1行だけ残す（普段から必ず出る＝0しか出ない計器ではない）。
+      // ✅【続き750】決着した。**①だった＝エンジンは正しい。**
+      //   ・本番に溜まったこの計器を16回ぶん読んだ: **表向きの入れ替えは1回も無く**、
+      //     毎回「裏向き」か「空マス」。1件（#671）では相手側（fromLoc）の到達は走っていた
+      //     ＝口そのものは生きている。
+      //   ・そのうえで**表向きの入れ替えを自分で作って**確かめた: 到達はちゃんと走る
+      //     （test/effect-cases.mjs に表向き／裏向きの2件を常設した）。
+      //   ⇒ 残っていた問題は「正しいのに画面に何も出ない」ことだけ。下の一言で塞いだ。
       {
         const 先 = getState().tokens.filter(
           (t) => t.kind === "card" && t.location.zone === "cell" && t.location.row === target.row && t.location.col === target.col
@@ -2792,6 +2799,16 @@ async function runAction(action, ctx, helpers) {
           topFaceUp: 上?.faceUp ?? null,
           player: ctx.player,
         });
+        // 🔴【#659・続き750】**札が在るのに何も起きない**時だけ、理由を一言出す。
+        //   本番に溜まった計器を16回ぶん読んだら、**表向きの入れ替えは1回も無く**、
+        //   実際の入れ替え先は毎回「裏向き」か「空マス」だった。ルール上は正しい
+        //   （入れ替えは「移動」ではないので裏向きは開かない）が、画面には**何も出ない**
+        //   ので「不具合では？」と読める——報告 #659 はその形だった。
+        //   ⚠ **空マスの時は出さない**（何も無いのは見れば分かる。出すと毎回うるさい）。
+        //   ⚠ 軽い通知（非ブロック）にする。入れ替えの直後にもう1枚止まる札を出さない。
+        if (上 && !上.faceUp) {
+          helpers.announceEffectNotice?.(ctx.cardId, t("ce.swapFaceDownNoArrival"));
+        }
       }
       await helpers.triggerArrivalAtIfFaceUp?.(target, ctx.player);
       const massChangeStillOnBoard =

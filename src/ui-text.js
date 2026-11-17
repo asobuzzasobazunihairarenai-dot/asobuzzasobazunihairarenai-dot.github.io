@@ -1295,6 +1295,8 @@ const UI = {
     "ce.gambleSafe": "{name}は橙が出ませんでした。手札はそのまま残ります！",
     "ce.moveBoost": "{name}はこのターン、通常の移動を２マス先まで一気に行えます（自己申告）。",
     "ce.swapped": "{a}と{b}は駒の位置を入れ替えました。",
+    // 【#659】入れ替えは「移動」ではないので、入れ替え先の裏向きのカードは開かない＝到達効果も起きない。
+    "ce.swapFaceDownNoArrival": "入れ替え先のカードは裏向きのままです。入れ替えは移動ではないため、カードは開かず到達効果も起きません。",
     "ce.fewestDraw": "{name}は１番少なくロックしているので１枚ドローします。",
     "ce.lowestWealthDraw": "{name}は財力が１番小さいので{n}枚ドローします。",
     "ce.swappedHands": "{a}と{b}は手札を1枚ずつ交換しました。",
@@ -3729,6 +3731,7 @@ const UI = {
     "ce.gambleSafe": "No orange for {name} — their hand is safe!",
     "ce.moveBoost": "This turn {name} may make their normal move up to 2 squares in one go (on the honor system).",
     "ce.swapped": "{a} and {b} swapped places.",
+    "ce.swapFaceDownNoArrival": "The card you swapped onto stays face down. Swapping is not a move, so the card is not turned over and no arrival effect happens.",
     "ce.fewestDraw": "{name} has locked the fewest, so they draw 1 card.",
     "ce.lowestWealthDraw": "{name} has the lowest Wealth, so they draw {n} card(s).",
     "ce.swappedHands": "{a} and {b} each swapped one card from their hand.",

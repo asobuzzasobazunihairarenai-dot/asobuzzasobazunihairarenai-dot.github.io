@@ -403,6 +403,8 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   706, // 相手の効果なのに「選んでください」の案内がこちらに出る
   709, // 霧散演出の効果文の書体と配置が崩れていた
   710, // ジュエルの効果発動時もカードテキストがおかしい（#709 と同じ原因）
+  // ── 2026-11-17（続き750）──────────────────────────────────────────────
+  659, // マスチェンジ後に到達しないのは仕様（裏向きは開かない）。黙っていた所に理由を出した
 ]);
 
 // ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
@@ -489,6 +491,10 @@ export const BUG_REPORT_FIX_NOTES = {
   710: {
     ja: "直しました。#709 と同じ原因です。ジュエルに限らず、霧散の演出に出る文すべてが本物と同じ組み方になりました。",
     en: "Fixed. Same cause as #709. All text in the dissolve animation — not just jewels — now matches the real card layout.",
+  },
+  659: {
+    ja: "調べました。入れ替えは「移動」ではないので、入れ替え先の裏向きのカードは開かず、到達効果も起きません（ルールどおりです）。ただし画面には何も出ていなかったので、不具合に見えて当然でした。これからは、入れ替え先に裏向きのカードがある時だけ、その理由を一言お知らせします。表向きのカードへ入れ替えた時はこれまでどおり到達効果が起きることも、テストで確かめて常に見張るようにしました。",
+    en: "Looked into it. Swapping is not a move, so a face-down card on the destination square is not turned over and no arrival effect fires — that is the rule. But nothing was shown on screen, so it naturally looked like a bug. A short note now explains it whenever the destination holds a face-down card. We also added tests that permanently verify arrival effects still fire when you swap onto a face-up card.",
   },
   664: {
     ja: "直しました。カードの文には向きが書かれていないのに、手札から置く時の既定が裏向きだったため、黙って裏向きに置かれていました。表向きか裏向きかを選べるようにしました。",

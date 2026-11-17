@@ -5,6 +5,13 @@
 // だとサブパスが抜けて 404 になる／アプリの singleton と別インスタンスになる。test/ から見て ../src/）。
 import * as st from "../src/state.js";
 import * as eng from "../src/card-effect-engine.js";
+import { t as uiT } from "../src/ui-text.js";
+
+// 【#659・続き750】軽い通知（announceEffectNotice）を**鍵の名前で**記録する。
+//   文そのものを記録すると、台本が日本語に縛られる（言語を切り替えると落ちる）。
+//   ⇒ 知っている鍵だけ引き当てて、見つからなければ "other"。足したい時はここへ鍵を1つ書く。
+const 既知の通知キー = ["ce.swapFaceDownNoArrival", "ce.L958", "ce.L1364"];
+const 通知の鍵 = (text) => 既知の通知キー.find((k) => uiT(k) === text) || "other";
 
 // 1ケース分を実行して最終 state 等を返す（アサーションは effect-cases.js の checkExpect が行う）。
 export async function runOneCase(spec) {
@@ -328,7 +335,10 @@ export async function runOneCase(spec) {
 
     // --- 演出/音/通知/その他（no-op）---
     announceCardAddedToHand: () => {}, announceColorsResolved: () => {}, announceDrawTargets: () => {},
-    announceEffectChoice: () => {}, announceEffectNotice: () => {}, announceEffectReason: async () => {},
+    announceEffectChoice: () => {},
+    // 【#659・続き750】軽い通知も記録する（「黙って何も起きない」を検査できるようにするため）。
+    announceEffectNotice: (cardId, text) => { callLog.push(["notice", cardId, 通知の鍵(text)]); },
+    announceEffectReason: async () => {},
     announceFizzle: async () => {}, announceSteppedCard: () => {}, announceUse: () => {},
     beginPublicDrawDefer: () => {}, endPublicDrawDefer: () => {}, celebrate: () => {}, delay: async () => {},
     endCurrentPhase: () => { callLog.push(["endCurrentPhase"]); }, flyCardToHand: async () => {},
