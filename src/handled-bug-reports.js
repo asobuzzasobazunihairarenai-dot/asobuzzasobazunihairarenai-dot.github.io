@@ -381,6 +381,28 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   604, // 賄賂1枚でハンドフェイズが止まるのは正しい（調べて不具合ではなかった・続き697で説明済み）
   642, // 効果の解決中に手札の使用確認モーダルを開けてしまう（連打）
   651, // マス選択の確認に「そのマスの一番上のカード」を出す／確認を切る時に警告する
+  // ── 2026-11-17（続き745）──────────────────────────────────────────────
+  // 🔴 続き745・746 で直したのに、名簿へ足すのを忘れていた（続き748 の棚卸しで気づいた）。
+  //   直っているのに報告者の画面には「まだ対処されていません」と出続けていた。
+  //   **直したらその場で足す**（続き672・678・691 に続いて4回目の取りこぼし）。
+  698, // パックを開封したら落ちてタイトルに戻る（カードの絵を小さい版にして51MB→10MB）
+  699, // パックの中身を見ていく途中で落ちる（#698 と同じ原因）
+  700, // 物語チュートリアルの改行位置
+  701, // 不具合報告にログを添えられなかった（本文が長すぎて壊れたJSONになっていた）
+  702, // 青のジュエル ラピスティアを「3枚以上」→「2枚以上」に
+  707, // ムーブフェイズの移動先の確認にカードの絵が無かった
+  708, // 無色がロックエリアに置かれる時は鎖ではなく別の演出に（白）
+  711, // まとめて捨てる時はミニモーダル1つに（手札の一括捨て5か所も）
+  712, // パックの画面が虹色にチカチカする（#698 と同じ原因）
+  713, // 「ロックする」効果の候補に無色が出ていた
+  // ── 2026-11-17（続き746）──────────────────────────────────────────────
+  630, // 笛で足元がオープンされても到達効果が起きない（#704 と同じ原因・helpers の表が2つあった）
+  703, // チャレンジ報酬のセヴルが所持金へ飛んでいく演出
+  704, // CPUの笛で足元がオープンされたのに到達効果が発動しない
+  705, // 「盤面を見る」でも盤面が一部隠れる（覗いている間だけ拡大を下げた）
+  706, // 相手の効果なのに「選んでください」の案内がこちらに出る
+  709, // 霧散演出の効果文の書体と配置が崩れていた
+  710, // ジュエルの効果発動時もカードテキストがおかしい（#709 と同じ原因）
 ]);
 
 // ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
@@ -399,6 +421,75 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  // ── 2026-11-17（続き745・746）。名簿への追加が続き748 まで遅れた分 ──────────
+  698: {
+    ja: "直しました。パックの画面はカードを71枚いっぺんに並べますが、絵が1枚あたり433px角のままだったので、端末のメモリを50MB以上使って落ちていました。小さく並べる所だけ192px角の絵に替えて、10MBほどに減らしています。",
+    en: "Fixed. The pack screen lays out 71 cards at once, each still at 433px, which used over 50MB and crashed the device. Small thumbnails now use 192px art, bringing it down to about 10MB.",
+  },
+  699: {
+    ja: "直しました。#698 と同じ原因（絵が大きすぎてメモリを使い切っていた）です。開封の途中で落ちるのも一緒に直っています。",
+    en: "Fixed. Same cause as #698 (artwork too large for memory). Crashes while opening a pack are fixed along with it.",
+  },
+  700: {
+    ja: "直しました。物語チュートリアルの文が、行頭に来てはいけない字で折り返していました。行頭禁則を効かせ、対応している端末では文節で折り返すようにしています。",
+    en: "Fixed. The story tutorial text could break before characters that may not start a line. Line-breaking rules now apply, and supported devices break at phrase boundaries.",
+  },
+  701: {
+    ja: "直しました。オンラインの報告は4人分のログをつなげて送るので、長い対局だと本文が大きくなりすぎて途中で切られ、壊れた形で届いていました。長すぎる時は直近の分を残して切り、切ったことを本文に書くようにしました。",
+    en: "Fixed. Online reports concatenate all four players' logs, so long games produced a body too large to send and it arrived truncated and malformed. Long logs are now trimmed, keeping the most recent part, and the report says so.",
+  },
+  702: {
+    ja: "直しました。青のジュエル ラピスティアの手札効果を「3枚以上」から「2枚以上」に変更し、カードに出る文も合わせています。",
+    en: "Done. The Blue Jewel Lapistia's hand effect is now \"2 or more\" instead of \"3 or more\", and the printed text on the card face matches.",
+  },
+  707: {
+    ja: "直しました。マスを選ぶ確認にカードの絵を出す直しが、カード効果で選ぶ側にしか入っていませんでした。ムーブフェイズの移動先でも、そのマスの一番上のカードが出ます（裏向きの時は中身を出しません）。",
+    en: "Fixed. The change that shows the card in the square-confirmation dialog had only been applied to card effects. It now also appears when choosing a move destination (face-down cards stay hidden).",
+  },
+  708: {
+    ja: "直しました。白のカードがロックエリアに置かれる時に、何の演出も出ていなかったので、ロックしたように見えていました。黒の烙印と同じ骨組みで、白には白の演出が出るようにしています。ルール上の扱いは変えていません。",
+    en: "Fixed. White cards placed in the lock area had no effect at all, which made it look like a lock. White now has its own effect, built from the same parts as the black brand. The rules are unchanged.",
+  },
+  711: {
+    ja: "直しました。まとめて捨てる時に1枚ずつお知らせを出していたので、同じ場所で上書きし合って最後の1枚しか見えませんでした。1つのミニモーダルに捨てた順で並べます。手札の一括捨て5か所も総点検して同じ形にしました。",
+    en: "Fixed. Discarding several cards showed one notice per card, each overwriting the last, so only the final card was visible. They now appear together in one mini-modal in discard order. All five bulk hand-discard effects were checked and fixed the same way.",
+  },
+  712: {
+    ja: "直しました。#698 と同じ原因です。絵が多すぎて端末が読み込みと破棄を繰り返していたため、チカチカして見えていました。",
+    en: "Fixed. Same cause as #698: too much artwork made the device load and discard images repeatedly, which looked like flickering.",
+  },
+  713: {
+    ja: "直しました。無色（白・黒）はロックエリアに置いてもロックにならないのに、「ロックする」と書かれた効果の候補に出ていました。候補から外しています。虹は色を選んで本当にロックできるので、そのまま残しています。",
+    en: "Fixed. Colourless cards (white and black) do not count as a lock, yet they appeared as targets for effects that say \"lock\". They have been removed. Rainbow cards stay, since they can genuinely be locked by declaring a colour.",
+  },
+  630: {
+    ja: "直しました。原因は #704 と同じで、カード効果の受け口の表が手札効果用と到達効果用の2つに分かれていて、到達側に「置かれた札の到達効果を起こす」口が足りていませんでした。食い違っていた8件をそろえ、次から機械が数えるようにしています。",
+    en: "Fixed. Same cause as #704: the table of effect helpers was split in two, and the arrival side was missing the entry that triggers an arrival effect for a placed card. All eight mismatches were filled in, and a check now counts them automatically.",
+  },
+  703: {
+    ja: "入れました。デイリーチャレンジの報酬を受け取ると、押したボタンから画面上の所持金までセヴルが飛んでいきます。動きを減らす設定の方には飛びません（光るのは出ます）。",
+    en: "Added. Claiming a daily challenge reward sends Sevre flying from the button to your balance. If you have reduced motion on, the coins do not fly but the flash still appears.",
+  },
+  704: {
+    ja: "直しました。カード効果の受け口の表が手札効果用と到達効果用の2つに分かれていて、到達側に「置かれた札の到達効果を起こす」口が足りていませんでした。例外も出ずに黙って何も起きない形だったので、食い違っていた8件をそろえ、次から機械が数えるようにしています。",
+    en: "Fixed. The table of effect helpers was split in two, and the arrival side was missing the entry that triggers an arrival effect for a placed card — it failed silently with no error. All eight mismatches were filled in, and a check now counts them automatically.",
+  },
+  705: {
+    ja: "直しました。スマホ向けの拡大がモーダルにも掛かったままで、よけても盤面に食い込んでいました。覗いている間だけ少し小さくして、左へ寄せています。ふだんの大きさは変えていません。横向きの狭い画面では、西の方の手札置き場と山札が隠れるのは残ります。",
+    en: "Fixed. The phone-sized zoom still applied to the modal, so it overlapped the board even when moved aside. It now shrinks slightly and sits further left while you peek. Normal size is unchanged. On narrow landscape screens the west player's hand area and the deck can still be covered.",
+  },
+  706: {
+    ja: "直しました。効果を処理する入口は4つあるのに、到達効果の入口だけ「誰が選ぶ番か」を立てていませんでした。そのため到達した人と手番の人が違う場面で、相手の選択がこちらに出ていました。入口4つを機械が毎回数えるようにしています。",
+    en: "Fixed. There are four entry points that run card effects, and only the arrival one failed to record whose choice it is. When the arriving player differed from the player with priority, their prompt appeared on your screen. A check now verifies all four entry points.",
+  },
+  709: {
+    ja: "直しました。霧散の演出はカードの文を独自に組み直していて、本物とは別物になっていました。本物のカード面をそのまま写す形に変え、書体・位置・仕切り線をそろえています。",
+    en: "Fixed. The dissolve animation laid out the card text on its own, separately from the real card. It now copies the real card face directly, matching the typeface, positions and divider line.",
+  },
+  710: {
+    ja: "直しました。#709 と同じ原因です。ジュエルに限らず、霧散の演出に出る文すべてが本物と同じ組み方になりました。",
+    en: "Fixed. Same cause as #709. All text in the dissolve animation — not just jewels — now matches the real card layout.",
+  },
   664: {
     ja: "直しました。カードの文には向きが書かれていないのに、手札から置く時の既定が裏向きだったため、黙って裏向きに置かれていました。表向きか裏向きかを選べるようにしました。",
     en: "Fixed. The card text does not say which way up, but placing from hand defaults to face-down, so it always went face-down silently. You can now choose.",
