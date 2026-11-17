@@ -380,18 +380,25 @@ export function buildCardFace(cardId, { showFlavor = true } = {}) {
 //     にじんで太く見える。どちらも続き746 で実際にやって、撮って気づいた）。
 //   ⚠ 見るのは**文字の節**であって要素ではない。ルビ付きの題名のように「文字と子要素の
 //     両方を持つ」要素があり、要素だけ見ると題名が丸ごと落ちる。
-// CSS の text-shadow（最初の1つ）を canvas の影に読み替える。
+// CSS の text-shadow を canvas の影に読み替える。
 // 🔴 **縁取り（strokeText）で代用しない。** CSS のそれは「ぼかした影」なので、
 //   同じ太さの硬い線で描くと**にじんで太く見える**（続き746 で実際にそうなり、撮って気づいた）。
 //   canvas には影そのものがあるので、本物の値をそのまま渡す。
+// 🔴 **影は1枚とは限らない。** 題名は2枚重ね（落とす影＋輪郭の影）で、
+//   canvas は1回の描画に1枚しか乗せられないので、**枚数ぶん描く**。
+//   1枚目しか読まないと、題名のまわりがわずかに明るくなる（続き746 の実測で見つけた）。
 // 形: "rgba(0, 0, 0, 0.7) 0px 1.299px 3.464px, rgba(0, 0, 0, 0.5) 0px 0px 1.5px"
 function 影を読む(textShadow) {
-  if (!textShadow || textShadow === "none") return null;
-  const 最初 = String(textShadow).split(/,(?![^(]*\))/)[0];
-  const 色 = /(rgba?\([^)]*\)|#[0-9a-f]{3,8})/i.exec(最初);
-  if (!色) return null;
-  const 数 = [...最初.replace(色[1], "").matchAll(/(-?[\d.]+)px/g)].map((m) => +m[1]);
-  return { 色: 色[1], x: 数[0] || 0, y: 数[1] || 0, ぼかし: 数[2] || 0 };
+  if (!textShadow || textShadow === "none") return [];
+  return String(textShadow)
+    .split(/,(?![^(]*\))/)
+    .map((一枚) => {
+      const 色 = /(rgba?\([^)]*\)|#[0-9a-f]{3,8})/i.exec(一枚);
+      if (!色) return null;
+      const 数 = [...一枚.replace(色[1], "").matchAll(/(-?[\d.]+)px/g)].map((m) => +m[1]);
+      return { 色: 色[1], x: 数[0] || 0, y: 数[1] || 0, ぼかし: 数[2] || 0 };
+    })
+    .filter(Boolean);
 }
 
 // 背景画像（●到達・■手札のアイコン）の読み込み置き場。同じ絵を何度も読まない。
@@ -436,14 +443,32 @@ export async function paintCardFaceTextToCanvas(g, cardId, 辺) {
     const 位置 = (実画面px) => (実画面px / ステージ) * 倍; // 実画面px → canvas px
 
     // 仕切り線（本物にだけ在って、手書きには無かったもの）
+    // 🔴 **線そのものは要素ではなく `::before`**（続き746 の実測で見つけた）。
+    //   `.card-face-divider` は `height: 1.2cqw` の**入れ物**で、背景を1つも持たない。
+    //   見えている線は `::before { height: 0.22cqw; background: … }` ＝入れ物の 1/5 の太さで、
+    //   `align-items: center` によって中央に置かれている。
+    //   ⇒ 入れ物を塗ると **5px の黒い帯**になり、本物の **1px の細線**と見た目が変わる
+    //     （実測: 本物は横幅の6割を超える行が **1行**、入れ物を塗った版は **6行**）。
+    //   ⚠ 擬似要素の height は **CSS px** なので `倍`（CSS px → canvas px）を掛ける。
+    //     `位置()` は実画面px用なので、ここで使うとステージ倍率のぶん二重に割れる。
     for (const el of face.querySelectorAll(".card-face-divider")) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       const cs = getComputedStyle(el);
-      const 色 = cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" ? cs.backgroundColor : cs.borderTopColor;
-      if (!色 || 色 === "rgba(0, 0, 0, 0)") continue;
+      const 擬似 = getComputedStyle(el, "::before");
+      const 透明 = (c) => !c || c === "rgba(0, 0, 0, 0)" || c === "transparent";
+      const 色 = !透明(擬似?.backgroundColor)
+        ? 擬似.backgroundColor
+        : !透明(cs.backgroundColor)
+          ? cs.backgroundColor
+          : cs.borderTopColor;
+      if (透明(色)) continue;
+      // ⚠ `::before` が無い形（昔の仕切り線）でも壊れないよう、取れなければ入れ物の高さに戻す。
+      const 線高 = parseFloat(擬似?.height);
+      const 高 = Number.isFinite(線高) && 線高 > 0 ? 線高 * 倍 : 位置(r.height);
+      const 中心 = 位置(r.top - 枠.top) + 位置(r.height) / 2;
       g.fillStyle = 色;
-      g.fillRect(位置(r.left - 枠.left), 位置(r.top - 枠.top), 位置(r.width), Math.max(1, 位置(r.height)));
+      g.fillRect(位置(r.left - 枠.left), 中心 - 高 / 2, 位置(r.width), Math.max(1, 高));
     }
 
     // 🔴 **折り返しを自分で計算しない。** ブラウザが組んだ行の箱をそのまま写す。
@@ -508,7 +533,7 @@ export async function paintCardFaceTextToCanvas(g, cardId, 辺) {
         g.font = (cs.fontStyle !== "normal" ? cs.fontStyle + " " : "") + cs.fontWeight + " " + 字 + "px " + cs.fontFamily;
         g.textAlign = "left"; // 揃えはブラウザが済ませてある（行の箱の左端がそのまま答え）
         g.textBaseline = "top";
-        const 影 = 影を読む(cs.textShadow);
+        const 影 = 影を読む(cs.textShadow)[0];
         if (影) {
           g.shadowColor = 影.色;
           g.shadowOffsetX = 影.x * 倍;
@@ -519,6 +544,11 @@ export async function paintCardFaceTextToCanvas(g, cardId, 辺) {
           g.shadowOffsetX = g.shadowOffsetY = g.shadowBlur = 0;
         }
         g.fillStyle = cs.color;
+        // 🔴 **1行につき fillText は1回だけ。** 影を2枚とも出そうとして
+        //   「影ごとに描く＋最後に影なしで描く」を試したが、**本物から遠ざかった**
+        //   （続き746 の実測: 墨の量の比 1.015 → 1.032、題名の帯の違い 19.6% → 20.5%）。
+        //   canvas の fillText は**毎回ぼかした縁ごと描く**ので、重ねた回数だけ縁が
+        //   濃くなって**字が太る**。影1枚ぶんの損より、字が太る損の方が大きい。
         for (const 行 of 行を取る(node)) {
           if (!行.文.trim()) continue;
           g.fillText(行.文, 位置(行.left - 枠.left), 位置(行.top - 枠.top));
