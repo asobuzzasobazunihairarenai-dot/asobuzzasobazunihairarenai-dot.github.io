@@ -66,6 +66,10 @@ import {
   isOpponentBaseTimerVisible,
   setOpponentBaseTimerVisible,
 } from "./motion-prefs.js";
+// 🔴【続き757】実機の動作確認（device-check.js）。
+// ⚠ cpu-battle-state.js は pref-registry だけを読む軽いモジュール＝循環しない。
+import { runDeviceCheck, formatDeviceCheck } from "./device-check.js";
+import { isCpuBattleActive } from "./cpu-battle-state.js";
 import {
   saveMyPreference,
   resetMyAppearanceSettings,
@@ -1812,6 +1816,20 @@ export function initOptionsMenu() {
           openCardDevMode();
         })
       );
+      // 🔴【続き757】**実機の動作確認。** 検査もテストもスモークも全部ヘッドレスで、
+      //   毎回「実機では見ていない」で終わっていた。ヘッドレスは CSS の遷移の速さ・
+      //   WebGL の重さ・メモリ・通知の可否について平気で嘘をつくので、**実機から数字を
+      //   持ち帰る道**を作った。絵は運ばない（重い）——不具合報告が #717〜#719 を一発で
+      //   決めたのと同じ「見取り図（箱・大きさ・重なり）」の考え方。
+      //   ⚠ 画面を開け閉めするので**対局中は出さない**。
+      if (!isOnlineMode() && !isCpuBattleActive()) {
+        panel.appendChild(
+          buildMenuItem("📱 実機の動作確認を送る", () => {
+            close();
+            void runDeviceCheckFlow();
+          })
+        );
+      }
       // ユーザー要望「管理者モードにマイページ内レイアウト変更モードのオンオフを追加。ONで
       // マイページの要素をドラッグ移動・端で拡大縮小でき、設定はテキスト出力して焼き込む」。
       // profile-layout-editor.js が実体。ONにしてマイページを開くと編集ハンドル/ツールバーが出る。
@@ -1890,4 +1908,53 @@ export function initOptionsMenu() {
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
   getOptionArea().appendChild(toggleBtn);
+}
+
+// 🔴【続き757】**実機の動作確認を走らせて送る。**
+//   ① 何をするかを先に言って、押してもらってから始める（勝手に送らない）
+//   ② 進み具合をその場に出す（止まったように見えない）
+//   ③ 集めた数字を**不具合報告と同じ道**で送る（新しい通信路を作らない）
+//   ⚠ 送る中身は数字と要素の名前だけ。絵も個人の情報も運ばない。
+async function runDeviceCheckFlow() {
+  const { showConfirmModal, showNoticeModal } = await import("./ui-helpers.js");
+  const よいか = await showConfirmModal(
+    "この端末の画面の大きさ・メモリ・動きの速さを測って、開発者へ送ります。\n画面がいくつか自動で開いたり閉じたりします（30秒ほど）。\n送るのは数字だけで、絵や個人の情報は送りません。",
+    { 見出し: "実機の動作確認", はい: "はじめる", いいえ: "やめる" }
+  );
+  if (!よいか) return;
+
+  // 進み具合の小さな札（押せない・じゃまをしない）
+  const 札 = document.createElement("div");
+  札.id = "device-check-progress";
+  札.textContent = "はじめています…";
+  document.body.appendChild(札);
+  const 進み = (s) => { 札.textContent = s; };
+
+  let 結果 = null;
+  try {
+    結果 = await runDeviceCheck({ onProgress: 進み });
+  } catch (err) {
+    札.remove();
+    showNoticeModal("測っている途中で止まりました。\n\n" + String(err?.message || err).slice(0, 200), { 見出し: "動作確認" });
+    return;
+  }
+  進み("送っています…");
+  const 文 = formatDeviceCheck(結果);
+  try {
+    const { submitBugReport } = await import("./online.js");
+    const { getActionLogText } = await import("./action-log.js");
+    await submitBugReport({
+      comment: 文,
+      actionLog: getActionLogText ? getActionLogText() : "",
+      consoleLog: "",
+      context: { deviceCheck: 結果 },
+    });
+    札.remove();
+    showNoticeModal("送りました。ありがとうございます。\n\n" + 文.slice(0, 900), { 見出し: "動作確認：送信しました" });
+  } catch (err) {
+    札.remove();
+    // 🔴 送れなくても測った中身は見せる（その場で読めれば用は足りる＝#729 の教訓）。
+    showNoticeModal("送れませんでした（下の文をそのまま開発者へ貼っても大丈夫です）。\n\n" +
+      String(err?.message || err).slice(0, 160) + "\n\n" + 文, { 見出し: "動作確認" });
+  }
 }

@@ -15366,6 +15366,27 @@ body.theme-light .home-resume-row.is-my-turn .home-resume-state { color: #b03030
   white-space: nowrap;
 }
 .home-resume-more { font-size: 0.68rem; opacity: 0.7; margin-top: 0.2rem; }
+
+/* ═══ 続き757: 実機の動作確認（device-check.js）の進み札 ═══
+   ⚠ **押せない・じゃまをしない**（pointer-events: none）。測っている間だけ出る。
+   ⚠ いちばん手前に出す——測るために画面を開け閉めするので、下に潜ると進みが見えなくなる。*/
+#device-check-progress {
+  position: fixed;
+  left: 50%;
+  bottom: 1.2rem;
+  transform: translateX(-50%);
+  z-index: 99999;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.9);
+  color: #e8eef7;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
 /* 🔴 続き756: 「手番が来たら知らせる」の勧め（1回だけ・待っている人にだけ出る）。
    ⚠ 色は決め打ちしない（明暗2テーマ＝教訓15）。ボタンだけ地を持つ。*/
 .home-resume-ask {
