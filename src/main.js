@@ -8583,6 +8583,40 @@ function hideEffectAutoButton() {
 // 使えるので「押さなかったぶんは今の並び順で捨てる」の意味が保てる）。`activeEffectPicker` も
 // 同じ形（type: "handMulti"／toggle／confirmOrder／resolve）で登録したままにしてある——
 // 持ち時間切れの自動代行と「おまかせ」がここを通るため。
+// 🔴【続き754】**候補が「画面に要素が無い」という理由で落ちたら、必ず記録する。**
+//   #720（貴族の特権で自分を選べない）の正体は「候補はあるのに、盤面にアバターの要素が
+//   無い席が黙って落ちる」だった。あの形は**選ばせる所ぜんぶ**に在る:
+//     ・マスの選択 … `findLocationElement`（1445行）が知っている zone は **cell と lock だけ**。
+//                    他（hand / publicDraw / pile）は**無条件で null** ＝候補から消える
+//     ・手札の選択 … 候補そのものを**DOM から**作る。状態に在っても画面に無ければ消える
+//   ⓘ **いまのカードでは落ちない**（続き754 で実測: 4席とも手札ぜんぶ画面に在る・49マス・
+//     ロックは4側×7枠そろっている）。危ないのは**これから増えるカード**——「捨て場から選ぶ」
+//     「よけておいた札から選ぶ」のように**新しい置き場を指す候補**が来た瞬間に黙って落ちる。
+//     見た目には「選ばせてもらえない」「何も起きない」としか出ないので、**次の不具合報告で
+//     1行で分かる形**にしておく。
+//   ⚠ **一部落ちも記録する。** #720 は一部落ちだったので、全部落ちた時だけの計器
+//     （#534 の diag-cell-pick-empty）では捕まらなかった。
+//   ⚠ 同じ種類は**1回だけ**（選び直しの輪の中で呼ばれる。毎回出すと行動ログが埋まる
+//     ＝続き739 の noteProgress と同じ形）。
+const 候補落ちを記録した種類 = new Set();
+function recordPickCandidatesDropped(kind, 候補数, 残り数, 情報) {
+  if (!(候補数 > 残り数)) return;
+  const 鍵 = kind + "/" + (残り数 === 0 ? "all" : "some");
+  if (候補落ちを記録した種類.has(鍵)) return;
+  候補落ちを記録した種類.add(鍵);
+  try {
+    logAction("diag-pick-candidates-dropped", {
+      kind,
+      candidates: 候補数,
+      shown: 残り数,
+      dropped: 候補数 - 残り数,
+      ...(情報 || {}),
+    });
+  } catch (err) {
+    /* 記録に失敗しても選択そのものは続ける */
+  }
+}
+
 function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options = {}) {
   return new Promise((resolve) => {
     const handArea = document.querySelector(`.hand-area[data-player="${player}"]`);
@@ -8593,6 +8627,9 @@ function requestHandCardsOrderedForEffect(player, hint, tokenIdFilter, options =
     ];
     const filterIds = tokenIdFilter ? (tokenIdFilter instanceof Set ? tokenIdFilter : new Set(tokenIdFilter)) : null;
     const cardEls = filterIds ? allCardEls.filter((el) => filterIds.has(el.dataset.tokenId)) : allCardEls;
+    // 【続き754】ルールが要求した札のうち、画面に無いものが在ったら記録する（#720 の家族）。
+    if (filterIds) recordPickCandidatesDropped("handOrdered", filterIds.size, cardEls.length, { player });
+    if (!handArea) recordPickCandidatesDropped("handOrdered-area", 1, 0, { player });
     // 【2026-09-29・続き545】options.limit ＝「この枚数だけ選ぶ」。
     // これが無い時は従来どおり**全部捨てる**（選ばなかった分は並び順のまま後ろへ足す）。
     // 候補の枚数以上を指定された時は「結局全部」なので limit 無しと同じ扱いにする。
@@ -9264,6 +9301,14 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
     const entries = (table ? candidates.map((loc) => ({ loc, el: findLocationElement(table, loc) })) : []).filter(
       (e) => e.el
     );
+    // 🔴【続き754】**一部だけ落ちた**時を記録する（#720 の家族）。全部落ちた時は下の
+    //   #534 の計器が出すので、ここでは二重に出さない（1つの出来事に1行）。
+    if (entries.length > 0) {
+      recordPickCandidatesDropped("cell", candidates.length, entries.length, {
+        zones: [...new Set(candidates.map((c) => c?.zone || "?"))].join(","),
+        sample: JSON.stringify(candidates.find((c) => !entries.some((e) => e.loc === c)) || null).slice(0, 80),
+      });
+    }
     if (entries.length === 0) {
       // 🔴【#534・2026-11-09】ここは**静かな失敗**になりやすい。候補はあるのに盤面の要素が
       //   1つも見つからない（zone の付け忘れ等）と、選ぶ画面が出ないまま呼び出し側が
@@ -9364,7 +9409,12 @@ function requestHandCardChoiceForEffect__inner(player, hint, tokenIdFilter, opti
     // 配列を受けられるようにしておく（この一段があれば同じ間違いが致命傷にならない）。
     const filterIds = tokenIdFilter ? (tokenIdFilter instanceof Set ? tokenIdFilter : new Set(tokenIdFilter)) : null;
     const cardEls = filterIds ? allCardEls.filter((el) => filterIds.has(el.dataset.tokenId)) : allCardEls;
+    // 【続き754】ルールが要求した札のうち、画面に無いものが在ったら記録する（#720 の家族）。
+    //   ⚠ filterIds が無い時は「その席の手札ぜんぶ」＝落ちようがない（手札が0枚なのは普通）。
+    //     ただし**入れ物そのものが無い**なら、席は在るのに手札置き場が描かれていない＝事故。
+    if (filterIds) recordPickCandidatesDropped("hand", filterIds.size, cardEls.length, { player });
     if (cardEls.length === 0) {
+      if (!handArea) recordPickCandidatesDropped("hand-area", 1, 0, { player });
       resolve(null);
       return;
     }
@@ -10049,6 +10099,16 @@ export function getStallDiagnostics() {
 //   debugImageTextures と同じ「検証用」の棚）。アプリ側のどこからも呼んでいない。
 export function debugOpenPlayerPick(candidates, hint) {
   return requestPlayerChoiceForEffect(candidates, hint);
+}
+
+// 【続き754】同じ棚: マスと手札の選択も実測から呼べるようにする（どちらも main.js の
+//   中でしか呼ばれない＝helpers 経由なので、外から届かず実測できなかった）。
+//   ⚠ アプリ側のどこからも呼んでいない（board-3d.js の debugImageTextures と同じ扱い）。
+export function debugOpenCellPick(candidates, hint, options) {
+  return requestCellChoiceForEffect(candidates, hint, options);
+}
+export function debugOpenHandPick(player, hint, tokenIdFilter, options) {
+  return requestHandCardChoiceForEffect(player, hint, tokenIdFilter, options);
 }
 
 export function isAnyEffectProcessingBusy() {
