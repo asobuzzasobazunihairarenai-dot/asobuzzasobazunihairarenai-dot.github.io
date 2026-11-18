@@ -2089,6 +2089,152 @@ export async function listSpectatableGames() {
   return data ?? [];
 }
 
+// 🔴【続き756】**自分が入っている進行中の対局の一覧。**
+//
+//   なぜ要るか: 持ち時間は既定オフなので、オンラインの対局は**待っていても消えない**。
+//   ところが「どの対局に居たか」はこのファイルの currentGameId（ただの変数）にしか無く、
+//   **アプリを閉じる／読み込み直すと消える**。so7_games_list は status = 'open' だけを
+//   返すので一覧にも出ず、観戦の一覧は「見る」用（席は取らない）。
+//   ⇒ **自分の対局へ戻る道が1つも無かった。** 非同期対戦を名乗るなら、ここが先。
+//
+// ⚠ 新しい表も SQL も要らない——so7_game_seats と so7_games はどちらも
+//   「秘密情報を含まない」ので authenticated が直接 select できる（supabase_setup_so7.sql）。
+// ⚠ 2回に分けて引く（join を1本の select で書くと、埋め込みの関係名に依存して壊れやすい）。
+export async function listMyActiveGames() {
+  if (!client) return [];
+  try {
+    const user = await getCurrentUser();
+    if (!user) return [];
+    const { data: seats, error: seatErr } = await client
+      .from("so7_game_seats")
+      .select("game_id, seat")
+      .eq("user_id", user.id);
+    if (seatErr) {
+      console.error("listMyActiveGames (seats) failed", seatErr);
+      return [];
+    }
+    const ids = [...new Set((seats ?? []).map((r) => r.game_id).filter(Boolean))];
+    if (ids.length === 0) return [];
+    const { data: games, error: gameErr } = await client
+      .from("so7_games")
+      // 🔴 turn_player も引く。so7_games は1行にこれを持っているので、
+      //   「あなたの番か」の判定は**列を1つ読むだけ**（盤面を読み込む必要が無い）。
+      .select("id, status, created_at, is_ranked, turn_player, turn_number")
+      .in("id", ids)
+      .eq("status", "playing")
+      .order("created_at", { ascending: false });
+    if (gameErr) {
+      console.error("listMyActiveGames (games) failed", gameErr);
+      return [];
+    }
+    const 自分の席 = new Map((seats ?? []).map((r) => [r.game_id, r.seat]));
+    // 相手の名前も添える（「誰との対局か」が分からないと、どれに戻るか選べない）。
+    const { data: 全席 } = await client
+      .from("so7_game_seats")
+      .select("game_id, seat, display_name, user_id")
+      .in("game_id", ids);
+    const 顔ぶれ = new Map();
+    for (const r of 全席 ?? []) {
+      if (!顔ぶれ.has(r.game_id)) 顔ぶれ.set(r.game_id, []);
+      if (r.user_id !== user.id) 顔ぶれ.get(r.game_id).push(r.display_name || "？");
+    }
+    return (games ?? []).map((g) => {
+      const 席 = 自分の席.get(g.id) ?? null;
+      return {
+        gameId: g.id,
+        seat: 席,
+        createdAt: g.created_at,
+        isRanked: !!g.is_ranked,
+        opponents: 顔ぶれ.get(g.id) ?? [],
+        turnPlayer: g.turn_player ?? null,
+        turnNumber: g.turn_number ?? null,
+        // ⚠ 席がまだ無い（開始直前）時は「あなたの番」とは言わない。
+        myTurn: !!席 && !!g.turn_player && g.turn_player === 席,
+      };
+    });
+  } catch (err) {
+    console.error("listMyActiveGames failed", err);
+    return [];
+  }
+}
+
+// 🔴【続き756】**自分の対局へ戻る。**
+//   joinRoom は使えない——あれは so7_join_room を呼ぶので、**席が既に在ると
+//   「duplicate key」で弾かれる**（「すでにこの部屋に参加しています」）。
+//   席はもう在るのだから、やるのは「購読・ハートビート・状態の取り込み」だけ。
+// ⚠ 自分の席は**サーバーから読む**（開始時に割り当てられた値が正。端末は覚えていない）。
+// ⚠ 観戦ではないので spectating は false に戻す（観戦から戻る場合に効く）。
+export async function rejoinMyGame(gameId) {
+  return withLog("対局に戻る", async () => {
+    const user = await getCurrentUser();
+    if (!user) throw new Error(t("on.err.signIn"));
+    const { data: seat, error } = await client
+      .from("so7_game_seats")
+      .select("seat")
+      .eq("game_id", gameId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!seat) throw new Error(t("on.err.notInThisGame"));
+    currentGameId = gameId;
+    currentSeat = seat.seat ?? null;
+    spectating = false;
+    subscribeToGame(gameId, { announceJoin: false });
+    startHeartbeat(gameId, user.id);
+    await fetchAndHydrate(gameId);
+    return { gameId, seat: currentSeat };
+  });
+}
+
+// 🔴【続き756】**手番が次の人に回ったことを、その人の端末へ届ける。**
+//
+//   なぜ要るか: 持ち時間は既定オフ＝対局は待っていても消えないのに、**手番が来たことを
+//   知る手段が無かった**（自分で開いて確かめるしかない）。プッシュの土台は続き198 から
+//   在ったのに、送っていたのは「ランク戦のレディチェック」と「管理者のお知らせ」だけで、
+//   **手番については1か所も呼んでいなかった**（続き733 で踏んだ「口は作ったが誰も呼んで
+//   いない」と同じ形）。
+//
+// 🔴 送るのは**手番を終えた本人の端末だけ**（この関数は NEXT_TURN が通った直後にしか
+//   呼ばれない）。全員が送ると同じ通知が人数ぶん飛ぶ。
+// ⚠ 手番の人は**サーバーから読む**（端末の state は先に進んでいることがある）。
+// ⚠ 失敗しても対局は止めない（投げっぱなし・例外は握りつぶす）。
+// ⚠ CPU・観戦・1人用では呼ばれない（オンラインの transport を通らない）。
+async function 手番が回ったことを知らせる(gameId) {
+  try {
+    if (!client || !gameId) return;
+    const { data: g } = await client
+      .from("so7_games")
+      .select("turn_player, turn_number, status")
+      .eq("id", gameId)
+      .maybeSingle();
+    if (!g || g.status !== "playing" || !g.turn_player) return;
+    // 自分に回ってきた（＝まだ自分の番）なら誰にも送らない。
+    if (g.turn_player === currentSeat) return;
+    const { data: seat } = await client
+      .from("so7_game_seats")
+      .select("user_id")
+      .eq("game_id", gameId)
+      .eq("seat", g.turn_player)
+      .maybeSingle();
+    if (!seat?.user_id) return;
+    // 🔴 **送る前に「誰へ送ろうとしたか」を残す。** 送信が失敗した時に
+    //   「誰へのつもりだったか」が消えると、報告を読んでも原因に辿り着けない
+    //   （#729・続き739 で同じ形を踏んだ）。成否は下の diag-turn-push-failed で分かる。
+    logAction("diag-turn-push", { gameId, to: g.turn_player, turn: g.turn_number ?? null });
+    await sendPushToUsers([seat.user_id], {
+      title: t("push.yourTurn.title"),
+      body: t("push.yourTurn.body"),
+      url: "./",
+      // 🔴 対局ごとに1つの tag にまとめる。同じ対局で何度も手番が回っても、
+      //   端末の通知は積み上がらず**最後の1つに置き換わる**（SW 側が tag でまとめる）。
+      tag: "so7-your-turn-" + gameId,
+    });
+  } catch (err) {
+    // 知らせられなくても対局は進む。原因だけ残す。
+    try { logAction("diag-turn-push-failed", { reason: String(err?.message || err).slice(0, 120) }); } catch (e) {}
+  }
+}
+
 // ユーザー要望「オンライン対戦の部屋モーダルで、リアルタイムで作成された部屋が表示
 // されるようにしたい」（続き65）。今までは開いた瞬間の1回きりの取得＋手動「🔄 更新」
 // ボタンしか無かった。onRosterChange（特定の部屋に入室済みのメンバー変更を、その部屋の
@@ -4209,7 +4355,18 @@ function subscribeToGame(gameId, { announceJoin = false } = {}) {
     }
     return rawBroadcastSend(msg);
   };
-  setOnlineTransport(callAction);
+  // 🔴【続き756】**手番が渡った後に、次の人へ知らせる。**
+  //   オンラインで手番が渡るのは state.js の NEXT_TURN だけなので、ここで包めば
+  //   「手番を終えた本人の端末」からだけ1回送られる（入口を1つに保つ＝続き698 の教訓）。
+  //   ⚠ 投げっぱなし（await しない）。通知の往復でターンの受け渡しを遅らせない。
+  setOnlineTransport(async (action) => {
+    const data = await callAction(action);
+    if (action && action.type === "NEXT_TURN") {
+      const g = currentGameId;
+      void 手番が回ったことを知らせる(g);
+    }
+    return data;
+  });
   setPriorityTransport(updatePriorityState);
   // fetchAndHydrate()（ネットワーク往復あり）を待たず、この場で即座に再描画を強制する。
   // これが無いと、部屋に参加した直後のわずかな間だけ、まだisOnlineMode()が反映される前の

@@ -17,9 +17,10 @@
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY は Supabase が自動で
 // 環境変数として渡す。VAPID_* は上記の通り自分で Secrets に設定する必要がある。
 //
-// 濫用防止: 認証済みユーザーであっても、任意の相手へは送れない。呼び出し元と「同じ
-// so7_ranked_pending_match（レディチェック待ちのグループ）」に居る相手にだけ送れる
-// （＝ランクのマッチ成立通知という正規用途に限定）。
+// 濫用防止: 認証済みユーザーであっても、任意の相手へは送れない。呼び出し元と「同じ場に
+// 居る相手」にだけ送れる:
+//   ① 同じ so7_ranked_pending_match（レディチェック待ちのグループ）＝マッチ成立通知
+//   ② 🔴【続き756】同じ対局（so7_game_seats に席がある）＝**手番が回ったことの通知**
 //
 // 追加(2026-09-02): 全員への「お知らせプッシュ」（ユーザー要望）。body に broadcast:true を
 // 付けると、**管理者のメールアドレスでログインしている時だけ**、購読者全員へ一斉送信する
@@ -100,7 +101,11 @@ Deno.serve(async (req) => {
     const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     if (!broadcast) {
-      // 濫用防止: 呼び出し元と同じ pending_match に居る相手だけを送信先として許可する。
+      // 濫用防止: 呼び出し元と「同じ場に居る相手」だけを送信先として許可する。
+      //   ① 同じ pending_match（ランク戦のレディチェック。続き198）
+      //   ② 🔴【続き756】**同じ対局（so7_game_seats に席がある）** ——手番の通知で要る。
+      //      これが無いと no_shared_match で落ち、「あなたの番です」が1通も届かない。
+      //   ⚠ 広げるのはここまで。**任意の相手へは送れないまま**（濫用防止の筋は変えない）。
       const { data: matches } = await db
         .from("so7_ranked_pending_match")
         .select("players")
@@ -108,6 +113,19 @@ Deno.serve(async (req) => {
       const allowed = new Set<string>();
       for (const m of matches ?? []) {
         for (const p of (m.players ?? []) as string[]) allowed.add(p);
+      }
+      // ② 自分が席を持っている対局の、ほかの席の人。
+      const { data: mySeats } = await db
+        .from("so7_game_seats")
+        .select("game_id")
+        .eq("user_id", callerId);
+      const myGameIds = [...new Set((mySeats ?? []).map((r: any) => r.game_id).filter(Boolean))];
+      if (myGameIds.length > 0) {
+        const { data: mates } = await db
+          .from("so7_game_seats")
+          .select("user_id")
+          .in("game_id", myGameIds);
+        for (const m of mates ?? []) if ((m as any).user_id) allowed.add((m as any).user_id);
       }
       const targets = targetUserIds.filter((id) => id && id !== callerId && allowed.has(id));
       if (targets.length === 0) return json({ ok: true, sent: 0, skipped: "no_shared_match" });

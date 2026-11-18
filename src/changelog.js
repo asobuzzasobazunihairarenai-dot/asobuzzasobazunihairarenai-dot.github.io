@@ -54,21 +54,29 @@ export const CHANGELOG = [
   {
     date: "2026-11-18",
     summary: [
+      "ホームから、進行中のオンライン対局に戻れるようになりました",
+      "自分の手番が来たことを、アプリを閉じていても知らせられるようになりました",
       "0th拡張のカードの題名に、実物どおりのふりがなが付きました",
       "マスチェンジで入れ替えた先のカードが開かない時、その理由が出るようになりました",
       "食べ過ぎで、どのマスのカードから重ねるかを選べるようになりました",
     ],
     summaryEn: [
+      "You can now return to a match in progress from the home screen",
+      "You can now be told it is your turn, even with the app closed",
       "0th expansion card titles now show the furigana printed on the real cards",
       "Mass Change now explains why the card you swapped onto stays face down",
       "Overeating now lets you choose which square's cards to stack first",
     ],
     items: [
+      "**ホーム画面に「続きから」が出るようになりました。** オンラインの対局は持ち時間を入れていなければ待っていても消えないのに、これまでは**アプリを閉じると自分の対局へ戻る道がありませんでした**（始まった対局は「参加できる部屋」の一覧に出ず、観戦の一覧は見るだけのものだからです）。これからはホームに「続きから」が出て、**誰との対局か・あなたの番か・何ターン目か**が分かり、押せばその盤面へ戻れます。**あなたの番の対局は上に並び、赤い縁が付きます。** 進行中の対局が1つも無い時は何も出ません。",
+      "**自分の手番が来たことを、アプリを閉じていても知らせられるようになりました。** これまで通知が飛んでいたのはランク戦の「対戦開始」の確認だけで、**手番については1通も飛んでいませんでした**。これからは、相手があなたへ手番を渡した時にお知らせが届きます。⚠ 受け取るには**許可**が必要です。「続きから」の中に一度だけ「手番が来たら知らせますか？」と出るので、そこで「知らせる」を押してください（断っても二度と出ません）。同じ対局のお知らせは積み上がらず、いつも最新の1つに置き換わります。",
       "**0th拡張の33種類**のカードの題名に、**実物のカードと同じふりがな**が付きました（「迷いの森」なら「まよ／もり」、「色寄せの笛」なら「いろよ／ふえ」というふうに）。実物の印刷データから1枚ずつ読んで写したものなので、**実物とまったく同じ**です。「我忘れの白き龍」のように、題名ぜんぶに1つのふりがな（ノクスアエル）が付くカードも、実物どおりに出ます。",
       "マスチェンジで駒を入れ替えた先に**裏向きのカード**があると、これまでは何も起こらず、画面にも何も出ませんでした。**入れ替えは「移動」ではないのでカードは開かず、到達効果も起きません**——これはルールどおりなのですが、黙っていると不具合に見えます。これからは、その場で理由を一言お知らせします。⚠ 入れ替え先に**カードが無い**時は出しません（見れば分かるので）。",
       "**食べ過ぎ**の到達効果（隣の4マスのカードを自分のマスへ重ねて置く）で、**どのマスのカードから重ねるかを選べる**ようになりました。**先に選んだマスのカードが下、後から選んだマスのカードが上**になります。このゲームは「１番上の原則」が効くので、どの札が一番上に来るかは次の一手の価値を変えます——これまでは向きの順で勝手に決まっていました。⚠ 残りが1マスだけの時は聞きません（選べないので）。",
     ],
     itemsEn: [
+      "**The home screen now has a \"Resume\" card.** Online matches do not expire unless a turn timer is on, yet until now **closing the app left you with no way back into your own match** - a started match is not in the joinable-room list, and the spectate list is for watching only. Now the home screen shows who you are playing, whether it is your turn and which turn it is, and one tap takes you back to that board. **Matches waiting on you are listed first with a red outline.** Nothing is shown when you have no matches in progress.",
+      "**You can now be told it is your turn, even with the app closed.** Until now the only push notification was the ranked ready-check - **nothing was ever sent about turns**. Now you get a notice when an opponent passes the turn to you. ⚠ You have to allow it first: the Resume card asks once, \"Get notified when it is your turn?\" - tap \"Notify me\" there (declining hides it for good). Notices for the same match do not pile up; the latest one replaces the previous.",
       "All 33 of the 0th expansion cards now show the same furigana (reading aids) that are printed on the real cards. They were read off the actual print data one card at a time, so they match the physical cards exactly. Cards like \"Noxael, the White Dragon\", where a single reading sits over the whole title, are shown that way too.",
       "When Mass Change swaps you onto a face-down card, nothing used to happen and nothing was shown. Swapping is not a move, so the card is not turned over and no arrival effect fires — that is the rule, but in silence it looks like a bug. A short note now explains it. If the square has no card at all, nothing is shown, since that is obvious.",
       "Overeating's arrival effect (stack the cards from the four adjacent squares onto your own) now lets you choose which square to stack first. Squares you pick earlier end up lower in the pile, later picks end up on top. Because the top card of a square is what matters in this game, which card ends up on top changes the value of your next move — until now the order was decided for you. You are not asked when only one square is left.",
@@ -100,6 +108,10 @@ export const CHANGELOG = [
       "Further cut the image memory that was making phones run out and crash.",
     ],
     devItems: [
+      "🔴🔴 **「非同期対戦」の心臓が2つ繋がっていなかった（調べて分かった）。** ①**手番の通知**: Web Push の土台は続き198 から完成していた（VAPID 鍵・Service Worker・so7_push_subscriptions・sendPushToUsers）のに、**送っていたのはランク戦のレディチェックと管理者のお知らせだけ**で、手番については1か所も呼んでいなかった（続き733 の「口は作ったが誰も呼んでいない」と同じ形）。②**戻る道**: 対局IDは online.js の currentGameId という**ただの変数**にしか無く、閉じれば消える。so7_games_list は status が open の部屋だけを返すので始まった対局は一覧に出ず、観戦の一覧は席を取らない。⇒ **自分の対局へ戻る道が1つも無かった。** 知らせても押す先が無いので、**通知より先に戻る道を作った**。",
+      "ⓘ **戻る道は新しい表も SQL も要らなかった。** so7_games と so7_game_seats はどちらも「秘密情報を含まない」ので authenticated が直接 select できる（supabase_setup_so7.sql の方針）。しかも so7_games は turn_player を1列で持っているので、**「あなたの番か」の判定は列を1つ読むだけ**（盤面を読み込まなくてよい）。足したのは listMyActiveGames / rejoinMyGame の2つだけ。🔴 joinRoom は使えない——あれは so7_join_room を呼ぶので**席が既に在ると duplicate key で弾かれる**。席はもう在るのだから、やるのは購読・ハートビート・状態の取り込みだけ。**実測（ローカルの Supabase・2人で本当に対局を始めて、ホストのページを読み込み直した）**: 読み込み直すと確かに対局を忘れている → ホームに「続きから」が出る（「相手の番です ・ 1ターン目」）→ 押すと席も盤面（53個の駒・カード）も戻り、観戦ではない。例外0・404 0。",
+      "🔴 **通知を付けた場所と、許可を聞く場所。** オンラインで手番が渡るのは state.js の nextTurn（NEXT_TURN）**だけ**なので、online.js の transport（setOnlineTransport）を包んで**そこを通った直後に1回だけ**知らせる⇒「手番を終えた本人の端末」しか送らない（4人が同じ通知を送らない）。手番の人は**サーバーから読む**（端末の state は先に進んでいることがある）。tag を対局ごとに1つにして**通知が積み上がらない**ようにした。送る前に「誰へ送ろうとしたか」を記録する（失敗した時に狙いが消えると原因に辿り着けない＝#729 の家族）。🔴 さらに**許可を聞く所がランク戦の中にしか無かった**ので、フレンドリーマッチだけで遊ぶ人には1通も届かない状態だった⇒「続きから」の札の中で**一度だけ**勧める（待っている人にだけ出る・人が押す流れなので requestPermission が通る・断れば二度と出ない）。⚠ **サーバー側の変更が1つある**: so7-send-push の送信先の検めが「同じ pending_match の人だけ」だったので、**「同じ対局に席がある人」も許す**ようにした（これが無いと no_shared_match で1通も出ない）。**デプロイが必要。**",
+      "🔴 **カード文が黙って巻き戻る罠を潰した（tools/gen-card-text.mjs）。** あれは走らせるだけで src/card-text.ja.js を上書きするので、**手元の txt と公開中の文が4か所ずれている**（続き748 で見つけた）状態では、走らせた人が意図せず**カードの効果を古い案へ戻してしまう**。今までは「走らせる人が git diff を1行ずつ読む」という人任せの約束だった。⇒ **既定では何も書かない**（差分を出すだけ）／`--write` を付けても**ふりがな以外が動く差分が1件でもあれば止める**／本当に戻したい時だけ `--write --force`。実測で3つの道（既定・--write で止まる・--force で書く）を通し、公開中のファイルが**1バイトも変わっていない**ことを git のハッシュで確かめた。ⓘ 効果文は**公開中の src/card-text.ja.js が正**（アナログ版の控えである txt とずれていてよい）という方針も、ツールの冒頭に書いた。",
       "🔴🔴 **#720 の正体: プレイヤー選択モーダルから自分の席が黙って消えていた。** 報告「貴族の特権で移動できるプレイヤーは自分も対象です。相手に限定していないです！」。**カードの文も、効果の処理も、最初から自分を含んでいた**（engine は getState().activePlayers をそのまま渡す）。落ちていたのは requestPlayerChoiceForEffect（main.js）で、`candidates.map(...).filter((e) => e.el)` と書いて**盤面に .player-avatar の要素が在る席だけ**を候補にしていた。ところが**自分の盤面アバターは既定で置かれない**——isSelfBoardAvatarVisible() が既定 off（「左下の大アバターと重複して冗長」というユーザー判断。buildPlayerZone の appendChild）。⇒ 候補は全部残し、**ハイライトだけ要素が在るものに付ける**形にした。実測（4人戦・932x430）: 直す前はボタンが B,C,D の3つ／直した後は A,B,C,D の4つで、A を押すと A が返る。",
       "🔴 **同じ穴で、候補が自分だけの効果は「黙って不発」になっていた**（#639 の形）。entries が空だと**ピッカーを登録する前に即 null** を返していたので、リトルマウス・苦渋の強盗・大富豪の気紛れのように「１番多く／少ない＝自分だけ」になり得る効果は、**モーダルも出ずに何も起きなかった**。しかも #639 で「候補が1人でも必ず聞く」ようにしたので、**必ずこの道を通っていた**。⚠ CPU・持ち時間切れの代行も picker.players から選ぶので、登録前に抜けると**代行まで壊れていた**。実測で、候補 [\"A\"] でもボタンが1つ出て A が返ることを確かめた。",
       "⚠ **自分の席のボタンには「（自分）」を添えた。** 報告がまさに「自分も対象」なので、並んでいても気づきにくい。**新しい文言は作らず**、左下のステータスが使っている鍵（game.self.meSuffix「{name}（自分）」/「{name} (you)」）をそのまま使い回した。",

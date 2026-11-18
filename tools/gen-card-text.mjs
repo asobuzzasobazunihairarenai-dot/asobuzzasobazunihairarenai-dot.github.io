@@ -1,16 +1,21 @@
 // カード効果テキスト.txt を cardId -> {basic, arrival, hand, flavor} に構造化するパーサ（検証用）。
 //
-// 🔴🔴 **走らせる前に必ず読むこと（続き748）**
-//   手元の「カード効果　テキスト.txt」と、いま公開されている src/card-text.ja.js は
-//   **効果文が4か所ずれている**（txt の方が古い言い回しのまま）。何も考えずに走らせて
-//   上書きすると、**カードの効果が黙って巻き戻る**。2026-11-17 時点のずれ:
-//     - pink-party       🔴 選択肢が別物。txt「場の任意の２枚をオープンする。」／
-//                        公開中「相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。」
-//                        ⇒ **公開中の方が今テスト中の案**（ユーザー明言・2026-11-17）。
-//                        テストの結果が良ければそれが正になる。**txt の方へ戻さないこと。**
-//     - orange-mass-change / white-radiance / first-noir  「このカード」↔「これ」の言い回し
-//   ⇒ 走らせたら **git diff を1行ずつ読んで**、ふりがな以外が動いていないか確かめる。
-//   ⇒ txt を今の文に合わせるのは、**pink-party のテストが終わってから**。
+// 🔴 **このツールは既定では何も書かない（続き756）。**
+//   以前は走らせるだけで src/card-text.ja.js を上書きしていたので、**カードの効果が
+//   黙って巻き戻る**罠があった（続き748 で見つけたまま、人が git diff を読む約束で守っていた）。
+//   いまは:
+//     ・引数なし        … 差分を出すだけ（**何も書かない**）
+//     ・--write        … 書く。ただし**ふりがな以外が動く差分**が1つでもあれば止める
+//     ・--write --force … それも押し通す（本当に txt を正にしたい時だけ）
+//
+//   ⓘ **効果文は公開中の src/card-text.ja.js が正**（アプリで遊ばれている文）。
+//     手元の txt はアナログ版の控えなので、**ずれていてよい**。ずれは報告の材料
+//     （memory の art-director-report-queue）であって、直すべき不具合ではない。
+//     2026-11-17 時点の既知のずれ:
+//       - pink-party  🔴 選択肢が別物。txt「場の任意の２枚をオープンする。」／
+//                     公開中「相手１人を１マス移動させ、その相手は移動先の到達効果を得ない。」
+//                     ⇒ **公開中の方が今テスト中の案**（ユーザー明言）。txt へ戻さないこと。
+//       - orange-mass-change / white-radiance / first-noir 「このカード」↔「これ」の言い回し
 //
 import { readFileSync } from "node:fs";
 
@@ -198,5 +203,59 @@ for (const id of ORDER) {
   out += `  ${JSON.stringify(id)}: { flavor: ${q(r.flavor)}, titleRuby: ${q(r.titleRuby)}, basic: ${q(r.basic)}, subtitle: ${q(r.subtitle)}, arrival: ${q(r.arrival)}, hand: ${q(r.hand)} },\n`;
 }
 out += `};\n`;
-writeFileSync("./src/card-text.ja.js", out, "utf8");
-console.log("\nwrote src/card-text.ja.js (" + ORDER.length + " cards)");
+// --- 🔴 書く前に、いま公開されている文と突き合わせる（続き756）---
+//   既定は**何も書かない**。ふりがな以外が動く差分が在るなら、--write でも止める。
+const 書く = process.argv.includes("--write");
+const 押し通す = process.argv.includes("--force");
+
+let 公開中 = null;
+try {
+  公開中 = (await import("../src/card-text.ja.js")).CARD_TEXT_JA;
+} catch (err) {
+  console.warn("⚠ 公開中の src/card-text.ja.js を読めませんでした（初回生成？）: " + String(err).slice(0, 80));
+}
+
+const 欄 = ["flavor", "titleRuby", "basic", "subtitle", "arrival", "hand"];
+const 差分 = [];
+if (公開中) {
+  for (const id of ORDER) {
+    const 新 = result[id];
+    const 旧 = 公開中[id];
+    if (!新 || !旧) { 差分.push({ id, 欄: "(カードそのもの)", 旧: 旧 ? "在る" : "無い", 新: 新 ? "在る" : "無い" }); continue; }
+    for (const k of 欄) {
+      const a = 旧[k] || "";
+      const b = 新[k] || "";
+      if (a !== b) 差分.push({ id, 欄: k, 旧: a, 新: b });
+    }
+  }
+}
+
+const ふりがな以外 = 差分.filter((d) => d.欄 !== "titleRuby");
+if (差分.length === 0) {
+  console.log("\n✅ 手元の txt と公開中の文は同じ（差分 0）");
+} else {
+  console.log("\n=== 手元の txt と公開中の文の差分 " + 差分.length + " 件（ふりがな " + (差分.length - ふりがな以外.length) + " / その他 " + ふりがな以外.length + "）===");
+  for (const d of 差分) {
+    console.log("  " + (d.欄 === "titleRuby" ? "ふりがな" : "🔴 " + d.欄) + "  " + d.id);
+    console.log("      公開中: " + JSON.stringify(d.旧).slice(0, 110));
+    console.log("      txt   : " + JSON.stringify(d.新).slice(0, 110));
+  }
+}
+
+if (!書く) {
+  console.log("\nⓘ **何も書いていません**（既定）。書くなら --write を付けてください。");
+  console.log("   ⚠ 効果文は**公開中の src/card-text.ja.js が正**です。手元の txt はアナログ版の控えなので、");
+  console.log("     上の「🔴」が付いた差分は**そのままでよい**ことが多い（既知のずれはこのファイルの冒頭に）。");
+} else if (ふりがな以外.length > 0 && !押し通す) {
+  console.error("\n🔴 **書きませんでした。** ふりがな以外が動く差分が " + ふりがな以外.length + " 件あります:");
+  for (const d of ふりがな以外) console.error("   - " + d.id + " / " + d.欄);
+  console.error("   ⇒ 上の差分を1件ずつ読んで、**公開中の文を本当に txt の方へ戻していいか**を確かめてください。");
+  console.error("     戻していいと決めたら --write --force を付けます（カードの効果が変わります）。");
+  process.exit(1);
+} else {
+  if (押し通す && ふりがな以外.length > 0) {
+    console.warn("\n⚠⚠ --force で押し通します。**カードの効果文が " + ふりがな以外.length + " 件変わります。**");
+  }
+  writeFileSync("./src/card-text.ja.js", out, "utf8");
+  console.log("\nwrote src/card-text.ja.js (" + ORDER.length + " cards)");
+}

@@ -42,6 +42,8 @@ import { startTutorialBattle, registerTutorialHomeOpener } from "./tutorial-batt
 // 案内人エイドスの物語チュートリアル（オンボーディング）のフロー制御。🎓タイルはこの入口へ。
 import { startEidosStory } from "./eidos-story.js";
 import { buildFirstStepCard, noteCpuBattlePlayed } from "./first-steps.js";
+// 🔴【続き756】自分の進行中の対局へ戻る札（アプリを閉じると戻る道が無かった）。
+import { buildResumeMatchCard } from "./resume-match.js";
 // ローカル1人用CPU戦（cpu-battle.js）はCPU選択時に動的import（下の openMatchChoiceModal 参照）。
 // ※静的importにすると、cpu-battle.js が芋づる式に読み込む依存（game-setup.js→…）でモジュール
 //   評価順が変わり、online.js↔phase-automation.js の循環参照が表面化して
@@ -922,6 +924,8 @@ function buildHomeV2(overlayEl, parts) {
   const colR = document.createElement("div");
   colR.className = "home-v2-col is-right";
   // はじめての人の「次にやること」は、在る時だけ右の列のいちばん上へ。
+  // 🔴【続き756】「続きから」は**いちばん上**に置く（押してほしい物が一番先に見える）。
+  if (parts.resumeCard) colR.appendChild(parts.resumeCard);
   if (parts.firstStep) {
     parts.firstStep.classList.add("is-v2");
     colR.appendChild(parts.firstStep);
@@ -1133,8 +1137,20 @@ export function openHomeScreen() {
   });
   if (firstStep && !uiV2) overlayEl.appendChild(firstStep);
 
+  // 🔴【続き756】**自分の進行中の対局へ戻る札。** ふだんは何も出ない（1件も無ければ消える）。
+  //   ⚠ **既定と v2 の両方に出す**——これは試作の飾りではなく「戻れない」を直す物なので、
+  //     片方だけに出すと「ある時だけ出る」（#477 の家族）になる。
+  //   ⚠ ホームを待たせない（中身は通信が終わってから入る＝#685 の家族）。
+  const resumeCard = buildResumeMatchCard({
+    onResume: () => {
+      // 盤面を見せる。ホームが開いたままだと盤面を覆う（online-ui.js と同じ理由）。
+      closeHomeScreen();
+    },
+  });
+  if (resumeCard && !uiV2) overlayEl.appendChild(resumeCard);
+
   if (uiV2) {
-    buildHomeV2(overlayEl, { cf, rankArea, firstStep });
+    buildHomeV2(overlayEl, { cf, rankArea, firstStep, resumeCard });
   } else {
     const grid = document.createElement("div");
     grid.id = "home-screen-grid";

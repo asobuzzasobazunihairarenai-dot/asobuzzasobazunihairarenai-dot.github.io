@@ -15290,6 +15290,127 @@ body.is-phone-device .opening-lang-toggle-seg.is-current {
   cursor: pointer;
   overflow: hidden;
 }
+/* ═══ 続き756: 「続きから」＝自分の進行中の対局へ戻る札（resume-match.js）═══
+   🔴 アプリを閉じると自分の対局へ戻る道が無かったので足した安全装置。
+   ⚠ **色を決め打ちしない**（このアプリは明暗2テーマある＝教訓15）。地と枠だけ持ち、
+     文字色は親から継承する。自分の番だけ、7色の赤で縁を立てる。
+   ⚠ 影は box-shadow（filter は preserve-3d を潰す＝教訓1。ここは3Dの外だが作法をそろえる）。*/
+#home-resume-match {
+  width: min(26rem, 92vw);
+  margin: 0 auto 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  position: relative;
+  z-index: 2;
+}
+body.theme-light #home-resume-match {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(120, 100, 60, 0.3);
+}
+.home-resume-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  margin-bottom: 0.3rem;
+}
+.home-resume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+body.theme-light .home-resume-row {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(120, 100, 60, 0.25);
+}
+.home-resume-row:last-child { margin-bottom: 0; }
+.home-resume-row:hover { background: rgba(255, 255, 255, 0.12); }
+body.theme-light .home-resume-row:hover { background: rgba(255, 255, 255, 0.75); }
+/* 🔴 自分の番だけ目立たせる（押してほしい物が1つに決まる）。*/
+.home-resume-row.is-my-turn {
+  border-color: rgba(230, 70, 70, 0.75);
+  box-shadow: 0 0 0 1px rgba(230, 70, 70, 0.35) inset;
+}
+.home-resume-main { flex: 1 1 auto; min-width: 0; }
+.home-resume-who {
+  font-size: 0.86rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-resume-state { font-size: 0.7rem; opacity: 0.8; }
+.home-resume-row.is-my-turn .home-resume-state { opacity: 1; color: #ff9a9a; }
+body.theme-light .home-resume-row.is-my-turn .home-resume-state { color: #b03030; }
+/* ⚠ flex の子なので、縮められて中で折り返さないよう固定する（続き732 の実害）。*/
+.home-resume-go {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--so7-accent, #38bdf8);
+  color: #06212e;
+  white-space: nowrap;
+}
+.home-resume-more { font-size: 0.68rem; opacity: 0.7; margin-top: 0.2rem; }
+/* 🔴 続き756: 「手番が来たら知らせる」の勧め（1回だけ・待っている人にだけ出る）。
+   ⚠ 色は決め打ちしない（明暗2テーマ＝教訓15）。ボタンだけ地を持つ。*/
+.home-resume-ask {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+body.theme-light .home-resume-ask { border-top-color: rgba(120, 100, 60, 0.22); }
+.home-resume-ask-text { font-size: 0.7rem; opacity: 0.85; margin-bottom: 0.3rem; }
+.home-resume-ask-btns { display: flex; gap: 0.4rem; }
+/* ⚠ flex の子は既定で縮むので、中で折り返さないよう固定する（続き732 の実害）。*/
+.home-resume-ask-yes,
+.home-resume-ask-no {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.home-resume-ask-yes {
+  background: var(--so7-accent, #38bdf8);
+  color: #06212e;
+  border-color: transparent;
+}
+.home-resume-ask-no {
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+}
+body.theme-light .home-resume-ask-no { border-color: rgba(120, 100, 60, 0.35); }
+@media (max-height: 420px) {
+  .home-resume-ask-text { font-size: 0.8rem; }
+  .home-resume-ask-yes,
+  .home-resume-ask-no { font-size: 0.84rem; }
+}
+/* スマホの低い画面では字を少しだけ上げる（#453・#569 の家族）。*/
+@media (max-height: 420px) {
+  .home-resume-who { font-size: 0.95rem; }
+  .home-resume-state { font-size: 0.8rem; }
+  .home-resume-go { font-size: 0.86rem; }
+}
 /* ユーザー提供の画像（assets/opening-start-btn.png、HUERISEブランドのSTARTボタン
    グラフィック）に差し替えたため、丸ボタンの背景色・枠線・文字装飾は不要になった。
    ボタン自体は透明な当たり判定の器にするだけで、見た目は中のimg1枚に任せる。 */
