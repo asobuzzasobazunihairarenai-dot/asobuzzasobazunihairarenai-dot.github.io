@@ -672,6 +672,11 @@ export function initOpeningScreen() {
   bg.className = "opening-screen-bg";
   bg.style.backgroundImage = 'url("assets/opening.webp")';
   overlay.appendChild(bg);
+  // 🔴【続き755】背景は <img> ではないので imgMB に1MBも写らない。抱えている間は名乗る
+  //    （close() で手放す。MB は tools/check-held-images.mjs が実寸と照合する）。
+  void import("./crash-blackbox.js")
+    .then((m) => m.registerHeldImage("opening-bg", "assets/opening.webp", 3.15))
+    .catch(() => {});
 
   const dim = document.createElement("div");
   dim.className = "opening-screen-dim";
@@ -1073,6 +1078,22 @@ export function initOpeningScreen() {
     setTimeout(() => {
       overlay.style.display = "none";
       document.body.classList.remove("opening-screen-active");
+      // 🔴【続き755・墜落の追跡】**閉じたら絵を手放す。**
+      //   この画面は display:none にするだけで DOM に残りっぱなしなので、
+      //   オープニングの絵をそのセッションの間ずっと抱えていた:
+      //     assets/opening.webp         1600x516  … decode 後 **3.15MB**（CSSの背景）
+      //     assets/opening-start-btn.png 1024x336 … decode 後 **1.31MB**（<img>）
+      //   画像のメモリはファイル容量（180KB / 79KB）ではなく**幅×高さ×4バイト**で効く（#223）。
+      //   しかも背景の方は <img> ではないので**不具合報告の imgMB に1MBも写らない**。
+      //   ⚠ この画面は閉じたら二度と出ない（出し直す道は無く、再読み込みなら作り直される）。
+      //     ⇒ 手放して安全。実測で「出ていない絵」から 1.31MB が消えることを確かめてある。
+      try {
+        bg.style.backgroundImage = "none";
+        startBtnImg.removeAttribute("src");
+      } catch (err) {
+        /* 手放せなくても害は無い（今までどおり抱えたまま） */
+      }
+      void import("./crash-blackbox.js").then((m) => m.releaseHeldImage("opening-bg")).catch(() => {});
       if (after) after();
       // ユーザー要望「2D表示の警告は、オープニング画面が終わり盤面画面に移行する
       // タイミングで出したい」。「オンラインで続ける」「ローカルでプレイ」等、

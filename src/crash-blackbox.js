@@ -43,6 +43,11 @@ let peakAllMB = 0; // 【#543】さらに WebGL のテクスチャ・描画バ�
 // 🔴【#634】合成レイヤーの見積りのピーク（layerWeight 参照）。
 //   ⚠ **allMB には足さない**——過去の報告（121 / 105MB）と比べられなくなる。別に持つ。
 let peakLayersMB = 0;
+// 🔴【続き755】そのピークの時に**いちばん大きかった1枚**と、昇格していた枚数。
+//   peakLayersMB だけでは「何が量を作ったのか」が分からなかった（layerWeight の注を参照）。
+let peakLayersTop = null;
+let peakLayersTopMB = 0;
+let peakLayersCount = 0;
 let peakBackdropMB = 0;
 let peakTag = null; // そのピークを記録した場面（noteBlackboxWeight の呼び元。心拍なら null）
 // 🔴 **場面ごとの最大。これが本命。** 「合計のピーク」は画像が重い瞬間に奪われるので
@@ -157,6 +162,12 @@ function scan3dLayers() {
   const n = Math.min(all.length, LAYER_SCAN_MAX_ELEMENTS);
   let threeMB = 0;
   let promoted = 0;
+  // 🔴【続き755】**いちばん大きい1枚の名前**も覚える。
+  //   peakLayersMB は #663 で 33MB（ピーク **79MB**）だったが、**数字しか残らないので
+  //   「何が倍にしたのか」が分からない**（peakTag が合計にだけ在って、レイヤーには無かった）。
+  //   ⇒ 名前と大きさを1つだけ持ち帰る。ループの中で比べるだけ＝ほぼ無料。
+  let 最大MB = 0;
+  let 最大名 = null;
   for (let i = 0; i < n; i++) {
     const el = all[i];
     const cs = window.getComputedStyle(el);
@@ -167,13 +178,21 @@ function scan3dLayers() {
     if (!is3d && !pre3d) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) continue;
-    threeMB += r.width * dpr * r.height * dpr * 4 / 1048576;
+    const mb = r.width * dpr * r.height * dpr * 4 / 1048576;
+    threeMB += mb;
     promoted++;
+    if (mb > 最大MB) {
+      最大MB = mb;
+      // id → 最初のクラス → タグ名。長い名前は切る（記録は数百バイトに収める）。
+      最大名 = (el.id ? "#" + el.id : el.className && typeof el.className === "string" ? "." + el.className.split(" ")[0] : el.tagName).slice(0, 36);
+    }
   }
   const t1 = typeof performance !== "undefined" && performance.now ? performance.now() : 0;
   layer3dCache = {
     layers3dMB: Math.round(threeMB),
     promotedCount: promoted,
+    layerTop: 最大名,
+    layerTopMB: Math.round(最大MB),
     layerScanned: n,
     // 🔴 実機でこの走査がいくら掛かったかも残す（60ms を超えるなら作りを見直す合図）。
     layerScanMs: Math.round(t1 - t0),
@@ -212,12 +231,43 @@ function layerWeight() {
       layersMB: Math.round(three.layers3dMB + bdMB),
       layers3dMB: three.layers3dMB,
       promotedCount: three.promotedCount,
+      // 🔴【続き755】いちばん大きい1枚（何が量を作っているのか）。
+      layerTop: three.layerTop ?? null,
+      layerTopMB: three.layerTopMB ?? 0,
       layerScanned: three.layerScanned,
       layerScanMs: three.layerScanMs,
     };
   } catch {
-    return { layersMB: 0, layers3dMB: 0, backdropMB: 0, backdropCount: 0, promotedCount: 0, layerScanned: 0, layerScanMs: 0 };
+    return { layersMB: 0, layers3dMB: 0, backdropMB: 0, backdropCount: 0, promotedCount: 0, layerTop: null, layerTopMB: 0, layerScanned: 0, layerScanMs: 0 };
   }
+}
+
+// 🔴【続き755】**<img> でも <canvas> でもない画像**を数える入口。
+//
+//   imgMB は `document.getElementsByTagName("img")` を舐めただけなので、次の2つは
+//   **1MBも数えていない**のに端末のメモリは食う:
+//     ① CSS や style.backgroundImage の背景画像（要素が <img> ではない）
+//     ② `new Image()` で先読みしただけの絵（DOM に入っていない）
+//   ②は続き643 で「勝利サマリの先読み＝どの計器にも写らない数十MBの山」として一度踏んだのに、
+//   同じ形が**ホーム背景の先読み（6.0MB）**として残っていた（続き755 で手放すようにした）。
+//   ⇒ 抱えている側が自分で名乗る形にして、**次の報告で桁が分かる**ようにする。
+//
+// ⚠ 走査は一切しない（名乗りを足すだけ＝ただ）。#634 で「計器そのものが重くて演出を
+//   止めた」ので、心拍で回るものに走査を増やさない。
+// ⚠ MB は呼び元が書くが、**`tools/check-held-images.mjs` が絵の実寸と毎回突き合わせる**
+//   （絵を差し替えて寸法が変わったら落ちる＝書き写した数字が古くなったまま残らない）。
+const heldImages = new Map();
+export function registerHeldImage(key, assetPath, mb) {
+  if (typeof key !== "string" || !Number.isFinite(Number(mb))) return;
+  heldImages.set(key, Number(mb));
+}
+export function releaseHeldImage(key) {
+  heldImages.delete(key);
+}
+function heldImageMB() {
+  let mb = 0;
+  for (const v of heldImages.values()) mb += v;
+  return Math.round(mb * 10) / 10;
 }
 
 function pageWeight() {
@@ -250,6 +300,8 @@ function pageWeight() {
       //   どちらも「ランク戦の待機中にCPU練習で勝った」。待機中は裏で通信と巡回が
       //   動いているので、メモリだけの話ではない疑いがある。DOM を1つ見るだけ（軽い）。
       rankedWait: document.getElementById("ranked-practice-banner") ? 1 : 0,
+      // 🔴【続き755】<img> でも canvas でもない画像（CSSの背景・先読み）。registerHeldImage 参照。
+      heldImgMB: heldImageMB(),
       // 🔴【#634】合成レイヤーの見積り（layerWeight のコメント参照）。4秒に1回だけ測り直す。
       ...layerWeight(),
     };
@@ -288,11 +340,21 @@ function writeRecord(extra) {
     //   WebGL のテクスチャと描画バッファ（実測でこの2つだけで31MB）、デコード済みの音は
     //   `<img>` にも `<canvas>` にも写らない。⇒ それらも足した allMB を別に持つ。
     //   ⚠ **totalMB の意味は変えない**——過去の報告（79/48/54MB）と比べられなくなるため。
-    const 計器MB = (weight.gl_texMB || 0) + (weight.gl_bufMB || 0) + (weight.snd_MB || 0);
+    // 🔴【続き755】CSSの背景・先読みの絵（heldImgMB）も allMB に足す。これも
+    //   `<img>` にも `<canvas>` にも写らない量で、実測で 10MB 前後あった。
+    const 計器MB = (weight.gl_texMB || 0) + (weight.gl_bufMB || 0) + (weight.snd_MB || 0) + (weight.heldImgMB || 0);
     const allNow = totalNow + 計器MB;
     if (allNow > peakAllMB) peakAllMB = allNow;
     // 🔴【#634】合成レイヤーの見積り。allMB とは**足し合わせない**（上のコメント）。
-    if ((weight.layersMB || 0) > peakLayersMB) peakLayersMB = weight.layersMB || 0;
+    if ((weight.layersMB || 0) > peakLayersMB) {
+      peakLayersMB = weight.layersMB || 0;
+      // 🔴【続き755】**ピークの時に何がいちばん大きかったか**も残す。
+      //   #663 は 33MB（ピーク79MB）だったが、数字しか無いので「何が倍にしたのか」が
+      //   分からなかった（合計には peakTag が在るのに、レイヤーには無かった）。
+      peakLayersTop = weight.layerTop ?? null;
+      peakLayersTopMB = weight.layerTopMB ?? 0;
+      peakLayersCount = weight.promotedCount ?? 0;
+    }
     if ((weight.backdropMB || 0) > peakBackdropMB) peakBackdropMB = weight.backdropMB || 0;
     const tag = (extra && extra.weightTag) || null;
     if (tag && (tagPeaks[tag] === undefined || totalNow > tagPeaks[tag])) {
@@ -322,9 +384,17 @@ function writeRecord(extra) {
       glBufMB: weight.gl_bufMB ?? null,
       sndCount: weight.snd_count ?? null,
       sndMB: weight.snd_MB ?? null,
+      // 🔴【続き755】CSSの背景・先読みの絵（registerHeldImage 参照）。allMB には足してある。
+      heldImgMB: weight.heldImgMB ?? null,
       // 🔴【#634・2026-11-14】ここから下が合成レイヤーの見積り。
       layersMB: weight.layersMB ?? null,
       peakLayersMB,
+      // 🔴【続き755】ピークの時のいちばん大きい1枚（何が量を作ったのか）。
+      peakLayersTop,
+      peakLayersTopMB,
+      peakLayersCount,
+      layerTop: weight.layerTop ?? null,
+      layerTopMB: weight.layerTopMB ?? null,
       layers3dMB: weight.layers3dMB ?? null,
       backdropMB: weight.backdropMB ?? null,
       peakBackdropMB,
@@ -469,6 +539,9 @@ function init() {
       prevGlBufMB: prev.glBufMB ?? null,
       prevSndCount: prev.sndCount ?? null,
       prevSndMB: prev.sndMB ?? null,
+      // 🔴【続き755】<img> でも canvas でもない画像（CSSの背景・先読み）。
+      //   0 なら「手放す直しが効いた」、数MB残っていれば「まだ抱えている」が1行で分かる。
+      prevHeldImgMB: prev.heldImgMB ?? null,
       prevAudioEls: prev.audioEls ?? null,
       prevRankedWait: prev.rankedWait ?? null, // 🔴 ランク戦の待機中だったか（#454・#543 とも待機中）
       // 🔴【#634・2026-11-14】合成レイヤーの見積り（layerWeight のコメントに実測と根拠）。
@@ -476,6 +549,11 @@ function init() {
       //   prevPeakAllMB ＋ prevPeakLayersMB（backdrop ぶんはさらに2〜3倍）で読む。
       prevLayersMB: prev.layersMB ?? null,
       prevPeakLayersMB: prev.peakLayersMB ?? null,
+      // 🔴【続き755】**ピークの時にいちばん大きかった1枚**。#663 は 33MB（ピーク79MB）
+      //   だったが数字しか無く、何が倍にしたのか分からなかった。ここで名前が分かる。
+      prevPeakLayersTop: prev.peakLayersTop ?? null,
+      prevPeakLayersTopMB: prev.peakLayersTopMB ?? null,
+      prevPeakLayersCount: prev.peakLayersCount ?? null,
       prevLayers3dMB: prev.layers3dMB ?? null,
       prevBackdropMB: prev.backdropMB ?? null,
       prevPeakBackdropMB: prev.peakBackdropMB ?? null,

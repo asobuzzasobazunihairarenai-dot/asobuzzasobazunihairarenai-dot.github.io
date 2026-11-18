@@ -36,6 +36,14 @@ const THUMB_EDGE = 384;
 //    小さく出す所（3〜4rem＝dpr3 でも 192px 以下）しか使わないので 192 で足りる。
 //    384 では 21% しか減らず意味が無かった（計算して決めた）。
 const CARD_ART_EDGE = 192;
+// 🔴【続き755・墜落の追跡】ランクの宝石だけ **128**。
+//    ランクの飾り一式（U型の枠 1024角 4MB ＋ 魔法陣 1024角 4MB ＋ 宝石 512角 1MB ×7）は
+//    decode 後に **約15MB** あり、ログインしていれば**ホーム画面に常に出る**。
+//    実測（scratchpad/_p755rank.mjs・スマホ dpr3）では、画面で要る画素は
+//      枠 183px・魔法陣 143px・**宝石 28px**（マイページでも 275 / 215 / 41px）。
+//    ⇒ 枠と魔法陣は THUMB_EDGE（384）、**宝石だけ 128** で足りる。
+//    （等倍で出るのは管理者の調整モードだけで、そこは原寸へ上げ直される）
+const RANK_GEM_EDGE = 128;
 
 const TARGETS = [
   { dir: "assets/backgrounds", maxEdge: THUMB_EDGE },
@@ -43,6 +51,9 @@ const TARGETS = [
   { dir: "assets/avatars", maxEdge: THUMB_EDGE },
   { dir: "assets/cards", maxEdge: THUMB_EDGE, only: (f) => /^back-/.test(f) },
   { dir: "assets/cards-illust", maxEdge: CARD_ART_EDGE },
+  // ⚠ 同じフォルダを2回に分けている（宝石だけ長辺が違う）。only が互いに排他なので重複しない。
+  { dir: "assets/rank-gauge", maxEdge: THUMB_EDGE, only: (f) => !/^gem-/.test(f) },
+  { dir: "assets/rank-gauge", maxEdge: RANK_GEM_EDGE, only: (f) => /^gem-/.test(f) },
 ];
 
 const MIME = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg" };

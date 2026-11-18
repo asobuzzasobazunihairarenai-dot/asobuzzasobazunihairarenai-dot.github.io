@@ -28,7 +28,7 @@
 
 // 小さい版を持っている種類。cards だけは裏面（back-*）だけが対象
 // （盤面のカードは原寸が要る＝拡大して見るので）。
-const THUMB_DIRS = ["backgrounds", "playmats", "avatars", "cards-illust"];
+const THUMB_DIRS = ["backgrounds", "playmats", "avatars", "cards-illust", "rank-gauge"];
 
 // 🔴 焼き出しの長辺。**tools/make-thumbs.mjs の THUMB_EDGE と同じ値でなければならない**
 //    （`tools/check-thumbs.mjs` が毎回2か所を照合する）。
@@ -36,6 +36,25 @@ export const THUMB_EDGE = 384;
 // 🔴【#698/#699】カードのイラストだけ 192（上の TARGETS の CARD_ART_EDGE と同じ値）。
 //    こちらも tools/check-thumbs.mjs が2か所を照合する。
 export const CARD_ART_EDGE = 192;
+// 🔴【続き755・墜落の追跡】ランクの宝石だけ 128。
+//    実測（scratchpad/_p755rank.mjs）で、宝石が画面で要る画素は
+//      ホーム(scale 0.4)・スマホ dpr3 … **28px** ／ マイページ(scale 0.6) … **41px**
+//      等倍（管理者の調整モードだけ）・PC 2560 dpr2 … 154px
+//    なのに実物は **512角＝1MB が7枚**。遊ぶ人が見る場面では 128 で足りる
+//    （管理者の調整モードでは下の upgradeIfTooSmall が原寸へ上げ直す）。
+//    ⚠ 枠（frame-u）と魔法陣（badge-bg）は THUMB_EDGE（384）。要る画素は
+//      ホーム 183px・マイページ 275px なので 384 で足り、等倍の時だけ原寸へ上がる。
+export const RANK_GEM_EDGE = 128;
+
+// 絵ごとの「小さい版の長辺」。**上げ直すかどうかの判定にも同じ値を使う**
+// （違う値で判定すると、128 で焼いた宝石を 384 のものさしで測って
+//   「まだ足りている」と誤判定し、PCの大画面でずっと粗いままになる）。
+export function thumbEdgeFor(src) {
+  if (typeof src !== "string") return THUMB_EDGE;
+  if (src.includes("assets/cards-illust/") || src.includes("assets/thumbs/cards-illust/")) return CARD_ART_EDGE;
+  if (/assets\/(?:thumbs\/)?rank-gauge\/gem-/.test(src)) return RANK_GEM_EDGE;
+  return THUMB_EDGE;
+}
 
 /**
  * 絵のパスを、小さい版のパスに読み替える。対象外ならそのまま返す。
@@ -80,7 +99,7 @@ function upgradeIfTooSmall(img) {
   if (!full) return;
   const r = img.getBoundingClientRect();
   const 要る = Math.max(r.width, r.height) * (window.devicePixelRatio || 1);
-  if (要る <= THUMB_EDGE) return;
+  if (要る <= thumbEdgeFor(full)) return;
   delete img.dataset.fullSrc;
   img.onerror = null;
   img.src = full;
@@ -94,7 +113,8 @@ function upgradeIfTooSmall(img) {
 /**
  * img に小さい版を貼る。
  *   ・小さい版が無くて 404 になったら、黙って原寸へ戻す（絵が出ないより重い方がまし）
- *   ・画面での大きさが 384px を超えたら、原寸へ上げ直す（PCの大画面で粗くならないように）
+ *   ・画面での大きさがその絵の長辺（thumbEdgeFor）を超えたら、原寸へ上げ直す
+ *     （PCの大画面で粗くならないように）
  */
 export function setThumbSrc(img, src) {
   if (!img) return;
@@ -109,7 +129,7 @@ export function setThumbSrc(img, src) {
   //    ResizeObserver は二度と鳴らない＝**PCでずっと粗いまま**になる（実測でそうなった）。
   //    2回目以降はもう画面に出ているので、この同期の採寸で正しく決まる。
   const r0 = img.getBoundingClientRect();
-  if (Math.max(r0.width, r0.height) * (window.devicePixelRatio || 1) > THUMB_EDGE) {
+  if (Math.max(r0.width, r0.height) * (window.devicePixelRatio || 1) > thumbEdgeFor(src)) {
     delete img.dataset.fullSrc;
     img.onerror = null;
     img.src = src;

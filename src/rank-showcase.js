@@ -8,6 +8,12 @@
 // 「座標を出力」で得たリテラルを開発者に渡す。
 
 import { buildRankBadgeImage, rankGemPath, RANK_GAUGE_FRAME_U, RANK_GAUGE_BADGE_BG } from "./rank-badge.js";
+// 🔴【続き755・墜落の追跡】この一式は decode 後に **約15MB**（枠 1024角 4MB ＋ 魔法陣 1024角
+//    4MB ＋ 宝石 512角 1MB ×7）あり、ログインしていれば**ホーム画面に常に出る**。
+//    実測では画面で要る画素は枠 183px・魔法陣 143px・宝石 28px（スマホ dpr3・scale 0.4）。
+//    ⇒ 小さい版を貼る。**大きく出す所（管理者の調整モード）では自動で原寸へ上がる**ので、
+//      見た目は変わらない。⚠ image-thumbs.js は何も import しない葉モジュール＝循環しない。
+import { setThumbSrc } from "./image-thumbs.js";
 
 // ★製作者が焼き込む「バッジ背景＋U型ゲージ＋宝石＋バッジ」の配置（ユーザーが調整モードで調整）。
 // 枠は正方形1254×1254（U字は下側、バッジは中央）。badgeX/badgeY は枠中央からのオフセット（rem）。
@@ -76,7 +82,7 @@ export function buildRankShowcase(rank, gauge, legendPoints, { effects = false, 
   // 大きさ・位置をずらせる（宝石・バッジと同じく枠中央基準）。
   const bg = document.createElement("img");
   bg.className = "rank-showcase-bg";
-  bg.src = RANK_GAUGE_BADGE_BG;
+  setThumbSrc(bg, RANK_GAUGE_BADGE_BG);
   bg.alt = "";
   bg.draggable = false;
   bg.style.width = `${cfg.bgSize}%`;
@@ -87,7 +93,7 @@ export function buildRankShowcase(rank, gauge, legendPoints, { effects = false, 
   // U型ゲージ枠（枠いっぱい）。
   const frame = document.createElement("img");
   frame.className = "rank-showcase-frame";
-  frame.src = RANK_GAUGE_FRAME_U;
+  setThumbSrc(frame, RANK_GAUGE_FRAME_U);
   frame.alt = "";
   frame.draggable = false;
   box.appendChild(frame);
@@ -98,7 +104,7 @@ export function buildRankShowcase(rank, gauge, legendPoints, { effects = false, 
     const gem = document.createElement("img");
     gem.className = "rank-showcase-gem";
     gem.dataset.gemIndex = String(i);
-    gem.src = rankGemPath(i);
+    setThumbSrc(gem, rankGemPath(i));
     gem.alt = "";
     gem.draggable = false;
     gem.style.left = `${cfg.sockets[i].x}%`;

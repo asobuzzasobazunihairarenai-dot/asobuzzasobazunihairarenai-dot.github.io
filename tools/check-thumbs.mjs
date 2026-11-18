@@ -17,6 +17,7 @@ const TARGETS = [
   { dir: "avatars" },
   { dir: "cards", only: (f) => f.startsWith("back-") },
   { dir: "cards-illust" },
+  { dir: "rank-gauge" },
 ];
 const IMG = /\.(webp|png|jpe?g)$/i;
 
@@ -49,6 +50,17 @@ if (c1 === null || c2 === null) {
 }
 if (c1 !== c2) {
   console.error("check-thumbs: カードの長辺の値がズレています 焼く側=" + c1 + " / 貼る側=" + c2);
+  process.exit(1);
+}
+// 🔴【続き755】ランクの宝石だけ別の長辺（RANK_GEM_EDGE）。これも2か所にある。
+const g1 = 数(焼く側, "const RANK_GEM_EDGE =");
+const g2 = 数(貼る側, "export const RANK_GEM_EDGE =");
+if (g1 === null || g2 === null) {
+  console.error("check-thumbs: RANK_GEM_EDGE を取り出せませんでした（名前が変わった？）");
+  process.exit(2);
+}
+if (g1 !== g2) {
+  console.error("check-thumbs: ランクの宝石の長辺の値がズレています 焼く側=" + g1 + " / 貼る側=" + g2);
   process.exit(1);
 }
 

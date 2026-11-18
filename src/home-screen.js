@@ -100,6 +100,32 @@ let toastTimer = null;
 // 利用者の端末に古いCSSがキャッシュされている場合に備えて assets/ に残してある。
 const homeBgPreload = new Image();
 homeBgPreload.src = "assets/home-bg.webp";
+// 🔴【続き755・墜落の追跡】**先読みは一度ホームが出たら手放す。**
+//    この絵は 1672x941 ＝ decode 後 **6.0MB**。画像のメモリはファイル容量（230KB）ではなく
+//    **幅×高さ×4バイト**で効く（#223）。しかも `new Image()` は DOM に入っていないので
+//    **不具合報告の imgMB に1MBも写らない**——続き643 で「勝利サマリの先読み＝どの計器にも
+//    写らない数十MBの山」を踏んだのと、まったく同じ形が残っていた。
+//    ⚠ 先読みの役目は「初めてホームを開く時の暗転をなくす」ことだけ。一度出した後は
+//      ファイルは HTTP の控えに在るので、手放しても暗転は戻らない。
+//    ⚠ ホームが開いている間は CSS の背景（style.css の #home-screen）が同じ絵を掴んでいる
+//      ので、見た目は1pxも変わらない。閉じれば端末が引き取れる＝**対局中は6MB軽くなる**。
+let 先読みを手放したか = false;
+// 抱えている間は計器に名乗る（どの計器にも写らない量だったので＝crash-blackbox の
+// registerHeldImage のコメント参照）。MB は tools/check-held-images.mjs が実寸と照合する。
+void import("./crash-blackbox.js")
+  .then((m) => m.registerHeldImage("home-bg-preload", "assets/home-bg.webp", 6.0))
+  .catch(() => {});
+function releaseHomeBgPreload() {
+  if (先読みを手放したか) return;
+  先読みを手放したか = true;
+  try {
+    // ⚠ `src = ""` はこのページ自身を読みに行ってしまうので、属性を外す。
+    homeBgPreload.removeAttribute("src");
+  } catch (err) {
+    /* 手放せなくても害は無い（今までどおり抱えたまま） */
+  }
+  void import("./crash-blackbox.js").then((m) => m.releaseHeldImage("home-bg-preload")).catch(() => {});
+}
 
 // icon: 画像が無い時のフォールバック絵文字。image: ユーザー作成のホーム画面アイコン
 // （assets/home-icons/、枠なしでそのまま表示する）。
@@ -1039,6 +1065,8 @@ export function openHomeScreen() {
     .catch(() => {});
   overlayEl = document.createElement("div");
   overlayEl.id = "home-screen";
+  // 🔴【続き755】背景の先読み（6MB）はここで手放す。CSS の背景が同じ絵を掴むので暗転しない。
+  releaseHomeBgPreload();
   // 【2026-11-14】試作のレイアウトを使うか。**ここで1回だけ決める**（途中で変わると半端になる）。
   const uiV2 = isUiV2();
   if (uiV2) overlayEl.classList.add("is-v2");

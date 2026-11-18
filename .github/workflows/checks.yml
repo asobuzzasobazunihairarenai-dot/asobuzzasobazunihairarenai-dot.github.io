@@ -56,6 +56,8 @@ jobs:
         run: node tools/check-pick-candidates.mjs
       - name: canvas のカード文字（書体待ち・組版は1か所）
         run: node tools/check-canvas-fonts.mjs
+      - name: 計器に写らない画像（CSSの背景・先読み）のMBが実寸と合っているか
+        run: node tools/check-held-images.mjs
       - name: 共有ステートの欄が hydrateState へ全部渡っているか
         run: node tools/check-hydrate-fields.mjs
       - name: Service Worker のキャッシュ名
