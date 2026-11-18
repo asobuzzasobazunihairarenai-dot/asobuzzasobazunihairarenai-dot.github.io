@@ -542,12 +542,25 @@ function gatherScreenSnapshot() {
   }
 
   // ⑥ いま押せるボタンの文字（「何を押せばいいか分からない」系の報告で効く）。
+  // 🔴【2026-11-18・#720 の教訓】**先頭から16個で切ると、いちばん知りたいボタンが毎回落ちる。**
+  //   モーダルは body の**末尾**に足されるので、文書の順で16個取ると「盤面の脇のアイコン＋
+  //   フェイズの帯」で埋まり、**開いていたモーダルの中のボタンが1つも入らない**。
+  //   #720 では「プレイヤー選択モーダルに自分の席のボタンが在ったのか」が
+  //   いちばんの手がかりだったのに、この16個の壁で読めなかった（手元で作って測り直す
+  //   遠回りになった）。⇒ **前と後ろの両方から取る**（後ろ＝新しく足された層＝いま開いて
+  //   いるもの）。間を飛ばした時はそう書く——数が合わないまま並べると「これで全部」と
+  //   読み違える。
   try {
-    out.buttons = [...document.querySelectorAll("button")]
+    const 全部 = [...document.querySelectorAll("button")]
       .filter((b) => shown(b))
       .map((b) => clip(b.textContent || b.getAttribute("aria-label") || b.id, 24))
-      .filter((s) => s.length > 0)
-      .slice(0, 16);
+      .filter((s) => s.length > 0);
+    const 前 = 12;
+    const 後 = 8;
+    out.buttons =
+      全部.length <= 前 + 後
+        ? 全部
+        : [...全部.slice(0, 前), "…(" + (全部.length - 前 - 後) + "個 省略)", ...全部.slice(-後)];
   } catch (e) {
     out.buttons = [clip(e, 80)];
   }

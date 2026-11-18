@@ -4114,6 +4114,10 @@ export const CASES = [
     picks: { option: ["1st-privilege-move"], player: ["A"], location: [{ row: 3, col: 4 }] },
     expect: [
       { kind: "pieceAt", player: "A", row: 3, col: 4 },
+      // 🔴【#720】**自分（A）が候補に入っているか**を固定する。印字は「任意のプレイヤー」＝
+      //   自分も含む。以前は候補を見ないスタブだったので、この行が無いと「自分を選ぶ」
+      //   台本でも候補から自分が消えていても通ってしまった。
+      { kind: "called", name: "pickPlayerCands", arg: "A,B", n: 1 },
     ],
   },
   {

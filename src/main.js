@@ -9429,6 +9429,9 @@ function buildPlayerPickModal(entries, hint, onPick) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "contact-approval-approve player-pick-btn";
+    // 【#720】どの席のボタンかを残す（実測で「自分の席のボタンが在るか」を数えるため。
+    //   名前の文字で突き合わせると、表示名を変えただけで検査が崩れる）。
+    btn.dataset.player = entry.player;
     // 【#570・2026-11-13】ユーザー要望「プレイヤー選択モーダルではアバターも一緒に
     //   表示されてるといいかも!」。盤面のアバターを押す道と**同じ絵**を並べる。
     //   ⚠ applyAvatarContent は既定で小さい版（256px角）を貼る＝重くならない（#505）。
@@ -9439,7 +9442,14 @@ function buildPlayerPickModal(entries, hint, onPick) {
     btn.appendChild(face);
     const nameEl = document.createElement("span");
     nameEl.className = "player-pick-name";
-    nameEl.textContent = getPlayerName(entry.player);
+    // 【#720】自分の席には「（自分）」を添える。報告は「移動できるプレイヤーは**自分も対象**です」
+    //   で、候補に並んでいても名前だけでは自分だと気づきにくい（左下のステータスは同じ
+    //   言い方で「プレイヤーA（自分）」と出している）。**新しい文言は作らず**、そこと
+    //   同じ鍵（game.self.meSuffix）を使い回す。
+    nameEl.textContent =
+      entry.player === getSelfSeat()
+        ? t("game.self.meSuffix", { name: getPlayerName(entry.player) })
+        : getPlayerName(entry.player);
     btn.appendChild(nameEl);
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -9453,9 +9463,25 @@ function buildPlayerPickModal(entries, hint, onPick) {
 
 function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
   return new Promise((resolve) => {
-    const entries = candidates
-      .map((player) => ({ player, el: document.querySelector(`.player-avatar[data-player="${player}"]`) }))
-      .filter((e) => e.el);
+    // 🔴【#720・2026-11-18】**盤面に要素が無い席を、候補から外さない。**
+    //   ここは以前 `.filter((e) => e.el)` と書いてあり、「盤面にアバターの要素が在る席」
+    //   だけを候補にしていた。ところが**自分の席のアバターは既定で盤面に置かれない**
+    //   （`isSelfBoardAvatarVisible()` が既定 off ＝「左下の大アバターと重複して冗長」という
+    //   ユーザー判断。buildPlayerZone の appendChild を見よ）。
+    //   ⇒ **自分が候補から黙って消えていた。** 症状は2つあり、どちらも「何も言わずに違う」:
+    //     ・自分も対象の効果（貴族の特権・リトルマウス・賄賂など）で**自分を選べない**（#720）
+    //     ・候補が自分だけなら entries が空＝**即 null ＝効果が黙って不発**（#639 の形。
+    //       しかも #639 で「候補が1人でも必ず聞く」ようにしたので、必ずこの道を通った）
+    //   ⇒ 候補は**全部残し**、ハイライトは要素が在るものにだけ付ける。自分は
+    //     プレイヤー選択モーダル（#461）のボタンから選べる＝押せる道は必ず1つある。
+    //   ⚠ CPU・持ち時間切れの代行は `picker.players`（候補そのもの）から選ぶので、
+    //     ここで候補を削ると**代行も壊れる**（自分が候補の対局で詰む）。
+    //   ⚠ 大アバター（.self-status-large-avatar）に光とクリックを付ける手は採らなかった——
+    //     あそこは**エモートのピッカーを開くボタン**を既に持っており、意味が2つになる。
+    const entries = candidates.map((player) => ({
+      player,
+      el: document.querySelector(`.player-avatar[data-player="${player}"]`),
+    }));
     if (entries.length === 0) {
       resolve(null);
       return;
@@ -9465,7 +9491,7 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
     const 人が選ぶ = !isCpuSelectingNow(pickerOwner(options.owner));
     let modal = null;
     if (人が選ぶ) {
-      for (const entry of entries) entry.el.classList.add("card-effect-target-avatar");
+      for (const entry of entries) entry.el?.classList.add("card-effect-target-avatar");
       // 【#461】アバターのハイライトに加えて、名前を並べたモーダルからも選べるようにする。
       modal = buildPlayerPickModal(entries, hint, (player) => {
         // 盤面のアバターを押した時とまったく同じ道を通す（後始末を二重に書かない）。
@@ -9479,7 +9505,7 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
       owner: pickerOwner(options.owner) ?? null,
       players: new Set(candidates),
       resolve: (player) => {
-        for (const entry of entries) entry.el.classList.remove("card-effect-target-avatar");
+        for (const entry of entries) entry.el?.classList.remove("card-effect-target-avatar");
         modal?.remove(); // 【#461】CPUの自動解決・持ち時間切れの代行で閉じる経路もここを通る
         modal = null;
         hideEffectPickerHint();
@@ -10014,6 +10040,15 @@ export function getStallDiagnostics() {
       : null,
     selfSeat: getSelfSeat(),
   };
+}
+
+// 検証用（#720）。**プレイヤー選択の本物の関数を、そのまま呼べるようにするだけ**。
+// あれは helpers 経由でしか呼ばれない（モジュールの外から届かない）ので、実測から
+// 「候補ぜんぶがモーダルに並ぶか・自分の席を選べるか」を確かめられなかった。
+// ⚠ 読むだけの口ではないが、**呼ばれない限り何も起きない**（board-3d.js の
+//   debugImageTextures と同じ「検証用」の棚）。アプリ側のどこからも呼んでいない。
+export function debugOpenPlayerPick(candidates, hint) {
+  return requestPlayerChoiceForEffect(candidates, hint);
 }
 
 export function isAnyEffectProcessingBusy() {

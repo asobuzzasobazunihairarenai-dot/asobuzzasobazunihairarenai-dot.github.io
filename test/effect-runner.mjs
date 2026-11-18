@@ -289,7 +289,14 @@ export async function runOneCase(spec) {
       else tok = (candidates || [])[0];
       callLog.push(["pickDiscardCost", tok && tok.id]); return tok || null;
     },
-    pickPlayer: async () => { const r = nextPick("player"); callLog.push(["pickPlayer", r]); return r; },
+    // 🔴【#720・2026-11-18】**渡された候補そのものを記録する。**
+    //   以前は候補を一切見ずに台本の答えを返していたので、「自分が候補に入っているか」を
+    //   検査できなかった（貴族の特権で自分を選ぶケースは**既に在ったのに通っていた**）。
+    //   本物の画面側は、候補のうち**盤面にアバターの要素が在る席だけ**を拾う作りで、
+    //   自分の席のアバターは既定で置かれない＝**自分が黙って候補から消えていた**（#720）。
+    //   この行があれば、engine が自分を渡しているかは台本で固定できる（画面側の落とし穴は
+    //   scratchpad の実測＋#720 の直しで別に見る）。
+    pickPlayer: async (candidates) => { callLog.push(["pickPlayerCands", [...(candidates || [])].join(",")]); const r = nextPick("player"); callLog.push(["pickPlayer", r]); return r; },
     // 選択肢モーダル: engine は選ばれた「オプションのオブジェクト」（.id/.actions/.usable）を期待する。
     // 台本には id 文字列を書く → 渡された options 配列から id 一致のオブジェクトを返す。
     // 🔴【#552・2026-11-11】**印（usable）そのものを記録する。**

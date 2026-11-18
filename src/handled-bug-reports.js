@@ -405,6 +405,17 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   710, // ジュエルの効果発動時もカードテキストがおかしい（#709 と同じ原因）
   // ── 2026-11-17（続き750）──────────────────────────────────────────────
   659, // マスチェンジ後に到達しないのは仕様（裏向きは開かない）。黙っていた所に理由を出した
+  // ── 2026-11-18（続き751・752）────────────────────────────────────────
+  // 🔴 続き751 で直したのに名簿へ足し忘れていた分（取りこぼしはこれで5回目。
+  //   直したその回のうちに足す＝続き749 の教訓）。
+  714, // 貧民の行進の２マス移動が「一気に」になっていた
+  715, // 食べ過ぎで重ねる順を選べるようにした
+  716, // 場の中央にいる所へ【状況】カードが置かれた時に何も言わなかった
+  717, // 案内の帯が残って対局が進まなくなる（#718・#719 と同じ出来事）
+  718, // 手札に加えるマスがハイライトされない（#717 と同じ原因）
+  719, // ターン6とターン7が両方CPUになる（#717 と同じ原因）
+  // ── 2026-11-18（続き753）──────────────────────────────────────────────
+  720, // 貴族の特権で自分を選べない（プレイヤー選択から自分の席が黙って消えていた）
 ]);
 
 // ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
@@ -983,6 +994,34 @@ export const BUG_REPORT_FIX_NOTES = {
   628: {
     ja: "重みを上げました。相手の隣で手番を終えるのは元から減点していたのですが、前進＋そのマスの札の価値に負けていました（実際の手を足すと +6 対 −4 で「行く」になっていました）。減点を −6 にしたので、割に合わない時は近づきません。",
     en: "Re-weighted. Ending a turn next to an opponent was already penalised, but the advance plus the card's value outweighed it (+6 against -4 in the actual move). The penalty is now -6, so the CPU no longer walks into a bad trade.",
+  },
+  714: {
+    ja: "直しました。貧民の行進と走書の赤歴は「２マス移動する」で、紫のキューブ等の「２マス先に一気に移動する」とは別物です。一気に移動する時だけ途中のマスを問わない決まりなので、この２枚は途中のマスも通れる所だけが候補になります（斜め隣にも行けます）。",
+    en: "Fixed. The Paupers' March and Joinal say \"move 2 spaces\", which is not the same as \"move 2 spaces at once\". Only an at-once move ignores the square it passes through, so these two now require a passable square on the way (diagonal neighbours included).",
+  },
+  715: {
+    ja: "直しました。重ねる順を1マスずつ選べるようにしました（先に選んだマスのカードが下、後が上になります）。１番上の原則があるので、どれが上に来るかは次の一手の価値を変えます。",
+    en: "Fixed. You now pick the order one square at a time (earlier picks go underneath, later ones on top). Because only the top card counts, which card ends up on top matters.",
+  },
+  716: {
+    ja: "直しました。場の中央に立っている所へカードが置かれた時、到達効果そのものを起こしていませんでした。起こすようにしたので、不発でも「不発でした」と画面に出ます（盤面は何も変わりません）。",
+    en: "Fixed. When a card was placed under you at the centre, the arrival effect was not triggered at all. It now triggers, so you see the \"no effect\" message even when nothing happens.",
+  },
+  717: {
+    ja: "直しました。画面の上に出る案内の帯が消え残ると、それだけで手番もフェイズも進まなくなっていました（#718・#719 も同じ出来事です）。選んでいる最中でもないのに帯が残っていたら、自動で片付けるようにしました。",
+    en: "Fixed. A leftover guidance banner was enough to stall the turn and the phase (reports #718 and #719 were the same incident). A watchdog now clears the banner when nothing is actually being chosen.",
+  },
+  718: {
+    ja: "直しました。#717 と同じ出来事です。案内の帯が消え残って進行が止まっていたため、案内は出ているのに光るマスが無い状態に見えていました。",
+    en: "Fixed. Same incident as #717: a leftover banner stalled the game, so the prompt was showing while nothing was highlighted.",
+  },
+  719: {
+    ja: "直しました。#717 と同じ出来事です。あなたの手番が進まなくなっていたので、CPUが続けて打っているように見えていました。",
+    en: "Fixed. Same incident as #717: your own turn had stalled, so it looked as if the CPU played twice in a row.",
+  },
+  720: {
+    ja: "直しました。おっしゃるとおり「任意のプレイヤー」は自分も含みます。カードの文も処理も自分を含んでいたのですが、**選ぶ画面を組む所で自分の席だけが落ちて**いました。自分の盤面アバターは既定で表示されない設定（左下の大きいアバターと重複するため）で、選ぶ画面が「盤面にアバターがある人」だけを並べていたのが原因です。これからは自分も必ず並び、「（自分）」と添えて分かるようにしました。あわせて、候補が自分ひとりだけの効果（リトルマウス等）がこの穴で黙って不発になっていたのも直っています。",
+    en: "Fixed. You are right that \"any player\" includes yourself. The card text and the rules code already did, but the picker dropped your own seat: your board avatar is hidden by default (it duplicates the large avatar at bottom left), and the picker only listed players who had one. You are now always listed, marked \"(you)\". This also fixes effects whose only valid target was yourself (such as Little Mouse) silently doing nothing.",
   },
 };
 
