@@ -106,7 +106,28 @@ const shapeMeshByElement = new Map();
 // こちらは板（PlaneGeometry）ではないので上の2つとは別に持つ。
 const jewelMeshByElement = new Map();
 // 画像URL → テクスチャ。同じカード裏面などを何度も読み込まない。
+// 🔴🔴【続き752・墜落11件（#377 #446 #454 #459 #505 #516 #543 #579 #629 #634 #663）】
+//   **この棚には長いあいだ掃除が1つも無かった**（`textureCache.delete` はこのファイルに
+//   1か所も無く、対局を畳む時に丸ごと clear するだけ）。形の板（shapeTextures）には
+//   #275 の時から上限と掃除が在るのに、**絵の方だけ取り残されていた。**
+//   ＝一度でも盤面に出た絵は、盤面から消えても、その対局の間ずっと GPU に居座る。
+//
+//   実測（続き752・本物の控え11件。全件 navType:back_forward ＋ prevLastError:null
+//   ＝例外ゼロで端末がタブを捨てている）:
+//     #579（2026-11-11・256px へ縮める前） tex **62MB** / 合計 **137MB**
+//     #663（2026-11-14・縮めた後）        tex **46MB** / 合計 **106MB**
+//   画像36MB・canvas24MB より大きい＝**いちばん重い所がここだった。**
+//   手元の実測でも、カードを12枚めくって裏へ戻すと **12枚とも残り、どれも板が貼っていない**
+//   （1往復で19%が無駄。長い4人戦ではこれが積もる）。
 const textureCache = new Map();
+// 🔴 **棚の大きさは「枚数」ではなく「MB」で測る。**
+//   形の板は全部256px以下なので枚数で足りるが、絵は 0.18MB（ロックの帯）から
+//   6MB（背景）まで**30倍**ちがう。枚数で切ると「背景1枚を捨ててカードの絵32枚を残す」
+//   ような取り違えが起きる（実測: 背景 1672x941＝6MB・プレイマット 1080x1080＝4.45MB・
+//   カードの絵 256x256＝0.25MB）。
+const IMAGE_TEX_SPARE_MB = 6; // いま貼っている分への上乗せ（めくり戻しを吸収＝カードの絵24枚ぶん）
+const IMAGE_TEX_HARD_MAX_MB = 32; // 端末のメモリのための絶対上限
+let imageTextureEvictions = 0;
 const textureLoader = new THREE.TextureLoader();
 
 // この段で「絵を担当する」要素。ここに挙げたものだけWebGLで描き、CSS側では絵を消す
@@ -358,6 +379,44 @@ function pruneShapeTextures() {
     const left = (shapeGeomPrefixes.get(gp) || 1) - 1;
     if (left <= 0) shapeGeomPrefixes.delete(gp);
     else shapeGeomPrefixes.set(gp, left);
+  }
+}
+
+// 🔴【続き752】使っていない絵のテクスチャだけを片付ける。
+// ⚠ **いま板が貼っているものは絶対に捨てない**（#275 の実害そのもの。捨てると板は
+//   貼り直さない——ensureMesh は url が同じなら素通りするので——GPU上の中身が無い
+//   テクスチャを貼ったまま描き続け、「不規則にチカチカする」になる）。
+//   見るのは**同一性**（texture オブジェクト）で、url の文字列ではない——同じ絵を
+//   別の上限で持つことがあるため（鍵に "|256" が付く）。
+// ⚠ 捨てるのは**前（いちばん長く使っていない方）から**。getTexture が当たった時に
+//   後ろへ回しているので、Map の並びがそのまま LRU になる。
+// ⚠ 捨てても絵が消えるわけではない——次に要る時に読み直すだけ（余白があるので
+//   めくり戻しでは読み直しにならない）。
+function pruneImageTextures() {
+  const 使用中 = new Set();
+  for (const m of allMeshes()) if (m?.material?.map) 使用中.add(m.material.map);
+  const 量 = (t) => {
+    const im = t?.image;
+    const w = im?.width || im?.naturalWidth || 0;
+    const h = im?.height || im?.naturalHeight || 0;
+    return (w * h * 4) / 1048576;
+  };
+  let 使用中MB = 0;
+  let 合計MB = 0;
+  for (const t of textureCache.values()) {
+    const m = 量(t);
+    合計MB += m;
+    if (使用中.has(t)) 使用中MB += m;
+  }
+  const budget = Math.min(IMAGE_TEX_HARD_MAX_MB, 使用中MB + IMAGE_TEX_SPARE_MB);
+  if (合計MB <= budget) return;
+  for (const [key, t] of [...textureCache]) {
+    if (合計MB <= budget) break;
+    if (使用中.has(t)) continue; // 🔴【#275】いま貼っているものは捨てない
+    合計MB -= 量(t);
+    try { t.dispose(); } catch (err) { /* 捨て損ねても描画は続ける */ }
+    textureCache.delete(key);
+    imageTextureEvictions++;
   }
 }
 
@@ -622,9 +681,23 @@ function getTexture(url, maxPx = 0) {
   // 同じ絵を別の上限で使うことがあり得るので、鍵に上限も入れる。
   const key = maxPx ? url + "|" + maxPx : url;
   let tex = textureCache.get(key);
+  // 🔴【続き752】当たったら後ろへ回す（Map の並びをそのまま LRU にする）。
+  //   pruneImageTextures は前から捨てるので、これが無いと「ずっと使っている絵」が
+  //   いつまでも先頭に居座り、捨てる順番が「作った順」になってしまう。
+  if (tex) {
+    textureCache.delete(key);
+    textureCache.set(key, tex);
+  }
   if (!tex) {
     tex = textureLoader.load(url, (t) => {
       if (maxPx) shrinkTextureImage(t, maxPx);
+      // 🔴【続き752】**ここでも掃除する。** 絵の読み込みは非同期なので、作り直しの最後で
+      //   掃除する時、その回に作ったテクスチャは**まだ中身が無く大きさ0に見える**
+      //   ＝棚の判定に入らない（実測で棚を 1.0〜1.5MB 超えたままになった）。
+      //   読み終わったここでは大きさが分かっているので、ここで入れ直す。
+      //   ⚠ いま貼っているものは pruneImageTextures が必ず守るので、読み終わった直後の
+      //     この絵が捨てられることはない（板から外れていたなら、捨てて正しい）。
+      pruneImageTextures();
       scheduleRender();
     });
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -1022,6 +1095,7 @@ function rebuild() {
     shapeMeshByElement.delete(el);
   }
   pruneShapeTextures(); // 【#275】使われていないテクスチャだけを片付ける
+  pruneImageTextures(); // 【続き752】絵のテクスチャも同じく（墜落11件。上の説明を参照）
   needsRebuild = false;
   needsSort = true; // 板の位置が変わったので並べ替え直す
 }
@@ -1937,6 +2011,7 @@ export function getBoard3dStats() {
     texImg: textureCache.size,
     texShape: shapeTextures.size,
     texEvicted: shapeTextureEvictions,
+    texImgEvicted: imageTextureEvictions, // 【続き752】絵のテクスチャを捨てた回数
     texNewColor: shapeTextureNewColorOnly,
     texNewGeom: shapeTextureNewGeom,
     rebuildMs: +lastRebuildMs.toFixed(1),
@@ -1983,6 +2058,25 @@ export function debugProjectElement(el) {
 // 隠れる）のように重なり順が問題になった時、目で見て判断せず数値で確かめるために使う。
 export function debugShapeKeys() {
   return [...shapeTextures.keys()];
+}
+
+// 検証用【続き752】**絵のテクスチャの内訳を1枚ずつ名指しする。**
+//   墜落11件の控えでは、いちばん重いのが WebGL のテクスチャだった（#579 で 62MB・#663 で 46MB。
+//   画像36MB・canvas24MB より大きい）。合計だけ見ても「どの絵が積もっているか」が分からないので、
+//   1枚ずつ url と寸法を返す。読むだけで何も変えない。
+export function debugImageTextures() {
+  // いまどれかの板が実際に貼っているテクスチャ（同一性で見る。url の文字列では
+  // 「同じ絵を別の上限で」掴んでいる分を取り違える）。
+  const 使用中 = new Set();
+  for (const m of allMeshes()) if (m?.material?.map) 使用中.add(m.material.map);
+  const out = [];
+  for (const [key, t] of textureCache) {
+    const im = t?.image;
+    const w = im?.width || im?.naturalWidth || 0;
+    const h = im?.height || im?.naturalHeight || 0;
+    out.push({ key, w, h, mb: Math.round((w * h * 4 / 1048576) * 100) / 100, inUse: 使用中.has(t) });
+  }
+  return out;
 }
 
 export function debugRenderOrder(el) {
