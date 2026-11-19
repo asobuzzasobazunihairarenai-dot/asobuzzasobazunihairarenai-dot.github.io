@@ -4979,19 +4979,37 @@ async function runDiscardWholeHandOrderedTask(player) {
 //   nextTurn・フェイズの片付けが**全部そこに入っている**ので、ここで組み直さない。
 // ⚠ 「ターン終了時に捨てる」予約（ヴァーディアン）は先に流す＝ターン終了ボタンと同じ順番。
 // 0th拡張（我忘れの白き龍）の【色者】の移動先表示（絵の右下の円盤）。
-// 🔴 緑=上／黄=右上／橙=右／赤=右下／白=下／紫=左下／桃=左／青=左上（カードの補足）。
-//   ここは「カードの上を上として」の値で、席ごとに回して使う（rotateOffsetForSeat）。
-// ⚠ 黒と虹は円盤に無い＝動かない（「効果に記載の無い色が出た場合は何もしない」と同じ扱い）。
+// 🔴 緑=上／黄=右上／橙=右／赤=右下／紫=左下／桃=左／青=左上（カードの上を上として）。
+//   席ごとに回して使う（rotateOffsetForSeat）。
+// 🔴🔴【#723・2026-11-19 ユーザー裁定】**無色（白・黒）は移動しない。**
+//   以前はここに `white: 下` を入れていた（カードの補足の円盤に白の印があるため）が、
+//   それがそのまま報告「色者ノクスアエルが下方向へ移動しましたが、なんで？」の正体だった。
+//   ⇒ 白を外した。白・黒は**動かず、②の色の効果だけ**を得る。
+// 🔴 **虹は、そのターンのプレイヤーが移動先を決める**（同じ裁定）。表には入れず、下で別に扱う。
 const SHIKIJA_DIRS = {
   green: { dr: -1, dc: 0, key: "up" },
   yellow: { dr: -1, dc: 1, key: "upRight" },
   orange: { dr: 0, dc: 1, key: "right" },
   red: { dr: 1, dc: 1, key: "downRight" },
-  white: { dr: 1, dc: 0, key: "down" },
   purple: { dr: 1, dc: -1, key: "downLeft" },
   pink: { dr: 0, dc: -1, key: "left" },
   blue: { dr: -1, dc: -1, key: "upLeft" },
 };
+// 虹が出た時に選べる行き先＝周囲の8マス（盤の中だけ）。
+// ⚠ カードが置かれているかは問わない（色者は駒ではなくカードなので、重ねて置ける）。
+function shikijaRainbowCells(from) {
+  const 出 = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const row = from.row + dr;
+      const col = from.col + dc;
+      if (row < 0 || row > 6 || col < 0 || col > 6) continue;
+      出.push({ zone: "cell", row, col });
+    }
+  }
+  return 出;
+}
 // 席の向きに合わせて90°ずつ回す。A（手前）は回さず、SEAT_ORDER の順に1回ずつ
 // 時計回り（(dr,dc) → (dc,-dr)）。検算: A の「上」(-1,0) を1回回すと (0,+1)＝東＝
 // B（西に座って東を向いている）の「上」。2回で (+1,0)＝南＝C の「上」。3回で (0,-1)＝西＝D の「上」。
@@ -5042,20 +5060,34 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   for (const tk of drawn) await discardFromHandReveal(tk.id);
   const color = getCardDefinition(捨色カード)?.color ?? null;
   // ① 移動先表示に従い、これを1マス動かす。
-  // 🔴【#723・2026-11-19】**どうしてそこへ動いたのかを必ず言う。** 報告「色者ノクスアエルが
-  //   下方向に移動しましたが、なんで？」の正体は、案内文の {color}（＝捨色）に**カードの名前**を
-  //   入れていたこと。文は「捨色は{color}」なのに「捨色は なないろの欠片」と出るので、
-  //   円盤（緑=上／黄=右上／橙=右／赤=右下／白=下／紫=左下／桃=左／青=左上）と結びつかない。
-  //   ⇒ **色の名前**を入れ、カードの名前は添えるだけにする。
-  // ⚠ 動かなかった時（黒・虹＝円盤に無い／行き先が盤の外）も**黙っていた**。それも言う
+  // 🔴🔴【#723・2026-11-19】報告「色者ノクスアエルが下方向に移動しましたが、なんで？」の正体は
+  //   **ルールの取り違え**だった。ユーザー裁定:
+  //     ・**無色（白・黒）が出た時は移動しない**（②の色の効果だけを得る）
+  //     ・**虹が出た時は、そのターンのプレイヤーが移動先を決める**
+  //   以前は円盤の印をそのまま読んで `white: 下` としていたので、白が出るたびに下へ動いていた。
+  // 🔴 あわせて**どうしてそうなったのかを必ず言う**。以前は案内文の {color}（＝捨色）に
+  //   **カードの名前**を入れていたので「捨色は なないろの欠片」と出て、色と結びつかなかった。
+  // ⚠ 動かなかった時（無色／行き先が盤の外）も**黙っていた**。それも言う
   //   （「正しいのに何も起きない」は不具合に見える＝#659・#716 と同じ家族）。
   const base = color ? SHIKIJA_DIRS[color] : null;
-  // ⚠ 色が取れない時は、無い鍵を引かずに**カードの名前で代える**（文言の穴を作らない）。
   // ⚠ t() は**無い鍵をそのまま返す**ので、鍵が返ってきたらカードの名前で代える（文言の穴を作らない）。
   const 色の鍵 = color ? colorLabel(color) : null;
   const 色名 = 色の鍵 && !色の鍵.startsWith("game.color.") ? 色の鍵 : cardDisplayName(捨色カード);
   const 札名 = cardDisplayName(捨色カード);
-  if (!base) {
+  if (color === "rainbow") {
+    // 🔴 虹＝**そのターンのプレイヤーが移動先を決める**。
+    //   ⚠ 決めるのはカードの補足どおり「そのターンのプレイヤー」。
+    //   ⚠ 選ばなかった時は動かさない（善処の原則）。
+    const 候補 = shikijaRainbowCells(token.location);
+    const dest = 候補.length === 0 ? null : await requestCellChoiceForEffect(候補, t("ce.ex0ShikijaRainbowPick"));
+    if (dest) {
+      await moveAndSyncForEffect(token.id, dest, undefined, undefined, false, true);
+      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaRainbow", { color: 色名, card: 札名 }));
+    } else {
+      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
+    }
+  } else if (!base) {
+    // 無色（白・黒）＝**動かない**。②の色の効果だけを得る。
     await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
   } else {
     const seat = getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;

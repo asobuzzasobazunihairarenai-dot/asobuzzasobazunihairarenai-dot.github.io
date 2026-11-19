@@ -1120,11 +1120,15 @@ function enumerateSurroundingOffsets() {
 // 駒なし」であることは、atOnceの有無に関わらず常に課す（旧実装はatOnce時にこの判定自体を
 // 丸ごとスキップしており、駒のいるマスや空きマスまで候補に出てしまうバグだった）。
 export function getMoveCandidates(fromLocation, count, atOnce) {
-  // 🔴【#714・続き751】「一気に」でない Nマス移動（N≧2）は**1マスずつ普通に歩く**。
-  //   途中のマスも「カードがあって駒がいない」でなければ通れない（免除されるのは
-  //   「一気に」の時だけ＝rulebook 289行目の補足）。行ける先はちょうど距離N のマス
-  //   （斜め隣も入る）だが、**通り道が無いマスは候補から落ちる**のが一気にとの違い。
-  // ⚠ N=1 はこの道を通らない（従来どおり上下左右の4マス。距離1のリングと同じ結果）。
+  // 🔴🔴【#722・続き765 ユーザー裁定】「一気に」でない Nマス移動は **1マスずつ N 回**。
+  //   ⇒ **ここへは来ないのが正しい。** 呼ぶ側が1マスずつ N 回ぶん呼ぶ:
+  //     ・ムーブフェイズの伸び（貧民の行進の手札効果・ジョイナール）… phase-automation.js
+  //     ・貧民の行進の**到達**（QUALIFYING_PLAYERS_DRAW_AND_MOVE）… 下の verb（#557/#559）
+  //     ・カード効果の MOVE（count>1 かつ一気にでない）… 下の case VERBS.MOVE が1マスずつ回す
+  //   ⚠ 残してあるのは**保険**（上のどれでもない所から呼ばれた時に、少なくとも
+  //     「歩いて辿り着ける先」を返す）。ここに落ちている＝呼ぶ側が1マスずつ回していない、
+  //     という合図なので、見つけたら呼ぶ側を直すこと。
+  // ⚠ N=1 はこの道を通らない（従来どおり上下左右の4マス）。
   if (!atOnce && count > 1) return getWalkingMoveCandidates(fromLocation, count);
   const candidates = [];
   const offsets = atOnce
@@ -1684,6 +1688,21 @@ export function rotatedActivePlayersFrom(player) {
 async function runAction(action, ctx, helpers) {
   switch (action.verb) {
     case VERBS.MOVE: {
+      // 🔴🔴【#722・続き765 ユーザー裁定】「一気に」でない Nマス移動は **1マスずつ N 回**。
+      //   ⇒ その形の時は、この case を **1マスずつ呼び直す**（到達も1マスごとに起きる）。
+      //   ⚠ 貧民の行進の**到達**は専用の verb（QUALIFYING_PLAYERS_DRAW_AND_MOVE）が
+      //     既に同じことをしている（#557/#559）。ここは**今どのカードも通っていない**が、
+      //     「２マス移動する」と書いた札が増えた時に**黙って古い挙動にならない**ようにしておく。
+      //   ⚠ 途中で行き先が無くなったら、そこで止める（善処の原則）。1歩でも動けば true。
+      if ((action.count ?? 1) > 1 && !action.atOnce) {
+        let 動いた = false;
+        for (let 歩 = 0; 歩 < action.count; 歩++) {
+          const 一歩 = await runAction({ ...action, count: 1 }, ctx, helpers);
+          if (!一歩) break;
+          動いた = true;
+        }
+        return 動いた;
+      }
       const candidates = getMoveCandidates(ctx.pieceLocation, action.count, !!action.atOnce);
       if (candidates.length === 0) return false; // 善処の原則: 選べる先が無ければ何もしない
       // 無意味なループ防止（#49、ユーザー方針「セブンではルール上無意味なループは禁止」）。この移動
