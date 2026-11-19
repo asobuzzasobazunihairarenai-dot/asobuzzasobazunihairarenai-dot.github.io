@@ -181,6 +181,7 @@ function buildRoomCardSetChooser() {
     [CARD_SETS.REMAKE, "home.matchChoice.cardSetRemake"],
     [CARD_SETS.EX0, "home.matchChoice.cardSetEx0"],
     [CARD_SETS.FIRST_ED, "home.matchChoice.cardSet1st"],
+    [CARD_SETS.OLD_0TH, "home.matchChoice.cardSet0th"],
     [CARD_SETS.MIXED, "home.matchChoice.cardSetMixed"],
   ]) {
     const b = document.createElement("button");

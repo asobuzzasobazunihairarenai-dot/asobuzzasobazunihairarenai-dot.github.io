@@ -18,6 +18,7 @@ import {
 // 0th拡張（管理者だけのテストモード）。どちらも import を持たない葉なので循環しない。
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js";
+import { OLD0TH_NORMAL_CARDS } from "./cards-data-0th.js";
 import { getCardSet, CARD_SETS } from "./card-set.js";
 import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
@@ -351,6 +352,11 @@ export function buildDeckSections(opts = {}) {
   }
   if (セット === CARD_SETS.FIRST_ED || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.firstEd"), 色でそろえる(FIRST_ED_NORMAL_CARDS)));
+  }
+  // ⚠ 旧0th は「まぜる」には入れていない（mixed-deck.js は3セットで組んでいる）。
+  //   選んでいる時だけ出す。
+  if (セット === CARD_SETS.OLD_0TH) {
+    wrap.appendChild(buildSection(t("deckviewer.old0th"), 色でそろえる(OLD0TH_NORMAL_CARDS)));
   }
   if (セット === CARD_SETS.REMAKE || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.normal"), 色でそろえる(NORMAL_CARDS)));

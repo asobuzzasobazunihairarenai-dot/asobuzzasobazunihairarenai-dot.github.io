@@ -461,11 +461,53 @@ if (firstEdSrc) {
   }
 }
 
+// --- 8. 旧0th EDITION（白地に虹の輪の版・2024.04）------------------------------
+// 🔴 0th拡張・1st EDITION とまったく同じ見方（絵は blank と illust の2種・文は専用ファイル・
+//   assets/cards は作らない）。
+// ⚠ Eカード・Fカード・なないろの欠片は**リメイクのものを使い回す**ので、ここには出てこない。
+// ⚠ **効果データとテストはまだ0件**。無い数をそのまま出して、進み具合が毎回見えるようにする。
+const old0thSrc = (() => {
+  try {
+    return read("src/cards-data-0th.js");
+  } catch (e) {
+    return null;
+  }
+})();
+let old0thLine = "";
+if (old0thSrc) {
+  const old0th = [...old0thSrc.matchAll(/\{\s*id:\s*"(0th-[a-z0-9-]+)"\s*,\s*name:\s*"([^"]*)"/g)].map((m) => ({ id: m[1], name: m[2] }));
+  if (old0th.length < 15) {
+    console.error(`❌ 検査そのものが怪しい: cards-data-0th.js から ${old0th.length} 種しか読めなかった`);
+    process.exit(2);
+  }
+  const jaOld = new Set([...read("src/card-text-0th.ja.js").matchAll(/^ {2}"(0th-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  const enOld = new Set([...read("src/card-text-0th.en.js").matchAll(/^ {2}"(0th-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  let 効果あり = 0;
+  let テストあり = 0;
+  for (const c of old0th) {
+    if (!jaOld.has(c.id)) note(`旧0th: 日本語の文が無い: ${c.id}（${c.name}）→ node tools/gen-0th-text.mjs`);
+    if (!enOld.has(c.id)) note(`旧0th: 英語の文が無い: ${c.id}（${c.name}）→ node tools/gen-0th-text.mjs`);
+    for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${c.id}.webp`))) note(`旧0th: 絵が無い: ${dir}/${c.id}.webp → node tools/make-0th-art.mjs`);
+    }
+    if (fs.existsSync(path.join(ROOT, "assets/cards", `${c.id}.webp`))) {
+      note(`旧0th: 文字をアプリが描くので assets/cards を持たないはず: ${c.id}`);
+    }
+    if (effectIds.has(c.id)) 効果あり++;
+    if (casesSrc.includes(`"${c.id}"`)) テストあり++;
+  }
+  old0thLine =
+    `ⓘ 旧0th ${old0th.length} 種（E・F・なないろの欠片はリメイクのものを使う）: 文(日英)と絵2種は上で検査済み。` +
+    `効果データ ${効果あり}/${old0th.length}・テスト ${テストあり}/${old0th.length}` +
+    (効果あり === old0th.length && テストあり === old0th.length ? "（そろった）" : "（**これから**）");
+}
+
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
   if (ex0Line) console.log("   " + ex0Line);
   if (firstEdLine) console.log("   " + firstEdLine);
+  if (old0thLine) console.log("   " + old0thLine);
   process.exit(0);
 }
 console.log(`❌ ${problems.length} 件`);

@@ -17,6 +17,7 @@ export const CARD_SETS = {
   REMAKE: "remake", // リメイクの33種（既定）
   EX0: "ex0", // 0th拡張の33種＋なないろの欠片
   FIRST_ED: "1st", // 1st EDITION の19種＋なないろの欠片（2026-11-05 追加）
+  OLD_0TH: "0th", // 旧0th EDITION の19種＋なないろの欠片（2026-11-19 追加）
   MIXED: "mixed", // 全部まぜる（枚数は単純に合算。試験用）
 };
 
@@ -74,11 +75,13 @@ export const CARD_SET_LABEL_JA = {
   [CARD_SETS.REMAKE]: "リメイク（33種）",
   [CARD_SETS.EX0]: "0th拡張（33種）",
   [CARD_SETS.FIRST_ED]: "1st EDITION（19種）",
+  [CARD_SETS.OLD_0TH]: "旧0th EDITION（19種）",
   [CARD_SETS.MIXED]: "まぜる（全部）",
 };
 export const CARD_SET_LABEL_EN = {
   [CARD_SETS.REMAKE]: "Remake (33 cards)",
   [CARD_SETS.EX0]: "0th Expansion (33 cards)",
   [CARD_SETS.FIRST_ED]: "1st EDITION (19 cards)",
+  [CARD_SETS.OLD_0TH]: "Old 0th EDITION (19 cards)",
   [CARD_SETS.MIXED]: "Mixed (all)",
 };

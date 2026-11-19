@@ -45,8 +45,11 @@ const 公式 = [
   { set: CARD_SETS.FIRST_ED, key: "home.matchChoice.cardSet1st" },
 ];
 // 管理者のテスト用（箱は無い。0th拡張はブースターパックで売られた拡張、まぜるは試験用）。
+// ⚠ 旧0th は箱で売られた版だが、**とりあえず管理者だけ**にする（ユーザー判断 2026-11-19）。
+//   出してよくなったら 公式 の方へ移し、assets/boxes に箱の6面を焼く。
 const 試験 = [
   { set: CARD_SETS.EX0, key: "home.matchChoice.cardSetEx0" },
+  { set: CARD_SETS.OLD_0TH, key: "home.matchChoice.cardSet0th" },
   { set: CARD_SETS.MIXED, key: "home.matchChoice.cardSetMixed" },
 ];
 

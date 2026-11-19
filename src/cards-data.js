@@ -2,6 +2,7 @@ import { getCardBackSetIndex, backImagePath } from "./card-back-skins.js";
 import { getLang } from "./i18n.js"; // UI英語化フェーズ12: ブーストカードの仮デザイン内の文字だけに使う
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_ETERNAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js"; // 1st EDITION の19種＋E7種＋F7種
+import { OLD0TH_NORMAL_CARDS } from "./cards-data-0th.js"; // 旧0th EDITION の19種（E・Fはリメイクのものを使う）
 import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
 import { buildMixedNormalCards } from "./mixed-deck.js";
 import { isMyStackActive, getMyStackRecipe, buildMyStackNormalCards } from "./my-stack.js"; // マイ山札（続き725） // 「まぜる」を通常のエディションと同じ枚数で組む
@@ -180,7 +181,7 @@ export const NOIR_FIRST_CARD = {
 //   切り替わるのは「山札に何を入れるか」だけで、名前・色・絵の引きは常に通る必要がある
 //   （オンラインで相手が0th拡張のカードを出した時に、こちらが引けないと描けない）。
 const ALL_CARDS = [
-  ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS,
+  ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS, ...OLD0TH_NORMAL_CARDS,
   ...ETERNAL_CARDS, ...FIRST_ED_ETERNAL_CARDS,
   ...FIRST_CARDS, ...FIRST_ED_FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD,
 ];
@@ -218,6 +219,12 @@ function 標準の山札() {
   }
   if (set === CARD_SETS.FIRST_ED) {
     return rainbow ? [...FIRST_ED_NORMAL_CARDS, rainbow] : [...FIRST_ED_NORMAL_CARDS];
+  }
+  // ⚠ 旧0th も同じで、**虹（なないろの欠片）だけリメイクのものを使い回す**（印字が一字一句同じ）。
+  //   Eカード・Fカードもリメイクのものをそのまま使う（ユーザー判断 2026-11-19）ので、
+  //   getEternalCards / getFirstCards には旧0thの枝を足していない＝既定のまま。
+  if (set === CARD_SETS.OLD_0TH) {
+    return rainbow ? [...OLD0TH_NORMAL_CARDS, rainbow] : [...OLD0TH_NORMAL_CARDS];
   }
   // 🔴【2026-11-06・続き671】ユーザー指示「混ぜるときは山札の総枚数は通常エディションの
   //   枚数にしてください。たとえば赤は全部で１４枚に…その中で混ぜるカードのバランスが
@@ -295,7 +302,7 @@ export function hasNoPrintedFace(cardId) {
   if (typeof cardId !== "string") return false;
   // 文字入りの絵を持つカードは除く（いまは該当なし＝hasBakedCardFace 参照）。
   if (hasBakedCardFace(cardId)) return false;
-  return cardId.startsWith("ex0-") || cardId.startsWith("1st-")
+  return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("0th-")
     || cardId.startsWith("eternal-1st-") || cardId.startsWith("first-1st-");
 }
 
