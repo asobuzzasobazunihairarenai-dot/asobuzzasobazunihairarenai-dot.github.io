@@ -154,6 +154,18 @@ let currentReasonModalDismiss = null;
 export const REASON_MODAL_DURATION_MS = 2600;
 export const REASON_MODAL_TOTAL_MS = REASON_MODAL_DURATION_MS + 300;
 
+// 🔴 カードごとに「文に添える絵」（続き767）。
+//   我忘れの白き龍の【色者】は「捨色の色が、カードに描かれた円盤のどの向きか」で動く。
+//   文だけだと「なんで下に動いたの？」になる（#723 がまさにそれ）ので、円盤そのものを並べる。
+// ⚠ **呼び出し側から渡す形にしない。cardId から引く。**
+//   オンラインの中継（broadcastEffectReason）は {cardId, text} しか運ばないので、
+//   引数で渡すと**自分の画面にしか出ない**。cardId から引けば相手の画面でも同じ絵が出る。
+// ⚠ 絵は assets/icons/shikija-dial.png（**本物のカードの絵から切り抜いたもの**。
+//   作り直すには node tools/make-shikija-dial.mjs --write）。
+const REASON_MODAL_IMAGES = {
+  "ex0-white-dragon": { src: "assets/icons/shikija-dial.png", cls: "effect-reason-modal-dial" },
+};
+
 // ユーザー要望「カウンターロックの到達効果について『あなたは１番少なくロックしている
 // ので１枚ドローします』みたいなモーダルを出してからドローしてください。ほかの効果も
 // プレイヤーが何が起きたのかわかるようになるべくモーダルで教えてあげてください」への
@@ -223,6 +235,18 @@ export async function showEffectReasonModal(cardId, text, { holdUntilClick = fal
       nameEl.className = "effect-reason-modal-name";
       nameEl.textContent = def.name ?? cardId;
       modal.appendChild(nameEl);
+    }
+
+    // 文に添える絵（いまは色者の円盤だけ）。絵が読めなくても文は出す＝進行は止めない。
+    const 絵 = REASON_MODAL_IMAGES[cardId];
+    if (絵) {
+      const img = document.createElement("img");
+      img.className = 絵.cls;
+      img.src = 絵.src;
+      img.alt = "";
+      img.decoding = "async";
+      img.addEventListener("error", () => img.remove());
+      modal.appendChild(img);
     }
 
     const textEl = document.createElement("div");

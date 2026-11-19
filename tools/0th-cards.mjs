@@ -32,10 +32,14 @@
 //
 // 【絵】各フォルダの**直下にある1枚**がそのカードのイラスト（BN/ の中は没案）。
 //   横長なので tools/squarify-illust.mjs で正方形に整えてから合成する。
-//   ⚠ **フォルダ名と印字が違うものが2つある**（素材は古い作業名のまま）:
-//     「雷」→ 印字は **神鳴 -カミナリ-** ／「公共工事」→ 印字は **民の道の建設**。
-//     ⇒ アプリが出す名前は**印字の方**を使う（ユーザー確認済み 2026-11-19）。
-//   ⓘ フォルダ「産まれたての悠登」は**なないろの欠片**の絵。使い回すので作らない。
+//   🔴 **2026-11-20（続き767）に、素材フォルダの名前を印字どおりに直した**（ユーザー依頼）。
+//     それまでは古い作業名のままだった: 「雷」→ **神鳴 -カミナリ-** ／
+//     「公共工事」→ **民の道の建設** ／「盗賊の技」→ **盗賊の技 -スティール-** ／
+//     「予言者の技」→ **予言者の技 -アポカリプス-** ／「産まれたての悠登」→ **なないろの欠片**。
+//     名前の出どころは**印刷カードそのもの**（第2版 0th・2026.04 の題名の帯を34枚ぶん読んだ）。
+//     やり直すなら scratchpad/_0th_rename.mjs（表とフォルダが1つでも食い違えば止まる）。
+//   ⚠ **フォルダ名を変えたら、ここの `folder:` も一緒に変える**（変えないと絵を作り直せない）。
+//   ⓘ フォルダ「なないろの欠片」の絵は使い回すのでここには作らない。
 
 export const OLD0TH_SRC_ROOT = "J:/自作カードゲーム/7 seven/画像集/0th EDITION";
 
@@ -48,12 +52,12 @@ export const OLD0TH_CARDS = [
   { no: "16", id: "0th-orange-force",         name: "フォース",                  color: "orange", frame: "通常カード_表_橙１", count: 7, folder: "【s】フォース" },
   { no: "23", id: "0th-orange-lost-item",     name: "誰かの落とし物",            color: "orange", frame: "通常カード_表_橙２", count: 7, folder: "【s】誰かの落とし物" },
 
-  { no: "17", id: "0th-yellow-steal",         name: "盗賊の技 -スティール-",     color: "yellow", frame: "通常カード_表_黄１", count: 7, folder: "【s】盗賊の技" },
-  // ⚠ 素材フォルダは「雷」。印字は「神鳴 -カミナリ-」
-  { no: "24", id: "0th-yellow-thunder",       name: "神鳴 -カミナリ-",           color: "yellow", frame: "通常カード_表_黄２", count: 7, folder: "【s】雷" },
+  { no: "17", id: "0th-yellow-steal",         name: "盗賊の技 -スティール-",     color: "yellow", frame: "通常カード_表_黄１", count: 7, folder: "【s】盗賊の技　-スティール-" },
+  // ⓘ フォルダも印字どおり（続き767 で直した）
+  { no: "24", id: "0th-yellow-thunder",       name: "神鳴 -カミナリ-",           color: "yellow", frame: "通常カード_表_黄２", count: 7, folder: "【s】神鳴　-カミナリ-" },
 
-  // ⚠ 素材フォルダは「公共工事」。印字は「民の道の建設」
-  { no: "18", id: "0th-green-peoples-road",   name: "民の道の建設",              color: "green",  frame: "通常カード_表_緑１", count: 7, folder: "【s】公共工事" },
+  // ⓘ フォルダも印字どおり（続き767 で直した）
+  { no: "18", id: "0th-green-peoples-road",   name: "民の道の建設",              color: "green",  frame: "通常カード_表_緑１", count: 7, folder: "【s】民の道の建設" },
   { no: "25", id: "0th-green-rich-whim",      name: "富裕層の気まぐれ",          color: "green",  frame: "通常カード_表_緑２", count: 7, folder: "【s】富裕層の気まぐれ" },
 
   { no: "19", id: "0th-blue-greedy-bridge",   name: "欲しがりの吊り橋",          color: "blue",   frame: "通常カード_表_青１", count: 7, folder: "【s】欲しがりの吊り橋" },
@@ -64,7 +68,7 @@ export const OLD0TH_CARDS = [
 
   // 🔴 ちょっと待った！だけ追色１を持つので「紫１」（右上に7角形の印が在る方）
   { no: "21", id: "0th-purple-wait",          name: "ちょっと待った！",          color: "purple", frame: "通常カード_表_紫１", count: 7, folder: "【s】ちょっと待った！" },
-  { no: "28", id: "0th-purple-apocalypse",    name: "予言者の技 -アポカリプス-", color: "purple", frame: "通常カード_表_紫２", count: 7, folder: "【s】予言者の技" },
+  { no: "28", id: "0th-purple-apocalypse",    name: "予言者の技 -アポカリプス-", color: "purple", frame: "通常カード_表_紫２", count: 7, folder: "【s】予言者の技　-アポカリプス-" },
 
   // 29 なないろの欠片 … リメイクの rainbow-shard と一字一句同じなので作らない（使い回す）
 

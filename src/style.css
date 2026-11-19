@@ -12165,6 +12165,17 @@ body.theme-light .draw-targets-modal-name {
   color: #e2e8f0;
   line-height: 1.5;
 }
+/* 【続き767】文に添える絵（いまは色者の円盤だけ）。カードに描かれている円盤そのものを
+   切り抜いた絵なので、**色は当てない**（明暗どちらのテーマでも読めるよう、絵の側に
+   淡い地を焼き込んである＝tools/make-shikija-dial.mjs）。
+   ⚠ 大きさは rem。スマホ／タブレットでは下の方で字と一緒に大きくする
+   （字だけ大きくして絵が取り残されるのが #453・#569 の形）。 */
+.effect-reason-modal-dial {
+  display: block;
+  width: 4.6rem;
+  height: auto;
+  margin: 0.1rem auto 0.45rem;
+}
 
 /* 手札効果の選択肢モーダル（なないろの欠片等、src/hand-effect-ui.js）。使用できない
    選択肢はグレー表示・クリック不可にする（ユーザー要望）。 */
@@ -22235,6 +22246,12 @@ body.is-phone-device .effect-reason-modal-text,
 body.is-tablet-device .effect-reason-modal-text {
   font-size: 1.6rem;
   line-height: 1.6;
+}
+/* 【続き767】添える絵も字と一緒に大きくする（絵だけ取り残さない＝#453・#569）。 */
+body.is-phone-device .effect-reason-modal-dial,
+body.is-tablet-device .effect-reason-modal-dial {
+  width: 9.2rem;
+  margin: 0.2rem auto 0.9rem;
 }
 
 /* 【続き583】サマリー（早見表）を見る画面（summary-sheet.js）とフェイズ案内板のボタン。
