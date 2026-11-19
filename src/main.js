@@ -5042,18 +5042,32 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   for (const tk of drawn) await discardFromHandReveal(tk.id);
   const color = getCardDefinition(捨色カード)?.color ?? null;
   // ① 移動先表示に従い、これを1マス動かす。
+  // 🔴【#723・2026-11-19】**どうしてそこへ動いたのかを必ず言う。** 報告「色者ノクスアエルが
+  //   下方向に移動しましたが、なんで？」の正体は、案内文の {color}（＝捨色）に**カードの名前**を
+  //   入れていたこと。文は「捨色は{color}」なのに「捨色は なないろの欠片」と出るので、
+  //   円盤（緑=上／黄=右上／橙=右／赤=右下／白=下／紫=左下／桃=左／青=左上）と結びつかない。
+  //   ⇒ **色の名前**を入れ、カードの名前は添えるだけにする。
+  // ⚠ 動かなかった時（黒・虹＝円盤に無い／行き先が盤の外）も**黙っていた**。それも言う
+  //   （「正しいのに何も起きない」は不具合に見える＝#659・#716 と同じ家族）。
   const base = color ? SHIKIJA_DIRS[color] : null;
-  if (base) {
+  // ⚠ 色が取れない時は、無い鍵を引かずに**カードの名前で代える**（文言の穴を作らない）。
+  // ⚠ t() は**無い鍵をそのまま返す**ので、鍵が返ってきたらカードの名前で代える（文言の穴を作らない）。
+  const 色の鍵 = color ? colorLabel(color) : null;
+  const 色名 = 色の鍵 && !色の鍵.startsWith("game.color.") ? 色の鍵 : cardDisplayName(捨色カード);
+  const 札名 = cardDisplayName(捨色カード);
+  if (!base) {
+    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
+  } else {
     const seat = getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
     const { dr, dc } = rotateOffsetForSeat(base.dr, base.dc, seat);
     const row = token.location.row + dr;
     const col = token.location.col + dc;
+    const 向き = t("ce.ex0Dir." + base.key);
     if (row >= 0 && row <= 6 && col >= 0 && col <= 6) {
       await moveAndSyncForEffect(token.id, { zone: "cell", row, col }, undefined, undefined, false, true);
-      await announceEffectNoticeForEffect(
-        "ex0-white-dragon",
-        t("ce.ex0ShikijaMoved", { color: cardDisplayName(捨色カード), dir: t("ce.ex0Dir." + base.key) })
-      );
+      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaMoved", { color: 色名, card: 札名, dir: 向き }));
+    } else {
+      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaEdge", { color: 色名, card: 札名, dir: 向き }));
     }
   }
   // ② その色の効果を得る。記載があるのは白と黒だけ（「効果に記載の無い色が出た場合は何もしない」）。

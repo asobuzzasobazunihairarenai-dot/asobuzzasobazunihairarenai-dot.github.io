@@ -300,6 +300,24 @@ let handEffectBusy = false; // 手札効果の解決中（コスト選択待ち�
 // を呼んでもらう）、以後は再計算・再ハイライトも救済フォールバックも一切行わない
 // （手動で「ターン終了」ボタンを押すのを待つだけの状態になる）。
 let moveActionTaken = false;
+// 🔴【#722・2026-11-19】「一気に」でない移動は**1マスずつ**。ユーザー裁定
+//   「貧民の行進の手札効果は一気に移動ではないので1マスずつ移動します」。
+//   ⇒ ムーブフェイズで **2回に分けて** 1マスずつ動く（途中のマスに止まるので、
+//     そこが表向きなら到達効果が起きる）。「一気に」（紫のキューブ ディメンション等）は今までどおり1回。
+//   ⚠ 「移動先のカードはオープンしない」はどちらの一歩にも掛かる（既存の仕組みがそのまま効く）。
+let moveStepsUsed = 0; // このムーブフェイズで何歩動いたか
+// このターン、ムーブフェイズで歩ける歩数。
+// ⚠ 手札効果はムーブフェイズより前（ハンドフェイズ）で使うので、ここで読めば立っている。
+//   それでも**毎回読む**（フェイズの頭で控えると、後から掛かった時に取りこぼす）。
+function 歩ける歩数(player) {
+  if (!player) return 1;
+  if (!isMovementBoostActiveThisTurn(player)) return 1;
+  return isMovementBoostAtOnceThisTurn(player) ? 1 : 2; // 一気に＝1回で2マス先へ／歩き＝2回
+}
+// 残りの歩数（0 なら、この移動はもう終わり）。
+export function getRemainingMoveSteps(player) {
+  return Math.max(0, 歩ける歩数(player) - moveStepsUsed);
+}
 
 export function getCurrentPhase() {
   return currentPhase;
@@ -346,6 +364,20 @@ export function isMovePhaseActive() {
 // フェイズで立てたのかを残して、次の報告で推測せずに切り分けられるようにする。
 export function markPhaseMoveActionTaken(reason = "unknown") {
   logAction("diag-move-action-taken", { reason, phase: currentPhase, owner: phaseOwner, already: moveActionTaken });
+  // 🔴【#722】**1マスずつ動く移動の途中なら、ここでは終わらせない。**
+  //   印を立てる所は4つ（タップ・ドラッグ・自動・接触）あるので、呼び出し側ではなく
+  //   ここで数える（1つずつ直すと必ず漏れる＝#477 の家族）。
+  //   ⚠ 接触は「移動」ではないので歩数を使わない＝その場で終わり。
+  //   ⚠ 救済・復元（fallback-* / restore / movement-disabled / already-acted）も終わり。
+  const 移動だ = reason === "tap-move" || reason === "drag-move" || reason === "auto-move";
+  if (移動だ && currentPhase === "move" && !moveActionTaken) {
+    moveStepsUsed++;
+    if (moveStepsUsed < 歩ける歩数(phaseOwner)) {
+      logAction("diag-move-step", { reason, owner: phaseOwner, used: moveStepsUsed, total: 歩ける歩数(phaseOwner) });
+      clearMovableHighlights(); // 次の一歩の候補は reconcileMovePhase が貼り直す
+      return;
+    }
+  }
   moveActionTaken = true;
   clearMovableHighlights();
   // #167: 「このターンはもう動いた」ことも残す（更新して戻ってきても再度動けないように）。
@@ -360,6 +392,7 @@ export function clearPhaseMoveActionTaken(reason = "unknown") {
   if (!moveActionTaken) return;
   logAction("diag-move-action-cleared", { reason, phase: currentPhase, owner: phaseOwner });
   moveActionTaken = false;
+  if (moveStepsUsed > 0) moveStepsUsed--; // 【#722】歩数も1つ戻す（印と対で裏返す）
   if (phaseOwner) {
     persistTurnPhase(phaseOwner, "move", false);
     reconcileMovePhase(phaseOwner);
@@ -1236,7 +1269,10 @@ function enterPhase__inner(phase, player) {
   updatePhaseGuideGlow();
   if (phase === "lock") lockedIdsAtPhaseStart = getLockedTokenIds(player);
   if (phase === "lock") myDeckDrawnThisPhase = false; // 【#286/#288】ロックフェイズごとに1回だけ
-  if (phase === "move") moveActionTaken = false;
+  if (phase === "move") {
+    moveActionTaken = false;
+    moveStepsUsed = 0; // 【#722】歩数も戻す
+  }
   // 黒の契約の烙印の★(a): lock→hand へ移る時、このロックフェイズに新規ロックが1枚も無ければ
   // （＝ロックしなかった）、烙印所持者は1枚ドローしてよい（main.js側で任意モーダル、fire-and-forget）。
   // 新規ロックの有無は開始時スナップショット(lockedIdsAtPhaseStart)との差分で見る（枚数ではなくid集合。
@@ -1577,7 +1613,12 @@ export function computePhaseMoveCandidates(player) {
   const boosted = isMovementBoostActiveThisTurn(player);
   const move = isMovementDisabledThisTurn(player)
     ? []
-    : getMoveCandidates(piece.location, boosted ? 2 : 1, isMovementBoostAtOnceThisTurn(player));
+    // 🔴【#722】**歩きの時は常に1マス先**（2回に分けて動く）。一気にの時だけ2マス先。
+    : getMoveCandidates(
+        piece.location,
+        boosted && isMovementBoostAtOnceThisTurn(player) ? 2 : 1,
+        isMovementBoostAtOnceThisTurn(player)
+      );
   const contact = getContactableCells(piece.location, player);
   return { move, contact };
 }
@@ -1604,8 +1645,15 @@ function reconcileMovePhase(player) {
   //   「２マス移動する」なので一気にではない（途中のマスを普通に通る）。
   const moveCandidates = isMovementDisabledThisTurn(player)
     ? []
-    : getMoveCandidates(piece.location, boosted ? 2 : 1, isMovementBoostAtOnceThisTurn(player));
-  const contactCandidates = getContactableCells(piece.location, player);
+    // 🔴【#722】**歩きの時は常に1マス先**（2回に分けて動く）。一気にの時だけ2マス先。
+    : getMoveCandidates(
+        piece.location,
+        boosted && isMovementBoostAtOnceThisTurn(player) ? 2 : 1,
+        isMovementBoostAtOnceThisTurn(player)
+      );
+  // 🔴【#722】1歩目が済んでいる間は**接触を出さない**。移動と接触はどちらか一方で、
+  //   移動の途中に接触を挟むことはできない。
+  const contactCandidates = moveStepsUsed > 0 ? [] : getContactableCells(piece.location, player);
   clearMovableHighlights();
   // ユーザー要望「移動先ハイライト時、範囲外のトーンを落としてほしい。ジャンプ台の時と
   // 同じように」。card-effect-picking-cellsと同じ「候補以外を暗くする」bodyクラスを流用する。
@@ -1626,6 +1674,15 @@ function reconcileMovePhase(player) {
         highlightedMoveCellEls.push(el);
       }
     }
+  }
+  // 🔴【#722】**もう1歩でも動いていたら、救済には落とさない。**
+  //   あの救済は「盤面の都合で1マスも動けない」時のもの。1歩目が済んでいるのに
+  //   隣へ山札から1枚置くと、**動いたうえに盤面が1枚増える**＝得をしてしまう。
+  //   ⇒ 2歩目が無いなら、その移動はそこで終わり。
+  if (moveStepsUsed > 0 && moveCandidates.length === 0) {
+    logAction("diag-move-step-end", { owner: player, used: moveStepsUsed, reason: "no-second-step" });
+    markPhaseMoveActionTaken("walk-step-exhausted");
+    return;
   }
   if (moveCandidates.length === 0 && contactCandidates.length === 0) {
     // 🔴 【#429】「このターン移動できない」（マルメゴで橙が出た等）の時は、隣へ山札から1枚

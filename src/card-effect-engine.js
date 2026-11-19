@@ -300,6 +300,12 @@ const movementBoostUntilTurn = new Map(); // player -> { turn, atOnce }
 function activateMovementBoostForTurn(player, atOnce) {
   movementBoostUntilTurn.set(player, { turn: getState().turnNumber, atOnce: !!atOnce });
 }
+// 実測用の口（アプリ側からは呼んでいない）。移動の伸びは効果の中からしか立てられないので、
+// 実測が「歩き（1マスずつ2回）」と「一気に（2マス先へ1回）」を作り分けられるようにする。
+// ⚠ board-3d.js の debugImageTextures・main.js の debugOpenPlayerPick と同じ棚。
+export function __debugActivateMovementBoost(player, atOnce) {
+  activateMovementBoostForTurn(player, !!atOnce);
+}
 export function isMovementBoostActiveThisTurn(player) {
   return movementBoostUntilTurn.get(player)?.turn === getState().turnNumber;
 }

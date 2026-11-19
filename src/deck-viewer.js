@@ -224,7 +224,8 @@ function buildCardModal() {
   const modal = document.createElement("div");
   modal.style.cssText = `
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: min(38rem, 92vw); max-height: 85vh; overflow-y: auto;
+    width: min(62rem, calc(94vw / var(--stage-scale, 1)));
+    max-height: calc(92vh / var(--stage-scale, 1)); overflow-y: auto;
     background: rgba(15, 23, 32, 0.98); border: 1px solid rgba(148, 163, 184, 0.4);
     border-radius: 0.5rem; padding: 1rem; z-index: 2101;
     font-family: sans-serif; color: #e2e8f0; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
@@ -237,19 +238,25 @@ function buildCardModal() {
   content.style.cssText = "display: flex; gap: 0.8rem; margin-bottom: 0.8rem; flex-wrap: wrap;";
 
   const img = document.createElement("div");
+  // 🔴【#721】絵を大きくする。実測（932x430）では **107px** しかなかった。
+  //   ⚠ **ステージの中で vh / vw をそのまま使わない。** vh は「実画面」の高さなので、
+  //     body ごと倍率で縮むぶん**二重に小さくなる**（58vh のつもりが画面では 119px だった）。
+  //     ⇒ `--stage-scale` で割って打ち消す（ミニロックが style.css で使っているのと同じ手）。
+  //     rem はもともとステージ側の物差しなので割らない。
   img.style.cssText =
-    "position: relative; width: 14rem; flex-shrink: 0; border-radius: 0.4rem; display: block; aspect-ratio: 1 / 1; overflow: hidden; background-size: cover; background-position: center; background-repeat: no-repeat;";
+    "position: relative; width: min(28rem, calc(56vh / var(--stage-scale, 1)), calc(46vw / var(--stage-scale, 1))); flex-shrink: 0; border-radius: 0.4rem; display: block; aspect-ratio: 1 / 1; overflow: hidden; background-size: cover; background-position: center; background-repeat: no-repeat;";
 
   const textCol = document.createElement("div");
-  textCol.style.cssText = "flex: 1; min-width: 12rem;";
+  // ⚠ min-width は**絵より小さく**しておく（狭い画面で縦積みに落ちるのを妨げない）。
+  textCol.style.cssText = "flex: 1 1 16rem; min-width: 0;";
 
   const name = document.createElement("div");
-  name.style.cssText = "font-weight: bold; font-size: 1rem; margin-bottom: 0.4rem;";
+  name.style.cssText = "font-weight: bold; font-size: 1.35rem; margin-bottom: 0.5rem; line-break: strict;";
 
   const note = document.createElement("div");
   note.style.cssText = `
     padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem;
-    font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap;
+    font-size: 1rem; line-height: 1.7; white-space: pre-wrap; line-break: strict;
   `;
   textCol.appendChild(name);
   textCol.appendChild(note);
