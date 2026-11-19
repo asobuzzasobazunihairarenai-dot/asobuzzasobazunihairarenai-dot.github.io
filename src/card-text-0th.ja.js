@@ -23,7 +23,7 @@ export const CARD_TEXT_OLD0TH_JA = {
   "0th-pink-disclosure": { flavor: "", titleRuby: "じょうほうかいじ", basic: "", subtitle: "", arrival: "任意の１マスのカードをオープンする。", hand: "２枚ドローして、それらを公開する。それらの手札効果はこのターン使うことができない。" },
   "0th-pink-favorite-flower": { flavor: "", titleRuby: "だれ　す　はな", basic: "", subtitle: "", arrival: "相手を１人選ぶ。これをその相手の手札に加える。このターンにこれがオープンされたのなら、１枚ドロー。", hand: "１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの周囲の、プレイヤーのいないマスにこれを表向きで置く。１枚ドロー。" },
   "0th-purple-wait": { flavor: "", titleRuby: "ま", basic: "", subtitle: "", arrival: "移動前のマスに強制移動する。移動先のカードはオープンしない。１マス移動する。", hand: "【追色１】相手が最後のロックを宣言した時に使える。相手がロックしようとしたカードを捨てる。その相手はこのターンにロックできない。" },
-  "0th-purple-apocalypse": { flavor: "", titleRuby: "よげんしゃ　わざ", basic: "", subtitle: "", arrival: "あなたの手札から１枚を、あなたの周囲の任意のマスに裏向きで置く。", hand: "__色を２色宣言する。１枚ドローして公開する。__そのカードが宣言色なら、下線部の手順を繰り返す。" },
+  "0th-purple-apocalypse": { flavor: "", titleRuby: "よげんしゃ　わざ", basic: "", subtitle: "", arrival: "あなたの手札から１枚を、あなたの周囲の任意のマスに裏向きで置く。", hand: "色を２色宣言する。１枚ドローして公開する。そのカードが宣言色なら、ここまでを繰り返す。" },
   "0th-white-colorful-hole": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "任意の１マスのカードをすべてあなたの手札に加える。", hand: "１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーのロックしている１枚を、そのプレイヤーに選ばせ、あなたの手札に加える。" },
   "0th-white-rainbow-rain": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "カードのないすべてのマスに山札から１枚ずつ裏向きで置く。", hand: "場の任意の縦または横１列（７マス）を選ぶ。その列に山札から１枚ずつ裏向きで置く。" },
   "0th-black-faded-frog": { flavor: "", titleRuby: "お", basic: "", subtitle: "", arrival: "全員は手札をすべて捨てる。１番少なくロックしているプレイヤーを１人選ぶ。これをそのプレイヤーの手札に加える。", hand: "１番多くロックしている全員は、自分のロックしている１枚を選んで捨てる。あなたの手札をすべて捨てる。" },

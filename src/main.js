@@ -482,8 +482,10 @@ import {
   // 【#660】「文字を焼き込んだ絵を持たない」札（0th拡張・1st EDITION）の判定。
   hasNoPrintedFace,
 } from "./cards-data.js";
-import { getCardName, getCardNote, getCardText } from "./card-text.js";
-import { splitUnderlineRuns } from "./card-text-markup.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
+import { getCardName, getCardNote, getCardText } from "./card-text.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
+// 🔴 効果文の中の `__…__`（下線）を解析する。いまどのカードも使っていないが、
+//   込み入った効果で範囲を示したくなった時のために残してある（続き762・763）。
+import { splitUnderlineRuns } from "./card-text-markup.js";
 
 // モーダル・行動ログ等に出す「表示用のカード名」。英語のカードテキストがあればその名前、
 // 無ければ cards-data.js の日本語の原名にフォールバックする。
