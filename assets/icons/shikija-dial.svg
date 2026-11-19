@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="色者の移動先表示">
+  <title>色者の移動先表示</title>
+  <desc>捨色ごとに、この円盤の向きへ1マス動かす。下（無色）の区画は無い。</desc>
+  <g>
+    <path d="M94.05 85.65 L105.95 85.65 L118.29 55.83 L81.71 55.83 Z" fill="#18ab67"/>
+    <path d="M105.95 85.65 L114.35 94.05 L144.17 81.71 L118.29 55.83 Z" fill="#18b6c9"/>
+    <path d="M114.35 94.05 L114.35 105.95 L144.17 118.29 L144.17 81.71 Z" fill="#ed9cc0"/>
+    <path d="M114.35 105.95 L105.95 114.35 L118.29 144.17 L144.17 118.29 Z" fill="#a0549a"/>
+    <path d="M94.05 114.35 L85.65 105.95 L55.83 118.29 L81.71 144.17 Z" fill="#d32549"/>
+    <path d="M85.65 105.95 L85.65 94.05 L55.83 81.71 L55.83 118.29 Z" fill="#ed910e"/>
+    <path d="M85.65 94.05 L94.05 85.65 L81.71 55.83 L55.83 81.71 Z" fill="#f8d221"/>
+  </g>
+  <g stroke="#ffffff" stroke-width="0.7" fill="none" opacity="0.8" stroke-linecap="round">
+    <path d="M81.71 55.83 L100 85.65"/>
+    <path d="M100 55.83 L100 85.65"/>
+    <path d="M118.29 55.83 L100 85.65"/>
+    <path d="M118.29 55.83 L110.15 89.85"/>
+    <path d="M131.23 68.77 L110.15 89.85"/>
+    <path d="M144.17 81.71 L110.15 89.85"/>
+    <path d="M144.17 81.71 L114.35 100"/>
+    <path d="M144.17 100 L114.35 100"/>
+    <path d="M144.17 118.29 L114.35 100"/>
+    <path d="M144.17 118.29 L110.15 110.15"/>
+    <path d="M131.23 131.23 L110.15 110.15"/>
+    <path d="M118.29 144.17 L110.15 110.15"/>
+    <path d="M81.71 144.17 L89.85 110.15"/>
+    <path d="M68.77 131.23 L89.85 110.15"/>
+    <path d="M55.83 118.29 L89.85 110.15"/>
+    <path d="M55.83 118.29 L85.65 100"/>
+    <path d="M55.83 100 L85.65 100"/>
+    <path d="M55.83 81.71 L85.65 100"/>
+    <path d="M55.83 81.71 L89.85 89.85"/>
+    <path d="M68.77 68.77 L89.85 89.85"/>
+    <path d="M81.71 55.83 L89.85 89.85"/>
+  </g>
+  <g stroke="#ffffff" stroke-width="1.2" fill="none" stroke-linejoin="round">
+    <path d="M94.05 85.65 L105.95 85.65 L118.29 55.83 L81.71 55.83 Z"/>
+    <path d="M105.95 85.65 L114.35 94.05 L144.17 81.71 L118.29 55.83 Z"/>
+    <path d="M114.35 94.05 L114.35 105.95 L144.17 118.29 L144.17 81.71 Z"/>
+    <path d="M114.35 105.95 L105.95 114.35 L118.29 144.17 L144.17 118.29 Z"/>
+    <path d="M94.05 114.35 L85.65 105.95 L55.83 118.29 L81.71 144.17 Z"/>
+    <path d="M85.65 105.95 L85.65 94.05 L55.83 81.71 L55.83 118.29 Z"/>
+    <path d="M85.65 94.05 L94.05 85.65 L81.71 55.83 L55.83 81.71 Z"/>
+  </g>
+  <path d="M120.58 50.31 L149.69 79.42 L149.69 120.58 L120.58 149.69 L79.42 149.69 L50.31 120.58 L50.31 79.42 L79.42 50.31 Z" fill="none" stroke="#ffffff" stroke-width="1.3" opacity="0.9"/>
+  <g>
+    <path d="M100 45.62 L107.74 32.04 L100 4.39 L92.26 32.04 Z" fill="#18ab67" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M138.45 61.55 L153.53 57.42 L167.61 32.39 L142.58 46.47 Z" fill="#18b6c9" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M154.38 100 L167.96 107.74 L195.61 100 L167.96 92.26 Z" fill="#ed9cc0" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M138.45 138.45 L142.58 153.53 L167.61 167.61 L153.53 142.58 Z" fill="#a0549a" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M61.55 138.45 L46.47 142.58 L32.39 167.61 L57.42 153.53 Z" fill="#d32549" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M45.62 100 L32.04 92.26 L4.39 100 L32.04 107.74 Z" fill="#ed910e" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M61.55 61.55 L57.42 46.47 L32.39 32.39 L46.47 57.42 Z" fill="#f8d221" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+  <circle cx="100" cy="100" r="15.85" fill="#ffffff"/>
+  <text x="100" y="105.9" text-anchor="middle" font-size="18.64" font-family="'Shippori Mincho B1','Hiragino Mincho ProN','Yu Mincho',serif" font-weight="700" fill="#2b2b33">色</text>
+  <text x="100" y="139.2" text-anchor="middle" font-size="21.99" font-family="'Shippori Mincho B1',serif" font-weight="700" fill="#ffffff">7</text>
+</svg>
