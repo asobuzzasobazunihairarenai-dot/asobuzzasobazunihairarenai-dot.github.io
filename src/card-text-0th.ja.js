@@ -20,7 +20,7 @@ export const CARD_TEXT_OLD0TH_JA = {
   "0th-green-rich-whim": { flavor: "", titleRuby: "ふゆうそう　き", basic: "", subtitle: "", arrival: "手札が３枚以上ある全員は、自分の手札から１枚を、カードの置かれていない任意のマスに裏向きで置く。置けなかったカードは捨てる。", hand: "上記の到達効果を得る。" },
   "0th-blue-greedy-bridge": { flavor: "", titleRuby: "ほ　つ　ばし", basic: "", subtitle: "", arrival: "以下の効果のうち１つ得る。\n・あなたの手札を１枚捨てる。\n・移動前のマスに強制移動する。移動先のカードはオープンしない。", hand: "これをあなたの周囲以外の任意のマスに裏向きで置く。そのマスの周囲のカードから１枚選び、これの直下に置く。" },
   "0th-blue-set-trap": { flavor: "", titleRuby: "しか　わな", basic: "", subtitle: "", arrival: "あなたの手札を半分捨てる。", hand: "これをあなたの周囲以外の任意のマスに裏向きで置く。そのマスの周囲のカードから１枚選び、捨てる。" },
-  "0th-pink-disclosure": { flavor: "", titleRuby: "じょうほうかいじ", basic: "", subtitle: "", arrival: "場の中央と四隅のカードをオープンする。オープンするカードが１枚もないなら、あなたの隣以外の任意の１枚をオープンする。", hand: "２枚ドローして、それらを公開する。それらの手札効果はこのターン使うことができない。" },
+  "0th-pink-disclosure": { flavor: "", titleRuby: "じょうほうかいじ", basic: "", subtitle: "", arrival: "任意の１マスのカードをオープンする。", hand: "２枚ドローして、それらを公開する。それらの手札効果はこのターン使うことができない。" },
   "0th-pink-favorite-flower": { flavor: "", titleRuby: "だれ　す　はな", basic: "", subtitle: "", arrival: "相手を１人選ぶ。これをその相手の手札に加える。このターンにこれがオープンされたのなら、１枚ドロー。", hand: "１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの周囲の、プレイヤーのいないマスにこれを表向きで置く。１枚ドロー。" },
   "0th-purple-wait": { flavor: "", titleRuby: "ま", basic: "", subtitle: "", arrival: "移動前のマスに強制移動する。移動先のカードはオープンしない。１マス移動する。", hand: "【追色１】相手が最後のロックを宣言した時に使える。相手がロックしようとしたカードを捨てる。その相手はこのターンにロックできない。" },
   "0th-purple-apocalypse": { flavor: "", titleRuby: "よげんしゃ　わざ", basic: "", subtitle: "", arrival: "あなたの手札から１枚を、あなたの周囲の任意のマスに裏向きで置く。", hand: "色を２色宣言する。１枚ドローして公開する。そのカードが宣言色なら、ここまでを繰り返す。" },
