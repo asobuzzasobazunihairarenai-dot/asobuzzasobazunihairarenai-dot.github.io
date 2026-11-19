@@ -10,7 +10,7 @@
 //
 // ⚠ エターナル7種・ファースト7種・なないろの欠片は**リメイクのものを使い回す**ので、ここには無い。
 export const CARD_TEXT_OLD0TH_JA = {
-  "0th-red-dash": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "１マス移動する。", hand: "このターン、通常の移動または接触に加えてもう１回移動できる。" },
+  "0th-red-dash": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "１マス移動する。", hand: "このターン、通常の移動をしたなら、１マス移動する。" },
   "0th-red-counterattack": { flavor: "", titleRuby: "はんげき", basic: "", subtitle: "", arrival: "あなたの手札が１番少ないなら、２枚ドローし、あなたの手札を１枚捨てる。", hand: "あなたへの接触の宣言時に使える。その接触を無効にする。あなたはその相手に接触する。" },
   "0th-orange-force": { flavor: "", titleRuby: "", basic: "", subtitle: "", arrival: "あなたの隣の１枚をあなたの手札に加える。", hand: "【追色１】相手を１人選ぶ。その相手をカードの置かれた任意のマスへ移動する。" },
   "0th-orange-lost-item": { flavor: "", titleRuby: "だれ　お　もの", basic: "", subtitle: "", arrival: "１枚ドロー。", hand: "相手を１人選ぶ。これをその相手のゲートに裏向きで置く。１枚ドロー。" },
