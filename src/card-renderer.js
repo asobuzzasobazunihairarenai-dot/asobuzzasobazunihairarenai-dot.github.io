@@ -16,6 +16,7 @@ import { getCardDefinition, getCardBlankPath } from "./cards-data.js";
 import { getCardText, getCardName } from "./card-text.js";
 import { getLang } from "./i18n.js";
 import { LAYOUT, cardTypeOf, groupOf, shapeHalfWidthAt } from "./card-layout-config.js";
+import { splitUnderlineRuns } from "./card-text-markup.js";
 
 // 能力名《》・マーカー等の色味には単色を使う（color-mix/border-color はグラデーション不可）。
 const SOLID_ACCENT = {
@@ -31,7 +32,16 @@ function buildLines(text) {
   for (const line of String(text || "").split("\n").filter((s) => s.length > 0)) {
     const div = document.createElement("div");
     div.className = line.startsWith("・") ? "card-face-subline" : "card-face-textline";
-    div.textContent = line;
+    // 🔴【続き762】文の中の `__…__` は**下線**（印字のカードが下線で範囲を示している札がある）。
+    //   印が無ければ runs は1つなので、**今までと1文字も変わらない**（textContent と同じ結果）。
+    //   ⚠ 解析は card-text-markup.js に1つだけ（カードの面と補足の箱の2か所で使う）。
+    for (const run of splitUnderlineRuns(line)) {
+      if (!run.underline) { div.appendChild(document.createTextNode(run.text)); continue; }
+      const u = document.createElement("span");
+      u.className = "card-face-u";
+      u.textContent = run.text;
+      div.appendChild(u);
+    }
     frag.appendChild(div);
   }
   return frag;
@@ -502,14 +512,36 @@ export async function paintCardFaceTextToCanvas(g, cardId, 辺) {
         const r = rg.getBoundingClientRect();
         if (!r.width && !r.height) continue; // 箱を持たない文字（改行など）
         if (今 && Math.abs(r.top - 今.top) > 0.5) {
-          出.push({ 文: 文.slice(開始, i), left: 今.left, top: 今.top });
+          出.push({ 文: 文.slice(開始, i), ...今 });
           開始 = i;
           今 = null;
         }
-        if (!今) 今 = { top: r.top, left: r.left };
-        else 今.left = Math.min(今.left, r.left);
+        // ⚠ right / bottom は**下線を引くため**に持つ（続き762）。文字の箱そのものなので、
+        //   fillText が置く位置と同じ基準になる＝線と字がズレない。
+        if (!今) 今 = { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
+        else {
+          今.left = Math.min(今.left, r.left);
+          今.right = Math.max(今.right, r.right);
+          今.bottom = Math.max(今.bottom, r.bottom);
+        }
       }
-      if (今) 出.push({ 文: 文.slice(開始), left: 今.left, top: 今.top });
+      if (今) 出.push({ 文: 文.slice(開始), ...今 });
+      return 出;
+    };
+
+    // 要素の中の「文字の節」を集める（下線を引く時に使う）。
+    // ⚠ 要素ではなく**文字の節**を見る（続き746 と同じ理由。要素だけ見ると取りこぼす）。
+    const 文字の節 = (親) => {
+      const 出 = [];
+      const 潜る = (e) => {
+        for (const node of e.childNodes) {
+          if (node.nodeType === 1) {
+            const cs = getComputedStyle(node);
+            if (cs.display !== "none" && cs.visibility !== "hidden") 潜る(node);
+          } else if (node.nodeType === 3 && node.data && node.data.trim()) 出.push(node);
+        }
+      };
+      潜る(親);
       return 出;
     };
 
@@ -573,6 +605,54 @@ export async function paintCardFaceTextToCanvas(g, cardId, 辺) {
       }
     };
     歩く(face);
+
+    // 🔴【続き762】下線（`.card-face-u`）。**文字とは別に線を1本引く**。
+    //   canvas の fillText は text-decoration を描かないので、要素の箱から自分で引く。
+    //   ⚠ `getClientRects()` を使う（**折り返すと箱が行ごとに分かれる**。
+    //     getBoundingClientRect だと2行にまたがった時に全体を囲む1つの箱になり、
+    //     行間にも線が通ってしまう）。
+    //   ⚠ 太さと色は CSS から読む（決め打ちすると、字の大きさを変えた時に取り残される）。
+    for (const u of face.querySelectorAll(".card-face-u")) {
+      const cu = getComputedStyle(u);
+      if (cu.display === "none" || cu.visibility === "hidden") continue;
+      // 🔴 **CSS が下線を出しているかを見る。** 見ないと、CSS で切っても canvas だけ線が残り、
+      //   画面と焼いた絵が食い違う（実測で見つけた）。
+      if (!/underline/.test(cu.textDecorationLine || "")) continue;
+      const 太 = parseFloat(cu.textDecorationThickness);
+      const 厚 = (Number.isFinite(太) && 太 > 0 ? 太 : parseFloat(cu.fontSize) * 0.06) * 倍;
+      const 離 = (parseFloat(cu.textUnderlineOffset) || 0) * 倍;
+      g.fillStyle = cu.textDecorationColor && cu.textDecorationColor !== "currentcolor" ? cu.textDecorationColor : cu.color;
+      // 🔴 **要素の箱（getClientRects）を使わない。** あれは**行ボックス**（行間の余白込み）で、
+      //   canvas の fillText は**字の箱**に置くので基準が違う。
+      //   ⇒ **文字を置くのに使っているのと同じ測り方**（行を取る）で出す。折り返しも同じ扱い。
+      //
+      // 🔴🔴 そして**線は baseline から下ろす。** 日本語の書体は**字の箱が行送りより高い**ので、
+      //   「字の箱の下端」から引くと**次の行の字の上に乗る**（この札の実測: 行1の箱 301.9〜321.9、
+      //   行2の箱 319.6〜339.6 ＝ **重なっている**）。CSS の `text-underline-offset` は
+      //   **baseline から**測る決まりなので、そちらに合わせないと DOM と canvas で線の位置が
+      //   8px ずれる（実測でそうなった。数字だけ見ていると気づけず、**焼いた絵を見て分かった**）。
+      for (const tn of 文字の節(u)) {
+        const cs = getComputedStyle(tn.parentElement || u);
+        const 字 = parseFloat(cs.fontSize) * 倍; // ⚠ fontSize は CSS px。ステージ倍率で割らない
+        if (!(字 > 0)) continue;
+        g.font = (cs.fontStyle !== "normal" ? cs.fontStyle + " " : "") + cs.fontWeight + " " + 字 + "px " + cs.fontFamily;
+        g.textBaseline = "top"; // ⚠ 文字を描くのと同じ基準にしてから測る
+        const m = g.measureText("あ");
+        // 🔴 欲しいのは「top の線から baseline までの距離」＝ `alphabeticBaseline`。
+        //   canvas の計量は**上が正**なので負で返る（実測 -12.19）。符号を返して使う。
+        //   ⚠ `fontBoundingBoxAscent` ではない——あれは "top" の線から**上**への距離で、
+        //     実測では 3.81 しかなく、線が 8px 高くなって**字を横切った**（絵を見て分かった）。
+        //   ⚠ 取れない環境では 0.88em で代える（線が消えるより良い）。
+        const 下げ = Number.isFinite(m.alphabeticBaseline) ? -m.alphabeticBaseline : 字 * 0.88;
+        const 上 = 下げ > 0 ? 下げ : 字 * 0.88;
+        for (const 行 of 行を取る(tn)) {
+          const 幅 = 位置(行.right - 行.left);
+          if (!(幅 > 0)) continue;
+          g.fillRect(位置(行.left - 枠.left), 位置(行.top - 枠.top) + 上 + 離, 幅, Math.max(1, 厚));
+        }
+      }
+    }
+
     return 描いた > 0;
   } catch (e) {
     return false; // 測れない環境では、絵だけで出す（今までどおり）

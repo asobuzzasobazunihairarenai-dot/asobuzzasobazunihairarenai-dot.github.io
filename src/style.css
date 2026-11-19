@@ -21177,6 +21177,21 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-flavor,
 .card-face-title,
 .card-face-subtitle { word-break: auto-phrase; line-break: strict; }
+/* 🔴【続き762】効果文の中の下線（`__…__`）。印字のカードが下線で範囲を示している札がある
+   （予言者の技 -アポカリプス- 等）。card-renderer.js / main.js が `.card-face-u` で包む。
+   ⚠ 色は決め打ちしない——このアプリは明暗2テーマで、カードの面も箱も文字色を自分で持っている
+   （決め打ちすると片方のテーマで線だけ浮く＝教訓15）。currentColor なら字と同じ色になる。
+   ⚠ 太さと位置は **em**（字に付いていく）。px や rem にすると、字を大きくした所で
+   線だけ取り残される（#453・#569 と同じ形）。
+   ⚠ `text-decoration-skip-ink: none` ——日本語の字は下に出る部分（ぎ・ゆ 等）が多く、
+   既定の「字を避ける」だと線が細かく途切れて**範囲の帯に見えなくなる**。 */
+.card-face-u {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.12em;
+  text-decoration-skip-ink: none;
+}
 /* 効果の本文を「絵の形」に沿わせる見えない土手（card-renderer.js が polygon を書き込む）。
    ⚠ 本文に overflow や display:flex を付けないこと（BFC ができると float が高さを押し広げ、
    文の下端が伸びて枠からはみ出す）。 */

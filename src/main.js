@@ -482,7 +482,8 @@ import {
   // 【#660】「文字を焼き込んだ絵を持たない」札（0th拡張・1st EDITION）の判定。
   hasNoPrintedFace,
 } from "./cards-data.js";
-import { getCardName, getCardNote, getCardText } from "./card-text.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
+import { getCardName, getCardNote, getCardText } from "./card-text.js";
+import { splitUnderlineRuns } from "./card-text-markup.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
 
 // モーダル・行動ログ等に出す「表示用のカード名」。英語のカードテキストがあればその名前、
 // 無ければ cards-data.js の日本語の原名にフォールバックする。
@@ -17135,7 +17136,18 @@ function showCardNoteModal(cardId, opts = {}) {
     //   クリックできるようになり、押すと定義のポップアップが出る。
     //   ⚠ 説明そのものは help-content.ja/en.js の用語集に1か所だけ置く（カードごとに
     //     書くと必ず食い違う）。追色・財力はこの回に用語集へ足した。
-    linkifyGlossary(本文, 中身);
+    // 🔴【続き762】下線（`__…__`）もここで出す。**カードの面と同じ見え方**にそろえる
+    //   （片方だけだと「カードでは下線、箱では素の文」になって、どこまでが下線部か分からない）。
+    //   ⚠ linkifyGlossary は素の文字列を受ける作りなので、**先に下線で分けて run ごとに呼ぶ**
+    //     （あちらは1行も触らない）。印が無ければ run は1つ＝今までと同じ。
+    for (const run of splitUnderlineRuns(中身)) {
+      const 入れ物 = run.underline ? document.createElement("span") : 本文;
+      if (run.underline) {
+        入れ物.className = "card-face-u";
+        本文.appendChild(入れ物);
+      }
+      linkifyGlossary(入れ物, run.text);
+    }
     textCol.appendChild(見出し);
     textCol.appendChild(本文);
   }
