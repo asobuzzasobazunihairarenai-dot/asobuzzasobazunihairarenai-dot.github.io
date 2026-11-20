@@ -27,6 +27,8 @@ import { showCardFace, paintCardFace } from "./card-face-display.js";
 // 【続き737】まとめの7枚も、ホバー（スマホは長押し）で拡大して読めるように。
 import { attachCardHoverPreview } from "./card-hover-preview.js";
 import { getCardName } from "./card-text.js";
+// 【続き769】ONLY の印（色の名前＋ONLY の2段）。色→欧字の表もあちらが唯一の持ち主。
+import { buildOnlyMark, COLOR_WORD } from "./only-mark.js";
 import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js";
 
@@ -35,11 +37,9 @@ const LOGO = "assets/ui-v2/logo.webp";
 
 // 札の上に出す飾りの帯。試作と同じ Oswald の欧字なので、言語で切り替えない
 // （「0TH EDITION」「BOOSTER PACK」と同じ扱いの意匠）。
-const COLOR_BADGE = {
-  red: "RED", orange: "ORANGE", yellow: "YELLOW", green: "GREEN",
-  blue: "BLUE", pink: "PINK", purple: "PURPLE",
-  rainbow: "RAINBOW", white: "WHITE", black: "BLACK",
-};
+// 🔴【続き769】表そのものは only-mark.js が持つ（ONLY の印も同じ欧字を使うので、
+//   ここに写しを置くと必ず食い違う＝続き762 の教訓）。
+const COLOR_BADGE = COLOR_WORD;
 
 let root = null;
 let onDoneFn = null;
@@ -324,18 +324,18 @@ function 段3を組む(stage) {
   face.appendChild(sh);
   frame.appendChild(face);
 
-  const badge = document.createElement("div");
-  badge.className = "pkc-colorbadge";
-  const 色 = c ? getCardDefinition(c.cardId)?.color : null;
-  badge.textContent = COLOR_BADGE[色] || "SEVEN";
-  frame.appendChild(badge);
   // 【#687】ONLY は「1種類に1枚しか入れられない」札。出た時にそれと分かるように。
-  if (c && getCardDefinition(c.cardId)?.only) {
-    const ob = document.createElement("div");
-    ob.className = "pkc-onlybadge";
-    ob.textContent = "ONLY";
-    frame.appendChild(ob);
-  }
+  // 🔴【続き769】金の「ONLY」を**別に貼るのをやめた**。①色の帯と2つ並べると同じことを
+  //   2度言っている ②色の帯は中央・ONLY は右寄りで左右が揃っていなかった
+  //   ③本物のカードは「色の名前の下に ONLY」という**1つの印**になっている。
+  //   ⇒ ONLY の札だけ、色の帯の中身をその2段の印に差し替える（印刷どおりの寸法は only-mark.js）。
+  const badge = document.createElement("div");
+  const 色 = c ? getCardDefinition(c.cardId)?.color : null;
+  const ONLYか = !!(c && getCardDefinition(c.cardId)?.only);
+  badge.className = "pkc-colorbadge" + (ONLYか ? " is-only" : "");
+  if (ONLYか) badge.appendChild(buildOnlyMark(色));
+  else badge.textContent = COLOR_BADGE[色] || "SEVEN";
+  frame.appendChild(badge);
   box.appendChild(frame);
   stage.appendChild(box);
 

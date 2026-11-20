@@ -27789,6 +27789,48 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   background-size: cover;
   background-position: center;
 }
+/* ═══【2026-11-20・続き769】ONLY の印（印刷カードの2段の文字組みを、絵ではなく**文字**で起こした）═══
+   寸法の出どころ・書体を選んだ理由は [src/only-mark.js](only-mark.js) の冒頭に全部書いてある。
+   ここは**測った比をそのまま CSS にしただけ**:
+     ・ONLY の大きさ ÷ 色の名前 = 0.476
+     ・1字の送り ÷ 字の高さ = 3.50（色の名前）／ 3.63（ONLY）
+     ・行の間（色の名前の地 → ONLY の天）= 色の名前の字高ちょうど1つぶん
+   🔴 `letter-spacing` は**最後の字の後ろにも**空きを入れる。そのまま中央寄せすると墨の中心が
+      空きの半分だけ左へずれるので、**同じ値の負の `margin-right`** で打ち消す。
+   ⚠ 色は**決め打ちしない**（`currentColor`）。明暗2テーマがあり、置く側が文字色を持っている
+      （決め打ちすると片方のテーマで消える＝教訓15）。
+   ⚠ 大きさは `--only-mark-size` 1つで決まる（em で繋いであるので、字を大きくする端末でも
+      2段の関係が崩れない＝#453・#569 の家族）。 */
+.only-mark {
+  --only-mark-size: 0.8rem; /* 色の名前の大きさ。ここだけ変えれば ONLY も行の間も付いてくる */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.only-mark-color,
+.only-mark-only {
+  display: block;
+  font-family: "Noto Sans JP", sans-serif;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+.only-mark-color {
+  font-size: var(--only-mark-size);
+  letter-spacing: 1.96em;
+  margin-right: -1.96em;
+}
+.only-mark-only {
+  font-size: calc(var(--only-mark-size) * 0.476);
+  letter-spacing: 2.04em;
+  margin-right: -2.04em;
+  /* 🔴 行の間は「色の名前の字高ちょうど1つぶん」（印刷の実測）。
+     ⚠ `line-height: 1` の箱の天地と、字の天地は**別物**。Noto Sans JP は字の箱が
+       1.46em あるので、箱を隙間なく積んでも字の間は 0.15em しか空かない。
+       ⇒ 足りないぶんを margin で足す（0.60em で字の間がちょうど字高1つになる）。
+       この値は目分量ではなく、_p769.mjs が**焼いた画素で**毎回測っている。 */
+  margin-top: calc(var(--only-mark-size) * 0.6);
+}
 .pkc-colorbadge {
   position: absolute;
   left: 50%;
@@ -27805,6 +27847,16 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   font-weight: 500;
   letter-spacing: 0.2em;
   white-space: nowrap;
+}
+/* 🔴【続き769】ONLY の札は、色の帯を**印刷カードと同じ2段の印**にする。
+   金の「ONLY」を別に貼っていたのをやめた——①同じことを2つの札で言っていた
+   ②色の帯は中央・ONLY の札は右寄りで、**並びが左右に揃っていなかった**。 */
+.pkc-colorbadge.is-only {
+  height: auto;
+  /* ⚠ 下を厚くしてあるのは目分量ではない。`line-height: 1` の箱は**字の上にだけ**余りが
+     できるので、上下を同じ padding にすると**下が詰まって見える**（実測で 16px 対 9px）。
+     _p769.mjs が焼いた画素で上下の余白を数えて、そろっているかを毎回見ている。 */
+  padding: 0.42rem 0.9rem 0.63rem;
 }
 .pkc-cardname {
   display: flex;
@@ -27970,29 +28022,23 @@ body.is-tablet-device .pkc-closebtn { font-size: 1.7rem; height: 4.2rem; }
 .pkc-sum-cell.is-only .pkc-sum-art {
   border-color: #d8b24c;
 }
-/* 1枚ずつの段の ONLY の帯（色の帯の反対側）。 */
-.pkc-onlybadge {
-  position: absolute;
-  right: -0.4rem;
-  top: -1rem;
-  display: inline-flex;
-  align-items: center;
-  height: 1.875rem;
-  padding: 0 0.9rem;
-  background: linear-gradient(180deg, #e8cf8a, #b08d3f);
-  color: #19160f;
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  white-space: nowrap;
-}
 
 /* 🔴 スマホ・タブレット（ステージ倍率 0.478）。 */
 body.is-phone-device .pkc-sum-flag,
 body.is-tablet-device .pkc-sum-flag { font-size: 1.2rem; height: 2.1rem; padding: 0 0.7rem; }
-body.is-phone-device .pkc-onlybadge,
-body.is-tablet-device .pkc-onlybadge { font-size: 1.3rem; height: 3rem; }
+/* 🔴【続き769】色の帯には倍率が付いていなかった（0.8rem/1.875rem のまま）のに、
+   ONLY の帯だけ 1.3rem/3rem になっていたので、スマホでは**2つの札の高さが揃っていなかった**。
+   ONLY の帯をやめて色の帯に統合したので、ここで色の帯に倍率を付ける。 */
+body.is-phone-device .pkc-colorbadge,
+body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
+body.is-phone-device .pkc-colorbadge.is-only,
+body.is-tablet-device .pkc-colorbadge.is-only { height: auto; }
+/* 🔴 ONLY の印は、色の名前1つで**字が7つ**（RAINBOW）になり得る。1字の送りが字高の 3.5倍
+   もあるので、1行の帯と同じ 1.3rem にするとカードより横に広くなる。
+   ⇒ スマホでは少し小さくする（それでも2段ぶん縦に伸びるので、1行の帯より目立つ）。
+   数字は目分量ではなく、_p769.mjs が**10色ぜんぶの名前**でカードの幅に収まるか毎回測っている。 */
+body.is-phone-device .only-mark,
+body.is-tablet-device .only-mark { --only-mark-size: 1.05rem; }
 
 /* ═══ 【2026-11-15・続き737】パックの画面をスタイリッシュに ═══
    ユーザー要望「**もっとスタイリッシュにした方が良いかも！ 今はただ必要なものが
