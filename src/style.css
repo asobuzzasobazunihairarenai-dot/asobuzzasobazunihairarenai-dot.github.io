@@ -26928,6 +26928,29 @@ body.is-tablet-device .card-pack-new {
   overflow: hidden;
   flex: 0 0 auto;
 }
+
+/* 🔴【続き780】まだ持っていない限定報酬の札は「？」で伏せる（お楽しみ・ユーザー判断 2026-11-21）。
+   ⚠ 色だけは出す——色順の格子の中で灰色の札だけが浮くと「壊れている」ように見えるため。
+   ⚠ 文字色を決め打ちしない…ではなく、**この札は自前の色面を持つ**ので白で固定してよい
+     （明暗どちらのテーマでも、地が同じ色だから見え方が変わらない＝教訓15 の例外にあたる）。
+     そのかわり黄・桃でも読めるよう、濃い影を必ず付ける。 */
+.card-pack-face.is-mystery {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mystery-color, #888);
+  box-shadow: inset 0 0 0 0.12rem rgba(255, 255, 255, 0.45);
+  color: #fff;
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 0.1rem 0.25rem rgba(0, 0, 0, 0.55);
+  user-select: none;
+}
+/* 伏せ札は「足りない札」ほど薄くしない（薄いと壊れて見える。これは**出す気のある**札）。 */
+.card-pack-cell.is-mystery {
+  opacity: 0.9;
+}
 /* 上限まで持っていて欠片になった札。 */
 .card-pack-shard {
   display: inline-block;

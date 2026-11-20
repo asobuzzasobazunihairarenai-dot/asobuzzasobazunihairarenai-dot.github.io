@@ -56,18 +56,22 @@ export const CHANGELOG = [
     summary: [
       "図鑑でカードを開いた時の札が大きくなりました",
       "我忘れの白き龍が動いた時に、カードの円盤を並べて見せます",
+      "コレクションに「？」の札が並びました",
     ],
     summaryEn: [
       "Cards opened from the codex are now much larger",
       "The dial from the card is now shown when the White Dragon of Oblivion moves",
+      "Mystery cards appear in your collection",
     ],
     items: [
       "**図鑑でカードを開いた時の札を大きくしました。** スマホの横向きでは**2倍以上**（絵が 107px → 214px）、パソコンでも2倍（179px → 358px）になります。カード名と補足の文字も大きくしました。",
       "**我忘れの白き龍【色者】のお知らせに、カードに描かれている円盤を並べて見せるようにしました。** 「捨色は緑。上へ1マス動かしました」と文で出ていても、どうしてその向きなのかは円盤を見ないと分かりません。これからはお知らせの中に円盤そのものが出るので、その場で確かめられます。オンラインでは相手の画面にも同じように出ます。",
+      "コレクションに**「？」の札が7枚**並びました。まだお見せできない、**特別な方法でしか手に入らないカード**です。7色ぶんあります——色だけは出ているので、どの色の札が来るかは分かります。手に入れると、その札だけ**ふつうのカードとして**名前と絵が出ます。",
     ],
     itemsEn: [
       "**Cards opened from the codex are now much bigger.** On a phone in landscape the art is more than twice the size (107px to 214px), and on a computer it is twice as big (179px to 358px). The card name and notes are larger too.",
       "**The dial printed on the White Dragon of Oblivion is now shown in its notice.** Reading \"a green card came up, so it moved one square up\" does not tell you why that direction was chosen - you have to look at the dial. Now the dial itself appears right in the notice, so you can check on the spot. In online games it shows the same way on everyone's screen.",
+      "**Seven mystery cards** now sit in your collection. They are special cards you can only get in a particular way, and we are not showing them yet. There is one for each of the seven colors — the color is visible, so you can tell which colors are coming. Once you own one, that card shows its real name and art like any other.",
     ],
     fixes: [
       "２マス移動する効果が、1マスずつ2回動く形になりました",
@@ -161,6 +165,11 @@ export const CHANGELOG = [
       "⚠ **検査を1本ぶん厚くした**（`check-cards.mjs` に志炎者の節）。名義が SEVRAIL か・山札が7枚か・パックに混ざっていないか・繋ぎ先4か所が**本当に使われているか**を毎回見る。🔴 わざと5通り崩して5通りとも名指しで落ちることを確かめた——最初の書き方は**import 行に名前が残っているだけで合格**していて、A/B が3件とも素通りした（**名前が在るかではなく、使われているか**を見る形へ直した）。",
       "⚠ **効果（【志炎】）はまだ未実装**。カードは出るが自動では処理されない（自己申告で遊べる）。「相手が同色の手札効果を使った直後に限り宣言できる」＝払うコストではなく**割り込みの窓**で、アプリにその仕組みがまだ無い。",
       "⚠ **配る仕組み（限定報酬）もまだ無い**ので、いまは誰も持っていない。マイ山札には1枚も出ず、コレクションには **0/7** で並ぶ。",
+      "🔴 **まだ持っていない限定報酬の札を「？」で伏せて並べるようにした**（ユーザー判断「お楽しみ的なノリで「？」とかで並べとくのはどう？」）。伏せるのは**持っていない間だけ**で、手に入れたら**ふつうの札として**名前も絵も出る。",
+      "🔴 **伏せるなら、割れる道を全部塞ぐ必要がある。** 名前（→「？？？」）・絵（→色だけの「？」札）・**拡大表示**（ホバー／長押しを付けない）・**ワイルドカードのボタン**（出さない）の4か所。どれか1つでも残ると意味が無い。⚠ ワイルドカードは**そもそもパックの札にしか効かない**ので、出すと「押せるのに何も起きない」になる（#729 の家族）。",
+      "⚠ **色だけは出す**——色順に並ぶ格子の中で灰色の札だけが浮くと「壊れている」ように見えるため。「7色ぶん在る」と分かること自体が、伏せたままでも楽しみになる。⚠ 薄さも `is-missing` の 0.4 ではなく **0.9**（薄いと「足りない札」ではなく「壊れた札」に見える）。",
+      "⚠ **この札は自前の色面を持つので、文字色を白で固定してよい**（明暗2テーマで地が変わらない＝教訓15 の例外）。そのかわり黄・桃の上でも読めるよう濃い影を必ず付ける。実測で**明暗どちらでも地・字・大きさが完全に一致**することを確かめた。",
+      "⚠ 実測25項目（`scratchpad/_p780.mjs`）。🔴 **対照を2つ立てた**——「ふつうの未所持の札にはワイルドカードのボタンが出る（52枚）」「ふつうの札はホバーで拡大表示が出る」。これが無いと「伏せ札には出ない」が**0しか出ない検査**になる（実際、最初は拡大表示の目印を間違えていて対照が落ち、それで気づいた）。",
     ],
   },
   {

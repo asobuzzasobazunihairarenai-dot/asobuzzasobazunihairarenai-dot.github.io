@@ -81,6 +81,31 @@ export function getCollectionPool() {
 function 持ち物として数える札か(id) {
   return getPackPool().some((d) => d.id === id) || CF_NORMAL_CARDS.some((d) => d.id === id);
 }
+
+// 🔴【続き780】**まだ持っていない限定報酬の札は「？」で伏せて並べる**
+//   （2026-11-21・ユーザー判断「お楽しみ的なノリで「？」とかで並べとくのはどう？」）。
+//   ⚠ 伏せるのは**持っていない間だけ**。手に入れたら**ふつうの札として出る**。
+//   ⚠ 伏せた札では、**絵・名前・拡大表示・ワイルドカードのボタンを出さない**
+//     （どれか1つでも残ると中身が割れる。ワイルドカードは**そもそも効かない**ので、
+//      出すと「押せるのに何も起きない」になる＝#729 の家族）。
+//   ⓘ 色だけは出す——色順に並ぶ格子の中で灰色の札だけが浮くと「壊れている」ように見えるのと、
+//     「7色ぶん在る」と分かること自体が、伏せたままでも楽しみになるため。
+function 伏せて出す札か(def, 枚) {
+  return 枚 === 0 && CF_NORMAL_CARDS.some((d) => d.id === def.id);
+}
+
+// 「？」の札。小さい札（イラスト）の代わりに置く。
+function 伏せ札(def, 大きさ) {
+  const el = document.createElement("div");
+  el.className = "card-pack-face is-mystery";
+  el.style.width = 大きさ;
+  el.style.height = 大きさ;
+  // ⚠ 色は CSS 変数から取る（この表を2か所に書くと必ずズレる）。
+  el.style.setProperty("--mystery-color", "var(--color-" + (def.color || "red") + ", #888)");
+  el.textContent = "？";
+  el.setAttribute("aria-label", "？");
+  return el;
+}
 function capOf(def) {
   return def?.only ? 1 : COPY_MAX;
 }
@@ -413,15 +438,21 @@ function コレクションの区画() {
   grid.className = "card-pack-collection";
   for (const def of pool) {
     const n = Math.min(枚数(c, def), capOf(def));
+    const 伏せる = 伏せて出す札か(def, n);
     const cell = document.createElement("div");
-    cell.className = "card-pack-cell" + (n === 0 ? " is-missing" : "");
-    const face = 小さい札(def.id, "3.4rem");
-    // 【続き737】小さすぎて読めないので、**ホバー（スマホは長押し）で拡大**できるように。
-    attachCardHoverPreview(face, def.id);
-    cell.appendChild(face);
+    cell.className = "card-pack-cell" + (n === 0 ? " is-missing" : "") + (伏せる ? " is-mystery" : "");
+    if (伏せる) {
+      // 🔴 拡大表示（attachCardHoverPreview）は**付けない**——付けると中身が割れる。
+      cell.appendChild(伏せ札(def, "3.4rem"));
+    } else {
+      const face = 小さい札(def.id, "3.4rem");
+      // 【続き737】小さすぎて読めないので、**ホバー（スマホは長押し）で拡大**できるように。
+      attachCardHoverPreview(face, def.id);
+      cell.appendChild(face);
+    }
     const name = document.createElement("div");
     name.className = "card-pack-cell-name";
-    name.textContent = cardDisplayName(def.id);
+    name.textContent = 伏せる ? "？？？" : cardDisplayName(def.id);
     cell.appendChild(name);
     const cnt = document.createElement("div");
     cnt.className = "card-pack-cell-count";
@@ -429,8 +460,10 @@ function コレクションの区画() {
     cell.appendChild(cnt);
     // ワイルドカードで1枚もらう。⚠ 上限まで持っている札には出さない（無駄打ちさせない）。
     // ⚠ リメイクの33種は**最初から全員7枚**なので、ここは必ず素通りする。
+    // 🔴 伏せた札には出さない。ワイルドカードはパックの札にしか効かない（サーバーが弾く）ので、
+    //   出すと「押せるのに何も起きない」になる（#729 の家族）。
     const 持ちワイルド = def.only ? c.onlyCards : c.wildCards;
-    if (n < capOf(def) && 持ちワイルド > 0) {
+    if (!伏せる && n < capOf(def) && 持ちワイルド > 0) {
       cell.appendChild(
         ボタン(t("packs.useWildcard"), async () => {
           await redeemWildcard(def.id);
