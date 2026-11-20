@@ -19,10 +19,15 @@
 //      ② 背景 B(x,y) を「円盤でないと分かっている画素」から推定（穴は重み付きぼかしで埋める）
 //      ③ 白の不透明度 = (明るさ − B) / (250 − B)  ＝ 背景が暗い所の細い白線も拾える
 //
-// ■ 地を焼き込む理由
-//   円盤の線は**白**なので、切り抜いたままだと**明るいテーマで消える**（実測）。
-//   このアプリは明暗2テーマある（教訓15）ので、**カードと同じ淡い地を一緒に焼く**。
-//   1枚で両方のテーマに出せる＝置く側が地を覚えなくてよい（2か所に書くとズレる）。
+// ■ 🔴 地は焼かない（続き768・ユーザー判断）
+//   円盤の線は**白**なので、切り抜いたままでは**明るいテーマで消える**（実測）。
+//   続き767 は「カードと同じ淡い灰の地を絵に焼く」で片付けたが、ユーザーの判断
+//   「**今回の場合灰色の下地はダサいかも！ モーダル内での色者アイコンの背景色を
+//   工夫してみるのはどう？**」で**焼くのをやめた**。
+//   ⇒ 絵は**透明な地のまま**（白線＋7色だけ）。地は **CSS 側**（`.effect-reason-modal-dial`）が
+//     敷く。そちらの方が後から色も形も変えられるし、焼き直さなくてよい。
+//   ⚠ **この絵を新しい所に置く時は、置く側で暗い地を敷くこと。**
+//     明るい地に素で置くと**白線が消える**（色のくさびだけが浮いて見える）。
 //
 // ■ 幾何（scratchpad/_dial_cut.mjs で半径ごとに数えて出した）
 //   中心 (321.9, 146.2) ／ 中心の白箱 r≦5 ／ くさび 6〜38 ／ 白い輪 ≈42 ／ 棘 57〜92
@@ -144,32 +149,38 @@ const 出 = await p.evaluate(async (A) => {
   }
   cg.putImageData(od, 0, 0);
 
-  // ② 地を焼く（カードと同じ淡い灰。白線が明るいテーマでも読める）
-  const fin = document.createElement("canvas"); fin.width = V; fin.height = V;
-  const fg = fin.getContext("2d");
-  const 半 = 核 + 4;
-  const gr = fg.createRadialGradient(V / 2, V / 2, 半 * 0.2, V / 2, V / 2, 半);
-  gr.addColorStop(0, "#b9b7b4");
-  gr.addColorStop(0.72, "#a9a7a5");
-  gr.addColorStop(1, "#9b9996");
-  fg.beginPath(); fg.arc(V / 2, V / 2, 半, 0, Math.PI * 2); fg.fillStyle = gr; fg.fill();
-  fg.drawImage(cut, 0, 0);
+  // ② 🔴 地は焼かない（続き768）。切り抜いたものがそのまま成果物。
+  const fin = cut;
 
-  // ③ 比較の絵
+  // ③ 比較の絵。**地を敷かないと明るいテーマで何が起きるか**を並べて見せる
+  //    （3枚目がそれ。白線が消えて色のくさびだけが浮く）。
   const 辺 = 300;
-  const cmp = document.createElement("canvas"); cmp.width = 辺 * 3; cmp.height = 辺 + 22;
+  const 札 = [
+    ["1 本物（カードのまま）", null],
+    ["2 絵だけ・暗いモーダル", "#0f1720"],
+    ["3 絵だけ・明るいモーダル（白線が消える）", "#fffdf7"],
+    ["4 CSSの円盤を敷いた所（明るいモーダル）", "#fffdf7"],
+  ];
+  const cmp = document.createElement("canvas"); cmp.width = 辺 * 札.length; cmp.height = 辺 + 22;
   const q = cmp.getContext("2d");
   q.imageSmoothingQuality = "high";
   q.fillStyle = "#333"; q.fillRect(0, 0, cmp.width, cmp.height);
   q.drawImage(im, x0, y0, V, V, 0, 22, 辺, 辺);
-  q.fillStyle = "#15161c"; q.fillRect(辺, 22, 辺, 辺);
-  q.drawImage(fin, 0, 0, V, V, 辺, 22, 辺, 辺);
-  q.fillStyle = "#f5f1e6"; q.fillRect(辺 * 2, 22, 辺, 辺);
-  q.drawImage(fin, 0, 0, V, V, 辺 * 2, 22, 辺, 辺);
-  q.fillStyle = "#fff"; q.font = "14px monospace";
-  q.fillText("1 本物（カードのまま）", 6, 16);
-  q.fillText("2 焼いた絵（暗いテーマ）", 辺 + 6, 16);
-  q.fillText("3 焼いた絵（明るいテーマ）", 辺 * 2 + 6, 16);
+  for (let n = 1; n < 札.length; n++) {
+    const x = 辺 * n;
+    q.fillStyle = 札[n][1]; q.fillRect(x, 22, 辺, 辺);
+    if (n === 3) {
+      // CSS の `.effect-reason-modal-dial` と同じ地（色を変える時は両方そろえる）
+      const cx = x + 辺 / 2, cy = 22 + 辺 / 2, 半 = 辺 * 0.46;
+      const gr = q.createRadialGradient(cx, cy - 半 * 0.16, 半 * 0.1, cx, cy, 半);
+      gr.addColorStop(0, "#1e2a38"); gr.addColorStop(0.62, "#121b25"); gr.addColorStop(1, "#0a1016");
+      q.beginPath(); q.arc(cx, cy, 半, 0, Math.PI * 2); q.fillStyle = gr; q.fill();
+      q.strokeStyle = "rgba(176,141,63,0.45)"; q.lineWidth = 2; q.stroke();
+    }
+    q.drawImage(fin, 0, 0, V, V, x + 辺 * 0.08, 22 + 辺 * 0.08, 辺 * 0.84, 辺 * 0.84);
+  }
+  q.fillStyle = "#fff"; q.font = "13px monospace";
+  for (let n = 0; n < 札.length; n++) q.fillText(札[n][0], 辺 * n + 6, 16);
 
   return { V, 色数, 白数, png: fin.toDataURL("image/png"), cmp: cmp.toDataURL("image/png") };
 }, { src: b64, 元, CX, CY, 核, 棘先, 棘幅, 向き });

@@ -12165,16 +12165,27 @@ body.theme-light .draw-targets-modal-name {
   color: #e2e8f0;
   line-height: 1.5;
 }
-/* 【続き767】文に添える絵（いまは色者の円盤だけ）。カードに描かれている円盤そのものを
-   切り抜いた絵なので、**色は当てない**（明暗どちらのテーマでも読めるよう、絵の側に
-   淡い地を焼き込んである＝tools/make-shikija-dial.mjs）。
+/* 【続き767→768】文に添える絵（いまは色者の円盤だけ）。カードに描かれている円盤そのものを
+   切り抜いた絵（tools/make-shikija-dial.mjs）。
+   🔴 **地はここで敷く。絵には焼き込んでいない**（続き768・ユーザー判断
+   「灰色の下地はダサいかも！ モーダル内での背景色を工夫してみるのはどう？」）。
+   円盤の線は**白**なので、明るいテーマで素に置くと消える ⇒ **暗い円盤を敷く**。
+   こうすると**明暗どちらのテーマでも円盤の見た目が同じ**になり、色を変えたい時も
+   焼き直さずここだけ直せる。
+   ⚠ 輪は **border**（box-shadow は複数ルールで合成されない＝教訓10。border-color なら
+   明るいテーマ側で**色だけ**上書きできる）。
    ⚠ 大きさは rem。スマホ／タブレットでは下の方で字と一緒に大きくする
    （字だけ大きくして絵が取り残されるのが #453・#569 の形）。 */
 .effect-reason-modal-dial {
   display: block;
+  box-sizing: content-box;
   width: 4.6rem;
   height: auto;
-  margin: 0.1rem auto 0.45rem;
+  padding: 0.22rem;
+  margin: 0.1rem auto 0.5rem;
+  border: 1px solid rgba(var(--so7-accent), 0.3);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #1e2a38 0%, #121b25 62%, #0a1016 100%);
 }
 
 /* 手札効果の選択肢モーダル（なないろの欠片等、src/hand-effect-ui.js）。使用できない
@@ -18030,6 +18041,12 @@ body.theme-light-ingame .effect-reason-modal-name {
 body.theme-light-ingame .effect-reason-modal-text {
   color: #3a3326;
 }
+/* 【続き768】円盤の地は暗いままで（白線が読める）、輪だけモーダルの枠と同じ金に。
+   クリーム色の地から浮かせるため、ここだけ軽い影を足す。 */
+body.theme-light-ingame .effect-reason-modal-dial {
+  border-color: rgba(176, 141, 63, 0.5);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22);
+}
 body.theme-light-ingame .hand-effect-option-picker {
   background: rgba(255, 253, 247, 0.98);
   border-color: rgba(176, 141, 63, 0.5);
@@ -22251,6 +22268,7 @@ body.is-tablet-device .effect-reason-modal-text {
 body.is-phone-device .effect-reason-modal-dial,
 body.is-tablet-device .effect-reason-modal-dial {
   width: 9.2rem;
+  padding: 0.44rem; /* 地（続き768）も一緒に大きくする。絵だけ大きいと輪が食い込む */
   margin: 0.2rem auto 0.9rem;
 }
 
