@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CF_CARDS, checkCfCards } from "./cf-cards.mjs";
+import { CF_CARDS, CF_DECK_COUNT, checkCfCards } from "./cf-cards.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "tools/cf-text-source.json");
@@ -88,12 +88,25 @@ const 頭 = (何) => [
   const 行 = CF_CARDS.map((c) => {
     const t = 文.find((x) => x.id === c.id);
     return "  { id: " + q(c.id) + ", name: " + q(c.name) + ", color: " + q(c.color)
-      + ", count: 1, limited: true, note: " + q(t.notes.join(" ")) + " },";
+      + ", count: " + CF_DECK_COUNT + ", limited: true, note: " + q(t.notes.join(" ")) + " },";
   });
   fs.writeFileSync(path.join(ROOT, "src/cards-data-cf.js"), 頭("カードデータ")
-    + "// ⚠ `limited: true` は「限定報酬でしか手に入らない」の印。\n"
+    + "// ⚠ `limited: true` は「**手に入り方**が限定報酬だけ」の印。\n"
     + "//    ONLY カードの `only` とは別物（あちらは印刷カードに ONLY と刷ってある札）。\n"
-    + "export const CF_CARDS = [\n" + 行.join("\n") + "\n];\n");
+    + "// 🔴 山札に入れられるのは **" + CF_DECK_COUNT + "枚**＝ふつうの拡張カードと同じ\n"
+    + "//    （2026-11-21・ユーザー判断「これはONLYカードではないので通常通り７枚です」）。\n"
+    + "//    ⚠ ONLY カードの「1種類1枚まで」と**取り違えないこと**。\n"
+    + "// 🔴 金色に光らせるのは**貰うときだけ**。ゲーム中は光らせない（同日のユーザー判断）。\n"
+    + "//\n"
+    + "// 🔴 **繋ぐ所は「山札」だけではない**（続き758 の実害: 山札だけ繋いで `ALL_CARDS` に足し忘れ、\n"
+    + "//    名前が id のまま出た）。いま繋いである所:\n"
+    + "//      ・src/card-text.js        … 名前と効果文\n"
+    + "//      ・src/cards-data.js       … ALL_CARDS（id を引く表）と MY_STACK_SETS（マイ山札の候補）\n"
+    + "//      ・src/card-pack-ui.js     … コレクションに並べる顔ぶれ（getCollectionPool・持ち物として数える札）\n"
+    + "//    🔴 **足していない所と、その理由**:\n"
+    + "//      ・getPackPool()           … パックには入らない（限定報酬）。あれはサーバーの写しで検査が照合する\n"
+    + "//      ・my-page.js の称号の数え … 足すと「全部集めた」系の称号が**到達不能になる**（分母だけ増える）\n"
+    + "export const CF_NORMAL_CARDS = [\n" + 行.join("\n") + "\n];\n");
 }
 
 console.log("✅ 書き出した:");

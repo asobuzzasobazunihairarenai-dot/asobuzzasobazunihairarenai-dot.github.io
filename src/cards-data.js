@@ -3,6 +3,7 @@ import { getLang } from "./i18n.js"; // UI英語化フェーズ12: ブースト�
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_ETERNAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js"; // 1st EDITION の19種＋E7種＋F7種
 import { OLD0TH_NORMAL_CARDS } from "./cards-data-0th.js"; // 旧0th EDITION の19種（E・Fはリメイクのものを使う）
+import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 0thリメイクの限定カード（志炎者7枚・拡張カード／限定報酬）
 import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
 import { buildMixedNormalCards } from "./mixed-deck.js";
 import { isMyStackActive, getMyStackRecipe, buildMyStackNormalCards } from "./my-stack.js"; // マイ山札（続き725） // 「まぜる」を通常のエディションと同じ枚数で組む
@@ -181,7 +182,7 @@ export const NOIR_FIRST_CARD = {
 //   切り替わるのは「山札に何を入れるか」だけで、名前・色・絵の引きは常に通る必要がある
 //   （オンラインで相手が0th拡張のカードを出した時に、こちらが引けないと描けない）。
 const ALL_CARDS = [
-  ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS, ...OLD0TH_NORMAL_CARDS,
+  ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS, ...OLD0TH_NORMAL_CARDS, ...CF_NORMAL_CARDS,
   ...ETERNAL_CARDS, ...FIRST_ED_ETERNAL_CARDS,
   ...FIRST_CARDS, ...FIRST_ED_FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD,
 ];
@@ -190,7 +191,10 @@ const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 // 【続き725】マイ山札で遊ぶ時に、選べる札の全部（3セット分）。
 //   ⚠ 遊んでいる人の画面に未公開の札が並ばないよう、**どこまで選ばせるかは画面側が決める**
 //     （my-stack-editor.js）。ここは「選ばれた id を解決できる」ようにするだけ。
-export const MY_STACK_SETS = [NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS];
+//   🔴【続き779】志炎者7枚（限定報酬）もここに入れる。my-stack-editor.js は**2つ目以降のセットを
+//     「持っている札」だけに絞る**（`copiesOf(id, true) > 0`）ので、**配られるまでは誰の画面にも出ない**。
+//     ⚠ 山札に入れられるのは**7枚**（ONLY の「1種類1枚まで」ではない＝ユーザー判断 2026-11-21）。
+export const MY_STACK_SETS = [NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS, CF_NORMAL_CARDS];
 
 export function getDeckNormalCards() {
   // 🔴【続き725】マイ山札。**色ごとの合計は標準と同じまま**、その色の中の内訳だけ差し替える。

@@ -15,18 +15,27 @@
 //   志炎者に追色は無いので **２** を使う。
 //   ⚠ 赤・黄・緑・青・桃は１と２の差が 0〜4画素（実質同じ）だが、**そろえて２**にしてある。
 //
-// ■ ⚠ 絵のファイル名が文字化けしている
+// ■ 🔴 絵は **`_正方形版` が正**（2026-11-21・ユーザーが正方形のイラスト7枚をくれた）
+//   最初に使っていた素材フォルダ直下の絵は**横長**で、squarify が上半分に置いて下を空けていた。
+//   ユーザーが**カードと同じ正方形（1254x1254）**で描き直した版をくれたので、そちらを使う。
+//   置き場所は素材フォルダ直下の `_正方形版`、**ファイル名はカードの id**
+//   （0th拡張と同じ仕掛け。あちらはフォルダ名だが、こちらは下記のとおり元の名前が
+//   文字化けしているので、**取り違えようのない id** にしてある）。
+//   ⚠ リポジトリには入らない（実物の絵は git 管理外）。別の端末で焼くと横長に戻る。
+//
+// ■ ⚠ 元（横長）の絵のファイル名が文字化けしている
 //   素材フォルダ（`しえんしゃ　画像`）のファイル名は Shift_JIS が壊れた形で入っているので、
 //   **英語の部分（鍵）で当てる**。色の取り違えが無いことは目で確かめてある
 //   （scratchpad/_cf_art_check.mjs ／ scratchpad/_cf/絵.png）。
+//   ⚠ `_正方形版` が在る今は**控え**だが、消さずに残してある（出どころの記録）。
 import fs from "node:fs";
 import path from "node:path";
 
 export const CF_SRC_ROOT = "J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像";
+export const CF_SQUARE_DIR = path.join(CF_SRC_ROOT, "_正方形版");
 
-// ⚠ illustrator は**仮**。これらの絵はリメイクの SEVRAIL 名義ではないので、
-//   出す前にユーザーに確かめること（続き776 の申し送り）。
-export const CF_CREDITS = { illustrator: "YGM", date: "2026.11", edition: "S" };
+// 🔴 名義は **SEVRAIL**（2026-11-21・ユーザー判断。リメイクの札と同じ）。
+export const CF_CREDITS = { illustrator: "SEVRAIL", date: "2026.11", edition: "S" };
 
 export const CF_CARDS = [
   { no: "01", id: "cf-yellow-scintilla", name: "黄を待つ志炎者　-スキンティラ-", color: "yellow",
@@ -51,7 +60,17 @@ export const CF_残り = [
   { 名: "闇堕ちの志炎者（旧0th）", 鍵: "a_man_holding_black_f" },
 ];
 
-// 鍵から実際のファイルを探す。
+// 🔴 正方形版（`_正方形版/<id>.png`）を探す。これが**正**。
+export function cfSquarePath(id) {
+  if (!fs.existsSync(CF_SQUARE_DIR)) return null;
+  for (const ext of [".png", ".webp", ".jpg", ".jpeg"]) {
+    const p = path.join(CF_SQUARE_DIR, id + ext);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+// 鍵から、元（横長）のファイルを探す。**控え**（正方形版が無い端末のため）。
 export function cfArtPath(鍵) {
   if (!fs.existsSync(CF_SRC_ROOT)) return null;
   const f = fs.readdirSync(CF_SRC_ROOT)
@@ -60,10 +79,33 @@ export function cfArtPath(鍵) {
   return f ? path.join(CF_SRC_ROOT, f) : null;
 }
 
+// カード1枚ぶんの絵を決める。正方形版があればそちら、無ければ元の横長。
+export function cfIllustFor(c) {
+  const sq = cfSquarePath(c.id);
+  if (sq) return { p: sq, 正方形: true };
+  const p = cfArtPath(c.鍵);
+  return p ? { p, 正方形: false } : { err: "絵が見つからない（鍵 " + c.鍵 + "）" };
+}
+
+// 🔴 山札に入れられる枚数は **7枚**（2026-11-21・ユーザー判断
+//   「これはONLYカードではないので通常通り７枚です」）。
+//   ⚠ ONLY カード（1種類1枚まで）と**取り違えないこと**。限定報酬なのは「手に入り方」だけで、
+//     山札の作り方はふつうの拡張カードと同じ。
+export const CF_DECK_COUNT = 7;
+
+// 🔴 金色に光らせるのは「貰うとき」だけ（2026-11-21・ユーザー判断
+//   「貰うときは光らせよう！ゲーム中は不要です」）。
+//   ⇒ ONLY カードの `.is-only-card`（ゲーム中もずっと光る）とは**別の扱い**。
+//   ⚠ 報酬を渡す画面はまだ無い。作る時にここを読むこと。
+export const CF_GLOW = { 貰うとき: true, ゲーム中: false };
+
 // 自己点検。**0しか出ない検査にしない**ので、数と中身の両方を見る。
 export function checkCfCards() {
   const 問題 = [];
   if (CF_CARDS.length !== 7) 問題.push("7枚であってほしいのに " + CF_CARDS.length + " 枚");
+  if (CF_CREDITS.illustrator !== "SEVRAIL") 問題.push("名義が SEVRAIL でない: " + CF_CREDITS.illustrator);
+  if (CF_DECK_COUNT !== 7) 問題.push("山札の枚数が7でない: " + CF_DECK_COUNT);
+  if (CF_GLOW.ゲーム中 !== false) 問題.push("ゲーム中は光らせない決まりのはず");
   const 色 = new Set(CF_CARDS.map((c) => c.color));
   for (const c of ["red", "orange", "yellow", "green", "blue", "pink", "purple"]) {
     if (!色.has(c)) 問題.push("色が足りない: " + c);

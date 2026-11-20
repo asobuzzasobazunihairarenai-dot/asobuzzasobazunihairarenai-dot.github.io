@@ -18,7 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CF_CARDS, CF_SRC_ROOT, CF_CREDITS, cfArtPath, checkCfCards } from "./cf-cards.mjs";
+import { CF_CARDS, CF_SRC_ROOT, CF_CREDITS, cfIllustFor, checkCfCards } from "./cf-cards.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TMP = path.join(ROOT, ".cf-tmp");
@@ -55,13 +55,16 @@ if (!DRY) fs.mkdirSync(TMP, { recursive: true });
 const 問題 = [];
 let 作った = 0;
 
+let 横長のまま = 0;
 for (const c of 対象) {
-  const 絵 = cfArtPath(c.鍵);
-  if (!絵) { 問題.push(c.id + ": 絵が見つからない（鍵 " + c.鍵 + "）"); continue; }
+  const 選 = cfIllustFor(c);
+  if (選.err) { 問題.push(c.id + ": " + 選.err); continue; }
+  const 絵 = 選.p;
+  if (!選.正方形) 横長のまま++;
   const blank = path.join(ROOT, "assets/cards-blank", c.id + ".webp");
   const illust = path.join(ROOT, "assets/cards-illust", c.id + ".webp");
   if (DRY) {
-    console.log(c.id.padEnd(22) + c.frame.padEnd(20) + path.basename(絵).slice(-44));
+    console.log(c.id.padEnd(22) + c.frame.padEnd(20) + (選.正方形 ? "[正方形] " : "[横長]   ") + path.basename(絵).slice(-44));
     continue;
   }
   const sq = path.join(TMP, c.id + "_sq.png");
@@ -82,7 +85,7 @@ for (const c of 対象) {
       "--edition", CF_CREDITS.edition,
     ]);
     作った++;
-    process.stdout.write("✅ " + c.id + "（" + c.name + "）\n");
+    process.stdout.write("✅ " + c.id + "（" + c.name + "）" + (選.正方形 ? "" : "  ⚠ 横長の控えから") + "\n");
   } catch (e) {
     問題.push(c.id + ": " + String(e.message || e));
   }
@@ -90,6 +93,13 @@ for (const c of 対象) {
 
 if (!DRY) {
   console.log("\n作った: " + 作った + " 種 / " + 対象.length + " 種");
+  // 🔴 正方形版（`_正方形版/<id>.png`）が正。横長の控えから焼いたら、黙って通さずに言う。
+  if (横長のまま) {
+    console.log("⚠ " + 横長のまま + " 種を**横長の控え**から焼きました（下が空いた絵になります）。");
+    console.log("   正方形版の置き場: " + path.join(CF_SRC_ROOT, "_正方形版") + "（ファイル名はカードの id）");
+  } else {
+    console.log("✅ " + 対象.length + " 種とも**正方形版**から焼きました。");
+  }
   // 出来たものを数える（黙って抜けていないか）
   for (const c of 対象) {
     for (const [dir, label] of [["assets/cards-blank", "文字なし"], ["assets/cards-illust", "イラスト"]]) {

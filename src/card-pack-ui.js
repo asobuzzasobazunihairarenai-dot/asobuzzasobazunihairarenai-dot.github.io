@@ -22,6 +22,7 @@ import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
 import { NORMAL_CARDS } from "./cards-data.js";
 import { sortCardDefsByColor } from "./card-sort.js";
 import { FIRST_ED_NORMAL_CARDS } from "./cards-data-1st.js";
+import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 志炎者7枚（限定報酬・パックには入らない）
 import { getCardImagePath, getCardBackImagePath, hasNoPrintedFace, getCardDefinition } from "./cards-data.js";
 import { showCardFace, paintCardFace } from "./card-face-display.js";
 // 【続き737】カードにホバー（スマホは長押し）で拡大（ユーザー要望・総点検）。
@@ -67,13 +68,18 @@ export function getPackPool() {
 //     ②**色の順に並べ直す**（赤→橙→黄→緑→青→桃→紫→なないろ→白→黒）。
 //   ⚠ パックの**中身**（getPackPool）は1枚も変えていない——あれはサーバーの写しなので、
 //     ここで顔ぶれを変えると検査が落ちる。**出す時だけ**別に組む。
+//   🔴【続き779】**志炎者7枚（限定報酬）も並べる。** パックからは出ないが、
+//     「持ち物として数える札」なので、コレクションには 0/7 で出るのが正しい。
 export function getCollectionPool() {
-  return sortCardDefsByColor([...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS]);
+  return sortCardDefsByColor([...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS, ...CF_NORMAL_CARDS]);
 }
 
-// その札が「パックで集める側」か（＝リメイクの33種ではないか）。
-function 拡張の札か(id) {
-  return getPackPool().some((d) => d.id === id);
+// その札の所持枚数を**数える側**か（＝リメイクの33種のように最初から全員が持っている札ではないか）。
+// 🔴【続き779】ここは `getPackPool()` では**ない**。志炎者7枚はパックから出ないが、
+//   持ち物として数える札なので、パックの顔ぶれだけで判ると**持っていないのに 7/7 と出る**
+//   （下の 377 行目で `COPY_MAX` に落ちるため）。**パックに入るか**と**持ち物か**は別の問い。
+function 持ち物として数える札か(id) {
+  return getPackPool().some((d) => d.id === id) || CF_NORMAL_CARDS.some((d) => d.id === id);
 }
 function capOf(def) {
   return def?.only ? 1 : COPY_MAX;
@@ -374,7 +380,7 @@ function ウィークリーの区画() {
 // その札を何枚持っているか。**リメイクの33種は最初から全員が上限まで持っている**
 // （card-packs.js の copiesOf と同じ決まり。ここで別の数え方をするとズレる）。
 function 枚数(c, def) {
-  if (!拡張の札か(def.id)) return COPY_MAX;
+  if (!持ち物として数える札か(def.id)) return COPY_MAX;
   return Math.max(0, Math.floor(Number(c.cards[def.id]) || 0));
 }
 

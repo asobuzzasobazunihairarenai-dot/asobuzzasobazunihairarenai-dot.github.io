@@ -502,12 +502,96 @@ if (old0thSrc) {
     (効果あり === old0th.length && テストあり === old0th.length ? "（そろった）" : "（**これから**）");
 }
 
+
+// 本文から「ここからここまで」を切り出す。見つからなければ null（＝黙って合格しない）。
+function 切り出す(本文, 始, 終) {
+  const i = 本文.indexOf(始);
+  if (i < 0) return null;
+  const j = 本文.indexOf(終, i + 始.length);
+  if (j < 0) return null;
+  return 本文.slice(i, j + 終.length);
+}
+// --- 9. 0thリメイクの限定カード（志炎者7枚）--------------------------------------
+// 🔴 0th拡張・1st・旧0th と同じ見方（絵は blank と illust の2種・文は専用ファイル・
+//   assets/cards は作らない）。
+// 🔴 ここだけの見張り（黙って戻ると気づけない決まりごと）:
+//   ・名義は **SEVRAIL**（2026-11-21・ユーザー判断。仮で YGM にしていた時期がある）
+//   ・山札に入れられるのは **7枚**（ONLY の「1種類1枚まで」ではない）
+//   ・**パックには入らない**（限定報酬）。card-pack-ui.js の getPackPool に混ざっていないこと
+//   ・**持ち物として数える札**に入っていること——抜けると「持っていないのに 7/7」と出る
+// ⚠ **効果データとテストはまだ0件**（【志炎】＝割り込みの窓が未実装）。
+//   無い数をそのまま出して、進み具合が毎回見えるようにする。
+const cfSrc = (() => {
+  try {
+    return read("src/cards-data-cf.js");
+  } catch (e) {
+    return null;
+  }
+})();
+let cfLine = "";
+if (cfSrc) {
+  const cf = [...cfSrc.matchAll(/\{\s*id:\s*"(cf-[a-z0-9-]+)"\s*,\s*name:\s*"([^"]*)"/g)]
+    .map((m) => ({ id: m[1], name: m[2] }));
+  if (cf.length !== 7) {
+    console.error(`❌ 検査そのものが怪しい: cards-data-cf.js から ${cf.length} 種しか読めなかった（7種のはず）`);
+    process.exit(2);
+  }
+  const jaCf = new Set([...read("src/card-text-cf.ja.js").matchAll(/^ {2}"(cf-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  const enCf = new Set([...read("src/card-text-cf.en.js").matchAll(/^ {2}"(cf-[a-z0-9-]+)":/gm)].map((m) => m[1]));
+  let 効果あり = 0;
+  let テストあり = 0;
+  for (const c of cf) {
+    if (!jaCf.has(c.id)) note(`志炎者: 日本語の文が無い: ${c.id}（${c.name}）→ node tools/gen-cf-text.mjs`);
+    if (!enCf.has(c.id)) note(`志炎者: 英語の文が無い: ${c.id}（${c.name}）→ node tools/gen-cf-text.mjs`);
+    for (const dir of ["assets/cards-blank", "assets/cards-illust"]) {
+      if (!fs.existsSync(path.join(ROOT, dir, `${c.id}.webp`))) note(`志炎者: 絵が無い: ${dir}/${c.id}.webp → node tools/make-cf-art.mjs`);
+    }
+    if (fs.existsSync(path.join(ROOT, "assets/cards", `${c.id}.webp`))) {
+      note(`志炎者: 文字をアプリが描くので assets/cards を持たないはず: ${c.id}`);
+    }
+    if (effectIds.has(c.id)) 効果あり++;
+    if (casesSrc.includes(`"${c.id}"`)) テストあり++;
+  }
+  // 🔴 山札の枚数が 7 であること（ONLY の 1 に戻っていないか）
+  const 枚数 = [...cfSrc.matchAll(/id: "cf-[a-z0-9-]+".*?count: (\d+)/g)].map((m) => Number(m[1]));
+  if (枚数.length !== 7) note(`志炎者: 山札の枚数を7種ぶん読めなかった（${枚数.length} 件）`);
+  else if (枚数.some((n) => n !== 7)) note(`志炎者: 山札に入れられるのは7枚のはず（読めた値: ${枚数.join(",")}）。ONLYの1枚と取り違えていないか`);
+  // 🔴 名義が SEVRAIL であること（道具の表。焼く時にカードへ焼き込まれる）
+  const 名義 = /illustrator:\s*"([^"]*)"/.exec(read("tools/cf-cards.mjs"))?.[1];
+  if (名義 !== "SEVRAIL") note(`志炎者: 焼くときの名義が SEVRAIL でない（いま「${名義}」）→ tools/cf-cards.mjs の CF_CREDITS`);
+  // 🔴 繋ぎ先（続き758 の実害: 山札だけ繋いで ALL_CARDS に足し忘れ、名前が id のまま出た）
+  // 🔴 **名前が在るかではなく、使われているか**を見る。
+  //   import 行に名前が残っているだけで合格してしまい、A/B で3件とも素通りした（実測で捕まえた）。
+  const cardsData = read("src/cards-data.js");
+  const allCards = 切り出す(cardsData, "const ALL_CARDS = [", "];");
+  const myStack = 切り出す(cardsData, "export const MY_STACK_SETS", ";");
+  if (!allCards || !allCards.includes("...CF_NORMAL_CARDS")) note("志炎者: ALL_CARDS に入っていない（id を引けず、名前が id のまま出る＝続き758 の実害）");
+  if (!myStack || !myStack.includes("CF_NORMAL_CARDS")) note("志炎者: MY_STACK_SETS に入っていない（手に入れてもマイ山札に出てこない）");
+  const cardText = read("src/card-text.js");
+  const 混ぜJA = 切り出す(cardText, "const JA = {", "};");
+  const 混ぜEN = 切り出す(cardText, "const EN = {", "};");
+  if (!混ぜJA || !混ぜJA.includes("...CARD_TEXT_CF_JA")) note("志炎者: card-text.js が日本語の文を混ぜていない（効果文が出ない）");
+  if (!混ぜEN || !混ぜEN.includes("...CARD_TEXT_CF_EN")) note("志炎者: card-text.js が英語の文を混ぜていない");
+  const packUi = read("src/card-pack-ui.js");
+  if (!packUi.includes("function 持ち物として数える札か(")) note("志炎者: card-pack-ui.js に「持ち物として数える札か」が無い（持っていないのに 7/7 と出る）");
+  const 数える = 切り出す(packUi, "function 持ち物として数える札か(", "}");
+  if (!数える || !数える.includes("CF_NORMAL_CARDS")) note("志炎者: 「持ち物として数える札か」が志炎者を見ていない（持っていないのに 7/7 と出る）");
+  const 集める = 切り出す(packUi, "export function getCollectionPool", "}");
+  if (!集める || !集める.includes("CF_NORMAL_CARDS")) note("志炎者: コレクションに並ばない（getCollectionPool）");
+  const 袋 = packUi.slice(packUi.indexOf("export function getPackPool"), packUi.indexOf("export function getCollectionPool"));
+  if (袋.includes("CF_NORMAL_CARDS")) note("志炎者: パック（getPackPool）に混ざっている。限定報酬なのでパックからは出ない（サーバーの写しとも食い違う）");
+  cfLine =
+    `ⓘ 志炎者 ${cf.length} 種（0thリメイクの限定カード・パックではなく限定報酬）: 文(日英)と絵2種は上で検査済み。` +
+    `名義 ${名義}・山札 ${枚数[0]}枚・効果データ ${効果あり}/${cf.length}・テスト ${テストあり}/${cf.length}` +
+    (効果あり === cf.length && テストあり === cf.length ? "（そろった）" : "（**これから**）");
+}
 if (problems.length === 0) {
   const checked = cards.filter((c) => !c.blank).length;
   console.log(`✅ 問題なし（カード ${checked} 種・効果/日本語/英語/絵2種/テスト を確認。ブーストの白紙カード ${cards.length - checked} 種は対象外）`);
   if (ex0Line) console.log("   " + ex0Line);
   if (firstEdLine) console.log("   " + firstEdLine);
   if (old0thLine) console.log("   " + old0thLine);
+  if (cfLine) console.log("   " + cfLine);
   process.exit(0);
 }
 console.log(`❌ ${problems.length} 件`);
