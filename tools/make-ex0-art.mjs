@@ -113,6 +113,9 @@ for (const c of 対象) {
       "--illustrator", EX0_CREDITS.illustrator,
       "--date", EX0_CREDITS.date,
       "--edition", EX0_CREDITS.edition,
+      // 🔴【続き774】色者の札だけ、枠に焼かれた色名を抜く。
+      //   抜いたぶんはアプリが文字で組んで置く（本物と同じで、色名を下げて円盤を大きくするため）。
+      ...(c.noColorName ? ["--no-colorname"] : []),
     ]);
     作った++;
     process.stdout.write("✅ " + c.id + "（" + c.name + "）" + 印 + "\n");

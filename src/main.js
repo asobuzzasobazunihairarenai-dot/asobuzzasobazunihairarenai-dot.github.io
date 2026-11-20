@@ -485,7 +485,7 @@ import {
 import { getCardName, getCardNote, getCardText } from "./card-text.js"; // UI英語化フェーズ7: 表示用のカード名（英語版があればそちら）
 // 🔴 効果文の中の `__…__`（下線）を解析する。いまどのカードも使っていないが、
 //   込み入った効果で範囲を示したくなった時のために残してある（続き762・763）。
-import { splitUnderlineRuns } from "./card-text-markup.js";
+import { splitUnderlineRuns, inlineLineIconsAsText } from "./card-text-markup.js";
 
 // モーダル・行動ログ等に出す「表示用のカード名」。英語のカードテキストがあればその名前、
 // 無ければ cards-data.js の日本語の原名にフォールバックする。
@@ -17198,7 +17198,9 @@ function showCardNoteModal(cardId, opts = {}) {
     //   （片方だけだと「カードでは下線、箱では素の文」になって、どこまでが下線部か分からない）。
     //   ⚠ linkifyGlossary は素の文字列を受ける作りなので、**先に下線で分けて run ごとに呼ぶ**
     //     （あちらは1行も触らない）。印が無ければ run は1つ＝今までと同じ。
-    for (const run of splitUnderlineRuns(中身)) {
+    // 🔴【続き774】行頭の絵の印（{白}{黒}）は、この箱では**字**に直す（絵を出す作りではないので、
+    //   そのままだと波かっこが画面に出る）。印が無い文は1文字も変わらない。
+    for (const run of splitUnderlineRuns(inlineLineIconsAsText(中身))) {
       const 入れ物 = run.underline ? document.createElement("span") : 本文;
       if (run.underline) {
         入れ物.className = "card-face-u";

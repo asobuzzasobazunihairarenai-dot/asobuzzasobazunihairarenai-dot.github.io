@@ -17,7 +17,7 @@
 //   印が無い文は今までと1文字も変わらない。
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { splitUnderlineRuns, stripCardMarkup, hasUnderlineMarkup } from "../src/card-text-markup.js";
 
 const 根 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -96,9 +96,43 @@ for (const f of fs.readdirSync(path.join(根, "src")).filter((n) => /^card-text.
   }
 }
 
+// ─── ⑤ 行頭の絵の印（{白}{黒}）────────────────────────────────────
+// 🔴 続き774 で足した。**使われていない仕組みは黙って壊れる**ので、ここで毎回見る。
+const { splitLeadingIcon, inlineLineIconsAsText, LINE_ICONS } = await import(
+  pathToFileURL(path.join(根, "src/card-text-markup.js")).href);
+const 行例 = [
+  ["ふつうの文。", null, "ふつうの文。"],
+  ["{白}３マス以内。", "白", "３マス以内。"],
+  ["{黒}手札をすべて捨てる。", "黒", "手札をすべて捨てる。"],
+  ["{桃}知らない名前。", null, "{桃}知らない名前。"],
+];
+for (const [入, 名, 残] of 行例) {
+  const r = splitLeadingIcon(入);
+  const 実 = r.label;
+  if (実 !== 名) 問題.push("行頭の印の読み取りがちがう: " + JSON.stringify(入) + " → " + JSON.stringify(実));
+  if (r.text !== 残) 問題.push("行頭の印を外した残りがちがう: " + JSON.stringify(入) + " → " + JSON.stringify(r.text));
+}
+// 絵が出せない所では字に直す
+if (inlineLineIconsAsText("{白}あ") !== "白：あ") 問題.push("inlineLineIconsAsText が字に直せていない");
+if (inlineLineIconsAsText("{桃}あ") !== "{桃}あ") 問題.push("知らない名前まで直してしまっている");
+// 出す所2か所に繋がっているか
+if (!/splitLeadingIcon\s*\(/.test(cr)) 問題.push("カードの面（card-renderer.js）が splitLeadingIcon を呼んでいない");
+const mj = 中身の行(読む("src/main.js"));
+if (!/inlineLineIconsAsText\s*\(/.test(mj)) 問題.push("補足の箱（main.js）が inlineLineIconsAsText を呼んでいない（波かっこが画面に出る）");
+// 絵のファイルが在るか
+for (const [名, v] of Object.entries(LINE_ICONS)) {
+  if (!fs.existsSync(path.join(根, v.icon))) 問題.push("行頭の印の絵が無い: " + 名 + " → " + v.icon);
+}
+// いま使っているカードの数（0 でも落とさない。増えたら分かるように出すだけ）
+let 印を使っている = 0;
+// ⚠ card-text-markup.js は**仕組みの方**（覚え書きに印が書いてある）なので数えない。
+for (const fn of fs.readdirSync(path.join(根, "src"))
+  .filter((n) => /^card-text.*\.js$/.test(n) && n !== "card-text-markup.js")) {
+  印を使っている += (読む("src/" + fn).match(/\{(白|黒)\}/g) || []).length;
+}
 if (問題.length) {
   console.error("❌ カードの下線の仕組みに問題があります");
   for (const p of 問題) console.error("  - " + p);
   process.exit(1);
 }
-console.log("✅ 問題なし（解析 " + 例.length + " 例・出す所 2 か所・見た目と霧散演出・いま下線を使っているカード " + 使っている + " 枚）");
+console.log("✅ 問題なし（解析 " + 例.length + " 例・出す所 2 か所・見た目と霧散演出・いま下線を使っているカード " + 使っている + " 枚" + "／行頭の印 " + 行例.length + " 例・絵 " + Object.keys(LINE_ICONS).length + " 種・使っている行 " + 印を使っている + " 行）");

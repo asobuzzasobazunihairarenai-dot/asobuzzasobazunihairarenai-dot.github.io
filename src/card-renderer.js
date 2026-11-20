@@ -16,9 +16,11 @@ import { getCardDefinition, getCardBlankPath } from "./cards-data.js";
 import { getCardText, getCardName } from "./card-text.js";
 import { getLang } from "./i18n.js";
 import { LAYOUT, cardTypeOf, groupOf, shapeHalfWidthAt } from "./card-layout-config.js";
-import { splitUnderlineRuns } from "./card-text-markup.js";
+import { splitUnderlineRuns, splitLeadingIcon } from "./card-text-markup.js";
 // 【続き773】色者の円盤を絵の上に重ねる（絵に焼かずに重ねる＝ユーザー判断）。
 import { SHIKIJA_DIAL_SRC, hasShikijaDial } from "./shikija-dial.js";
+// 【続き774】枠から色名を抜いた札は、色名＋ONLY をこちらが文字で組んで置く。
+import { buildOnlyMark, CARDS_WITH_TYPESET_COLOR_NAME } from "./only-mark.js";
 
 // 能力名《》・マーカー等の色味には単色を使う（color-mix/border-color はグラデーション不可）。
 const SOLID_ACCENT = {
@@ -31,9 +33,22 @@ function accentFor(color) { return SOLID_ACCENT[color] || "#888888"; }
 // セクション本文（\n区切り。"・"始まりの行は選択肢）を行要素にする。
 function buildLines(text) {
   const frag = document.createDocumentFragment();
-  for (const line of String(text || "").split("\n").filter((s) => s.length > 0)) {
+  for (const 生行 of String(text || "").split("\n").filter((s) => s.length > 0)) {
+    // 🔴【続き774】行頭の `{白}` `{黒}` は**絵の印**（印刷の【色者】と同じ）。
+    //   印が無ければ line は元のままなので、**今までと1文字も変わらない**。
+    const { icon, label, text: line } = splitLeadingIcon(生行);
     const div = document.createElement("div");
     div.className = line.startsWith("・") ? "card-face-subline" : "card-face-textline";
+    if (icon) {
+      div.classList.add("has-lineicon");
+      const im = document.createElement("span");
+      im.className = "card-face-lineicon";
+      im.style.backgroundImage = "url(\"" + icon + "\")";
+      // ⚠ 絵は読み上げに乗らないので、字を持たせる（「白」「黒」）。
+      im.setAttribute("role", "img");
+      im.setAttribute("aria-label", label);
+      div.appendChild(im);
+    }
     // 🔴【続き762】文の中の `__…__` は**下線**（印字のカードが下線で範囲を示している札がある）。
     //   印が無ければ runs は1つなので、**今までと1文字も変わらない**（textContent と同じ結果）。
     //   ⚠ 解析は card-text-markup.js に1つだけ（カードの面と補足の箱の2か所で使う）。
@@ -327,6 +342,16 @@ export function buildCardFace(cardId, { showFlavor = true } = {}) {
   // ⚠ 置き場所は、絵に焼かれている色名（実測 y 34.54%〜）の**上**。ぶつからない所に置く。
   // ⚠ 読み上げには出さない（意味は効果文と補足の方に書いてある）。
   // ⚠ 読めなければ自分を外す（進行を止めない＝続き767 と同じ作法）。
+  // 🔴【続き774】枠から色名を抜いた札（いまは色者だけ）は、**色名と ONLY を文字で組んで置く**。
+  //   かくざとうさんの新しいカードと同じ配置（色名の字の天 40.2%／ONLY はその下）。
+  //   こうすると色名が下がるので、**円盤を本物と同じ大きさ（28.3%）にできる**。
+  //   ⚠ 寸法と字間は only-mark.js／style.css が1か所で持っている（印刷を測った値）。
+  if (CARDS_WITH_TYPESET_COLOR_NAME.has(cardId)) {
+    const mk = buildOnlyMark(color);
+    mk.classList.add("card-face-onlymark");
+    mk.setAttribute("aria-hidden", "true");
+    face.appendChild(mk);
+  }
   if (hasShikijaDial(cardId)) {
     const dial = document.createElement("img");
     dial.className = "card-face-dial";

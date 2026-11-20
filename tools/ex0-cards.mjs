@@ -65,7 +65,7 @@ export const EX0_CARDS = [
   // 30〜34 無色
   { no: "30", id: "ex0-white-pure-burger",    name: "ピュアバーガー",     color: "white", frame: "通常カード_表_白１", count: 2, folder: "【s1】白　ピュアバーガー" },
   { no: "31", id: "ex0-white-someones-shadow", name: "誰かの白きカゲ",    color: "white", frame: "通常カード_表_白１", count: 1, only: true, folder: "【s1】白　誰かの白きカゲ" },
-  { no: "32", id: "ex0-white-dragon",         name: "我忘れの白き龍",     color: "white", frame: "通常カード_表_白１", count: 1, only: true, folder: "【s1】白　我忘れの白き龍" },
+  { no: "32", id: "ex0-white-dragon",         name: "我忘れの白き龍",     color: "white", frame: "通常カード_表_白１", count: 1, only: true, noColorName: true, folder: "【s1】白　我忘れの白き龍" },
   { no: "33", id: "ex0-black-bad-burger",     name: "バッドバーガー",     color: "black", frame: "通常カード_表_黒１", count: 2, folder: "【s1】黒　バッドバーガー" },
   { no: "34", id: "ex0-black-vood-contract",  name: "ヴド族との契約",     color: "black", frame: "通常カード_表_黒１", count: 1, only: true, folder: "【s1】黒　ヴド族との契約" },
 

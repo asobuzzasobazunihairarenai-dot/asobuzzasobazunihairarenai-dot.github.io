@@ -38,6 +38,14 @@
 
 // 色 → 印字の欧字。**ここが唯一の持ち主**（パックの画面もここから読む。
 // 2か所に書くと必ず食い違う＝続き762 の教訓）。
+// 🔴【続き774】**枠から色名を抜いてあるカード**（＝アプリが文字で組んで置く）。
+//   色者の札だけ、かくざとうさんの新しいカードと同じ配置にするため、焼き込みの色名を
+//   `tools/make-card.mjs --no-colorname` で抜き、代わりにここの印を下の方へ置く。
+//   そのぶん円盤を大きくできる（本物と同じ 28.3%）。
+//   ⚠ このリストに足すだけでは駄目。**その枠を `--no-colorname` で焼き直す**こと
+//     （`tools/ex0-cards.mjs` の `noColorName: true`）。でないと色名が二重になる。
+export const CARDS_WITH_TYPESET_COLOR_NAME = new Set(["ex0-white-dragon"]);
+
 export const COLOR_WORD = {
   red: "RED", orange: "ORANGE", yellow: "YELLOW", green: "GREEN",
   blue: "BLUE", pink: "PINK", purple: "PURPLE",

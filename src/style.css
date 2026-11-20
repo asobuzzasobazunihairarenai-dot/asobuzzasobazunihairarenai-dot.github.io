@@ -21193,7 +21193,10 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
   border-radius: inherit;
 }
 /* 効果セット（fx）＝基本/到達/手札を上から順に詰める。間に仕切り線（各効果の中間）。 */
-.card-face-fx { display: flex; flex-direction: column; gap: 1.4cqw; }
+/* 🔴【続き774】効果の段の間を詰めた（1.4cqw → 1.05cqw）。ユーザー要望「到達効果も1行なので、
+   もっと上下の高さを詰めれるかな？」。⚠ 詰めると**自動縮小（--cf-fit）に余裕が生まれる**ので、
+   長い札は字が大きいまま収まるようになる（＝全部の札にとって良い方向）。 */
+.card-face-fx { display: flex; flex-direction: column; gap: 0.8cqw; }
 .card-face-effect { display: flex; gap: 0.45em; align-items: flex-start; font-family: "Noto Sans JP", "ヒラギノ角ゴ Pro W6", "Hiragino Kaku Gothic Pro", "ヒラギノ角ゴ ProN W6", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; font-weight: 900; }
 .card-face-effect-body { flex: 1; min-width: 0; }
 /* 🔴 日本語の折り返し。既定だと「効/果」のように**熟語の途中で割れる**（CJKはどの文字間でも
@@ -21226,6 +21229,9 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-shape { pointer-events: none; }
 .card-face-shape.is-l { float: left; }
 .card-face-shape.is-r { float: right; }
+/* 🔴【続き774】行頭の絵の印（印刷の【色者】と同じ・白のカード／黒のカード）。
+   ⚠ 大きさは em（字に付いていく）。px にすると字を大きくした所で印だけ取り残される。 */
+.card-face-lineicon { display: inline-block; width: 1.05em; height: 1.05em; margin-right: 0.28em; vertical-align: -0.17em; background-size: contain; background-repeat: no-repeat; background-position: center; }
 .card-face-textline { font-size: 1em; line-height: 1.28; }
 /* 「・」選択肢行は左インデントを設けず、普通に左詰め（ユーザー要望）。 */
 .card-face-subline { font-size: 1em; line-height: 1.28; padding-left: 0; }
@@ -21237,7 +21243,7 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 /* ファーストの■アイコンは独立要素（左位置Xで配置・中央ではない。サイズは handicon-s）。 */
 .card-face-hand-icon { background-image: url("../assets/icons/effect-hand.png"); background-size: contain; background-repeat: no-repeat; background-position: center; }
 /* 仕切り線は原本に合わせて黒系で統一（各効果の間に置く。中央のダイヤは無し＝黒線のみ）。 */
-.card-face-divider { display: flex; align-items: center; height: 1.2cqw; }
+.card-face-divider { display: flex; align-items: center; height: 0.5cqw; }
 .card-face-divider::before { content: ""; height: 0.22cqw; flex: 1; background: rgba(20, 20, 20, 0.8); }
 /* タイトルは全て黒文字（ユーザー指定）。ファーストのみ中央寄せ。フォント＝FOT-マティス。 */
 /* 🔴【#541・2026-11-10】**題字は白。** ユーザー指示「リメイクの製品版のカードの
@@ -21273,9 +21279,32 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face-dial {
   position: absolute;
   left: 50%;
-  top: 22%;
-  width: 23%;
+  /* 🔴【続き774】枠から色名を抜いて下げたので、**本物と同じ大きさ（28.3%・中心 22.5%）**にできた。
+     本物の実測: 円盤の中心 (321.9, 146.2)／棘の先まで半径 92（650px角のカード）。 */
+  top: 22.5%;
+  width: 28.3%;
   transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+/* 🔴【2026-11-20・続き774】枠から抜いた色名を、文字で組んで置き直す（色者の札だけ）。
+   置き場所も大きさも**本物のカードの実測**（650px角での値をカードに対する割合に直したもの）:
+     色名の字 y 261..281（40.2%〜43.2%・字高 3.2%） ／ ONLY の字 y 302..311（46.5%〜47.8%）
+   ⇒ 色名の字高 3.2% ＝ font-size 4.27cqw（Noto の cap は 0.75）。
+     --only-mark-size はその値（.only-mark-color が等倍、ONLY が 0.476倍）。
+   ⚠ top は**字の天**ではなく**箱の天**なので、line-height:1 の箱の上の余り（0.19em）を引く。
+   ⚠ 色は白＋薄い影（本物は影なしだが、明るい絵の上で消えないように最小限）。 */
+/* 🔴 クラス名を2つ重ねて書いてあるのは**わざと**。`.only-mark` は自分で
+   `--only-mark-size: 0.8rem` を持っていて、**この規則より後ろに在る**（27800行台）。
+   `.card-face-onlymark` 単独だと強さが同じで**後ろが勝ち**、字が 0.8rem に落ちる
+   （実測: 狙いの 0.69倍まで小さくなっていた＝ユーザー指摘「かくざとうさんのより小さくない？」）。 */
+.only-mark.card-face-onlymark {
+  position: absolute;
+  left: 50%;
+  top: calc(40.2% - 0.19 * 4.27cqw);
+  transform: translateX(-50%);
+  --only-mark-size: 4.27cqw;
+  color: #fff;
+  text-shadow: 0 0.2cqw 0.6cqw rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
 .card-face-flavor { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 600; font-style: normal; text-align: center; color: #fff; line-height: 1.25; text-shadow: 0 0.4cqw 1cqw rgba(0, 0, 0, 0.85), 0 0 0.4cqw rgba(0, 0, 0, 0.6); }
@@ -21319,7 +21348,7 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type="normal"] .card-face-title .card-face-title-rt { font-size: calc(var(--cf-s-ruby-s, 1.8cqw) * var(--cf-fit, 1)); transform: translateX(-50%) translateY(var(--cf-s-ruby-oy, 0cqw)); }
 .card-face[data-card-type="normal"] .card-face-fx { position: absolute; left: var(--cf-s-fx-x, 6cqw); top: var(--cf-s-fx-y, 58cqw); width: var(--cf-s-fx-w, 88cqw); font-size: calc(var(--cf-s-fx-s, 3.2cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="normal"] .card-face-fx .card-face-effect.is-basic { font-size: calc(var(--cf-s-fxbasic-s, 2.7cqw) * var(--cf-fit, 1)); width: var(--cf-s-fxbasic-w, 80cqw); margin-left: var(--cf-s-fxbasic-mx, 8cqw); }
-.card-face[data-card-type="normal"] .card-face-marker { width: var(--cf-s-icon-s, 6.6cqw); height: var(--cf-s-icon-s, 6.6cqw); }
+.card-face[data-card-type="normal"] .card-face-marker { width: var(--cf-s-icon-s, 4.8cqw); height: var(--cf-s-icon-s, 4.8cqw); }
 .card-face[data-card-type="normal"] .card-face-effect { gap: var(--cf-s-gap-s, 1.5cqw); }
 .card-face[data-card-type="eternal"] .card-face-flavor { position: absolute; left: var(--cf-s-flavor-x, 6cqw); top: var(--cf-s-flavor-y, 5cqw); width: var(--cf-s-flavor-w, 88cqw); font-size: calc(var(--cf-s-flavor-s, 2.5cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="eternal"] .card-face-title { position: absolute; left: var(--cf-s-title-x, 6cqw); top: var(--cf-s-title-y, 52.5cqw); width: var(--cf-s-title-w, 90cqw); font-size: calc(var(--cf-s-title-s, 3.9cqw) * var(--cf-fit, 1)); }
@@ -21327,7 +21356,7 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 .card-face[data-card-type="eternal"] .card-face-title .card-face-title-rt { font-size: calc(var(--cf-s-ruby-s, 1.8cqw) * var(--cf-fit, 1)); transform: translateX(-50%) translateY(var(--cf-s-ruby-oy, 0cqw)); }
 .card-face[data-card-type="eternal"] .card-face-fx { position: absolute; left: var(--cf-s-fx-x, 6cqw); top: var(--cf-s-fx-y, 58cqw); width: var(--cf-s-fx-w, 88cqw); font-size: calc(var(--cf-s-fx-s, 3.2cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="eternal"] .card-face-fx .card-face-effect.is-basic { font-size: calc(var(--cf-s-fxbasic-s, 2.7cqw) * var(--cf-fit, 1)); width: var(--cf-s-fxbasic-w, 80cqw); margin-left: var(--cf-s-fxbasic-mx, 8cqw); }
-.card-face[data-card-type="eternal"] .card-face-marker { width: var(--cf-s-icon-s, 6.6cqw); height: var(--cf-s-icon-s, 6.6cqw); }
+.card-face[data-card-type="eternal"] .card-face-marker { width: var(--cf-s-icon-s, 4.8cqw); height: var(--cf-s-icon-s, 4.8cqw); }
 .card-face[data-card-type="eternal"] .card-face-effect { gap: var(--cf-s-gap-s, 1.5cqw); }
 .card-face[data-card-type="first"] .card-face-effect.is-basic { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f-basic-y, 6.5cqw); width: var(--cf-f-basic-w, 58cqw); font-size: calc(var(--cf-f-basic-s, 2.8cqw) * var(--cf-fit, 1)); }
 .card-face[data-card-type="first"] .card-face-title { position: absolute; left: 50%; transform: translateX(-50%); top: var(--cf-f-title-y, 23.5cqw); width: var(--cf-f-title-w, 90cqw); font-size: calc(var(--cf-f-title-s, 3.5cqw) * var(--cf-fit, 1)); }
@@ -27882,7 +27911,10 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
      （足すと絵だけそのままで字が大きくなる）。
    ⚠ `top` は**字の天**ではなく**箱の天**を決める値。`line-height: 1` の箱は字の上に
      0.19em ほど余りがあるので、そのぶん引いてある（この値は _p769.mjs が焼いた画素で検算する）。 */
-.pkc-onlymark {
+/* ⚠ クラス名を2つ重ねてあるのは**わざと**（続き775）。`.only-mark` が自分で
+   `--only-mark-size` を持っているので、単独のクラスで上書きすると**規則の順番で勝ち負けが変わる**
+   （カードの方はそれで 0.69倍に縮んでいた）。 */
+.only-mark.pkc-onlymark {
   position: absolute;
   left: 50%;
   top: calc(41.46% - 0.084rem);

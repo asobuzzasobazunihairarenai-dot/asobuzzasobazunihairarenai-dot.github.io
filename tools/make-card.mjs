@@ -117,6 +117,14 @@ const illustrator = opt("illustrator", null); // 誰がイラストか
 const issueDate = opt("date", null);          // 発行年月（例 2026.11）
 const edition = opt("edition", null);         // エディション記号
 const noCredits = has("no-credits");
+// 🔴【2026-11-20・続き774】--no-colorname … 枠に焼かれている**色名（WHITE 等）を抜く**。
+//   なぜ要るか: 色者のカードだけ、色名をもっと下へ置いて円盤を大きくしたい（本物と同じ配置）。
+//   色名は焼き出しの `normal` に入っているので CSS では動かせない。ところが **5層目の PNG は
+//   「色名だけ・他は透明」**なので、normal からそのぶんのアルファを引けばきれいに抜ける
+//   （実測: 1492画素を抜いて穴は見えない＝scratchpad/_name_erase.mjs）。
+//   ⚠ **既定の振る舞いは1ミリも変えない**（この印を付けた時だけ通る道）。
+//   ⚠ 抜いたあとの色名は、アプリ側が文字で組んで置く（src/only-mark.js）。
+const noColorName = has("no-colorname");
 const appOut = opt("app");
 if (!illust || !frame || !out) {
   console.error("🔴 --illust と --frame と --out は必須です（--list で枠の名前が出ます）");
@@ -124,6 +132,18 @@ if (!illust || !frame || !out) {
 }
 if (!fs.existsSync(illust)) { console.error("🔴 イラストが見つからない: " + illust); process.exit(2); }
 const { p1, baked, p4, p5 } = framePaths(frame, legacy);
+// --no-colorname の時だけ、5層目（色名だけの PNG）を**抜くための型**として読む。
+// ⚠ framePaths は焼き出しを使う道では p5 を返さないので、ここで自前に探す。
+const 色名の型 = (() => {
+  if (!noColorName) return null;
+  const d5 = path.join(SRC_DIR, "5層目");
+  for (const cand of ["SOSC_ol（レイヤーごとに分ける）_" + frame + ".png", "SOSC_ol_" + frame + ".png"]) {
+    const t = path.join(d5, cand);
+    if (fs.existsSync(t)) return t;
+  }
+  console.error("🔴 --no-colorname を付けたが、5層目（色名だけ）が見つからない: " + frame);
+  process.exit(2);
+})();
 // エディション記号の絵（焼き出し/記号_<名前>.png）。無ければ書体で描く。
 const markImagePath = (() => {
   if (!edition) return null;
@@ -141,7 +161,7 @@ const toDataUrl = (p) => {
 };
 
 const result = await page.evaluate(
-  async ({ base, illu, baked, blend, order, top, name5, size, scale2, scale3, op2, tex, cr }) => {
+  async ({ base, illu, baked, blend, order, top, name5, erase5, size, scale2, scale3, op2, tex, cr }) => {
     const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("画像を読めなかった")); i.src = src; });
     const imgBase = await load(base);
     const imgIllu = await load(illu);
@@ -175,7 +195,28 @@ const result = await page.evaluate(
     if (baked) {
       // ④焼き出した絵を、決めた順に・それぞれの合成モードで重ねる
       for (const key of order) {
-        const im = await load(baked[key]);
+        let im = await load(baked[key]);
+        // 🔴 --no-colorname: `normal` から**色名のぶんだけ**アルファを引く（続き774）。
+        //   5層目は「色名だけ・他は透明」なので、そこのアルファで normal を削ると名前が消える。
+        if (erase5 && key === "normal") {
+          const 型 = await load(erase5);
+          const c3 = document.createElement("canvas");
+          c3.width = im.naturalWidth; c3.height = im.naturalHeight;
+          const g3 = c3.getContext("2d", { willReadFrequently: true });
+          g3.drawImage(im, 0, 0);
+          const id3 = g3.getImageData(0, 0, c3.width, c3.height);
+          const c4 = document.createElement("canvas");
+          c4.width = c3.width; c4.height = c3.height;
+          const g4 = c4.getContext("2d", { willReadFrequently: true });
+          g4.drawImage(型, 0, 0, c3.width, c3.height);
+          const id4 = g4.getImageData(0, 0, c3.width, c3.height);
+          for (let i = 3; i < id3.data.length; i += 4) {
+            const fa = id4.data[i];
+            if (fa > 8) id3.data[i] = Math.max(0, Math.round(id3.data[i] * (1 - fa / 255)));
+          }
+          g3.putImageData(id3, 0, 0);
+          im = await load(c3.toDataURL("image/png"));
+        }
         ctx.save();
         if (blend[key]) ctx.globalCompositeOperation = blend[key];
         ctx.drawImage(im, 0, 0, size, size);
@@ -202,7 +243,8 @@ const result = await page.evaluate(
       };
       const thinned = tex.scale < 1 ? thinTexture(imgTop0) : null;
       ctx.drawImage(thinned ? thinned.canvas : imgTop0, 0, 0, size, size);
-      if (name5) ctx.drawImage(await load(name5), 0, 0, size, size);
+      // ⚠ --no-colorname の時は色名を描かない（古いやり方の道）。
+      if (name5 && !erase5) ctx.drawImage(await load(name5), 0, 0, size, size);
       使った = "4層目の PNG（古いやり方）";
       texTouched = thinned ? (thinned.touched / thinned.total * 100).toFixed(1) + "%" : "薄めていない";
     }
@@ -303,6 +345,8 @@ const result = await page.evaluate(
     blend: BAKE_BLEND, order: BAKE_ORDER,
     top: p4 ? toDataUrl(p4) : null,
     name5: p5 ? toDataUrl(p5) : null,
+    // --no-colorname の時だけ渡す「色名だけの型」（続き774）。
+    erase5: 色名の型 ? toDataUrl(色名の型) : null,
     size, scale2: SCALE2, scale3: SCALE3, op2: LAYER.layer2Opacity,
     tex: { min: LAYER.textureAlphaMin, max: LAYER.textureAlphaMax, scale: texScale },
     cr: noCredits ? null : { ...CREDITS, illustrator, date: issueDate, edition, markImage: markImagePath ? toDataUrl(markImagePath) : null },
