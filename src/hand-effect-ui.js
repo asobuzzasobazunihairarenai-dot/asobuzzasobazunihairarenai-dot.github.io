@@ -160,10 +160,14 @@ export const REASON_MODAL_TOTAL_MS = REASON_MODAL_DURATION_MS + 300;
 // ⚠ **呼び出し側から渡す形にしない。cardId から引く。**
 //   オンラインの中継（broadcastEffectReason）は {cardId, text} しか運ばないので、
 //   引数で渡すと**自分の画面にしか出ない**。cardId から引けば相手の画面でも同じ絵が出る。
-// ⚠ 絵は assets/icons/shikija-dial.png（**本物のカードの絵から切り抜いたもの**。
-//   作り直すには node tools/make-shikija-dial.mjs --write）。
+// ⚠ 絵は **assets/icons/shikija-dial.svg**（続き766 で本物を測って起こしたもの。
+//   2026-11-20 のユーザー判断「以前のSVGの八角形をとりあえず採用しよう!」で、
+//   切り抜きの png からこちらへ戻した）。SVG なのでどの大きさでもにじまず、
+//   画像のようにメモリを食わない（#223）。
+// ⚠ 切り抜きの `shikija-dial.png` は**消さずに置いてある**（作り直す道具
+//   `tools/make-shikija-dial.mjs` が吐く先。本物と見比べたい時に使う）。
 const REASON_MODAL_IMAGES = {
-  "ex0-white-dragon": { src: "assets/icons/shikija-dial.png", cls: "effect-reason-modal-dial" },
+  "ex0-white-dragon": { src: "assets/icons/shikija-dial.svg", cls: "effect-reason-modal-dial" },
 };
 
 // ユーザー要望「カウンターロックの到達効果について『あなたは１番少なくロックしている

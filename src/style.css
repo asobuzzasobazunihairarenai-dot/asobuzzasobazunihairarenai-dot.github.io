@@ -21265,6 +21265,19 @@ body.reduce-glow .rank-showcase-gem.is-dimming {
 /* 能力名《》はタイトルと同じフォント。 */
 .card-face-subtitle { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 800; text-align: center; color: color-mix(in srgb, var(--card-accent, #555) 55%, #201a16); }
 /* フレーバーは斜体にしない（ユーザー指摘）。フォント＝FOT-マティス。 */
+/* 🔴【2026-11-20・続き773】色者の円盤（移動先表示）。**絵に焼かずに重ねる**。
+   位置は絵に焼かれている色名（実測 y 34.54%〜38.00%・素材の5層目で測った）の**上**。
+   ⇒ 上の飾り帯（〜13%）と色名の間（13%〜33%）に収める。
+   ⚠ % はカードの面に対する割合なので、カードが大きくなっても小さくなっても付いてくる。
+   ⚠ 文字の上には来ない（文は 44% より下）。押せない（pointer-events: none）。 */
+.card-face-dial {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  width: 23%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
 .card-face-flavor { font-family: "Shippori Mincho B1", "FOT-マティス ProN M", "FOT-Matisse ProN M", "Yu Mincho", serif; font-weight: 600; font-style: normal; text-align: center; color: #fff; line-height: 1.25; text-shadow: 0 0.4cqw 1cqw rgba(0, 0, 0, 0.85), 0 0 0.4cqw rgba(0, 0, 0, 0.6); }
 /* ファーストは文字が全て白（ユーザー指定）。効果は全て中央揃え・ただしアイコン(マーカー)は左揃え。 */
 .card-face[data-card-type^="first"] .card-face-title,

@@ -17,6 +17,8 @@ import { getCardText, getCardName } from "./card-text.js";
 import { getLang } from "./i18n.js";
 import { LAYOUT, cardTypeOf, groupOf, shapeHalfWidthAt } from "./card-layout-config.js";
 import { splitUnderlineRuns } from "./card-text-markup.js";
+// 【続き773】色者の円盤を絵の上に重ねる（絵に焼かずに重ねる＝ユーザー判断）。
+import { SHIKIJA_DIAL_SRC, hasShikijaDial } from "./shikija-dial.js";
 
 // 能力名《》・マーカー等の色味には単色を使う（color-mix/border-color はグラデーション不可）。
 const SOLID_ACCENT = {
@@ -318,6 +320,22 @@ export function buildCardFace(cardId, { showFlavor = true } = {}) {
 
   face.style.setProperty("--card-accent", accentFor(color));
   face.style.backgroundImage = `url("${getCardBlankPath(cardId)}")`;
+
+  // 🔴【続き773】色者の円盤。**絵に焼かずに重ねる**（ユーザー判断「2で」）。
+  //   焼くと ①10色ぶん焼き直しが要る ②並びを直すたびに焼き直し ③絵が別物なのに
+  //   円盤だけ本物にするとちぐはぐ、になる。重ねれば並びを直しても絵は触らなくてよい。
+  // ⚠ 置き場所は、絵に焼かれている色名（実測 y 34.54%〜）の**上**。ぶつからない所に置く。
+  // ⚠ 読み上げには出さない（意味は効果文と補足の方に書いてある）。
+  // ⚠ 読めなければ自分を外す（進行を止めない＝続き767 と同じ作法）。
+  if (hasShikijaDial(cardId)) {
+    const dial = document.createElement("img");
+    dial.className = "card-face-dial";
+    dial.src = SHIKIJA_DIAL_SRC;
+    dial.alt = "";
+    dial.setAttribute("aria-hidden", "true");
+    dial.addEventListener("error", () => dial.remove());
+    face.appendChild(dial);
+  }
 
   // 個別に絶対配置する要素（config にスロットがある時だけ描画）。
   if ("flavor" in slots && showFlavor && text.flavor) {
