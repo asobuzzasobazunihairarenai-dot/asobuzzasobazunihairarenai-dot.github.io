@@ -27820,6 +27820,11 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   letter-spacing: 1.96em;
   margin-right: -1.96em;
 }
+/* 🔴【続き772】ONLY の行が**1行目になる時**（色名が絵に焼かれていて出さない時）は、
+   行の間の margin を打ち消す。残すと印がそのぶん下へ落ちる（実測で 1.70 字高ぶん下がった）。 */
+.only-mark-only:first-child {
+  margin-top: 0;
+}
 .only-mark-only {
   font-size: calc(var(--only-mark-size) * 0.476);
   letter-spacing: 2.04em;
@@ -27848,15 +27853,31 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   letter-spacing: 0.2em;
   white-space: nowrap;
 }
-/* 🔴【続き769】ONLY の札は、色の帯を**印刷カードと同じ2段の印**にする。
-   金の「ONLY」を別に貼っていたのをやめた——①同じことを2つの札で言っていた
-   ②色の帯は中央・ONLY の札は右寄りで、**並びが左右に揃っていなかった**。 */
-.pkc-colorbadge.is-only {
-  height: auto;
-  /* ⚠ 下を厚くしてあるのは目分量ではない。`line-height: 1` の箱は**字の上にだけ**余りが
-     できるので、上下を同じ padding にすると**下が詰まって見える**（実測で 16px 対 9px）。
-     _p769.mjs が焼いた画素で上下の余白を数えて、そろっているかを毎回見ている。 */
-  padding: 0.42rem 0.9rem 0.63rem;
+/* 🔴【2026-11-20・続き772】ONLY の印は**金の帯から出して、絵の中へ**移した。
+   ユーザーの問い「**なんかカード上面に謎の金色のONLYラベルがあるけど？？ かくざとうさんの
+   くれたデザインでは色英語の下にONLYでは？**」に3案を並べて見せ、「絵の中へ」を選んでもらった。
+   （金の帯そのものは続き737 からある**全部の札に出る色のラベル**で、ONLY の飾りではない。
+    続き769 はその中身を2段にしただけだった。ONLY の札では帯ごと出さないことにした。）
+
+   🔴 **置き場所は目分量ではない。** 0th拡張の絵には**色の名前が焼き込まれている**
+   （素材の `5層目` ＝ 色名だけの層。20枚とも **y 34.54%〜38.00%**・字高 3.46%・中央）。
+   ⚠ 合成後の絵から測ろうとして2回失敗した——**枠の飾りの斜め線**と**明るいイラスト**を拾う。
+     色名だけの層は**字以外すべて透明**なので、そこから測るのが正しい。
+   ⇒ 印刷カードの比（行の間＝色名の字高1つぶん／ONLY の大きさ＝0.476倍）を当てると:
+     ONLY の字の天 = 38.00% + 3.46% = **41.46%** ／ ONLY の字高 = **1.65%**。
+   ⚠ カードは 20.5rem 角（`.pkc-cardbox`）なので rem で書ける＝**機種ごとの上書きは要らない**
+     （足すと絵だけそのままで字が大きくなる）。
+   ⚠ `top` は**字の天**ではなく**箱の天**を決める値。`line-height: 1` の箱は字の上に
+     0.19em ほど余りがあるので、そのぶん引いてある（この値は _p769.mjs が焼いた画素で検算する）。 */
+.pkc-onlymark {
+  position: absolute;
+  left: 50%;
+  top: calc(41.46% - 0.084rem);
+  transform: translateX(-50%);
+  --only-mark-size: 0.93rem;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 .pkc-cardname {
   display: flex;
@@ -28031,14 +28052,9 @@ body.is-tablet-device .pkc-sum-flag { font-size: 1.2rem; height: 2.1rem; padding
    ONLY の帯をやめて色の帯に統合したので、ここで色の帯に倍率を付ける。 */
 body.is-phone-device .pkc-colorbadge,
 body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
-body.is-phone-device .pkc-colorbadge.is-only,
-body.is-tablet-device .pkc-colorbadge.is-only { height: auto; }
-/* 🔴 ONLY の印は、色の名前1つで**字が7つ**（RAINBOW）になり得る。1字の送りが字高の 3.5倍
-   もあるので、1行の帯と同じ 1.3rem にするとカードより横に広くなる。
-   ⇒ スマホでは少し小さくする（それでも2段ぶん縦に伸びるので、1行の帯より目立つ）。
-   数字は目分量ではなく、_p769.mjs が**10色ぜんぶの名前**でカードの幅に収まるか毎回測っている。 */
-body.is-phone-device .only-mark,
-body.is-tablet-device .only-mark { --only-mark-size: 1.05rem; }
+/* 🔴【続き772】`.only-mark` に機種ごとの上書きは**置かない**。
+   いまの置き場所（絵の中）では、カードが 20.5rem 固定なので印も rem で付いてくる。
+   ここで大きくすると**絵だけそのままで字が大きくなり**、焼かれた色名との釣り合いが崩れる。 */
 
 /* ═══ 【2026-11-15・続き737】パックの画面をスタイリッシュに ═══
    ユーザー要望「**もっとスタイリッシュにした方が良いかも！ 今はただ必要なものが

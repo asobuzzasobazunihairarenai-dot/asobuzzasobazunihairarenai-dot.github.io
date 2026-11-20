@@ -325,17 +325,25 @@ function 段3を組む(stage) {
   frame.appendChild(face);
 
   // 【#687】ONLY は「1種類に1枚しか入れられない」札。出た時にそれと分かるように。
-  // 🔴【続き769】金の「ONLY」を**別に貼るのをやめた**。①色の帯と2つ並べると同じことを
-  //   2度言っている ②色の帯は中央・ONLY は右寄りで左右が揃っていなかった
-  //   ③本物のカードは「色の名前の下に ONLY」という**1つの印**になっている。
-  //   ⇒ ONLY の札だけ、色の帯の中身をその2段の印に差し替える（印刷どおりの寸法は only-mark.js）。
-  const badge = document.createElement("div");
+  // 🔴【続き772】ユーザー判断で**金の帯をやめ、印を絵の中へ移した**
+  //   （「なんかカード上面に謎の金色のONLYラベルがあるけど？？ かくざとうさんのくれた
+  //    デザインでは色英語の下にONLYでは？」→ 3案を並べて「絵の中へ」を選択）。
+  //   ⚠ 絵には**色の名前が焼き込まれている**（素材の5層目。実測で20枚とも y 34.54%〜38.00%）。
+  //     なのでこちらが出すのは **ONLY の行だけ**。重ねると色の名前が二重になる。
+  //   ⚠ 置くのは `face`（＝絵そのもの）の中。`frame` には 3px の縁があるので、
+  //     % で置くと実測とわずかにズレる。
   const 色 = c ? getCardDefinition(c.cardId)?.color : null;
   const ONLYか = !!(c && getCardDefinition(c.cardId)?.only);
-  badge.className = "pkc-colorbadge" + (ONLYか ? " is-only" : "");
-  if (ONLYか) badge.appendChild(buildOnlyMark(色));
-  else badge.textContent = COLOR_BADGE[色] || "SEVEN";
-  frame.appendChild(badge);
+  if (ONLYか) {
+    const mk = buildOnlyMark(色, { 色名を出す: false });
+    mk.classList.add("pkc-onlymark");
+    face.appendChild(mk);
+  } else {
+    const badge = document.createElement("div");
+    badge.className = "pkc-colorbadge";
+    badge.textContent = COLOR_BADGE[色] || "SEVEN";
+    frame.appendChild(badge);
+  }
   box.appendChild(frame);
   stage.appendChild(box);
 

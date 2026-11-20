@@ -46,16 +46,26 @@ export const COLOR_WORD = {
 
 // ONLY の印を1つ作って返す。`color` を知らない時は "SEVEN"（パックの画面の控えと同じ）。
 // ⚠ 組み立てはこの関数**1つだけ**。置く所が増えても見た目は1か所で決まる。
-export function buildOnlyMark(color) {
+//
+// 🔴 `色名を出す: false` は「**色の名前が既にそこに在る**」時のため（2026-11-20・続き772）。
+//   0th拡張の絵には色の名前が**焼き込まれている**（素材の5層目。実測で20枚とも同じ位置）。
+//   その絵の上に印を置くなら、こちらが出すのは **ONLY の行だけ**——色の名前を重ねると二重になる。
+//   ⚠ 絵の中の字は読み上げに乗らないので、**色の名前は aria-label に残す**（見た目から消すだけ）。
+export function buildOnlyMark(color, { 色名を出す = true } = {}) {
+  const 語 = COLOR_WORD[color] || "SEVEN";
   const box = document.createElement("div");
   box.className = "only-mark";
-  const 色 = document.createElement("span");
-  色.className = "only-mark-color";
-  色.textContent = COLOR_WORD[color] || "SEVEN";
+  if (色名を出す) {
+    const 色 = document.createElement("span");
+    色.className = "only-mark-color";
+    色.textContent = 語;
+    box.appendChild(色);
+  } else {
+    box.setAttribute("aria-label", 語 + " ONLY");
+  }
   const 印 = document.createElement("span");
   印.className = "only-mark-only";
   印.textContent = "ONLY";
-  box.appendChild(色);
   box.appendChild(印);
   return box;
 }
