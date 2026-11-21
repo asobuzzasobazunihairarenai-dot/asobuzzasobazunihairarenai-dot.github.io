@@ -7,6 +7,75 @@
 // expect: Node 側で最終 state に対して確認するアサーション。
 // 盤面の座席→ロック辺: A=bottom, B=left, C=top, D=right（board-layout）。COLORS順=赤橙黄緑青桃紫。
 export const CASES = [
+  // ===== 旧0th 第1陣（続き793）=========================================================
+  {
+    name: "旧0th 反撃(到達): 手札が1番少ないなら2枚引いて1枚捨てる",
+    kind: "arrival",
+    cardId: "0th-red-counterattack",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-red-counterattack", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // A は手札0枚＝1番少ない。B は2枚。
+        { id: "hB0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+        { id: "hB1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["green-growing-trees", "blue-slum-official"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-red-counterattack", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { handCard: ["index:0"] },
+    expect: [
+      { kind: "deckLen", n: 0 }, // 2枚引いた
+      // 2枚引いて1枚捨て、さらに到達の既定でこのカード自身が手札へ入る ⇒ 2枚
+      { kind: "handCount", player: "A", n: 2 },
+    ],
+  },
+  {
+    name: "旧0th 反撃(到達): 対照 — 手札が1番少なくないなら何も起きない",
+    kind: "arrival",
+    cardId: "0th-red-counterattack",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-red-counterattack", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 🔴 A が2枚・B が0枚＝A は1番少なくない。
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "hA1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["green-growing-trees", "blue-slum-official"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-red-counterattack", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 2 }, // 🔴 1枚も引いていない
+      { kind: "handCount", player: "A", n: 3 }, // 元の2枚＋このカード自身
+    ],
+  },
+  {
+    name: "旧0th 誰かの落とし物(手札): 選んだ相手のゲートに裏向きで置き、1枚引く",
+    kind: "hand",
+    cardId: "0th-orange-lost-item",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-orange-lost-item", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-orange-lost-item", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { player: ["C"] },
+    expect: [
+      // C のゲートは (0,3)（座席C＝奥）
+      { kind: "tokenAtCell", id: "self", row: 0, col: 3 },
+      { kind: "tokenFaceDown", id: "self" },
+      { kind: "deckLen", n: 0 }, // 1枚引いた
+    ],
+  },
+
   // ===== 旧0th 追加分（続き789）=====================================================
   {
     name: "旧0th 情報開示(到達): 中央と四隅から１マスずつ選んでオープンする（ユーザー裁定 2026-11-21）",

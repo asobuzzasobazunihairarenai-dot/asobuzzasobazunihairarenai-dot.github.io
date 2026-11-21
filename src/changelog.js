@@ -54,6 +54,37 @@ export const CHANGELOG = [
   {
     date: "2026-11-21",
     summary: [
+      "旧0thの「反撃」「誰かの落とし物」が自動で処理されます",
+    ],
+    summaryEn: [
+      "0th EDITION's Counterattack and Lost Item are now handled automatically",
+    ],
+    items: [
+      "旧0th EDITION の **反撃の到達効果**（手札が1番少ないなら2枚引いて1枚捨てる）と、**誰かの落とし物の手札効果**（相手を1人選び、これをその相手のゲートに裏向きで置いて1枚引く）が**自動で処理される**ようになりました。",
+    ],
+    itemsEn: [
+      "In 0th EDITION, **Counterattack's arrival effect** (if your hand is the smallest, draw 2 and discard 1) and **Lost Item's hand effect** (choose an opponent, place this face down on their gate, draw 1) are now handled automatically.",
+    ],
+    fixes: [
+      "「ちょっと待った！」で元のマスに戻った時、到達効果がもう一度起きなかったのを直しました。",
+      "カードを動かす効果に「無意味なループの禁止」が効いていなかったのを直しました。",
+      "カード一覧で、まだ持っていない限定カードの中身が見えてしまうのを直しました。",
+    ],
+    fixesEn: [
+      "With Wait a Moment, returning to the original space did not trigger the arrival effect again. Fixed.",
+      "The “no pointless loops” rule was not applied to effects that move a piece one space. Fixed.",
+      "In the card list, limited cards you do not own yet could be revealed. Fixed.",
+    ],
+    devItems: [
+      "🔴🔴 **#748 の本体は「ループできること」ではなく「到達効果が起きないこと」だった**（ユーザー指摘「再度到達効果が起きなかったことがそもそも問題です」）。`MOVE_CHOSEN_PLAYER_ONE_CELL` は、動いたのが**効果の持ち主本人**の時だけ `ctx.arrivedAt` を立てて**呼び出し元に任せて**いた。ところが到達効果は最後に**このカード自身を手札へ回収する**ので、呼び出し元に戻る頃には**マスが空**＝何も起きなかった。⇒ **その場で到達させる**（相手を動かした時と同じ扱いにそろえた）。⚠ その場で処理したら `ctx.arrivedAt` は立てない（立てると二重になる）。",
+      "🔴 **同じ動詞にジャンプ台のループ規則が当たっていなかった。** `getMoveCandidates(..., 1, false)` の結果をそのまま使っていて、`recordMoveVisited` も `isLoopMoveDest` も**1度も見ていなかった**（見ていたのは `MOVE` だけ）。⇒ ユーザー指示「ジャンプ台の時のルールと合わせよう」のとおり**同じ形**に。CPU は上限1回でループ先を選ばない／人間は10回まで戻れる（2026-08-15 の改定どおり）。⚠ 判定に使うのは**動く本人**が自動操作かどうか（動かす人ではない）。⚠ この動詞は **ダッシュ●■・ちょっと待った！●・貴族の特権**が共有しているので4か所まとめて直った。",
+      "⚠ **#738: 続き780 で伏せたのはコレクションの画面だけだった。** 図鑑の「カード一覧」（deck-viewer.js）は塞いでいなかったので、志炎者が名前も絵も拡大も補足もそのまま見えていた。⇒ **同じ4か所**（名前・絵・拡大・補足）を塞いだ。⚠ 持ち物がまだ読めていない時は**伏せる側に倒す**（迷ったら隠す）。**教訓: 「割れる道を全部塞ぐ」は画面ごとにやり直しになる。** 同じものを出す画面が他にもないか、足した時に数えること。",
+      "⚠ 旧0th の効果は **16/19**（到達 17/19・手札 7/19 ＝ のべ15件が残り）。反撃●は `DRAW_IF_LOWEST_WEALTH`（**財力＝手札の枚数**なので「手札が1番少ない」と同じ条件。実装を読んで確かめた）＋ `DISCARD_ONE_HAND_CARD` で足りた。誰かの落とし物■のために **相手のゲートへ置く動詞**を1つ足した（「あなたのゲート」はあったが相手のゲートは無かった）。",
+    ],
+  },
+  {
+    date: "2026-11-21",
+    summary: [
       "我忘れの白き龍が動く時に、4つの見せ場がつきました",
       "山札の並びが分からない時は、置く順を聞かなくなりました",
     ],

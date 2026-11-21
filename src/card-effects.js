@@ -138,6 +138,9 @@ export const VERBS = {
   STACK_ADJACENT_CARDS_ON_OWN_CELL: "stack_adjacent_cards_on_own_cell", // 食べ過ぎ(到達): 隣のカードを裏向きで自分のマスへ積む
   FLIP_SELF_FACE_DOWN: "flip_self_face_down", // 路地裏のスラム街(到達①): このカードを裏向きにする
   PICKUP_FROM_OPPONENT_GATE: "pickup_from_opponent_gate", // 苦渋の強盗(到達): 相手ゲートのカードを手札に加える
+  // 旧0th・誰かの落とし物(手札): 相手を1人選び、このカード自身をその相手のゲートへ裏向きで置く。
+  //   ⚠ 「あなたのゲート」へ置く道（TARGET_SELECTIONS.OWN_GATE）はあるが、**相手のゲート**は無かった。
+  PLACE_SELF_AT_CHOSEN_OPPONENT_GATE: "place_self_at_chosen_opponent_gate",
   STEAL_LOCKED_FROM_MOST_LOCKED: "steal_locked_from_most_locked", // 苦渋の強盗(手札): 1番多くロックしている人のロック札を1枚奪う
   STEAL_RANDOM_AND_GIVE_SELF: "steal_random_and_give_self", // 裏貴族の賄賂(到達): 無作為に1枚奪い、これを相手の手札へ
   BRIBE_ON_LOCK_DECLARE: "bribe_on_lock_declare", // 裏貴族の賄賂(手札): ロック宣言に割り込み、その札を奪って1枚渡す
@@ -2584,8 +2587,32 @@ export const CARD_EFFECTS = {
 
   // 誰かの落とし物（橙）
   //   ● 「１枚ドロー。」 ⚠ ■（相手のゲートへ置く）は**まだ**＝B の節。
+  // 反撃（赤）
+  //   ● 「あなたの手札が１番少ないなら、２枚ドローし、あなたの手札を１枚捨てる。」
+  //     🔴 `DRAW_IF_LOWEST_WEALTH` は**財力＝手札の枚数**（`getWealth().base` が手札の数）なので、
+  //       「手札が1番少ない」と**まったく同じ条件**。新しい動詞は要らない。
+  //     ⚠ 引けなかった（1番少なくない）なら捨てない＝`stopIfPreviousFailed`。
+  //   ⚠ ■（接触の宣言への割り込み）は**まだ**。別種の仕組みが要る。
+  "0th-red-counterattack": {
+    arrival: {
+      actions: [
+        { verb: VERBS.DRAW_IF_LOWEST_WEALTH, count: 2 },
+        { verb: VERBS.DISCARD_ONE_HAND_CARD, stopIfPreviousFailed: true },
+      ],
+    },
+  },
+
+  //   ■ 「相手を１人選ぶ。これをその相手のゲートに裏向きで置く。１枚ドロー。」
   "0th-orange-lost-item": {
     arrival: { actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }] },
+    handEffect: {
+      // ⚠ これ自身を盤面へ置くので、使った後に手札へ戻さない。
+      keepsCardOnUse: true,
+      actions: [
+        { verb: VERBS.PLACE_SELF_AT_CHOSEN_OPPONENT_GATE },
+        { verb: VERBS.DRAW, count: 1, stopIfPreviousFailed: true },
+      ],
+    },
   },
 
   // フォース（橙）

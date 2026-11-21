@@ -21,6 +21,8 @@ import { FIRST_ED_NORMAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js
 import { OLD0TH_NORMAL_CARDS } from "./cards-data-0th.js";
 import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 0thリメイクの限定カード（志炎者7枚・続き782）
 import { getCardSet, CARD_SETS } from "./card-set.js";
+// 🔴【#738・続き793】限定報酬の札を**持っていない間は伏せる**ために持ち物を見る。
+import { getCollection } from "./card-packs.js";
 import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName, getCardNote } from "./card-text.js"; // UI英語化フェーズ12: 表示用のカード名・補足
@@ -106,9 +108,34 @@ function buildCardTile(def, showCount) {
   //     （カード面は入れ物に対する割合で組まれているので、小さくしても崩れない）。
   //   ⚠ 文字を焼き込んだ絵を持つ札（リメイク34種）は**今までどおり img**
   //     ＝一覧に DOM のカード面を大量に作らない（99種ぶん作ると重い）。
+  // 🔴【#738・続き793】**限定報酬の札は、持っていない間は伏せる。**
+  //   報告「カード一覧でハテナのしえんしゃ押すと中身見れちゃう」。続き780 で伏せたのは
+  //   **コレクションの画面だけ**で、ここ（図鑑のカード一覧）は塞いでいなかった。
+  //   ⚠ 塞ぐのは**4か所全部**（名前・絵・拡大・補足）。どれか1つ残ると中身が割れる。
+  //   ⚠ 持ち物がまだ読めていない時は**伏せる側に倒す**（迷ったら隠す）。
+  const 伏せる = (() => {
+    if (!CF_NORMAL_CARDS.some((d) => d.id === def.id)) return false;
+    try {
+      const c = getCollection();
+      return !(Number(c?.cards?.[def.id]) > 0);
+    } catch (err) {
+      return true;
+    }
+  })();
+
   const face = document.createElement("div");
   face.style.cssText = "position: relative; width: 4.2rem; height: 4.2rem; border-radius: 0.25rem; overflow: hidden;";
-  if (hasNoPrintedFace(def.id)) {
+  if (伏せる) {
+    // 色だけは出す（色順の格子で灰色の札だけ浮くと「壊れている」ように見える＝続き780）。
+    face.style.cssText +=
+      "display: flex; align-items: center; justify-content: center; opacity: 0.9;" +
+      "background: var(--color-" + def.color + ", #666);";
+    const q = document.createElement("div");
+    q.textContent = "？";
+    // ⚠ 自前の濃い地を持つので文字色を決め打ちしてよい（教訓15 の例外）。黄・桃でも読めるよう影を付ける。
+    q.style.cssText = "font-size: 1.8rem; font-weight: bold; color: #fff; text-shadow: 0 0.1rem 0.3rem rgba(0,0,0,0.75);";
+    face.appendChild(q);
+  } else if (hasNoPrintedFace(def.id)) {
     showCardFace(face, def.id, null); // アプリが文字を描く
   } else {
     const img = document.createElement("img");
@@ -137,14 +164,15 @@ function buildCardTile(def, showCount) {
   }
 
   const name = document.createElement("div");
-  name.textContent = cardDisplayName(def.id);
+  name.textContent = 伏せる ? "？？？" : cardDisplayName(def.id);
   // 英語のカード名は日本語より長く3行になるものがある（例: Konohanasakuya, the Cherry of Bonds）ため、
   // 2行で切らず3行まで見せる（タイル自体は高さ自動なので他のタイルには影響しない）。
   name.style.cssText = "font-size: 0.6rem; line-height: 1.2; max-height: 3.6em; overflow: hidden;";
   tile.appendChild(name);
 
   // ホバー（PC）で拡大プレビュー。
-  tile.addEventListener("mouseenter", () => showDeckPreview(def));
+  // 🔴 伏せた札には拡大を付けない（付けると中身が割れる）。
+  if (!伏せる) tile.addEventListener("mouseenter", () => showDeckPreview(def));
   tile.addEventListener("mouseleave", hideDeckPreview);
 
   // 長押し（スマホ）で拡大プレビュー。長押しが発火した後のクリックは、補足モーダルを
@@ -155,6 +183,7 @@ function buildCardTile(def, showCount) {
     "touchstart",
     () => {
       didLongPress = false;
+      if (伏せる) return; // 🔴 伏せた札は長押しでも出さない
       holdTimer = setTimeout(() => {
         didLongPress = true;
         showDeckPreview(def);
@@ -179,6 +208,8 @@ function buildCardTile(def, showCount) {
       return; // 長押しプレビュー後のクリックは無視
     }
     hideDeckPreview();
+    // 🔴【#738・続き793】伏せた札は**補足のモーダルも開かない**（中身が割れる）。
+    if (伏せる) return;
     // 【続き624】拡大モーダルも初めて必要になった時に作る（起動時には作らない）。
     // 🔴 ここで作る形にしておくと、山札一覧を開かずに buildDeckSections() だけを
     //    使う側（図鑑）から押された時も落ちない（元は initDeckViewer で作っていたので

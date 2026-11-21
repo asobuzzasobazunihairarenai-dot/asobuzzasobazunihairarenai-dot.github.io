@@ -4884,6 +4884,21 @@ async function runAction(action, ctx, helpers) {
       if (捨てた全部.length > 0) helpers.revealDiscardedCards?.(ctx.player, 捨てた全部);
       return true;
     }
+    // 🔴【続き793】旧0th・誰かの落とし物(手札)。
+    //   「相手を１人選ぶ。これをその相手のゲートに裏向きで置く。」
+    //   ⚠ **「相手」**なので自分は候補に入れない（カード文が「相手」と書いている）。
+    //   ⚠ ゲートのマスに既にカードがあっても**重ねて置ける**（カードは駒ではない）。
+    //   ⚠ 裏向きなので到達効果は起きない（置いただけ）。
+    case VERBS.PLACE_SELF_AT_CHOSEN_OPPONENT_GATE: {
+      const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
+      if (相手.length === 0) return false;
+      const target = await helpers.pickPlayer(相手, t("ce.0thLostItemPick"));
+      if (!target) return false;
+      const gate = GATE_POSITIONS[SEAT_TO_SIDE[target]];
+      if (!gate) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, { zone: "cell", row: gate.row, col: gate.col }, undefined, undefined, false, false, null);
+      return true;
+    }
     case VERBS.DISCARD_ONE_HAND_CARD: {
       // ザ・ギャンブルの手札効果専用コスト: 追色（同色限定）と違い、手札からどの色でも
       // 1枚選んで捨てる。
@@ -5098,8 +5113,19 @@ async function runAction(action, ctx, helpers) {
           : await helpers.pickPlayer(全員, t("ce.fePickMover"));
       if (!相手) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === 相手);
+      // 🔴【#748・続き793】**ジャンプ台と同じ「無意味なループ禁止」を当てる。**
+      //   それまでこの動詞は候補をそのまま使っていて、`recordMoveVisited` も
+      //   `isLoopMoveDest` も**1度も見ていなかった**（MOVE だけが見ていた）。
+      //   ⚠ 判定に使うのは**動く本人**が自動操作かどうか（動かす人ではない）。
+      //   ⚠ CPU は上限1回＝ループ先を選ばない。人間は 10 回まで戻れる（2026-08-15 の改定）。
       if (!piece || piece.location.zone !== "cell") return false;
-      const cands = getMoveCandidates(piece.location, 1, false);
+      helpers.recordMoveVisited?.(piece.location); // 出発マスを記録
+      const 上限 = helpers.isCpuDriving?.(相手) ? 1 : HUMAN_MOVE_REVISIT_LIMIT;
+      const 全候補 = getMoveCandidates(piece.location, 1, false);
+      const 新しい候補 = 全候補.filter((c) => !helpers.isLoopMoveDest?.(c, 上限));
+      // CPU はループ先を選ばない（行ける所が無ければ動かない＝連鎖はここで自然に終わる）。
+      // 人間には上限までは戻れるので、候補が空になった時だけ全候補へ戻す。
+      const cands = 新しい候補.length > 0 ? 新しい候補 : helpers.isCpuDriving?.(相手) ? [] : 全候補;
       if (cands.length === 0) return false;
       let dest = null;
       if (相手 === ctx.player) {
@@ -5119,7 +5145,16 @@ async function runAction(action, ctx, helpers) {
       helpers.recordMoveVisited?.(dest);
       if (相手 === ctx.player) {
         ctx.pieceLocation = dest;
-        ctx.arrivedAt = dest;
+        // 🔴【#748・続き793】**その場で到達させる。**
+        //   それまでは `ctx.arrivedAt` を立てて呼び出し元に任せていたが、到達効果は
+        //   最後に**このカード自身を手札へ回収する**ので、呼び出し元に戻る頃には
+        //   **マスが空**＝何も起きなかった（報告「ちょっと待ったへ再度移動した時、
+        //   再度到達効果が起きなかった」）。相手を動かした時と**同じ扱い**にそろえる。
+        //   ⚠ その場で処理したら `ctx.arrivedAt` は**立てない**（立てると二重になる）。
+        //   ⚠ 繰り返しは上の「無意味なループ禁止」が止める（CPU は1回・人間は10回）。
+        if (helpers.handleArrivalDestination) await helpers.handleArrivalDestination(dest);
+        else if (helpers.triggerArrivalAtIfFaceUp) await helpers.triggerArrivalAtIfFaceUp(dest, 相手);
+        else ctx.arrivedAt = dest; // 口が無い所（テストの土台）では今までどおり呼び出し元に任せる
       } else {
         // 🔴【#532・2026-11-09】他の人の移動先も**裏向きならオープンしてから**到達させる。
         //   報告「貴族の特権の移動させる効果について、『移動』にオープンと到達が伴うけど、
