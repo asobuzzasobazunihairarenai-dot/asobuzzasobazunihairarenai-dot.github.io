@@ -54,6 +54,27 @@ export const CHANGELOG = [
   {
     date: "2026-11-21",
     summary: [
+      "旧0th EDITION の効果が、残り2件（割り込みの2枚）まで自動で処理されます",
+    ],
+    summaryEn: [
+      "0th EDITION effects now run automatically, with only the two interrupt cards left",
+    ],
+    items: [
+      "旧0th EDITION の手札効果を2つ実装しました。**予言者の技 -アポカリプス-**（色を２色宣言して山札から１枚公開し、宣言色なら繰り返す。**なないろの欠片は必ず当たり**）と、**強欲なパレット**（いつでも使えます。色を１色宣言すると、相手全員が「宣言色のカードを１枚渡す」か「手札を３枚捨てる」を**自分で**選びます）。残りは**反撃**と**ちょっと待った！**の手札効果（どちらも相手の宣言に割り込むもの）だけです。",
+    ],
+    itemsEn: [
+      "Two more 0th EDITION hand effects are implemented: Prophet's Art (declare two colours, reveal one card from the deck, repeat on a hit — the Rainbow Shard always hits) and Greedy Palette (playable at any time; declare one colour and each opponent chooses for themselves whether to hand over a card of that colour or discard three). Only the hand effects of Counterattack and Wait a Moment are left, both of which interrupt an opponent's declaration.",
+    ],
+    devItems: [
+      "🔴 **強欲なパレットの2択は、使う人ではなく相手本人に選ばせた。** 手札は非公開情報なので、使った人に選ばせると中身が割れる（#471・#506 の考え方。志炎者の「捨てるか」と同じ）。委任（`delegateToPlayer`）で**選ぶところだけ**本人へ渡し、渡す／捨てるは engine の1か所でやる（状態を動かす所を散らすと、オンラインで二重に走る）。⚠ 宣言色を1枚も持っていない人には**渡す方を出さない**（押せない約束を残さない＝#729 の家族）。⚠ 候補は engine が色で絞って渡す（色の判定を2か所に書くとズレる）。",
+      "⚠ **予言者の技は鑑定士の技（0th拡張）と骨組みが同じ。** 違いは「盤面の裏向きをオープンして手札に加える」か「山札から1枚公開する」かだけなので、繰り返しの形はそのままなぞった。⚠ 「ここまでを繰り返す」＝**宣言からやり直す**（カードの補足どおり）。⚠ 公開した札は**公開のまま**（印字に「捨てる」とも「手札に加える」とも書かれていない。公開エリアはターンの切り替わりで手札へ合流する）。⚠ 安全弁として上限60回。",
+      "🔴 **続き782 で作った検査（CPUが割り込みを使っているか）が、さっそく働いた。** 強欲なパレットを入れた瞬間に「**CPU がこの札を一度も使わない**」と名指しで落ちたので、CPU の判断も足した（相手の手札が多いほど撃つ／宣言色を誰も持っていなければ撃たない）。**同じ罠を3回踏んで作った道具が、4回目を未然に止めた。**",
+      "⚠ **`celebrateDeclareHit` という名前を書いてしまい、`check-effect-helpers` が捕まえた**（本物は `helpers.celebrate(cardId, {tone, headline, sub})`）。**helpers の名前は、呼ぶ前に grep する。**",
+    ],
+  },
+  {
+    date: "2026-11-21",
+    summary: [
       "旧0th EDITION のカード効果が、残り4件まで自動で処理されます",
     ],
     summaryEn: [

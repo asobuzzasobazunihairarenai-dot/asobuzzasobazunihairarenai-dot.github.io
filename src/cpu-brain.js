@@ -1138,6 +1138,19 @@ function handEffectValueFor(card, seat, state, handCount) {
     //   ⚠ この2枚は『相手がロックを宣言した時』にしか使えない（getAnytimeUsableHandTokensFor が
     //     窓を絞る）ので、ここで値を付けても**窓の外では走らない**。
     //   ⚠ 相手が何色ロックしているかで重みを変える（手札を1枚払うので、序盤に撃つと損）。
+    // 🔴【続き798】旧0th・強欲なパレット（いつでも使える）。
+    //   「色を１色宣言する。相手全員は『宣言色を1枚渡す』か『3枚捨てる』のどちらかを得る。」
+    //   ⚠ **相手の手札が多いほど効く**（渡させるか、3枚も捨てさせるか）。
+    //   ⚠ 自分の手札を1枚失う（このカード自身）ので、相手が手札を持っていない時は撃たない。
+    case "0th-black-greedy-palette": {
+      const 相手の手札 = (state.activePlayers || [])
+        .filter((x) => x !== seat)
+        .map((p) => (state.tokens || []).filter((t2) => t2.kind === "card" && t2.location.zone === "hand" && t2.location.player === p).length);
+      const 最大手札 = Math.max(0, ...相手の手札);
+      if (最大手札 === 0) return 0; // 誰も手札を持っていない＝何も起きない
+      if (最大手札 >= 4) return 3; // たっぷり持っている相手に刺さる
+      return 1;
+    }
     case "ex0-purple-redo-key": // やり直しのカギ: 宣言した相手はこのターンにロックできない
     case "1st-purple-bribe": {  // 裏貴族の賄賂: ロックしようとした札を奪い、手札から1枚渡す
       const 最大 = Math.max(

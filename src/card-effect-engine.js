@@ -5069,6 +5069,84 @@ async function runAction(action, ctx, helpers) {
     //     **候補のマスを全部出して、選んだマスの属する列**にする——と取り違えやすいので、
     //     ここでは**14本の列**（縦7＋横7）を選択肢として出す。
     //   ⚠ 既にカードが在るマスにも**重ねて置く**（「その列に1枚ずつ」なので飛ばさない）。
+    // 🔴【続き798】旧0th・予言者の技 -アポカリプス- (手札)。
+    //   「色を２色宣言する。１枚ドローして公開する。そのカードが宣言色なら、ここまでを繰り返す。」
+    //   ⚠ 「ここまで」＝宣言からやり直す（補足どおり。鑑定士の技と同じ読み）。
+    //   ⚠ 公開した札は**公開のまま**（印字に手札とも捨てるとも書かれていない。
+    //     公開エリアはターンの切り替わりで手札へ合流する作り）。
+    //   ⚠ 安全弁。理屈の上では山が尽きるまで続く（鑑定士の技と同じ考え方）。
+    // 🔴【続き798】旧0th・強欲なパレット(手札)の後半。
+    //   「相手全員は以下の効果のうち１つ得る。
+    //    ・自分の手札から宣言色の１枚を選び、あなたの手札に加える。・自分の手札を３枚捨てる。」
+    //   🔴 **どちらを選ぶかは相手本人**（手札は非公開情報。使う人に選ばせると中身が割れる
+    //     ＝#471・#506 の考え方。志炎者の「捨てるか」と同じ）。
+    //   ⚠ 処理順の原則（使用者から時計回りに1人ずつ）。
+    //   ⚠ 渡す／捨てるは **engine 側でやる**（状態を動かす所を散らさない＝オンラインで二重に走る）。
+    case VERBS.OPPONENTS_CHOOSE_GIVE_COLOR_OR_DISCARD: {
+      const 色 = (ctx.selections.declaredColors || [])[0];
+      if (!色) return false;
+      let 何かした = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (p === ctx.player) continue; // 「相手全員」
+        const 手札 = getHandTokens(p);
+        if (手札.length === 0) continue; // 何も起きない（善処の原則）
+        const 同色 = 手札.filter((tk) => getCardDefinition(tk.cardId)?.color === 色);
+        const 返事 = await helpers.delegateToPlayer?.(p, "greedy-palette", {
+          color: 色,
+          candidates: 同色.map((tk) => tk.id),
+          discardCount: action.discardCount ?? 3,
+        });
+        // 返事が「渡す札の id」なら渡す。そうでなければ（届かない・時間切れ・本人が選んだ）捨てる。
+        const 渡す = 返事 && 同色.some((tk) => tk.id === 返事) ? 返事 : null;
+        if (渡す) {
+          await helpers.moveAndSync(渡す, { zone: "hand", player: ctx.player });
+          何かした = true;
+          continue;
+        }
+        // 3枚捨てる（3枚未満ならあるだけ＝補足どおり）。
+        const 捨てる数 = Math.min(action.discardCount ?? 3, getHandTokens(p).length);
+        for (let i = 0; i < 捨てる数; i++) {
+          const 残り = getHandTokens(p);
+          if (残り.length === 0) break;
+          await helpers.discardAndSync(残り[0].id, { batchNotice: true });
+          何かした = true;
+        }
+      }
+      return 何かした;
+    }
+    case VERBS.DECLARE_AND_PUBLIC_DRAW_REPEAT: {
+      const 上限 = 60;
+      let 何かした = false;
+      let 当たった回数 = 0;
+      for (let i = 0; i < 上限; i++) {
+        if (getState().piles.deck.length === 0) break; // 善処の原則
+        const colors = await helpers.declareColors({ exactCount: action.colorCount ?? 2 }, ctx.cardId, ctx.player);
+        if (!colors || colors.length === 0) break;
+        ctx.selections.declaredColors = colors;
+        let 公開 = [];
+        if (helpers.publicDrawThenReveal) 公開 = await helpers.publicDrawThenReveal(ctx.player, 1);
+        else if (helpers.publicDrawReturningTokens) {
+          const ids = await helpers.publicDrawReturningTokens(ctx.player, 1);
+          公開 = ids.map((id) => getState().tokens.find((t2) => t2.id === id)?.cardId).filter(Boolean);
+        }
+        if (公開.length === 0) break;
+        何かした = true;
+        const 色 = getCardDefinition(公開[0])?.color ?? null;
+        // 🔴 「なないろの欠片」はすべての色を兼ねる（カードの補足どおり）。
+        const 当たり = 色 === "rainbow" || (色 && colors.includes(色));
+        if (!当たり) break;
+        当たった回数++;
+      }
+      // 当たった時だけ祝う（外れを強調しない＝#490 のユーザー要望）。鑑定士の技と同じ形。
+      if (当たった回数 > 0 && helpers.celebrate) {
+        await helpers.celebrate(ctx.cardId, {
+          tone: "success",
+          headline: t("ce.ex0GuessHitN", { n: 当たった回数 }),
+          sub: t("ce.ex0GuessSub", { name: helpers.getPlayerName?.(ctx.player) ?? "" }),
+        });
+      }
+      return 何かした;
+    }
     case VERBS.PLACE_DECK_CARDS_ALONG_CHOSEN_LINE: {
       const 選択肢 = [];
       for (let i = 0; i < 7; i++) 選択肢.push({ id: "row" + i, labelKey: null, label: t("ce.0thRainRow", { n: i + 1 }) });

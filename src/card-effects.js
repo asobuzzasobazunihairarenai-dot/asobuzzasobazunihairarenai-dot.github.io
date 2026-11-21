@@ -168,6 +168,11 @@ export const VERBS = {
   PLACE_DECK_CARDS_AT_ALL_CARDLESS_CELLS: "place_deck_cards_at_all_cardless_cells",
   // 旧0th・なないろのあめ(手札): 縦または横の1列（7マス）を選び、その列に1枚ずつ置く。
   PLACE_DECK_CARDS_ALONG_CHOSEN_LINE: "place_deck_cards_along_chosen_line",
+  // 旧0th・予言者の技(手札): 色をN色宣言→山札から1枚公開→宣言色なら繰り返す。
+  //   ⚠ 鑑定士の技（盤面の裏向きをオープン）と骨組みは同じ。違いは**山札から公開**すること。
+  DECLARE_AND_PUBLIC_DRAW_REPEAT: "declare_and_public_draw_repeat",
+  // 旧0th・強欲なパレット(手札): 相手全員が「宣言色を1枚渡す」か「3枚捨てる」を**自分で**選ぶ。
+  OPPONENTS_CHOOSE_GIVE_COLOR_OR_DISCARD: "opponents_choose_give_color_or_discard",
   STEAL_LOCKED_FROM_MOST_LOCKED: "steal_locked_from_most_locked", // 苦渋の強盗(手札): 1番多くロックしている人のロック札を1枚奪う
   STEAL_RANDOM_AND_GIVE_SELF: "steal_random_and_give_self", // 裏貴族の賄賂(到達): 無作為に1枚奪い、これを相手の手札へ
   BRIBE_ON_LOCK_DECLARE: "bribe_on_lock_declare", // 裏貴族の賄賂(手札): ロック宣言に割り込み、その札を奪って1枚渡す
@@ -2764,8 +2769,19 @@ export const CARD_EFFECTS = {
     },
   },
 
+  //   ■ 「いつでも使える。色を１色宣言する。相手全員は以下の効果のうち１つ得る。
+  //      ・自分の手札から宣言色の１枚を選び、あなたの手札に加える。・自分の手札を３枚捨てる。」
   "0th-black-greedy-palette": {
     arrival: { actions: [{ verb: VERBS.DISCARD_OWN_HAND }] },
+    handEffect: {
+      // 「いつでも使える」＝自分のハンドフェイズ以外でも出せる。
+      usableAnytime: true,
+      usableAnytimeLabel: "いつでも使える。",
+      actions: [
+        { verb: VERBS.DECLARE_COLORS, count: 1 },
+        { verb: VERBS.OPPONENTS_CHOOSE_GIVE_COLOR_OR_DISCARD, discardCount: 3, stopIfPreviousFailed: true },
+      ],
+    },
   },
 
   // 情報開示（桃）
@@ -2816,6 +2832,12 @@ export const CARD_EFFECTS = {
           destination: { selection: TARGET_SELECTIONS.CHOOSE, onlySurrounding: true },
         },
       ],
+    },
+    // ■ 「色を２色宣言する。１枚ドローして公開する。そのカードが宣言色なら、ここまでを繰り返す。」
+    //   ⚠ 「色」を宣言するので、白黒（無色）は宣言できない（declareColors 側が7色だけ出す）。
+    //   ⚠ 「なないろの欠片」はすべての色を兼ねる＝必ず当たり（カードの補足どおり）。
+    handEffect: {
+      actions: [{ verb: VERBS.DECLARE_AND_PUBLIC_DRAW_REPEAT, colorCount: 2 }],
     },
   },
 

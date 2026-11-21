@@ -4825,6 +4825,8 @@ async function runDelegatedArrivalTask(player, taskType, taskArg) {
   // 🔴【続き795】旧0th・いろ落ちガエル(手札): 自分のロックから1枚選んで捨てる。
   //   ⚠ **どれを捨てるかは本人が決める**（使用者に選ばせる話ではない）。
   if (taskType === "discard-one-locked") return runDiscardOneLockedTask(player);
+  // 🔴【続き798】旧0th・強欲なパレット(手札): 「宣言色を1枚渡す」か「3枚捨てる」を本人が選ぶ。
+  if (taskType === "greedy-palette") return runGreedyPaletteTask(player, taskArg);
   return false;
 }
 
@@ -4877,6 +4879,44 @@ async function runMayDiscardColorDrawTask(player, taskArg) {
 //   ⚠ ロックエリアは誰にでも見えている公開情報なので、隠し事の漏れにはならない。
 //   ⚠ 1枚も無ければ何もしない（善処の原則）。1枚だけでも**聞く**
 //     （「どれを失うか」は重い選択なので、黙って決めない＝リトルマウス #639 と同じ考え方）。
+// 🔴【続き798】旧0th・強欲なパレット(手札): **「宣言色を1枚渡す」か「3枚捨てる」を本人が選ぶ。**
+//   🔴 使う人に選ばせない——手札は非公開情報なので、中身が割れる（#471・#506 の考え方）。
+//   ⚠ 宣言色を1枚も持っていない人には**渡す方を出さない**（押せない約束を残さない＝#729 の家族）。
+//   ⚠ 返すのは**渡す札の id だけ**。渡す／捨てるは engine 側がやる
+//     （状態を動かす所を1つにしておかないと、オンラインで二重に走る）。
+//   ⚠ 候補は engine が色で絞って渡してくる（色の判定を2か所に書くとズレる）。
+async function runGreedyPaletteTask(player, taskArg) {
+  const ids = Array.isArray(taskArg?.candidates) ? taskArg.candidates : [];
+  const 候補 = getState().tokens.filter((t2) => ids.includes(t2.id));
+  const 色名 = t("game.color." + taskArg.color);
+  const 色 = 色名 && 色名 !== "game.color." + taskArg.color ? 色名 : String(taskArg.color ?? "");
+  const 枚 = taskArg?.discardCount ?? 3;
+  if (候補.length === 0) return null; // 宣言色を持っていない ⇒ 捨てるしかない（engine が捨てる）
+  const options = [
+    { id: "gp-give", label: t("cef.opt.0thPaletteGive", { color: 色 }), usable: true },
+    { id: "gp-discard", label: t("cef.opt.0thPaletteDiscard", { n: 枚 }), usable: true },
+  ];
+  const picked = await pickOptionForEffect(
+    taskArg?.cardId ?? null,
+    options,
+    t("ce.0thPaletteAsk", { color: 色, n: 枚 })
+  );
+  const id = typeof picked === "string" ? picked : picked?.id ?? null;
+  if (id !== "gp-give" || isDelegationExpired()) return null; // 捨てる方は engine がやる
+  let 選 = 候補[0];
+  if (候補.length >= 2) {
+    const ordered = await requestHandCardsOrderedForEffect(
+      player,
+      t("ce.0thPalettePick", { color: 色 }),
+      候補.map((tk) => tk.id),
+      { limit: 1 }
+    );
+    if (ordered && ordered[0]) 選 = ordered[0];
+  }
+  if (!選 || isDelegationExpired()) return null;
+  return 選.id;
+}
+
 async function runDiscardOneLockedTask(player) {
   const 札 = getState().tokens.filter((t) => t.kind === "card" && t.location.zone === "lock" && SIDE_TO_SEAT[t.location.side] === player);
   if (札.length === 0) return false;
