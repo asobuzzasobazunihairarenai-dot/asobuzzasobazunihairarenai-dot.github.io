@@ -233,21 +233,22 @@ function renderBugReports() {
 //   になる（557件の時点で実測12.6秒・29.9秒とも失敗＝報告が1件も読めなくなっていた）。
 //   ⚠ context は残す（一覧で添付画像の有無を出すのに要る）。実測 727ms / 1.1MB / 557件。
 //   ⚠ PostgREST は RPC の結果にも select を掛けられるので、**SQL は変えなくてよい**。
-const BUG_REPORT_LIST_COLUMNS = "id,created_at,email,display_name,comment,resolved,context";
+// ⚠【続き782】**もう使っていない**（so7_get_admin_bug_reports_list が列を決める）。
+//   消さずに残すのは、ここに「なぜ context を一覧で持たないか」の経緯が書いてあるため。
+const BUG_REPORT_LIST_COLUMNS = "id,created_at,email,display_name,comment,resolved";
 
 // 1件ぶんのログを取りに行く（既に持っていれば何もしない）。
 // 「詳細」「コピー」など、**本当にログが要る時だけ**呼ぶ。
 async function ensureBugReportLogs(row) {
   if (!row || row.__logsLoaded) return row;
   try {
-    const { data, error } = await client
-      .rpc("so7_get_admin_bug_reports")
-      .select("id,action_log,console_log")
-      .eq("id", row.id)
-      .limit(1);
+    // 🔴【続き782】**1件だけ**を取りに行く専用の関数（一覧の関数は大きい列を作らない）。
+    const { data, error } = await client.rpc("so7_get_admin_bug_report", { p_id: row.id });
     if (!error && data && data[0]) {
       row.action_log = data[0].action_log;
       row.console_log = data[0].console_log;
+      // ⚠ context も1件ずつ取る（一覧では作らないので、見取り図はここで初めて描ける）。
+      row.context = data[0].context;
       row.__logsLoaded = true;
     }
   } catch (err) {
@@ -258,7 +259,10 @@ async function ensureBugReportLogs(row) {
 
 async function loadBugReports() {
   bugReportStatusEl.textContent = "読み込み中...";
-  const { data, error } = await client.rpc("so7_get_admin_bug_reports").select(BUG_REPORT_LIST_COLUMNS);
+  // 🔴【続き782】**軽い一覧用の関数**を呼ぶ。
+  //   前は so7_get_admin_bug_reports に列選択を掛けていたが、**あれは送る量を減らすだけで
+  //   サーバーの仕事は減らない**ので、722件で statement timeout になり1件も読めなくなった。
+  const { data, error } = await client.rpc("so7_get_admin_bug_reports_list", { p_limit: 300 });
   if (error) {
     bugReportStatusEl.textContent = `取得に失敗しました: ${error.message}`;
     return;
@@ -334,7 +338,11 @@ function bugReportToText(row) {
   );
 }
 function bugReportShotUrl(row) {
-  return row.context && typeof row.context.shotUrl === "string" ? row.context.shotUrl : null;
+  // 🔴【続き782】一覧は context を持たない（重いので作らない）。代わりに SQL 側が
+  //   `context ->> 'shotUrl'` だけ取り出して shot_url で返す。**両方を見る**
+  //   （1件ぶんを取った後は context が入るので、古い道も生かしておく）。
+  if (typeof row?.shot_url === "string" && row.shot_url) return row.shot_url;
+  return row?.context && typeof row.context.shotUrl === "string" ? row.context.shotUrl : null;
 }
 
 // 🔴【2026-11-14】ユーザーの問い「今の画面のスクショを自動で保存される形にできない？」への答え。

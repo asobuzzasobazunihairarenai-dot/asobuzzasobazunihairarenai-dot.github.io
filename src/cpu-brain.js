@@ -409,6 +409,18 @@ export function chooseDeclaredColors(cardId, requiredCount, driveSeat) {
 // 中からランダム（新人相当）にフォールバックする。usableCandidates は usable:true のものだけが
 // 渡ってくる前提（呼び出し側で絞り込み済み）。
 const OPTION_RANK = {
+  // 0thリメイクの限定カード（志炎者7枚・続き782）: 【志炎】が使えるなら必ずそちら。
+  // 🔴 **【志炎】は窓が開いている時しか候補に入らない**（isHandEffectOptionUsable が絞る）ので、
+  //   ここで上に置いても「いつでも大きい方を撃つ」にはならない。窓の中でだけ効く。
+  // ⚠ 表が無いと `chooseEffectOption` は**ランダム**に落ちる＝せっかく割り込んだのに
+  //   小さい方を選ぶことがある（それでは割り込んだ意味がない）。
+  "cf-red-ignis": { "cf-red-ignis-shien": 3, "cf-red-ignis-plain": 1 },
+  "cf-orange-brand": { "cf-orange-brand-shien": 3, "cf-orange-brand-plain": 1 },
+  "cf-yellow-scintilla": { "cf-yellow-scintilla-shien": 3, "cf-yellow-scintilla-plain": 1 },
+  "cf-green-ember": { "cf-green-ember-shien": 3, "cf-green-ember-plain": 1 },
+  "cf-blue-candela": { "cf-blue-candela-shien": 3, "cf-blue-candela-plain": 1 },
+  "cf-pink-flamma": { "cf-pink-flamma-shien": 3, "cf-pink-flamma-plain": 1 },
+  "cf-purple-favilla": { "cf-purple-favilla-shien": 3, "cf-purple-favilla-plain": 1 },
   // パーティー（pink-party）: 場のカードを手札に得る(pickup)＞1マス移動(move)＞2枚オープン(open-two)。
   // 高いほど良い。
   // ユーザー要望2026-09-01「パーティの効果では2マスオープンを選ばないように（非合理なことが
@@ -1091,6 +1103,34 @@ function handEffectValueFor(card, seat, state, handCount) {
       // ロック済み＝追色コストが実質タダの時だけ、「引いて今ターン使えるものがあれば使う」ために撃つ。
       // 緑がまだ要る色なら温存。使用可否（別の緑あり＋1/turn）はcanUseHandEffectが担保。
       return !neededColors(state, seat).has("green") ? 1 : 0;
+    // --- 0thリメイクの限定カード（志炎者7枚・続き782）--------------------------------
+    // 🔴 ユーザー依頼「CPUも使うようにして」。
+    //   ⚠ 【志炎】は窓（相手が同色の手札効果を使った直後）でしか候補に入らない。
+    //     ここの値は「窓の中で撃つか」と「自分のハンドフェイズに小さい方を撃つか」の両方に効く。
+    //   ⚠ 手札を1枚失う（この札自身を捨てる）ので、**見返りが在る時だけ**撃つ。
+    case "cf-red-ignis":      // 任意のマスのカードをすべて捨てる
+    case "cf-yellow-scintilla": // 任意のマスのカードをオープンする
+    case "cf-green-ember":    // 裏向きのカードを別のマスへ
+    case "cf-blue-candela":   // 相手全員が手札を捨てる
+    case "cf-orange-brand":   // あなたの隣のカードを手札に加える
+    case "cf-pink-flamma":    // ドロー
+    case "cf-purple-favilla": // 強制移動
+      return cf志炎の値(t, seat, state, handCount);
+    // --- 取りこぼしていた割り込み3枚（続き782 で見つけた）-----------------------------
+    // 🔴 どれも `default: 0` に落ちていて**一度も選ばれていなかった**（#620/#624 と同じ形）。
+    case "ex0-yellow-little-mouse":
+      // リトルマウス: 1番多くロックしている人から無作為に奪う。**相手のターンにも割り込める**。
+      // ⚠ 自分のターンに使うと「このターンを終了する」が付くので、ハンドフェイズの頭では損。
+      //   ⇒ **自分のターンでない時**（＝割り込み）だけ撃つ。
+      return state.turnPlayer !== seat ? 2 : 0;
+    case "1st-yellow-lock-change":
+      // ロックチェンジ: 自分のロック札を手札に戻す。**色を1つ失う**ので、ふだんは損。
+      //   ⇒ 手札が尽きかけている時（0〜1枚）だけ、手を作るために撃つ。
+      return handCount <= 1 ? 1 : 0;
+    // ⚠ リーチキャンセル（ex0-yellow-reach-cancel）はここには書けない。
+    //   あれは **到達効果の窓**（requiresArrivalEffectWindow）で、`isHandEffectOptionUsable` が
+    //   常に false を返す作り（実行は main.js の専用の窓）。CPU の割り込みは別の道が要る。
+    //   **申し送りに残す**（ここで 0 に落ちているのは正しい）。
     // --- 割り込み（相手のロック宣言に差し込む札）------------------------------------
     // 🔴【#620/#624・2026-11-14】報告「CPUが私の最後のロックの時にやり直しの鍵を使ってこなかった」
     //   「最後ロックする時、CPUが賄賂を使ってこなかった」。**どちらもここに登録が無く、
@@ -1112,6 +1152,21 @@ function handEffectValueFor(card, seat, state, handCount) {
     default:
       return 0;
   }
+}
+
+// 0thリメイクの限定カード（志炎者7枚）の手札効果の値（続き782）。
+// 🔴 7枚とも**同じ骨**なので1つの関数で決める（7回書くと必ず1枚ずれる）。
+// 考え方:
+//   ・**窓の中（＝相手の手札効果に割り込める）なら積極的に撃つ**。大きい方が使えるので見返りが大きい。
+//   ・自分のハンドフェイズでは**小さい方**しか使えないので、手札に余裕がある時だけ。
+//   ・手札が1枚（これだけ）なら撃たない——この札自身を捨てるので手札が0になる。
+function cf志炎の値(token, seat, state, handCount) {
+  if (handCount <= 1) return 0; // これを捨てると手札が無くなる
+  // 窓の中かどうかは**本家の判定に聞く**（条件を書き写すとズレる）。
+  // ⚠ ここでは「自分のターンではない＝割り込みの場面」で代用する。窓そのものは
+  //   isHandEffectOptionUsable が既に見ていて、使えない選択肢は候補に入らない。
+  if (state.turnPlayer !== seat) return 3; // 割り込めるなら撃つ
+  return handCount >= 4 ? 1 : 0;           // 自分の番は、手札に余裕がある時だけ
 }
 
 export function chooseHandEffectCard(usableCards, driveSeat) {

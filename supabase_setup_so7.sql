@@ -1581,6 +1581,67 @@ $$;
 revoke execute on function so7_get_admin_bug_reports() from public;
 grant execute on function so7_get_admin_bug_reports() to authenticated;
 
+-- 🔴【続き782・2026-11-21】**一覧用の軽い版**と**1件用**に分ける。
+--   症状: so7_get_admin_bug_reports が statement timeout（57014）で落ち、
+--         管理者ダッシュボードの不具合報告が**1件も開けなくなった**（報告 722件の時点で実測）。
+--   原因: あの関数は**全件ぶんの大きい列**（action_log / console_log / context）を作る。
+--         2026-11-10（557件）にも同じ事故が起きていて、その時は PostgREST の列選択で凌いだが、
+--         **あれは「送る量」を減らすだけでサーバーの仕事は減らない**ので、件数が増えてまた落ちた。
+--         ⚠ とくに context は動作確認（📱 実機の動作確認を送る）の計測が丸ごと入るので1件が重い。
+--   ⇒ 一覧は**大きい列を1つも作らず**、スクショのURLだけ jsonb から取り出す（->> は軽い）。
+--     件数も必ず絞る（既定100・最大500）。ログと context の全文は1件ずつ取りに行く。
+-- ⚠ **古い so7_get_admin_bug_reports は消さない**（画面の古い版がまだ呼ぶかもしれない）。
+drop function if exists so7_get_admin_bug_reports_list(int, bigint);
+create or replace function so7_get_admin_bug_reports_list(p_limit int default 100, p_before_id bigint default null)
+returns table (
+  id bigint,
+  created_at timestamptz,
+  email text,
+  display_name text,
+  comment text,
+  resolved boolean,
+  shot_url text,
+  has_screen boolean
+)
+language sql
+security definer
+set search_path = public
+as $
+  select b.id, b.created_at, u.email, p.display_name, b.comment, b.resolved,
+         b.context ->> 'shotUrl' as shot_url,
+         (b.context ? 'screen2' or b.context ? 'screen') as has_screen
+  from so7_bug_reports b
+  left join auth.users u on u.id = b.user_id
+  left join so7_user_profiles p on p.user_id = b.user_id
+  where (auth.jwt() ->> 'email') in ('asobuzz.asobazunihairarenai@gmail.com','shogoshogo0929@gmail.com')
+    and (p_before_id is null or b.id < p_before_id)
+  order by b.id desc
+  limit greatest(1, least(coalesce(p_limit, 100), 500))
+$;
+revoke execute on function so7_get_admin_bug_reports_list(int, bigint) from public;
+grant execute on function so7_get_admin_bug_reports_list(int, bigint) to authenticated;
+
+-- 1件ぶんの全文（ログと context）。「詳細」「コピー」を押した時だけ呼ぶ。
+drop function if exists so7_get_admin_bug_report(bigint);
+create or replace function so7_get_admin_bug_report(p_id bigint)
+returns table (
+  id bigint,
+  action_log text,
+  console_log text,
+  context jsonb
+)
+language sql
+security definer
+set search_path = public
+as $
+  select b.id, b.action_log, b.console_log, b.context
+  from so7_bug_reports b
+  where (auth.jwt() ->> 'email') in ('asobuzz.asobazunihairarenai@gmail.com','shogoshogo0929@gmail.com')
+    and b.id = p_id
+$;
+revoke execute on function so7_get_admin_bug_report(bigint) from public;
+grant execute on function so7_get_admin_bug_report(bigint) to authenticated;
+
 -- ── マイデッキ戦（マイデッキ.txt）: プレイヤーごとの持ち込みデッキを永続化する ──────────
 -- デッキは { "<cardId>": <枚数>, ... } のJSONで持つ（例: {"rainbow-shard":7,"red-jump-pad":7}）。
 -- 検証（7枚以上・同名7枚まで・スペシャルの3:1税・所持数）はクライアント(my-deck.js)で行い、

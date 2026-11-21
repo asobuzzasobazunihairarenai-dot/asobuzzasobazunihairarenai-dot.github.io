@@ -183,6 +183,8 @@ function buildRoomCardSetChooser() {
     [CARD_SETS.FIRST_ED, "home.matchChoice.cardSet1st"],
     [CARD_SETS.OLD_0TH, "home.matchChoice.cardSet0th"],
     [CARD_SETS.MIXED, "home.matchChoice.cardSetMixed"],
+    // 🔴【続き782】志炎者を本物の対局で試すための枠（管理者だけ）。志炎者は各1枚。
+    [CARD_SETS.REMAKE_CF, "home.matchChoice.cardSetRemakeCf"],
   ]) {
     const b = document.createElement("button");
     b.type = "button";

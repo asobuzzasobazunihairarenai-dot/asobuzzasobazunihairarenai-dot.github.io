@@ -51,6 +51,8 @@ const 試験 = [
   { set: CARD_SETS.EX0, key: "home.matchChoice.cardSetEx0" },
   { set: CARD_SETS.OLD_0TH, key: "home.matchChoice.cardSet0th" },
   { set: CARD_SETS.MIXED, key: "home.matchChoice.cardSetMixed" },
+  // 🔴【続き782】志炎者を本物の対局で試すための枠（ユーザー依頼）。志炎者は各1枚。
+  { set: CARD_SETS.REMAKE_CF, key: "home.matchChoice.cardSetRemakeCf" },
 ];
 
 function 管理者か() {

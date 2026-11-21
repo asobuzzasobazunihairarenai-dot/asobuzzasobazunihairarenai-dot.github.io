@@ -19,6 +19,7 @@ import {
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js";
 import { OLD0TH_NORMAL_CARDS } from "./cards-data-0th.js";
+import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 0thリメイクの限定カード（志炎者7枚・続き782）
 import { getCardSet, CARD_SETS } from "./card-set.js";
 import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
@@ -365,7 +366,12 @@ export function buildDeckSections(opts = {}) {
   if (セット === CARD_SETS.OLD_0TH) {
     wrap.appendChild(buildSection(t("deckviewer.old0th"), 色でそろえる(OLD0TH_NORMAL_CARDS)));
   }
-  if (セット === CARD_SETS.REMAKE || 混ぜる) {
+  // 🔴【続き782】リメイク＋志炎者。リメイクの19種と志炎者7種の**両方**を出す。
+  //   ⚠ 片方だけ出すと「一覧に無い札が出てくる」になる（この関数の上のコメントの通り）。
+  if (セット === CARD_SETS.REMAKE_CF) {
+    wrap.appendChild(buildSection(t("deckviewer.cf"), 色でそろえる(CF_NORMAL_CARDS)));
+  }
+  if (セット === CARD_SETS.REMAKE || セット === CARD_SETS.REMAKE_CF || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.normal"), 色でそろえる(NORMAL_CARDS)));
   }
   // エターナル。🔴 1st EDITION を選んでいる時は**その対局で実際に出てくるのは1st のEカード**

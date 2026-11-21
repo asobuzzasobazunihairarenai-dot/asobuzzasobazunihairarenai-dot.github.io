@@ -235,6 +235,14 @@ function 標準の山札() {
   //   なるべく均等になるように」。以前は3セットを**そのまま繋げていた**ので赤だけで42枚・
   //   合計322枚になっていた。組み方は src/mixed-deck.js の冒頭に書いてある。
   if (set === CARD_SETS.MIXED) return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS);
+  // 🔴【続き782】リメイク ＋ 志炎者（**各1枚**）。管理者のテスト用。
+  //   ⚠ 志炎者の count は 7（山札に入れられる枚数）だが、ここでは **1枚ずつ**に上書きする
+  //     （ユーザー指示「この時志炎者は１枚ずつでいいです」）。
+  //   ⚠ 元の定義を書き換えない（**写しを作る**）——同じ配列を他所も見ているので、
+  //     ここで count を書き換えると図鑑やマイ山札の表示まで 1 になる。
+  if (set === CARD_SETS.REMAKE_CF) {
+    return [...NORMAL_CARDS, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 1 }))];
+  }
   return NORMAL_CARDS;
 }
 

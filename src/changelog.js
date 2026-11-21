@@ -58,24 +58,28 @@ export const CHANGELOG = [
       "我忘れの白き龍が動いた時に、カードの円盤を並べて見せます",
       "コレクションに「？」の札が並びました",
       "志炎者7枚の効果が自動で処理されるようになりました",
+      "CPUも割り込みのカードを使うようになりました",
     ],
     summaryEn: [
       "Cards opened from the codex are now much larger",
       "The dial from the card is now shown when the White Dragon of Oblivion moves",
       "Mystery cards appear in your collection",
       "The seven Shien cards now resolve automatically",
+      "The CPU now uses interrupt cards too",
     ],
     items: [
       "**図鑑でカードを開いた時の札を大きくしました。** スマホの横向きでは**2倍以上**（絵が 107px → 214px）、パソコンでも2倍（179px → 358px）になります。カード名と補足の文字も大きくしました。",
       "**我忘れの白き龍【色者】のお知らせに、カードに描かれている円盤を並べて見せるようにしました。** 「捨色は緑。上へ1マス動かしました」と文で出ていても、どうしてその向きなのかは円盤を見ないと分かりません。これからはお知らせの中に円盤そのものが出るので、その場で確かめられます。オンラインでは相手の画面にも同じように出ます。",
       "コレクションに**「？」の札が7枚**並びました。まだお見せできない、**特別な方法でしか手に入らないカード**です。7色ぶんあります——色だけは出ているので、どの色の札が来るかは分かります。手に入れると、その札だけ**ふつうのカードとして**名前と絵が出ます。",
       "**志炎者7枚のカード効果が、アプリで自動的に処理される**ようになりました。到達効果では、相手全員に「同じ色のカードを１枚捨てて２枚引きますか？」と聞きます——**１人でも捨てたなら**、そのカードの大きい効果が起きます。手札効果は２つから選べます。そして**【志炎】**——相手がこれと**同じ色のカードの手札効果を使った直後**にだけ宣言できる、割り込みの効果も使えます。",
+      "**CPUが割り込みのカードを使うようになりました。** 志炎者の【志炎】はもちろん、**リトルマウス**と**ロックチェンジ**も——この2枚は、これまでCPUが**一度も使っていませんでした**（使える場面でも検討すらしていなかった）。やり直しのカギと裏貴族の賄賂は先に直してありましたが、同じ取りこぼしが残っていたので、まとめて直しました。",
     ],
     itemsEn: [
       "**Cards opened from the codex are now much bigger.** On a phone in landscape the art is more than twice the size (107px to 214px), and on a computer it is twice as big (179px to 358px). The card name and notes are larger too.",
       "**The dial printed on the White Dragon of Oblivion is now shown in its notice.** Reading \"a green card came up, so it moved one square up\" does not tell you why that direction was chosen - you have to look at the dial. Now the dial itself appears right in the notice, so you can check on the spot. In online games it shows the same way on everyone's screen.",
       "**Seven mystery cards** now sit in your collection. They are special cards you can only get in a particular way, and we are not showing them yet. There is one for each of the seven colors — the color is visible, so you can tell which colors are coming. Once you own one, that card shows its real name and art like any other.",
       "**The seven Shien cards now resolve automatically.** On arrival, every opponent is asked whether to discard one card of the matching color to draw two — and **if at least one of them does**, the card's larger effect happens. The hand effect gives you two choices, and that includes **Shien**: an interrupt you may declare only right after an opponent uses the hand effect of a card of the same color.",
+      "**The CPU now uses interrupt cards.** That covers Shien on the new cards, and also **Little Mouse** and **Lock Change** — the CPU had **never once** used those two, not even considering them when it could. Redo Key and the Noble's Bribe were fixed earlier; the same gap was still there for the rest, so we closed it.",
     ],
     fixes: [
       "２マス移動する効果が、1マスずつ2回動く形になりました",
@@ -83,6 +87,7 @@ export const CHANGELOG = [
       "我忘れの白き龍が、白・黒が出た時も動いてしまっていました",
       "我忘れの白き龍が動いた時に、何色が出たのかを出すようにしました",
       "白・黒・虹の色の名前が出ない所がありました",
+      "管理者の画面で、不具合報告の一覧が開けなくなっていたのを直しました。",
     ],
     fixesEn: [
       "Two-square moves are now taken one square at a time, twice",
@@ -90,6 +95,7 @@ export const CHANGELOG = [
       "The White Dragon of Oblivion moved even when a white or black card came up",
       "The White Dragon of Oblivion now tells you which color came up when it moves",
       "Some places did not show the names of the white, black and rainbow colors",
+      "Fixed the admin page so the bug report list opens again.",
     ],
     devItems: [
       "🔴🔴 **円盤の並びが、カードの絵と左右逆だった**（ユーザー裁定「新しい並びに合わせよう！」）。アプリは**旧0th拡張のカードの補足**（緑＝上／黄＝右上／橙＝右／赤＝右下／白＝下／紫＝左下／桃＝左／青＝左上）どおりに作ってあったが、**リメイクの絵**（`D:/Adobe退避/SOSC_通常カード_表_only１.png`）の円盤は**その左右を反転した並び**で、**白の枠が無い**（下は「7」の切り欠き）。⇒ 緑＝上／**青＝右上／桃＝右／紫＝右下／赤＝左下／橙＝左／黄＝左上**に直した。🔴 **目で読まずに測った**——角度ごとに画素の色を拾った（`scratchpad/_disc.mjs`）: 上 rgb(24,171,103) 緑／右上 rgb(24,182,201) 青／右 rgb(237,156,192) 桃／右下 rgb(160,84,154) 紫／下 **色なし**／左下 rgb(211,37,73) 赤／左 rgb(237,145,14) 橙／左上 rgb(248,210,33) 黄。⚠ 下が空なのは「無色は動かない」という裁定と一致する。",
@@ -183,6 +189,13 @@ export const CHANGELOG = [
       "⚠ 実測で1件捕まえた: 橙の「すべて」を `count: \"all\"` と書いたが、動詞は数しか受けないので **`0 < \"all\"` が false で1回も回らなかった**（＝何も起きない）。動詞側で「すべて」を受けるようにし、その時は**マスを聞かない**（どれも結局取るので手を止めるだけ）。",
       "⚠ **検査の抜けを2つ直した**: `check-cards` のカード名の名簿と id の名簿に `cards-data-0th.js` / `cards-data-cf.js` が無く、**実在するのに「実在しない」「消し忘れ？」と14件の嘘の指摘**が出た。セットを足したらここにも足すこと。",
       "⚠ **テストの土台にも2つ足した**: 割り込みの窓に `color` を渡せるようにし、**選択肢1つずつ**「今使えるか」を見る `optionUsable` を作った。カード全体の `handUsable` では【志炎】の枝が見えない（ふつうの方が使えるので true のままになる）。",
+      "🔴 **CPU が「いつでも／割り込み」の札を使わないままになっていないかを、機械で見張るようにした**（検査21本目・`tools/check-cpu-interrupts.mjs`）。この事故は**3回起きている**（#620 やり直しのカギ／#624 裏貴族の賄賂／続き782 でリトルマウス・ロックチェンジ）。原因はどれも同じで、`cpu-brain.js` の `handEffectValueFor` に登録が無く **`default: return 0` に静かに落ちていた**。落ちても誰も何も言わない。",
+      "🔴 **A/B で検査の穴が1つ出た。** 最初はファイル全体から id を探していたので、**優先順の表（OPTION_RANK）に名前が在るだけで合格**してしまった（値の登録が無ければ CPU はそのカードを**選ばない**のに）。⇒ **値を決める関数の中だけ**を見る形に直した。わざと3通り崩して3通りとも名指しで落ちることを確かめてある。",
+      "⚠ **リーチキャンセルだけは別の道**（到達効果の窓＝`requiresArrivalEffectWindow`。`isHandEffectOptionUsable` が常に false を返し、実行は main.js の専用の窓）。検査の「意図的な除外」に**理由つきで**入れてある。CPU が使えるようにするには別の仕組みが要る。",
+      "🔴 **志炎者7枚のイラストのうち4枚（黄・桃・赤・緑）を差し替えて焼き直した。** 前の版は消さずに素材フォルダの `_前の版` へ退避してある。⚠ どれがどの札かは**色で1対1に決まることを並べた絵で目で確かめてから**動かした（名前だけで決めない）。",
+      "⚠ **管理者のテスト用に「リメイク＋志炎者」のセットを足した**（志炎者は**各1枚**）。⚠ 元の定義（`count: 7`）は書き換えず**写しを作る**——同じ配列を図鑑やマイ山札も見ているので、ここで書き換えると表示まで1枚になる。実測で「元が7のまま」を見ている。",
+      "🔴 **管理者ダッシュボードの不具合報告が1件も開けなくなっていた**（`so7_get_admin_bug_reports` が **statement timeout 57014**。報告 **722件**）。⇒ **一覧用の軽い関数**（大きい列を1つも作らず、件数を絞る）と**1件用の関数**に分けた。⚠ 2026-11-10（557件）にも同じ事故が起きていて、その時は PostgREST の列選択で凌いだが、**あれは「送る量」を減らすだけでサーバーの仕事は減らない**ので件数が増えてまた落ちた。とくに `context` には動作確認（続き757）の計測が丸ごと入るので1件が重い。",
+      "⚠ **v2 の切り替えは既に在った**（⚙オプション →「動きが重い・カクつくとき」→「新しい見た目を試す（この端末だけ）」）。#679 で**まさに同じ理由**（ホーム画面アプリはブラウザと別の保管場所を持ち、`?ui=v2` が伝わらない）から足したもの。私は一度**重複して足しかけ**、構文エラーで気づいて取り消した。",
     ],
   },
   {
