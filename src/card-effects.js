@@ -1890,7 +1890,10 @@ export const CARD_EFFECTS = {
     },
     arrival: {
       addsCardToHandAfter: false,
-      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
+      //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
+      //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
+      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -1909,7 +1912,10 @@ export const CARD_EFFECTS = {
     },
     arrival: {
       addsCardToHandAfter: false,
-      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
+      //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
+      //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
+      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -1981,7 +1987,10 @@ export const CARD_EFFECTS = {
     },
     arrival: {
       addsCardToHandAfter: false,
-      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
+      //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
+      //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
+      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -2019,7 +2028,10 @@ export const CARD_EFFECTS = {
     },
     arrival: {
       addsCardToHandAfter: false,
-      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
+      //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
+      //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
+      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -2081,7 +2093,10 @@ export const CARD_EFFECTS = {
     },
     arrival: {
       addsCardToHandAfter: false,
-      actions: [{ verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
+      //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
+      //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
+      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
     },
     handEffect: {
       keepsCardOnUse: true,

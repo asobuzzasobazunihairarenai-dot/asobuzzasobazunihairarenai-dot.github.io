@@ -65,10 +65,19 @@ for (const c of FIRST_ED_CARDS) {
     "  " + J(c.id) + ": { name: " + J(FIRST_ED_NAME_EN[c.id]) +
     ", flavor: \"\", basic: \"\", subtitle: \"\", arrival: \"\", hand: \"\" },"
   );
+  // 🔴【続き783】**カードの補足**。旧0th（gen-0th-text.mjs）と同じ決まり:
+  //   出どころの notes のうち**「補足:」で始まる行だけ**を採る。
+  //   ⚠ notes には作業メモが混ざるので、そのまま入れると**アプリの画面に開発の内輪話が出る**。
+  const note = (t.notes || [])
+    .filter((n) => /^補足[:：]/.test(n))
+    .map((n) => n.replace(/^補足[:：]\s*/, "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const NOTE = note || "特になし。";
   if (c.kind === "normal") {
     data.push(
       "  { id: " + J(c.id) + ", name: " + J(c.name) + ", color: " + J(c.color) +
-      ", count: " + c.count + (c.状況 ? ", situation: true" : "") + ", note: " + J("特になし。") + " },"
+      ", count: " + c.count + (c.状況 ? ", situation: true" : "") + ", note: " + J(NOTE) + " },"
     );
   }
   // Eカードは ETERNAL_CARDS と同じ形（count を持たない＝専用の山に各1枚）。
@@ -76,12 +85,12 @@ for (const c of FIRST_ED_CARDS) {
   // cards-data.js の FIRST_ED_FIRST_CARDS に最小の形で持つ）。
   if (c.kind === "eternal") {
     eternalData.push(
-      "  { id: " + J(c.id) + ", name: " + J(c.name) + ", color: " + J(c.color) + ", note: " + J("特になし。") + " },"
+      "  { id: " + J(c.id) + ", name: " + J(c.name) + ", color: " + J(c.color) + ", note: " + J(NOTE) + " },"
     );
   }
   if (c.kind === "first") {
     firstData.push(
-      "  { id: " + J(c.id) + ", name: " + J(c.name) + ", color: " + J(c.color) + ", note: " + J("特になし。") + " },"
+      "  { id: " + J(c.id) + ", name: " + J(c.name) + ", color: " + J(c.color) + ", note: " + J(NOTE) + " },"
     );
   }
 }

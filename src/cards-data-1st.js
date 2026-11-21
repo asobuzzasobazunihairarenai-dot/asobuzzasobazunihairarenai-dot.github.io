@@ -8,23 +8,23 @@
 // 作り直すには node tools/gen-1st-text.mjs。**手で直さない**（tools/first-cards.mjs が正）。
 export const FIRST_ED_NORMAL_CARDS = [
   { id: "1st-red-poor-march", name: "貧民の行進", color: "red", count: 7, note: "特になし。" },
-  { id: "1st-red-unrest", name: "治安悪化", color: "red", count: 7, situation: true, note: "特になし。" },
+  { id: "1st-red-unrest", name: "治安悪化", color: "red", count: 7, situation: true, note: "⚠ デジタル版では、ゲームバランス調整のため、印刷されたカードから効果を一部変えています。この【状況】カードは、到達効果の冒頭に「１枚ドロー。」が足してあります（印刷されたカードには書かれていません）。" },
   { id: "1st-orange-conglomerate", name: "財閥の威光", color: "orange", count: 7, note: "特になし。" },
-  { id: "1st-orange-festival", name: "フェスティバル", color: "orange", count: 7, situation: true, note: "特になし。" },
+  { id: "1st-orange-festival", name: "フェスティバル", color: "orange", count: 7, situation: true, note: "⚠ デジタル版では、ゲームバランス調整のため、印刷されたカードから効果を一部変えています。この【状況】カードは、到達効果の冒頭に「１枚ドロー。」が足してあります（印刷されたカードには書かれていません）。" },
   { id: "1st-yellow-privilege", name: "貴族の特権", color: "yellow", count: 7, note: "特になし。" },
   { id: "1st-yellow-lock-change", name: "ロックチェンジ", color: "yellow", count: 7, note: "特になし。" },
   { id: "1st-green-largesse", name: "大盤振舞", color: "green", count: 7, note: "特になし。" },
-  { id: "1st-green-bubble", name: "建設バブル", color: "green", count: 7, situation: true, note: "特になし。" },
+  { id: "1st-green-bubble", name: "建設バブル", color: "green", count: 7, situation: true, note: "⚠ デジタル版では、ゲームバランス調整のため、印刷されたカードから効果を一部変えています。この【状況】カードは、到達効果の冒頭に「１枚ドロー。」が足してあります（印刷されたカードには書かれていません）。" },
   { id: "1st-blue-robbery", name: "苦渋の強盗", color: "blue", count: 7, note: "特になし。" },
   { id: "1st-blue-poor-heart", name: "貧しき心", color: "blue", count: 7, note: "特になし。" },
   { id: "1st-pink-overeating", name: "食べ過ぎ", color: "pink", count: 7, note: "特になし。" },
-  { id: "1st-pink-growth", name: "経済成長", color: "pink", count: 7, situation: true, note: "特になし。" },
+  { id: "1st-pink-growth", name: "経済成長", color: "pink", count: 7, situation: true, note: "⚠ デジタル版では、ゲームバランス調整のため、印刷されたカードから効果を一部変えています。この【状況】カードは、到達効果の冒頭に「１枚ドロー。」が足してあります（印刷されたカードには書かれていません）。" },
   { id: "1st-purple-slum", name: "路地裏のスラム街", color: "purple", count: 7, note: "特になし。" },
   { id: "1st-purple-bribe", name: "裏貴族の賄賂", color: "purple", count: 7, note: "特になし。" },
   { id: "1st-white-airship", name: "飛空艇アルヴァ", color: "white", count: 1, note: "特になし。" },
   { id: "1st-white-whim", name: "大富豪の気紛れ", color: "white", count: 1, note: "特になし。" },
   { id: "1st-white-revolution", name: "ドゥエンの革命", color: "white", count: 1, note: "特になし。" },
-  { id: "1st-black-depression", name: "デプレッション", color: "black", count: 2, situation: true, note: "特になし。" },
+  { id: "1st-black-depression", name: "デプレッション", color: "black", count: 2, situation: true, note: "⚠ デジタル版では、ゲームバランス調整のため、印刷されたカードから効果を一部変えています。この【状況】カードは、到達効果の冒頭に「１枚ドロー。」が足してあります（印刷されたカードには書かれていません）。" },
   { id: "1st-black-great-order", name: "偉大なる大号令", color: "black", count: 2, note: "特になし。" },
 ];
 

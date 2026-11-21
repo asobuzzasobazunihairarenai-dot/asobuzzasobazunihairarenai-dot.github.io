@@ -59,6 +59,7 @@ export const CHANGELOG = [
       "コレクションに「？」の札が並びました",
       "志炎者7枚の効果が自動で処理されるようになりました",
       "CPUも割り込みのカードを使うようになりました",
+      "【状況】カードが１枚ドローするようになりました",
     ],
     summaryEn: [
       "Cards opened from the codex are now much larger",
@@ -66,6 +67,7 @@ export const CHANGELOG = [
       "Mystery cards appear in your collection",
       "The seven Shien cards now resolve automatically",
       "The CPU now uses interrupt cards too",
+      "Situation cards now draw you a card",
     ],
     items: [
       "**図鑑でカードを開いた時の札を大きくしました。** スマホの横向きでは**2倍以上**（絵が 107px → 214px）、パソコンでも2倍（179px → 358px）になります。カード名と補足の文字も大きくしました。",
@@ -73,6 +75,7 @@ export const CHANGELOG = [
       "コレクションに**「？」の札が7枚**並びました。まだお見せできない、**特別な方法でしか手に入らないカード**です。7色ぶんあります——色だけは出ているので、どの色の札が来るかは分かります。手に入れると、その札だけ**ふつうのカードとして**名前と絵が出ます。",
       "**志炎者7枚のカード効果が、アプリで自動的に処理される**ようになりました。到達効果では、相手全員に「同じ色のカードを１枚捨てて２枚引きますか？」と聞きます——**１人でも捨てたなら**、そのカードの大きい効果が起きます。手札効果は２つから選べます。そして**【志炎】**——相手がこれと**同じ色のカードの手札効果を使った直後**にだけ宣言できる、割り込みの効果も使えます。",
       "**CPUが割り込みのカードを使うようになりました。** 志炎者の【志炎】はもちろん、**リトルマウス**と**ロックチェンジ**も——この2枚は、これまでCPUが**一度も使っていませんでした**（使える場面でも検討すらしていなかった）。やり直しのカギと裏貴族の賄賂は先に直してありましたが、同じ取りこぼしが残っていたので、まとめて直しました。",
+      "**【状況】カード5種（治安悪化・フェスティバル・建設バブル・経済成長・デプレッション）の到達効果に「１枚ドロー。」が加わりました。** 場の中央に置くだけで手札が減っていたので、置いた人が損をしにくくなります。⚠ 手札効果「上記の到達時の効果を得る。」も到達効果をそのまま得るので、**手札から使った時も1枚引きます**。\n\nあわせて、**印刷されたカードから効果を変えているカードには、その旨をカードの補足に書きました**（図鑑や山札一覧でカードの補足を開くと読めます）。デジタル版はゲームバランスの調整で、紙のカードと文面が違うことがあります。",
     ],
     itemsEn: [
       "**Cards opened from the codex are now much bigger.** On a phone in landscape the art is more than twice the size (107px to 214px), and on a computer it is twice as big (179px to 358px). The card name and notes are larger too.",
@@ -80,6 +83,7 @@ export const CHANGELOG = [
       "**Seven mystery cards** now sit in your collection. They are special cards you can only get in a particular way, and we are not showing them yet. There is one for each of the seven colors — the color is visible, so you can tell which colors are coming. Once you own one, that card shows its real name and art like any other.",
       "**The seven Shien cards now resolve automatically.** On arrival, every opponent is asked whether to discard one card of the matching color to draw two — and **if at least one of them does**, the card's larger effect happens. The hand effect gives you two choices, and that includes **Shien**: an interrupt you may declare only right after an opponent uses the hand effect of a card of the same color.",
       "**The CPU now uses interrupt cards.** That covers Shien on the new cards, and also **Little Mouse** and **Lock Change** — the CPU had **never once** used those two, not even considering them when it could. Redo Key and the Noble's Bribe were fixed earlier; the same gap was still there for the rest, so we closed it.",
+      "**The five Situation cards now start their arrival effect with \"Draw 1.\"** Placing one in the center used to cost you a card for nothing, so this softens that. Note that the hand effect (\"Gain the arrival effect above\") also draws, since it takes the arrival effect as written.\n\nWe also **added a line to the card notes of every card whose effect differs from the printed card** — you can read it from the card notes in the codex or the deck list. The digital version sometimes tunes effects for balance, so the wording can differ from the physical card.",
     ],
     fixes: [
       "２マス移動する効果が、1マスずつ2回動く形になりました",
@@ -196,6 +200,12 @@ export const CHANGELOG = [
       "⚠ **管理者のテスト用に「リメイク＋志炎者」のセットを足した**（志炎者は**各1枚**）。⚠ 元の定義（`count: 7`）は書き換えず**写しを作る**——同じ配列を図鑑やマイ山札も見ているので、ここで書き換えると表示まで1枚になる。実測で「元が7のまま」を見ている。",
       "🔴 **管理者ダッシュボードの不具合報告が1件も開けなくなっていた**（`so7_get_admin_bug_reports` が **statement timeout 57014**。報告 **722件**）。⇒ **一覧用の軽い関数**（大きい列を1つも作らず、件数を絞る）と**1件用の関数**に分けた。⚠ 2026-11-10（557件）にも同じ事故が起きていて、その時は PostgREST の列選択で凌いだが、**あれは「送る量」を減らすだけでサーバーの仕事は減らない**ので件数が増えてまた落ちた。とくに `context` には動作確認（続き757）の計測が丸ごと入るので1件が重い。",
       "⚠ **v2 の切り替えは既に在った**（⚙オプション →「動きが重い・カクつくとき」→「新しい見た目を試す（この端末だけ）」）。#679 で**まさに同じ理由**（ホーム画面アプリはブラウザと別の保管場所を持ち、`?ui=v2` が伝わらない）から足したもの。私は一度**重複して足しかけ**、構文エラーで気づいて取り消した。",
+      "🔴 **【状況】カード5種の到達効果の冒頭に「１枚ドロー。」を足した**（ユーザー指示）。文（`tools/1st-text-source.json`）と効果データ（`card-effects.js`）の**両方**。⚠ 手札効果は「上記の到達時の効果を得る。」なので**手札から使った時も引く**——これは印字の literal な読みどおりだが、**意図していない可能性があるので申し送りに書いた**。",
+      "🔴 **1st EDITION の生成ツールは、カードの補足を書けなかった**（`note: \"特になし。\"` の決め打ち）。旧0th（`gen-0th-text.mjs`）と**同じ決まり**にそろえた——出どころの `notes` のうち**「補足:」で始まる行だけ**を採る（作業メモが画面に出ないように）。",
+      "⚠ **置換が黙って空振りした。** `split/join` は目印が当たらなくても落ちないので、直したつもりで何も変わっていなかった（生成し直して気づいた）。⇒ **当たった数を数えて、思った数でなければ止める**形に直した。",
+      "⚠ **印刷されたカードから効果を変えている札すべてに補足を書いた**（ユーザー指示）。いま対象は **9枚**: 【状況】5種（今回）／パーティー（リメイク桃１・3つ目の選択肢）／我忘れの白き龍（0th拡張・円盤の並び）／旧0thのダッシュ・情報開示・にじいろの呪い。出どころは**アートディレクターへの報告控え**（記憶）で、「変えたら1行足す」という決まりがそのまま一覧になっていた。",
+      "⚠ 補足の持ち主は**4か所に分かれている**（リメイク＝`cards-data.js` 手書き／0th拡張＝`cards-data-ex0.js` 手書き／1st と旧0th＝生成物）。増やす時は**どれが生成物か**を先に見ること。",
+      "🔴 **志炎者の橙（ブランド）のイラストを差し替えた**（前の版は素材フォルダの `_前の版` へ退避）。これで7枚中5枚が新しい絵。",
     ],
   },
   {
