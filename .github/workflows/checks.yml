@@ -40,6 +40,8 @@ jobs:
         run: node tools/check-syntax.mjs
       - name: 未宣言の名前（import 漏れ）
         run: node tools/check-undeclared.mjs
+      - name: エンジンの中でどこにも無い名前を呼んでいないか
+        run: node tools/check-engine-names.mjs
       - name: カードの持ち物検査
         run: node tools/check-cards.mjs
       - name: SQL の全文再実行が安全か

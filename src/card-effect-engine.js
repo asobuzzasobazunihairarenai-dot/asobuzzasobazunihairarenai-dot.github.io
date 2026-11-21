@@ -1697,6 +1697,36 @@ function countLockedCardsFor(player) {
 // カウンターロック専用: 「１番少なくロックしている」＝参加している全プレイヤーの中で
 // ロック枚数が最少（同率首位も含む——docs/cards.md補足「ロックしている枚数が
 // １番少ないことである」の一般的な解釈、他の「１番多い/少ない」系カードと同じ）。
+// 🔴【続き795】「1番多く／少なくロックしているプレイヤー」の候補。
+//   ⚠ 数え方は countLockedCardsFor に統一する（2か所で別々に書くとズレる）。
+//   ⚠ 「プレイヤー」＝**自分も含む**（カード文が「相手」と書いていない限り）。
+// 🔴【続き797】そのマスが**相手の誰かの周囲**（斜めも含む8マス）か。
+//   ⚠ 自分の周囲は含めない（カード文が「相手の周囲以外」と書いている）。
+function 相手の周囲か(row, col, 自分) {
+  for (const p of getState().activePlayers) {
+    if (p === 自分) continue;
+    const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
+    if (!piece || piece.location.zone !== "cell") continue;
+    const dr = Math.abs(piece.location.row - row);
+    const dc = Math.abs(piece.location.col - col);
+    if (dr <= 1 && dc <= 1 && !(dr === 0 && dc === 0)) return true;
+  }
+  return false;
+}
+
+function 最多ロックの候補() {
+  const players = getState().activePlayers;
+  if (players.length === 0) return [];
+  const 最大 = Math.max(...players.map((p) => countLockedCardsFor(p)));
+  return players.filter((p) => countLockedCardsFor(p) === 最大);
+}
+function 最少ロックの候補() {
+  const players = getState().activePlayers;
+  if (players.length === 0) return [];
+  const 最小 = Math.min(...players.map((p) => countLockedCardsFor(p)));
+  return players.filter((p) => countLockedCardsFor(p) === 最小);
+}
+
 function isFewestLocked(player) {
   const counts = getState().activePlayers.map((p) => countLockedCardsFor(p));
   if (counts.length === 0) return false;
@@ -2452,6 +2482,9 @@ async function runAction(action, ctx, helpers) {
           if (見た.has(鍵)) continue;
           const 上 = findTopCardAtCell(tk.location.row, tk.location.col);
           if (!上 || 上.faceUp) continue; // 1番上が表なら、ここの裏向きは取れない
+          // 🔴【続き797】旧0th・民の道の建設■「**相手の周囲以外**の任意の2マス」。
+          //   ⚠ 「周囲」＝斜めも含む8マス。⚠ **自分の周囲は含めない**（「相手の」と書いてある）。
+          if (action.excludeAroundOpponents && 相手の周囲か(tk.location.row, tk.location.col, ctx.player)) continue;
           見た.add(鍵);
           元候補.push({ zone: "cell", row: tk.location.row, col: tk.location.col });
         }
@@ -2464,7 +2497,11 @@ async function runAction(action, ctx, helpers) {
         const 札 = findTopCardAtCell(元.row, 元.col);
         if (!札 || 札.faceUp) break;
         // ⚠ マスの範囲を書き下さない（2か所に書くとズレる）。既にある一覧から今のマスだけ外す。
-        const 先候補 = getAllCellCandidates().filter((c) => !(c.row === 元.row && c.col === 元.col));
+        // 🔴【続き797】旧0th・民の道の建設■は「**カードの置かれていない**任意の2マス」。
+        //   ⚠ 志炎者 緑は絞りが無い（どのマスでもよい）ので、印が付いた時だけ絞る。
+        const 先候補 = getAllCellCandidates()
+          .filter((c) => !(c.row === 元.row && c.col === 元.col))
+          .filter((c) => !action.destOnlyCardless || !findTopCardAtCell(c.row, c.col));
         if (先候補.length === 0) break;
         const 先 = await helpers.pickLocation(先候補, t("ce.cfPickFacedownDest", { i: i + 1, n: 欲しい2 }));
         if (!先) break;
@@ -2981,6 +3018,13 @@ async function runAction(action, ctx, helpers) {
           // 渡ってくるため、ここで作り直さずそのまま使う。
           // 【#468】表向きで置くと分かっている時は、**飛んでいる間から表の面**を見せる。
           await helpers.moveAndSync(ctx.cardTokenId, dest, undefined, undefined, false, false, action.faceUp ? { landFaceUp: true } : null);
+          // 🔴【続き794】**置いた場所を覚える。** 次の行動が「そのマスの周囲…」と
+          //   言う時に要る（旧0th・仕掛けられた罠／欲しがりの吊り橋）。
+          //   ⚠ マスに置いた時だけ（ロックエリアは「周囲」の話が無い）。
+          // ⚠ 候補のマスは **zone が付いていないことがある**（呼ぶ側で後から足している）。
+          //   実測で `dest.zone === "cell"` が false になり、置いた場所を覚え損ねていた。
+          //   ⇒ **row/col があってロックエリアでなければマス**と見る。
+          if (dest && typeof dest.row === "number" && dest.zone !== "lock") ctx.lastPlacedAt = { row: dest.row, col: dest.col };
           // 表向き指定の時だけ明示的にめくる。ただしflipCardはトグルなので、置いた先の
           // 既定の向き(state.jsのfaceUpForLocation)によって向きが変わる:
           //   - cell/手札 … 既定は裏向き → flipで表向きになる（ジャンプ台の手札効果等、正しい）
@@ -3637,8 +3681,17 @@ async function runAction(action, ctx, helpers) {
       const players = getState().activePlayers;
       let 最大 = -1;
       for (const p of players) 最大 = Math.max(最大, countLockedCardsFor(p));
-      const cands = players.filter((p) => countLockedCardsFor(p) === 最大);
-      if (cands.length === 0) return false;
+      const 全候補 = players.filter((p) => countLockedCardsFor(p) === 最大);
+      if (全候補.length === 0) return false;
+      // 🔴【#752・続き797】報告「スティールで、手札が0枚の相手も選択肢に入っていた」。
+      //   ユーザーの一般方針（#755）「**選んでも何も起きない選択肢は出さない**」。
+      //   ⚠ ただし #639 では逆に「候補が1人でも必ず選ばせる（黙って決めない）」と決めている。
+      //   ⇒ **奪える相手が1人でも居るならその人たちだけ**を出し、**1人も居ない時は**
+      //     今までどおり全員を出して**不発を見せる**（黙らない）。両方の判断が立つ。
+      //   ⚠ 自分は奪えない（下で「自分を選んだら不発」と出す）ので、ここでも外さない
+      //     ——外すと「自分しか居ない時に何も出ない」になり、#639 の訴えに戻る。
+      const 奪える = 全候補.filter((p) => p === ctx.player || getHandTokens(p).length > 0);
+      const cands = 奪える.length > 0 ? 奪える : 全候補;
       // 🔴【#639・2026-11-14】ユーザー判断「自分を含みます。対象を選ぶモーダルを1人でも出す」。
       //   報告「リトルマウスを使ったのに使えなかった」の正体は**撃てたが奪えなかった**
       //   （自分が単独で1番多い＝自分しか選べない＝奪う相手が居ない）。
@@ -4889,6 +4942,229 @@ async function runAction(action, ctx, helpers) {
     //   ⚠ **「相手」**なので自分は候補に入れない（カード文が「相手」と書いている）。
     //   ⚠ ゲートのマスに既にカードがあっても**重ねて置ける**（カードは駒ではない）。
     //   ⚠ 裏向きなので到達効果は起きない（置いただけ）。
+    // 🔴【#749・続き794】旧0th・仕掛けられた罠(手札)の後半。
+    //   「そのマスの周囲のカードから１枚選び、捨てる。」
+    //   ⚠ 「周囲」＝**斜めも含む8マス**（用語集。「隣」＝前後左右の4マスとは別）。
+    //   ⚠ **置いたマス自身は入らない**（「そのマスの周囲」なので）。
+    //   ⚠ カードが1枚も無ければ不発（善処の原則）。候補が1つなら聞かない（既定の作法）。
+    //   ⚠ 重なっている時は**１番上の原則**で一番上の1枚（getVisibleCardTokenAt と同じ考え方）。
+    // 🔴【#747・続き794】旧0th・誰かの好きな花(到達)の前半。
+    //   「相手を１人選ぶ。これをその相手の手札に加える。」
+    //   ⚠ **「相手」**なので自分は候補に入れない。
+    //   ⚠ 渡すので、到達の既定動作（自分の手札に加える）は使わない
+    //     ＝カードのデータ側で `addsCardToHandAfter: false` にしてある。
+    // 🔴【続き795】旧0th・いろ落ちガエル(到達)の後半。
+    //   「１番少なくロックしているプレイヤーを１人選ぶ。これをそのプレイヤーの手札に加える。」
+    //   ⚠ 「プレイヤー」＝**自分も含む**（カード文が「相手」と書いていない）。
+    case VERBS.GIVE_SELF_TO_FEWEST_LOCKED: {
+      const 候補 = 最少ロックの候補();
+      if (候補.length === 0) return false;
+      const target = await helpers.pickPlayer(候補, t("ce.0thFrogGive"));
+      if (!target) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: target });
+      await helpers.announceEffectReason?.(ctx.cardId, t("ce.0thFlowerGiven", { name: helpers.getPlayerName(target) }));
+      return true;
+    }
+    // 🔴【続き795】旧0th・いろ落ちガエル(手札)の前半。
+    //   「１番多くロックしている**全員**は、自分のロックしている１枚を選んで捨てる。」
+    //   ⚠ **全員**なので選ばせない（1人ではない）。処理順の原則で使用者から時計回り。
+    //   ⚠ どれを捨てるかは**その人自身**が決める（委任。使用者が選ぶとロックの中身の話になる）。
+    case VERBS.MOST_LOCKED_EACH_DISCARD_ONE_LOCKED: {
+      const 候補 = new Set(最多ロックの候補());
+      if (候補.size === 0) return false;
+      let 何かした = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (!候補.has(p)) continue;
+        if (await helpers.delegateToPlayer?.(p, "discard-one-locked")) 何かした = true;
+      }
+      return 何かした;
+    }
+    // 🔴【続き795】旧0th・誰かの好きな花(手札)。
+    //   「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの周囲の、
+    //    プレイヤーのいないマスにこれを表向きで置く。」
+    //   ⚠ 「周囲」＝斜めも含む8マス。⚠ 「プレイヤーのいないマス」＝駒がいないマス。
+    //   ⚠ カードが在るかは問わない（重ねて置ける）。
+    case VERBS.PLACE_SELF_AROUND_MOST_LOCKED: {
+      const 候補 = 最多ロックの候補();
+      if (候補.length === 0) return false;
+      const target = await helpers.pickPlayer(候補, t("ce.ex0PickMostLocked"));
+      if (!target) return false;
+      const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
+      if (!piece || piece.location.zone !== "cell") return false;
+      const マス = [];
+      for (const { dr, dc } of enumerateSurroundingOffsets()) {
+        const row = piece.location.row + dr;
+        const col = piece.location.col + dc;
+        if (!inBounds(row, col)) continue;
+        if (hasPieceAt(row, col)) continue; // 「プレイヤーのいないマス」
+        マス.push({ zone: "cell", row, col });
+      }
+      if (マス.length === 0) return false;
+      const dest = マス.length === 1 && !ctx.forcePrompt ? マス[0] : await helpers.pickLocation(マス, t("ce.0thFlowerPlace"), { purpose: "place" });
+      if (!dest) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, dest, undefined, undefined, false, false, { landFaceUp: true });
+      const 置いた = getState().tokens.find((x) => x.id === ctx.cardTokenId);
+      if (置いた && 置いた.faceUp === false) await helpers.flipCard?.(ctx.cardTokenId);
+      return true;
+    }
+    // 🔴【続き795】旧0th・にじいろの呪い(手札)。
+    //   「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーは上記の到達効果を得る。」
+    //   ＝「あなたの空いているロックエリアに、これを表向きで置く」を**その人が**得る。
+    //   ⚠ どのスロットに置くかは**その人自身**が決める（委任）。
+    //   ⚠ 空きが無ければ不発（善処の原則）。
+    case VERBS.MOST_LOCKED_GAINS_LOCK_PLACEMENT: {
+      const 候補 = 最多ロックの候補();
+      if (候補.length === 0) return false;
+      const target = await helpers.pickPlayer(候補, t("ce.ex0PickMostLocked"));
+      if (!target) return false;
+      const 空き = getOwnEmptyLockSlotCandidates(target);
+      if (空き.length === 0) return false;
+      let dest = 空き[0];
+      if (空き.length > 1) {
+        const 返事 = await helpers.delegateToPlayer?.(target, "choose-cell", {
+          candidates: 空き.map((c) => ({ ...c })),
+          hintKey: "ce.0thCursePickSlot",
+          forPlayer: target,
+        });
+        const 選 = 委任のマスを候補に合わせる(返事, 空き, ctx.cardId);
+        if (選) dest = 選;
+      }
+      await helpers.moveAndSync(ctx.cardTokenId, dest, undefined, undefined, false, false, { landFaceUp: true });
+      const 置いた = getState().tokens.find((x) => x.id === ctx.cardTokenId);
+      if (置いた && 置いた.faceUp === false) await helpers.flipCard?.(ctx.cardTokenId);
+      return true;
+    }
+    // 🔴【続き795】旧0th・欲しがりの吊り橋(手札)の後半。
+    //   「そのマスの周囲のカードから１枚選び、これの直下に置く。」
+    //   ⚠ 「直下」＝**このカードのすぐ下**。重なり順は tokens の並びで決まる（後ろほど上）ので、
+    //     このカードの**直前**に入れる。state に専用のアクションが要る＝ここでは
+    //     「同じマスへ動かしてから、このカードを一番上へ置き直す」で同じ結果にする。
+    // 🔴【続き796】旧0th・フォース(手札)。
+    //   「【追色１】相手を１人選ぶ。その相手をカードの置かれた任意のマスへ移動する。」
+    //   ⚠ **距離の縛りが無い**（ふつうの「移動」は1マス）ので、専用の動詞にした。
+    //   ⚠ 「移動」なので**移動先の到達効果も起きる**（オープンしないとは書かれていない）。
+    //   ⚠ 行き先は**動かす人**（効果の持ち主）が選ぶ——カード文が「移動する」と言い切っていて、
+    //     本人に選ばせるとは書いていない（貴族の特権の「そのプレイヤーは１マス移動する」とは別）。
+    //   ⚠ 駒のいるマスへは行けない（1マスに駒は1つ）。
+    // 🔴【続き796】旧0th・なないろのあめ(到達)。
+    //   「カードのないすべてのマスに山札から１枚ずつ裏向きで置く。」
+    //   ⚠ 「**カードのない**マス」＝駒が居ても置ける（「何もないマス」とは別の言葉）。
+    //   ⚠ 選ばせない（「すべてのマス」なので選ぶ余地が無い）。
+    //   ⚠ 山札が尽きたらそこで終わり（善処の原則）。
+    case VERBS.PLACE_DECK_CARDS_AT_ALL_CARDLESS_CELLS: {
+      let 置いた = 0;
+      for (let row = 0; row < 7; row++) {
+        for (let col = 0; col < 7; col++) {
+          if (getState().piles.deck.length === 0) break;
+          if (findTopCardAtCell(row, col)) continue; // カードが在るマスは飛ばす
+          await helpers.placeFromDeck({ zone: "cell", row, col });
+          置いた++;
+        }
+      }
+      return 置いた > 0;
+    }
+    // 🔴【続き796】旧0th・なないろのあめ(手札)。
+    //   「場の任意の縦または横１列（７マス）を選ぶ。その列に山札から１枚ずつ裏向きで置く。」
+    //   ⚠ 列は**行か列のどちらか**。選び方は「その列の代表のマスを1つ選ぶ」ではなく、
+    //     **候補のマスを全部出して、選んだマスの属する列**にする——と取り違えやすいので、
+    //     ここでは**14本の列**（縦7＋横7）を選択肢として出す。
+    //   ⚠ 既にカードが在るマスにも**重ねて置く**（「その列に1枚ずつ」なので飛ばさない）。
+    case VERBS.PLACE_DECK_CARDS_ALONG_CHOSEN_LINE: {
+      const 選択肢 = [];
+      for (let i = 0; i < 7; i++) 選択肢.push({ id: "row" + i, labelKey: null, label: t("ce.0thRainRow", { n: i + 1 }) });
+      for (let i = 0; i < 7; i++) 選択肢.push({ id: "col" + i, labelKey: null, label: t("ce.0thRainCol", { n: i + 1 }) });
+      const 選 = await helpers.pickChoice?.(ctx.cardId, 選択肢, t("ce.0thRainPickLine"));
+      if (!選) return false;
+      const 縦 = String(選).startsWith("col");
+      const n = Number(String(選).slice(3));
+      if (!Number.isFinite(n)) return false;
+      let 置いた = 0;
+      for (let i = 0; i < 7; i++) {
+        if (getState().piles.deck.length === 0) break;
+        const row = 縦 ? i : n;
+        const col = 縦 ? n : i;
+        await helpers.placeFromDeck({ zone: "cell", row, col });
+        置いた++;
+      }
+      return 置いた > 0;
+    }
+    case VERBS.MOVE_CHOSEN_OPPONENT_TO_ANY_CARD_CELL: {
+      const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
+      if (相手.length === 0) return false;
+      const target = await helpers.pickPlayer(相手, t("ce.0thForcePickPlayer"));
+      if (!target) return false;
+      const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
+      if (!piece || piece.location.zone !== "cell") return false;
+      const マス = [];
+      for (let row = 0; row < 7; row++) {
+        for (let col = 0; col < 7; col++) {
+          if (!findTopCardAtCell(row, col)) continue; // 「カードの置かれた」マスだけ
+          if (hasPieceAt(row, col)) continue; // 駒のいるマスへは行けない
+          マス.push({ zone: "cell", row, col });
+        }
+      }
+      if (マス.length === 0) return false;
+      const dest = マス.length === 1 && !ctx.forcePrompt ? マス[0] : await helpers.pickLocation(マス, t("ce.0thForcePickCell"), { purpose: "move" });
+      if (!dest) return false;
+      await helpers.moveAndSync(piece.id, dest);
+      helpers.recordMoveVisited?.(dest);
+      // 「移動」なので移動先の到達効果が起きる（裏向きなら開けてから）。
+      if (helpers.handleArrivalDestination) await helpers.handleArrivalDestination(dest);
+      else await helpers.triggerArrivalAtIfFaceUp?.(dest, target);
+      return true;
+    }
+    case VERBS.MOVE_ONE_CARD_AROUND_LAST_PLACED_UNDER_SELF: {
+      const 中心 = ctx.lastPlacedAt;
+      if (!中心) return false;
+      const 候補 = [];
+      for (const { dr, dc } of enumerateSurroundingOffsets()) {
+        const row = 中心.row + dr;
+        const col = 中心.col + dc;
+        if (!inBounds(row, col)) continue;
+        if (findTopCardAtCell(row, col)) 候補.push({ zone: "cell", row, col });
+      }
+      if (候補.length === 0) return false;
+      const 選 = 候補.length === 1 && !ctx.forcePrompt ? 候補[0] : await helpers.pickLocation(候補, t("ce.0thBridgePickAround"), { purpose: "place" });
+      if (!選) return false;
+      const 札 = findTopCardAtCell(選.row, 選.col);
+      if (!札) return false;
+      // ①その札をこのマスへ（この時点で一番上に乗る）
+      await helpers.moveAndSync(札.id, { zone: "cell", row: 中心.row, col: 中心.col });
+      // ②このカードを置き直して一番上へ戻す ⇒ 相手の札は**これの直下**になる
+      await helpers.moveAndSync(ctx.cardTokenId, { zone: "cell", row: 中心.row, col: 中心.col });
+      return true;
+    }
+    case VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT: {
+      const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
+      if (相手.length === 0) return false;
+      const target = 相手.length === 1 && !ctx.forcePrompt ? 相手[0] : await helpers.pickPlayer(相手, t("ce.0thFlowerGive"));
+      if (!target) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: target });
+      await helpers.announceEffectReason?.(ctx.cardId, t("ce.0thFlowerGiven", { name: helpers.getPlayerName(target) }));
+      return true;
+    }
+    case VERBS.DISCARD_ONE_CARD_AROUND_LAST_PLACED: {
+      const 中心 = ctx.lastPlacedAt;
+      if (!中心) return false;
+      const 候補 = [];
+      for (const { dr, dc } of enumerateSurroundingOffsets()) {
+        const row = 中心.row + dr;
+        const col = 中心.col + dc;
+        if (!inBounds(row, col)) continue;
+        const 上 = findTopCardAtCell(row, col);
+        if (上) 候補.push({ zone: "cell", row, col });
+      }
+      if (候補.length === 0) return false;
+      const 選 =
+        候補.length === 1 && !ctx.forcePrompt
+          ? 候補[0]
+          : await helpers.pickLocation(候補, t("ce.0thTrapPickAround"), { purpose: "discard" });
+      if (!選) return false;
+      const 札 = findTopCardAtCell(選.row, 選.col);
+      if (!札) return false;
+      await helpers.discardAndSync(札.id);
+      return true;
+    }
     case VERBS.PLACE_SELF_AT_CHOSEN_OPPONENT_GATE: {
       const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
       if (相手.length === 0) return false;

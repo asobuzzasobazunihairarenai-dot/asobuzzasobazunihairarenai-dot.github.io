@@ -7,6 +7,62 @@
 // expect: Node 側で最終 state に対して確認するアサーション。
 // 盤面の座席→ロック辺: A=bottom, B=left, C=top, D=right（board-layout）。COLORS順=赤橙黄緑青桃紫。
 export const CASES = [
+  // ===== 旧0th 第2陣（続き794・報告 #747 #749）==========================================
+  {
+    name: "旧0th 仕掛けられた罠(手札): 周囲以外のマスへ裏向きで置き、そのマスの周囲のカードを1枚捨てる",
+    kind: "hand",
+    cardId: "0th-blue-set-trap",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 6 } },
+        { id: "self", kind: "card", cardId: "0th-blue-set-trap", location: { zone: "hand", player: "A" } },
+        // 置く先 (1,1) の周囲 (0,0) にカードを1枚だけ置いておく（候補が1つなら聞かない）
+        { id: "near", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+        // 🔴 対照: 置く先から遠いカードは捨てられてはいけない
+        { id: "far", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 5, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-blue-set-trap", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 6 } },
+    // ⚠ 手札効果は forcePrompt: true ＝**候補が1つでも必ず聞く**ので、
+    //   「置くマス」と「捨てるカードのマス」で**2回**答える。
+    picks: { location: [{ row: 1, col: 1 }, { row: 0, col: 0 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 1, col: 1 },
+      { kind: "tokenFaceDown", id: "self" },
+      { kind: "called", name: "pickLocation", n: 2 }, // 置くマス＋捨てるマス
+      { kind: "called", name: "discard" },
+      // ⚠ 捨てた札は**トークンごと消える**（山に cardId として入る）ので、zone では見ない。
+      { kind: "tokenGone", id: "near" },
+      { kind: "tokenAtCell", id: "far", row: 5, col: 5 }, // 🔴 遠いカードは無事
+    ],
+  },
+  {
+    name: "旧0th 誰かの好きな花(到達): これを選んだ相手の手札へ渡し、自分は1枚引く",
+    kind: "arrival",
+    cardId: "0th-pink-favorite-flower",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "0th-pink-favorite-flower", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["green-growing-trees"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-pink-favorite-flower", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["C"] },
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "hand", player: "C" }, // 🔴 相手の手札へ
+      // 🔴 この筋書きは**元から表向き**の札に到達した形なので、印字の条件
+      //   「このターンにこれがオープンされたのなら」を**満たさない**＝引かないのが正しい
+      //   （バスストップと同じ ）。
+      { kind: "handCount", player: "A", n: 0 },
+      { kind: "deckLen", n: 1 },
+    ],
+  },
+
   // ===== 旧0th 第1陣（続き793）=========================================================
   {
     name: "旧0th 反撃(到達): 手札が1番少ないなら2枚引いて1枚捨てる",

@@ -141,6 +141,33 @@ export const VERBS = {
   // 旧0th・誰かの落とし物(手札): 相手を1人選び、このカード自身をその相手のゲートへ裏向きで置く。
   //   ⚠ 「あなたのゲート」へ置く道（TARGET_SELECTIONS.OWN_GATE）はあるが、**相手のゲート**は無かった。
   PLACE_SELF_AT_CHOSEN_OPPONENT_GATE: "place_self_at_chosen_opponent_gate",
+  // 旧0th・仕掛けられた罠(手札): **直前に置いたマスの周囲**（斜めも含む8マス）のカードから
+  //   1枚選んで捨てる。⚠ 「周囲」は斜めも含む8マス（用語集。「隣」＝前後左右の4マスとは別）。
+  DISCARD_ONE_CARD_AROUND_LAST_PLACED: "discard_one_card_around_last_placed",
+  // 旧0th・誰かの好きな花(到達): 相手を1人選び、**このカード自身**をその相手の手札へ渡す。
+  //   ⚠ 既にある GIVE_HAND_CARDS_TO_CHOSEN_PLAYER は「手札の札を渡す」もので、
+  //     **盤面に在るこのカード自身**を渡す道は無かった。
+  GIVE_SELF_TO_CHOSEN_OPPONENT: "give_self_to_chosen_opponent",
+  // 旧0th・いろ落ちガエル(到達): **1番少なく**ロックしている人を1人選び、これをその人の手札へ。
+  GIVE_SELF_TO_FEWEST_LOCKED: "give_self_to_fewest_locked",
+  // 旧0th・いろ落ちガエル(手札): 1番多くロックしている**全員**が、自分のロック1枚を選んで捨てる。
+  MOST_LOCKED_EACH_DISCARD_ONE_LOCKED: "most_locked_each_discard_one_locked",
+  // 旧0th・誰かの好きな花(手札): 1番多くロックしている人を1人選び、その人の**周囲**の
+  //   駒のいないマスへ、これを表向きで置く。
+  PLACE_SELF_AROUND_MOST_LOCKED: "place_self_around_most_locked",
+  // 旧0th・にじいろの呪い(手札): 1番多くロックしている人を1人選び、**その人の**空いている
+  //   ロックエリアへこれを表向きで置く（＝その人が上記の到達効果を得る）。
+  MOST_LOCKED_GAINS_LOCK_PLACEMENT: "most_locked_gains_lock_placement",
+  // 旧0th・欲しがりの吊り橋(手札): 直前に置いたマスの周囲のカードを1枚選び、**これの直下**へ置く。
+  MOVE_ONE_CARD_AROUND_LAST_PLACED_UNDER_SELF: "move_one_card_around_last_placed_under_self",
+  // 旧0th・フォース(手札): 相手を1人選び、**カードの置かれた任意のマス**へ移動させる。
+  //   ⚠ 距離の縛りが無い（ふつうの移動は1マス）。⚠ 「移動」なので到達効果も起きる。
+  MOVE_CHOSEN_OPPONENT_TO_ANY_CARD_CELL: "move_chosen_opponent_to_any_card_cell",
+  // 旧0th・なないろのあめ(到達): **カードのない**すべてのマスに山札から1枚ずつ裏向きで置く。
+  //   ⚠ 「何もないマス」（駒も不可）ではない——**カードが無ければ駒が居ても置ける**。
+  PLACE_DECK_CARDS_AT_ALL_CARDLESS_CELLS: "place_deck_cards_at_all_cardless_cells",
+  // 旧0th・なないろのあめ(手札): 縦または横の1列（7マス）を選び、その列に1枚ずつ置く。
+  PLACE_DECK_CARDS_ALONG_CHOSEN_LINE: "place_deck_cards_along_chosen_line",
   STEAL_LOCKED_FROM_MOST_LOCKED: "steal_locked_from_most_locked", // 苦渋の強盗(手札): 1番多くロックしている人のロック札を1枚奪う
   STEAL_RANDOM_AND_GIVE_SELF: "steal_random_and_give_self", // 裏貴族の賄賂(到達): 無作為に1枚奪い、これを相手の手札へ
   BRIBE_ON_LOCK_DECLARE: "bribe_on_lock_declare", // 裏貴族の賄賂(手札): ロック宣言に割り込み、その札を奪って1枚渡す
@@ -2566,23 +2593,100 @@ export const CARD_EFFECTS = {
   // 民の道の建設（緑）
   //   ● 「カードの置かれていない任意の５マスに山札から１枚ずつ裏向きで置く。」
   //   ⚠ ■（裏向きのまま2枚を動かす）は**まだ**＝B の節。
+  //   ■ 「相手の周囲以外の任意の２マスの裏向きのカードを２枚選ぶ。
+  //      その２枚を裏向きのまま、カードの置かれていない任意の２マスに置く。」
+  //     🔴 志炎者 緑と**同じ動詞**。違うのは絞り2つ（取る側＝相手の周囲以外／置く側＝カードが無いマス）。
   "0th-green-peoples-road": {
     arrival: { actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 5 }] },
+    handEffect: {
+      actions: [
+        {
+          verb: VERBS.MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS,
+          count: 2,
+          excludeAroundOpponents: true,
+          destOnlyCardless: true,
+        },
+      ],
+    },
+  },
+
+  // 誰かの好きな花（桃）
+  //   ● 「相手を１人選ぶ。これをその相手の手札に加える。このターンにこれがオープンされたのなら、１枚ドロー。」
+  //     🔴 **「このターンにこれがオープンされたのなら」は、到達から走っている限りほぼ必ず真**
+  //       （到達効果は「駒が乗って、裏向きならめくれた」時に起きる）。元から表向きだった札に
+  //       乗った時だけ偽になり得るが、engine は「めくったか」を知らない。
+  //       ⇒ **引く**側に倒す（印字の条件が満たされている場合の方が多く、善処の原則にも合う）。
+  //       ⚠ この判断は**カードの補足にも書いてある**（後から読む人が迷わないように）。
+  //   ⚠ ■（1番多くロックしている人の周囲へ表向きで置く）は**まだ**。
+  "0th-pink-favorite-flower": {
+    arrival: {
+      // これ自身は相手へ渡すので、自分の手札には加えない。
+      addsCardToHandAfter: false,
+      actions: [
+        { verb: VERBS.GIVE_SELF_TO_CHOSEN_OPPONENT },
+        // 🔴【続き796】「このターンにこれがオープンされたのなら、１枚ドロー。」
+        //   **先例があった**——バスストップ（0th拡張）の 。
+        //   推測で「だいたい真だから引く」にしていたのを、**印字どおりの条件**に直した。
+        //   ⚠ 前の行動（渡す）が不発なら引かない。
+        { verb: VERBS.DRAW_IF_OPENED_THIS_TURN, count: 1, stopIfPreviousFailed: true },
+      ],
+    },
+    // ■ 「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの周囲の、
+    //    プレイヤーのいないマスにこれを表向きで置く。１枚ドロー。」
+    handEffect: {
+      keepsCardOnUse: true, // これ自身を盤面へ置くので手札へ戻さない
+      actions: [
+        { verb: VERBS.PLACE_SELF_AROUND_MOST_LOCKED },
+        { verb: VERBS.DRAW, count: 1, target: TARGETS.SELF, stopIfPreviousFailed: true },
+      ],
+    },
   },
 
   // 仕掛けられた罠（青）
   //   ● 「あなたの手札を半分捨てる。」 ⚠ ■は**まだ**＝B の節。
+  //   ■ 「これをあなたの周囲以外の任意のマスに裏向きで置く。そのマスの周囲のカードから１枚選び、捨てる。」
+  //     ⚠ 「あなたの周囲以外」は既にある `excludeSurrounding` で足りた（迷いの森と同じ）。
   "0th-blue-set-trap": {
     arrival: { actions: [{ verb: VERBS.DISCARD_HALF_HAND }] },
+    handEffect: {
+      // ⚠ これ自身を盤面へ置くので、使った後に手札へ戻さない。
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: false,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeSurrounding: true },
+        },
+        { verb: VERBS.DISCARD_ONE_CARD_AROUND_LAST_PLACED, stopIfPreviousFailed: true },
+      ],
+    },
   },
 
   // 欲しがりの吊り橋（青）
   //   ● 2択。どちらも既にある動詞で足りる。 ⚠ ■は**まだ**＝B の節。
   "0th-blue-greedy-bridge": {
     arrivalOptions: [
-      { id: "0th-bridge-discard", labelKey: "cef.opt.0thBridgeDiscard", actions: [{ verb: VERBS.DISCARD_ONE_HAND_CARD }] },
+      // 🔴【#755・続き797】報告「手札がないのに一枚捨てるを選べてた」＋「今後新カードを追加する時も気をつけて」。
+      //   **選んでも何も起きない選択肢は出さない**（善処の原則）。手札が1枚も無ければこの枝は選べない。
+      { id: "0th-bridge-discard", labelKey: "cef.opt.0thBridgeDiscard", requiresMinHandSize: 1, actions: [{ verb: VERBS.DISCARD_ONE_HAND_CARD }] },
       { id: "0th-bridge-back", labelKey: "cef.opt.0thBridgeBack", actions: [{ verb: VERBS.FORCED_MOVE_TO_PREVIOUS_CELL, noArrival: true }] },
     ],
+    // ■ 「これをあなたの周囲以外の任意のマスに裏向きで置く。そのマスの周囲のカードから
+    //    １枚選び、これの直下に置く。」
+    //   ⚠ 仕掛けられた罠■と**同じ形**（置く所まで一緒）。違うのは「捨てる」か「直下へ置く」か。
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: false,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, excludeSurrounding: true },
+        },
+        { verb: VERBS.MOVE_ONE_CARD_AROUND_LAST_PLACED_UNDER_SELF, stopIfPreviousFailed: true },
+      ],
+    },
   },
 
   // 誰かの落とし物（橙）
@@ -2617,12 +2721,49 @@ export const CARD_EFFECTS = {
 
   // フォース（橙）
   //   ● 「あなたの隣の１枚をあなたの手札に加える。」 ⚠ ■（距離の縛りが無い移動）は**まだ**＝A の節。
+  //   ■ 「【追色１】相手を１人選ぶ。その相手をカードの置かれた任意のマスへ移動する。」
   "0th-orange-force": {
     arrival: { actions: [{ verb: VERBS.PICKUP_ADJACENT_CARDS_TO_HAND, count: 1 }] },
+    handEffect: {
+      // 【追色１】＝同じ色の手札を1枚捨てる。
+      cost: { verb: VERBS.DISCARD_SAME_COLOR, count: 1 },
+      actions: [{ verb: VERBS.MOVE_CHOSEN_OPPONENT_TO_ANY_CARD_CELL }],
+    },
   },
 
   // 強欲なパレット（黒）
   //   ● 「あなたの手札をすべて捨てる。」 ⚠ ■（いつでも使える・全員に2択）は**まだ**＝D の節。
+  // いろ落ちガエル（黒）
+  //   ● 「全員は手札をすべて捨てる。１番少なくロックしているプレイヤーを１人選ぶ。
+  //      これをそのプレイヤーの手札に加える。」
+  //     ⚠ これ自身は渡すので、自分の手札には加えない。
+  //     ⚠ 全員が捨てる処理は既にある動詞（色落ちキャットと同じ）を drawCount 0 で使う。
+  //   ■ 「１番多くロックしている全員は、自分のロックしている１枚を選んで捨てる。
+  //      あなたの手札をすべて捨てる。」
+  // なないろのあめ（白）
+  //   ● 「カードのないすべてのマスに山札から１枚ずつ裏向きで置く。」
+  //   ■ 「場の任意の縦または横１列（７マス）を選ぶ。その列に山札から１枚ずつ裏向きで置く。」
+  "0th-white-rainbow-rain": {
+    arrival: { actions: [{ verb: VERBS.PLACE_DECK_CARDS_AT_ALL_CARDLESS_CELLS }] },
+    handEffect: { actions: [{ verb: VERBS.PLACE_DECK_CARDS_ALONG_CHOSEN_LINE }] },
+  },
+
+  "0th-black-faded-frog": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [
+        { verb: VERBS.ALL_PLAYERS_DISCARD_HAND_AND_DRAW, drawCount: 0 },
+        { verb: VERBS.GIVE_SELF_TO_FEWEST_LOCKED },
+      ],
+    },
+    handEffect: {
+      actions: [
+        { verb: VERBS.MOST_LOCKED_EACH_DISCARD_ONE_LOCKED },
+        { verb: VERBS.DISCARD_OWN_HAND },
+      ],
+    },
+  },
+
   "0th-black-greedy-palette": {
     arrival: { actions: [{ verb: VERBS.DISCARD_OWN_HAND }] },
   },
@@ -2696,6 +2837,13 @@ export const CARD_EFFECTS = {
           destination: { selection: TARGET_SELECTIONS.OWN_EMPTY_LOCK_SLOTS },
         },
       ],
+    },
+    // ■ 「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーは上記の到達効果を得る。」
+    //   ⚠ ★（ロックに同色2枚以上が要る）は**カードに付いてくる決まり**なので、
+    //     選ばれた相手のロックエリアでもそのまま効く（phase-automation.js 側）。
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [{ verb: VERBS.MOST_LOCKED_GAINS_LOCK_PLACEMENT }],
     },
   },
 

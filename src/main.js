@@ -4822,6 +4822,9 @@ async function runDelegatedArrivalTask(player, taskType, taskArg) {
   if (taskType === "may-lock-one-except-final") return runMayLockOneTask(player);
   if (taskType === "yaeza-option") return runYaezaOptionTask(player);
   if (taskType === "may-discard-color-draw") return runMayDiscardColorDrawTask(player, taskArg);
+  // 🔴【続き795】旧0th・いろ落ちガエル(手札): 自分のロックから1枚選んで捨てる。
+  //   ⚠ **どれを捨てるかは本人が決める**（使用者に選ばせる話ではない）。
+  if (taskType === "discard-one-locked") return runDiscardOneLockedTask(player);
   return false;
 }
 
@@ -4869,6 +4872,21 @@ async function runMayDiscardColorDrawTask(player, taskArg) {
 // 0th拡張（ピーターフッド・ヴド族との契約）専用: 「手札がN枚以下になるように捨てる」を本人に聞く。
 // ⚠ 中身は runSlumOfficialDiscardTask（3枚固定）と同じ作りで、枚数だけ引数にした版。
 //   あちらは文言キーが3枚前提なので別に用意してある。
+// 🔴【続き795】旧0th・いろ落ちガエル(手札): **自分のロックしているカードから1枚選んで捨てる。**
+//   ⚠ どれを捨てるかは**本人**が決める（使用者に選ばせる話ではない）。
+//   ⚠ ロックエリアは誰にでも見えている公開情報なので、隠し事の漏れにはならない。
+//   ⚠ 1枚も無ければ何もしない（善処の原則）。1枚だけでも**聞く**
+//     （「どれを失うか」は重い選択なので、黙って決めない＝リトルマウス #639 と同じ考え方）。
+async function runDiscardOneLockedTask(player) {
+  const 札 = getState().tokens.filter((t) => t.kind === "card" && t.location.zone === "lock" && SIDE_TO_SEAT[t.location.side] === player);
+  if (札.length === 0) return false;
+  const ordered = await requestLockCardsOrderedForEffect(player, t("ce.0thFrogDiscardLocked"), 札.map((t2) => t2.id), { limit: 1 });
+  const 選 = (ordered || [])[0];
+  if (!選) return false;
+  await discardFromHandReveal(選);
+  return true;
+}
+
 async function runDiscardDownToTask(player, taskArg) {
   const keep = taskArg?.n;
   if (!Number.isFinite(keep)) return false;

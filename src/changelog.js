@@ -54,6 +54,37 @@ export const CHANGELOG = [
   {
     date: "2026-11-21",
     summary: [
+      "旧0th EDITION のカード効果が、残り4件まで自動で処理されます",
+    ],
+    summaryEn: [
+      "0th EDITION card effects now run automatically, with only four left",
+    ],
+    items: [
+      "旧0th EDITION の効果を**まとめて実装**しました。**誰かの好きな花**（渡す／１番多くロックしている人の周囲へ置く）・**仕掛けられた罠**（周囲以外へ置いて周囲のカードを捨てる）・**欲しがりの吊り橋**（置いて周囲のカードをこれの直下へ）・**いろ落ちガエル**（全員が手札を捨てる／１番多くロックしている全員がロックを１枚捨てる）・**にじいろの呪い**（１番多くロックしている人が到達効果を得る）・**フォース**（相手をカードのあるマスへ移動）・**なないろのあめ**（カードのないすべてのマス／縦横１列に置く）・**民の道の建設**（裏向き２枚を別のマスへ）。残りは**反撃・ちょっと待った！・予言者の技・強欲なパレット**の手札効果だけです。",
+    ],
+    itemsEn: [
+      "A batch of 0th EDITION effects is now implemented: Someone's Favourite Flower, Set Trap, Greedy Bridge, Faded Frog, Rainbow Curse, Force, Rainbow Rain and The People's Road. Only the hand effects of Counterattack, Wait a Moment, Prophet's Art and Greedy Palette are left.",
+    ],
+    fixes: [
+      "手札が１枚もないのに「１枚捨てる」を選べたのを直しました（欲しがりの吊り橋）。",
+      "手札が０枚の相手も「奪う」の相手に選べたのを直しました（盗賊の技）。",
+    ],
+    fixesEn: [
+      "You could choose “discard a card” with an empty hand (Greedy Bridge). Fixed.",
+      "Opponents with no cards in hand could be chosen as the target of a steal (Steal). Fixed.",
+    ],
+    devItems: [
+      "🔴🔴 **同じ罠を3回踏んだので道具にした（検査23本目・`tools/check-engine-names.mjs`）。** エンジンの中で**どこにも無い名前**を呼ぶと、`runActionSafely` が例外を握りつぶして**「静かに何も起きない」**形で表に出る（プレイヤーには『不発』としか見えない）。続き782 `BOARD_SIZE`／続き789 `flipToFaceUp`・`triggerArrivalAt`／**続き796 `topCardTokenAt`**（置換が片方しか当たらず残った）。⚠ 既にある検査では捕まらない——`check-missing-import` は「**よそが export している名前**」しか見ず、`check-undeclared` は**代入**しか見ず、`check-effect-helpers` は `helpers.xxx` だけ。⚠ src 全体に当てると誤検知54件（組み込みと引数の取りこぼし）なので、**いちばん踏んでいるエンジンだけ**に絞った（実測0件）。🔴 わざと `topCardTokenAt` に戻すと名指しで落ちることを確かめてある。",
+      "🔴 **`topCardTokenAt` を見つけるのに実測で3回原因を取り違えた。** ①テストの台本の答えが1つ足りない（手札効果は `forcePrompt: true` ＝**候補が1つでも必ず聞く**）②置いた場所を覚える条件（候補のマスに **zone が付いていないことがある**）③本当の原因。**教訓: 「静かに何も起きない」時は、まず例外が握りつぶされていないかを疑う。**",
+      "⚠ **#755「手札がないのに一枚捨てるを選べた」＋「今後新カードを追加する時も気をつけて」。** ⇒ 直したうえで**同じ穴を機械で総点検**した（「手札を捨てる」選択肢なのに手札の枚数を見ていないもの）。出たのは2件で、片方（バスストップ）は**手札効果側の判定が既に担っていた**＝私の検査が到達側のフラグしか見ていなかった誤検知。本物の穴は吊り橋の1件だけだった。",
+      "⚠ **#752「スティールで手札0枚の相手も選べた」は、#639 と逆向きの判断に見えるので両方立てた。** #639 では「候補が1人でも必ず選ばせる（黙って決めない）」と決めている。⇒ **奪える相手が1人でも居ればその人たちだけ**を出し、**1人も居ない時は今までどおり全員を出して不発を見せる**。",
+      "⚠ **民の道の建設■は新しい動詞を作らなかった。** 志炎者 緑の `MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS` と**同じ処理**で、違いは絞り2つ（取る側＝**相手の**周囲以外／置く側＝カードが無いマス）だけ。印を2つ足して共有した。",
+      "⚠ **誰かの好きな花●の「このターンにこれがオープンされたのなら」には先例があった**（バスストップの `DRAW_IF_OPENED_THIS_TURN`）。推測で「だいたい真だから引く」にしていたのを、**印字どおりの条件**に直した。**教訓: 条件を自分で決める前に、同じ文言の札を探す。**",
+    ],
+  },
+  {
+    date: "2026-11-21",
+    summary: [
       "旧0thの「反撃」「誰かの落とし物」が自動で処理されます",
     ],
     summaryEn: [
