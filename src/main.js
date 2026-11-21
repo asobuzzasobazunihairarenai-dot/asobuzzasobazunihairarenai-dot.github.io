@@ -45,6 +45,9 @@ import {
   getMoveCandidates,
   getAnyCellWithCardCandidates,
   findSameColorDiscardCandidates,
+  // 🔴【続き799】旧0th「ちょっと待った！」の手札効果「その相手はこのターンにロックできない。」
+  //   ——やり直しのカギ（動詞から呼ぶ）と違い、こちらは最後のロックの承認フローから直に呼ぶ。
+  disableLockForTurn,
   rotatedActivePlayersFrom,
   isMovementDisabledThisTurn,
   isMovementBoostActiveThisTurn,
@@ -197,6 +200,8 @@ import {
   registerGomennasaiHelpers,
   registerApproverAutoDrivenCheck,
   setGomennasaiPicking,
+  // 🔴【続き799】割り込める札はゴメンナサイッ！だけではない（旧0th「ちょっと待った！」）。
+  registerFinalLockInterruptCard,
 } from "./final-lock-approval.js";
 import {
   buildTimerToggleButton,
@@ -211,6 +216,8 @@ import {
   registerContactApprovalHandler,
   hideContactApprovalModalImmediately,
   registerCounterLockHelpers,
+  // 🔴【続き799】接触に割り込める札はカウンターロックだけではない（旧0th「反撃」）。
+  registerContactInterruptCard,
 } from "./contact-approval.js";
 import {
   getSkinImagePath,
@@ -7208,7 +7215,13 @@ function previewGomennasaiDeclaration() {
   if (document.querySelector(".gomennasai-declare")) return; // 二重に出さない
   void playGomennasaiDeclaration();
 }
+// 🔴【続き799】割り込みの札の「ど派手な発動宣言」。ゴメンナサイッ！専用だったものを、
+//   **札と文を渡せる形**に広げた（旧0th「ちょっと待った！」も同じ見せ場が要る）。
+//   ⚠ 引数を渡さなければ今までとまったく同じ（絵も文も時間も）。
 function playGomennasaiDeclaration() {
+  return playInterruptDeclaration("purple-sorry", t("game.gomennasai.declare"));
+}
+function playInterruptDeclaration(cardId, declareText) {
   // 【#375・2026-10-06】ここでカメラを原点へ戻す。最後のロックが宣言されると
   // アグレッシブモードが**そのロックスロットに寄ったまま承認を待つ**（続き549）ので、
   // ゴメンナサイで止められた場合、止めた側の「防いだ！」の盾・捨てた追色・ロックから
@@ -7222,7 +7235,7 @@ function playGomennasaiDeclaration() {
   root.className = "gomennasai-declare";
   const card = document.createElement("div");
   card.className = "gomennasai-declare-card";
-  const img = getCardImagePath("purple-sorry");
+  const img = getCardImagePath(cardId);
   if (img) card.style.backgroundImage = "url(" + JSON.stringify(img) + ")";
   root.appendChild(card);
   for (const extra of ["", " is-delayed"]) {
@@ -7232,7 +7245,7 @@ function playGomennasaiDeclaration() {
   }
   const text = document.createElement("div");
   text.className = "gomennasai-declare-text";
-  text.textContent = t("game.gomennasai.declare");
+  text.textContent = declareText;
   root.appendChild(text);
   document.body.appendChild(root);
   try { playSound("arrivalEffect"); } catch { /* 音が出せなくても演出は続ける */ }
@@ -14659,6 +14672,85 @@ function findCounterLockToken(seat) {
   );
 }
 
+// 🔴【続き799】旧0th「反撃」の手札効果。
+//   「あなたへの接触の宣言時に使える。その接触を無効にする。あなたはその相手に接触する。」
+//
+// 🔴 **カウンターロックとまったく同じ窓**（接触の承認）に割り込む札なので、
+//   findCounterLockToken / useCounterLockOnContact と**同じ場所・同じ形**で書く
+//   （効果データの動詞には乗らない＝card-effects.js の red-counter-lock のコメント参照）。
+// ⚠ 追色コストは無い＝手札に持っているかだけ見る（カウンターロックと同じ）。
+const COUNTERATTACK_CARD_ID = "0th-red-counterattack";
+function findCounterattackToken(seat) {
+  return (
+    getState().tokens.find(
+      (t) => t.kind === "card" && t.cardId === COUNTERATTACK_CARD_ID && t.location.zone === "hand" && t.location.player === seat
+    ) ?? null
+  );
+}
+
+let counterattackUseInFlight = false;
+async function useCounterattackOnContact() {
+  if (counterattackUseInFlight) return;
+  counterattackUseInFlight = true;
+  try {
+    return await useCounterattackOnContactInner();
+  } finally {
+    counterattackUseInFlight = false;
+  }
+}
+async function useCounterattackOnContactInner() {
+  const pending = getState().pendingContact;
+  if (!pending) return;
+  const defender = pending.defender;
+  const attacker = pending.attacker;
+  const token = findCounterattackToken(defender);
+  if (!token) return;
+  // #106 と同じ理由: 無効化→捨てる→告知→**こちらから接触**が全部終わるまで、相手(CPU)の
+  //   手番が自動で終わらないようにしておく（finally で必ず下ろす）。
+  setHandEffectBusy(true);
+  try {
+    logAction("diag-counterattack", {
+      phase: "use-start",
+      defender,
+      attacker,
+      priorityPlayer: getState().priorityPlayer,
+      turnPlayer: getState().turnPlayer,
+      selfSeat: getSelfSeat(),
+    });
+    // ①「その接触を無効にする。」
+    await respondToContact(false);
+    // 【演出】止めた瞬間の「防いだ！」。攻めた側と観戦者の画面でも同じ順番で出す。
+    if (isOnlineMode()) {
+      broadcastBlocked({ defender, attacker, via: "card", viaCardId: COUNTERATTACK_CARD_ID });
+    }
+    await playInterruptDeclaration(COUNTERATTACK_CARD_ID, t("game.counterattack.declare"));
+    await playBlockedEffect(defender, attacker);
+    // ②手札効果＝この札自身を捨てる。
+    await discardFromHandReveal(token.id);
+    await announceEffectReasonForEffect(
+      COUNTERATTACK_CARD_ID,
+      t("game.counterattack.cancelled", { defender: getPlayerName(defender), attacker: getPlayerName(attacker) })
+    );
+    // ③「あなたはその相手に接触する。」
+    //   🔴 ふだんの接触の流れ（宣言→相手の承認→奪う→ゲートへ強制移動）にそのまま乗せる
+    //     ＝相手も自分のカウンターロック／反撃で割り込める（入れ子は既にある仕組みが面倒を見る）。
+    //   ⚠ 「このターンは接触できません」が自分に掛かっていると submitContactProposal が
+    //     弾く（#228 の安全網）。その時は**無効化だけで終わる**ので、黙って終わらないよう
+    //     ひとこと出す（「正しいのに何も起きない」は不具合に見える＝#659・#716 の家族）。
+    if (isContactDisabledThisTurn(defender)) {
+      await announceEffectReasonForEffect(COUNTERATTACK_CARD_ID, t("game.counterattack.cannotContact"));
+      return;
+    }
+    await submitContactProposal(defender, attacker);
+    logAction("diag-counterattack", { phase: "after-contact", defender, attacker, pending: !!getState().pendingContact });
+  } catch (err) {
+    console.error("useCounterattackOnContact failed", err);
+  } finally {
+    setHandEffectBusy(false);
+    render();
+  }
+}
+
 // #59-①: CPU防御側がカウンターロックを使うべきか（接触された時の判断。contact-approval.jsから
 // 注入される cpuDecider）。新人（ブレイン非駆動）は使わない。中級以上は、今ロックできる手札が
 // あれば「接触を無効化＋手札1枚ロック」でロック前進の分だけ明確に得なので使う。ロックできる
@@ -14692,6 +14784,9 @@ function checkCounterLockAutoApproval() {
   if (isOnlineMode()) return;
   if (isOnlineMode() && getSelfSeat() !== pending.defender) return;
   if (findCounterLockToken(pending.defender)) return; // 使えるなら自動承認せず本人の選択を待つ
+  // 🔴【続き799】旧0th「反撃」も同じ窓に割り込む札。**ここに混ぜ忘れると、持っているのに
+  //   黙って自動承認されて、一度も使えないまま手札を奪われる。**
+  if (findCounterattackToken(pending.defender)) return;
   counterLockAutoApprovalInFlight = true;
   Promise.resolve(respondToContact(true)).finally(() => {
     counterLockAutoApprovalInFlight = false;
@@ -18538,6 +18633,9 @@ function checkGomennasaiAutoApproval() {
   const approver = pending.queue[0];
   if (isOnlineMode() && getSelfSeat() !== approver) return;
   if (findGomennasaiEligibility(approver)) return; // 使えるなら自動承認せず本人の選択を待つ
+  // 🔴【続き799】旧0th「ちょっと待った！」も同じ窓に割り込む札。**ここに混ぜ忘れると、
+  //   持っているのに黙って自動承認されて、一度も使えないまま勝たれる。**
+  if (findWaitAMomentEligibility(approver)) return;
   // 【情報漏れ対策・ユーザー指摘2026-09-03】オンライン対戦では、使えない席を自動承認すると
   // 「一瞬で通った＝あの人はゴメンナサイを持っていない」と分かってしまう。承認は左隣から
   // 順番に回る決まりなので、名前を伏せても「3人目の自分にすぐ回ってきた＝前の2人は持って
@@ -18623,9 +18721,16 @@ function checkCpuFinalLockApproval() {
   // useGomennasaiOnFinalLock を自動起動する（内部の奪う札/コストのピッカーはturn-timerの
   // 強制解決＋brainで自動解決される）。使えなければ checkGomennasaiAutoApproval が自動承認する。
   if (isSelfCpuSubstituted() && approver === getSelfSeat()) {
-    if (!findGomennasaiEligibility(approver)) return;
+    // 🔴【続き799】ゴメンナサイッ！が使えなければ、旧0th「ちょっと待った！」を試す
+    //   （どちらも「負けを防ぐ」ので、使えるなら使うのが常に正解）。
+    const 使う = findGomennasaiEligibility(approver)
+      ? useGomennasaiOnFinalLock
+      : findWaitAMomentEligibility(approver)
+        ? useWaitAMomentOnFinalLock
+        : null;
+    if (!使う) return;
     cpuFinalLockInFlight = true;
-    Promise.resolve(useGomennasaiOnFinalLock()).finally(() => {
+    Promise.resolve(使う()).finally(() => {
       cpuFinalLockInFlight = false;
       pumpFinalLockApprovals(); // #222: 次が「使えない席」なら自動承認側が担当するので両方回す
     });
@@ -18638,12 +18743,18 @@ function checkCpuFinalLockApproval() {
   } else if (!isCpuBattleActive()) return;
   if (!isPseudoCpuTarget(approver)) return; // 人間の承認は自動化しない（本人が選ぶ）
   const eligible = findGomennasaiEligibility(approver);
-  if (!eligible) return; // 使えない席はcheckGomennasaiAutoApprovalが自動承認する
+  // 🔴【続き799】ゴメンナサイッ！が無くても、旧0th「ちょっと待った！」なら止められることがある。
+  const waitEligible = eligible ? null : findWaitAMomentEligibility(approver);
+  if (!eligible && !waitEligible) return; // 使えない席はcheckGomennasaiAutoApprovalが自動承認する
   cpuFinalLockInFlight = true;
   Promise.resolve()
     .then(async () => {
       if (isCpuBrainDriving(approver)) {
-        await cpuUseGomennasaiOnFinalLock(approver, eligible, pending.attacker);
+        if (eligible) await cpuUseGomennasaiOnFinalLock(approver, eligible, pending.attacker);
+        // ⚠ ちょっと待った！は選ぶものが**追色のコスト1枚だけ**なので、人間用の本体を
+        //   そのまま使える（1枚しか候補が無ければ聞かずに決まり、2枚以上なら
+        //   turn-timer の強制解決＋brain が自動で選ぶ＝AFK代行と同じ道）。
+        else await useWaitAMomentOnFinalLock();
       } else {
         // 新人CPU: ゴメンナサイを持っていても防御に使わずそのまま承認（弱いCPUとして）。
         await respondToFinalLock(true);
@@ -18842,6 +18953,116 @@ async function useGomennasaiOnFinalLock() {
   logAction("diag-gomennasai-steal", { attacker: attackerSeat, phase: "afterSteal", attackerLocksAfter: locksSnapshot() });
   await respondToFinalLock(true);
   logAction("diag-gomennasai-steal", { attacker: attackerSeat, phase: "afterFinalLock", attackerLocksAfter: locksSnapshot() });
+  } finally {
+    gomennasaiManualUseInFlight = false;
+    setGomennasaiPicking(false);
+    updateFinalLockApprovalBanner();
+  }
+}
+
+// 🔴【続き799】旧0th「ちょっと待った！」の手札効果。
+//   「【追色１】相手が最後のロックを宣言した時に使える。相手がロックしようとしたカードを
+//    捨てる。その相手はこのターンにロックできない。」
+//
+// 🔴 **ゴメンナサイッ！とまったく同じ窓**（最後のロックの全員承認）に割り込む札なので、
+//   findGomennasaiEligibility / useGomennasaiOnFinalLock と**同じ場所・同じ形**で書く
+//   （効果データの動詞には乗らない＝card-effects.js の purple-sorry のコメント参照）。
+// ⚠ ゴメンナサイとの違い:
+//   ゴメンナサイ … 相手が**既に持っているロック**を1枚奪う ⇒ 新しいロックは**承認**して進む
+//                  （7色が崩れるので勝たない）
+//   ちょっと待った！… 相手が**今ロックしようとしている札**を捨てる ⇒ そのロックは**成立しない**
+//                  ので**却下**して終わる（state.js の RESPOND_FINAL_LOCK は却下なら保留を
+//                  消すだけ＝札は動かさないので、こちらが先に捨てる）
+const WAIT_A_MOMENT_CARD_ID = "0th-purple-wait";
+function findWaitAMomentEligibility(seat) {
+  const waitToken = getState().tokens.find(
+    (t) => t.kind === "card" && t.cardId === WAIT_A_MOMENT_CARD_ID && t.location.zone === "hand" && t.location.player === seat
+  );
+  if (!waitToken) return null;
+  // 【追色１】＝自分と同じ色（紫）の別のカード1枚。払えないなら使えない。
+  const costCandidates = findSameColorDiscardCandidates(waitToken.id, "purple", seat);
+  if (costCandidates.length === 0) return null;
+  const pending = getState().pendingFinalLock;
+  if (!pending || pending.attacker === seat) return null; // 「相手が」宣言した時
+  // 「相手がロックしようとしたカード」が分からなければ使えない（裏貴族の賄賂と同じ考え方）。
+  const lockedToken = getState().tokens.find((t) => t.id === pending.tokenId);
+  if (!lockedToken) return null;
+  // #180 と同じ理由: 誰かが先に割り込んで、その宣言がもう7色目にならなくなっていたら、
+  //   「**最後の**ロックを宣言した時」という条件そのものが成り立たない。
+  if (!wouldCompleteLockWithNewIndex(pending.attacker, pending.location.index)) return null;
+  return { waitToken, costCandidates, lockedToken };
+}
+
+// ちょっと待った！を実際に使う。useGomennasaiOnFinalLock をなぞってある
+// （#36/#83 の自動承認止め・#36a の案内の切り替え・コストが本当に手札から離れたかの検め）。
+async function useWaitAMomentOnFinalLock() {
+  const pending = getState().pendingFinalLock;
+  if (!pending) return;
+  const selfSeat = getSelfSeat();
+  const eligibility = findWaitAMomentEligibility(selfSeat);
+  if (!eligibility) return;
+  const attackerSeat = pending.attacker;
+  const 捨てる札 = eligibility.lockedToken;
+  // #36/#83: この使用が終わるまで自動承認を止める（コストを捨てた隙に自動承認されて
+  //   先に勝利宣言されるのを防ぐ）。ゴメンナサイと同じ旗を使う——**止めたいものが同じ**
+  //   （checkGomennasaiAutoApproval / checkCpuFinalLockApproval）なので、旗を増やすと
+  //   片方だけ見る所ができる。
+  gomennasaiManualUseInFlight = true;
+  setGomennasaiPicking(true, { titleKey: "game.finalLock.waitTitle", statusKey: "game.finalLock.waitPick" });
+  updateFinalLockApprovalBanner();
+  try {
+    const costChosen =
+      eligibility.costCandidates.length === 1
+        ? eligibility.costCandidates[0]
+        : await requestHandCardChoiceForEffect(
+            selfSeat,
+            t("game.pick.discardPurple"),
+            new Set(eligibility.costCandidates.map((tk) => tk.id))
+          );
+    if (!costChosen) return;
+    await discardFromHandReveal(costChosen.id);
+    // discardFromHandReveal はサーバーの一時エラーを握りつぶすので、**本当に手札から
+    //   離れたか**をここで確かめる（ゴメンナサイで実害があった＝「コストを捨てずに
+    //   発動された気がします」）。残っていたら中止してやり直してもらう。
+    const costStillInHand = getState().tokens.find(
+      (t) => t.id === costChosen.id && t.location.zone === "hand" && t.location.player === selfSeat
+    );
+    if (costStillInHand) {
+      alert(t("game.gomennasai.costFailed"));
+      render();
+      return;
+    }
+    // 手札効果＝発動したこの札自身も捨てる（追色コストとは別＝#102 と同じ）。
+    await discardFromHandReveal(eligibility.waitToken.id);
+    // 【演出】止めた瞬間の「防いだ！」。相手と観戦者の画面でも同じ順番で出るよう合図を送る。
+    if (isOnlineMode()) {
+      broadcastBlocked({ defender: selfSeat, attacker: attackerSeat, via: "card", viaCardId: WAIT_A_MOMENT_CARD_ID });
+    }
+    await playInterruptDeclaration(WAIT_A_MOMENT_CARD_ID, t("game.waitAMoment.declare"));
+    await playBlockedEffect(selfSeat, attackerSeat);
+    logAction("diag-wait-a-moment", {
+      attacker: attackerSeat,
+      defender: selfSeat,
+      discardedCardId: 捨てる札.cardId,
+      lockIndex: pending.location?.index ?? null,
+    });
+    // 「相手がロックしようとしたカードを捨てる。」
+    //   ⚠ その札は**宣言で表に出ている**（何をロックしようとしたかは公開情報）ので、
+    //     捨て場へ出して構わない。
+    await discardFromHandReveal(捨てる札.id, { batchNotice: true });
+    // 「その相手はこのターンにロックできない。」（やり直しのカギと同じ仕掛け）
+    disableLockForTurn(attackerSeat);
+    announceEffectNoticeForEffect(
+      WAIT_A_MOMENT_CARD_ID,
+      t("game.waitAMoment.result", {
+        name: getPlayerName(attackerSeat),
+        card: cardDisplayName(捨てる札.cardId),
+      })
+    );
+    render();
+    // 🔴 **却下**して終わる。ゴメンナサイは承認（奪って7色を崩す）だが、こちらは
+    //   ロックしようとした札そのものが無くなったので、そのロックは成立しない。
+    await respondToFinalLock(false);
   } finally {
     gomennasaiManualUseInFlight = false;
     setGomennasaiPicking(false);
@@ -22636,6 +22857,15 @@ registerRemoteMoveAnimatorHelpers({
 });
 registerFinalLockApprovalHandler(respondToFinalLock);
 registerGomennasaiHelpers({ checkEligibility: findGomennasaiEligibility, onUseGomennasai: useGomennasaiOnFinalLock });
+// 🔴【続き799】旧0th「ちょっと待った！」。ゴメンナサイッ！の隣にボタンが並ぶ。
+//   ⚠ 文字を焼き込んだ絵を持たない札なので、ボタンのラベルで**名前を出す**
+//     （ゴメンナサイは絵に名前が焼かれているので「このカードを使う」で足りる）。
+registerFinalLockInterruptCard({
+  cardId: WAIT_A_MOMENT_CARD_ID,
+  checkEligibility: findWaitAMomentEligibility,
+  onUse: useWaitAMomentOnFinalLock,
+  labelKey: "game.finalLock.useWaitCard",
+});
 // ローカルCPU戦のCPU席が最後のロック承認者の時は、バナーを人間操作不可（待機表示）にする。
 registerApproverAutoDrivenCheck((seat) => isCpuBattleActive() && !isOnlineMode() && isPseudoCpuTarget(seat));
 registerTimerToggleHandlers({ onRequest: requestTimerToggleFor, onRespond: respondToTimerToggle });
@@ -22646,6 +22876,17 @@ registerCounterLockHelpers({
   isPseudoCpuTarget,
   isSelfCpuSubstituted,
   cpuDecider: decideCpuUseCounterLock, // #59-①: CPUが接触された時にカウンターロックを使うか
+});
+// 🔴【続き799】旧0th「反撃」。カウンターロックの隣にボタンが並ぶ。
+//   ⚠ 文字を焼き込んだ絵を持たない札なので、ボタンのラベルで**名前を出す**。
+//   ⚠ CPU は**使えるなら必ず使う**（接触を承認すると手札を1枚奪われ駒も戻されるので、
+//     無効化そのものが常に得＝カウンターロックの decideCpuUseCounterLock と同じ理屈。
+//     しかも反撃は**こちらから接触し返す**のでさらに得）。⇒ cpuDecider を渡さない＝既定で使う。
+registerContactInterruptCard({
+  cardId: COUNTERATTACK_CARD_ID,
+  checkEligibility: findCounterattackToken,
+  onUse: useCounterattackOnContact,
+  labelKey: "game.contact.useCounterattack",
 });
 registerEternalAnimHelpers(playEternalAcquisitionAnim);
 registerGateInvasionStealHelper(stealHandCardsRitualForGateInvasion);
@@ -22936,6 +23177,19 @@ onBlockedEvents((payload) => {
     // 続き487: ゴメンナサイなら、防いだ演出の前に発動宣言も出す（送り手と同じ順番）。
     if (payload?.via === "gomennasai") {
       void playGomennasaiDeclaration().then(() => playBlockedEffect(defender, attacker));
+      return;
+    }
+    // 🔴【続き799】割り込みの札が増えたので、**どの札で止めたか**を運べるようにした
+    //   （旧0th「ちょっと待った！」）。⚠ 古い版の相手からは via:"gomennasai" が来るので
+    //     上の道はそのまま残す（受け取る言葉を消すと、相手の画面だけ演出が出なくなる）。
+    if (payload?.via === "card" && payload?.viaCardId) {
+      const 文 =
+        payload.viaCardId === WAIT_A_MOMENT_CARD_ID
+          ? t("game.waitAMoment.declare")
+          : payload.viaCardId === COUNTERATTACK_CARD_ID
+            ? t("game.counterattack.declare")
+            : t("game.gomennasai.declare");
+      void playInterruptDeclaration(payload.viaCardId, 文).then(() => playBlockedEffect(defender, attacker));
       return;
     }
     void playBlockedEffect(defender, attacker);

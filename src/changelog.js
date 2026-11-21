@@ -52,6 +52,33 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-22",
+    summary: [
+      "旧0th EDITION のカード効果が、**19種すべて**自動で処理されます",
+      "割り込みのカードのボタンが、持っているカードの分だけ出るようになりました",
+    ],
+    summaryEn: [
+      "All 19 of the 0th EDITION card effects now run automatically",
+      "Interrupt-card buttons now appear only for cards you hold",
+    ],
+    items: [
+      "最後に残っていた**割り込みの2枚**を実装しました。**反撃**（あなたへの接触の宣言時に使えます。その接触を無効にして、**あなたからその相手に接触し返します**）と、**ちょっと待った！**（【追色１】相手が最後のロックを宣言した時に使えます。**相手がロックしようとしたカードを捨て**、その相手はそのターンにロックできなくなります）。どちらも相手の宣言に割り込むので、「承認するか」の画面にカードのボタンが出ます。⇒ これで**旧0th EDITION の19種すべて**が自動で処理されます（効果を自分で申告する必要はありません）。",
+      "割り込みのカードのボタンが、**持っているカードの分だけ**出るようになりました。今までは「ゴメンナサイッ！」のボタンが、持っていなくても必ず出ていました（押しても何も起きませんでした）。",
+    ],
+    itemsEn: [
+      "The last two interrupt cards are implemented. Counterattack (playable when someone declares contact on you: it nullifies that contact and then you contact them back) and Wait a Moment! (add-colour 1; playable when an opponent declares their final lock: the card they tried to lock is discarded and they cannot lock for the rest of that turn). Both interrupt an opponent's declaration, so a button for the card appears on the approval screen. All 19 of the 0th EDITION cards now run automatically — no self-reporting needed.",
+      "Buttons for interrupt cards now appear only for cards you actually hold. Until now the “So Sorry!” button was always shown even when you did not have the card, and pressing it did nothing.",
+    ],
+    devItems: [
+      "🔴 **新しい土台は1つも作らなかった。** 割り込みの2枚は、**既にある2つの窓にカードを足す形**で入った: ちょっと待った！＝最後のロックの全員承認（ゴメンナサイッ！の `findGomennasaiEligibility` / `useGomennasaiOnFinalLock` と同じ場所）／反撃＝接触の承認（カウンターロックの `findCounterLockToken` / `useCounterLockOnContact` と同じ場所）。⚠ どちらの窓も**1枚を決め打ち**していたので、**並べられる形**に広げた（`registerFinalLockInterruptCard` / `registerContactInterruptCard`）——3枚目が来た時に同じ穴を掘らないように。",
+      "🔴🔴 **3枚目を足す人への申し送り: 繋ぐ所は4つ。** ①判定 ②本体 ③**自動承認の門** ④CPU の判断。**③を忘れると、持っているのに黙って自動承認されて、一度も使えないまま負ける。** A/B で確かめた——その1行を外すと**ロックがそのまま成立して実測が11件落ちる**（接触側は2件）。計画書（docs/0th-effects-plan.md）の末尾にも書いた。",
+      "⚠ **反撃の「接触し返す」は、ふだんの接触の流れにそのまま乗せた**（`submitContactProposal`）。だから**相手も自分のカウンターロック／反撃で割り込める**＝カードの補足にある「反撃の接触に対しても反撃できる」が、何も足さずに成り立つ。⚠ 「このターンは接触できません」が自分に掛かっている時は接触し返しが起きないので、**黙って終わらないようひとこと出す**（「正しいのに何も起きない」は不具合に見える＝#659・#716 の家族）。",
+      "⚠ **ちょっと待った！は却下、ゴメンナサイッ！は承認。** 似ているが結末が逆。ゴメンナサイは相手が**既に持っているロック**を1枚奪うので、新しいロックは承認して進む（7色が崩れるので勝たない）。ちょっと待った！は相手が**今ロックしようとしている札**を捨てるので、そのロックは成立しない＝却下して終わる。",
+      "🔴 **ゴメンナサイッ！の演出を札ごとに出せる形に広げた**（`playInterruptDeclaration`）。引数を渡さなければ今までとまったく同じ（絵・文・時間）。⚠ 相手と観戦者の画面へ送る合図にも「どの札で止めたか」を足したが、**古い版から来る `via:\"gomennasai\"` の道はそのまま残した**（受け取る言葉を消すと、相手の画面だけ演出が出なくなる）。",
+      "⚠ **実測で自分の思い込みを2つ崩された。** ①**2人戦の席は A と C**（向かい合わせ）で、B は居ない。②セットアップで**ファーストカードが1枚もうロックされている**ので、6色を決め打ちで置くと7色そろってしまう ⇒ 「いま空いている色」から組む形に直した。**「無い」と出たら、まず自分の数え方を疑う。**",
+    ],
+  },
+  {
     date: "2026-11-21",
     summary: [
       "旧0th EDITION の効果が、残り2件（割り込みの2枚）まで自動で処理されます",

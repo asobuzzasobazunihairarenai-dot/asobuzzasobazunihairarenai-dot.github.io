@@ -52,6 +52,28 @@ export function registerCounterLockHelpers({ checkEligibility, onUseCounterLock,
   if (cpuDecider) cpuCounterLockDecider = cpuDecider;
 }
 
+// 🔴【続き799】**接触に割り込める札はカウンターロックだけではない。** 旧0th「反撃」も
+//   同じ窓（接触の承認）に割り込む。今までこのファイルは1枚を決め打ちしていたので、
+//   **並べられる形**に広げた（3枚目が来ても同じ穴を掘らないように）。
+//   ⚠ 1件は { cardId, checkEligibility, onUse, labelKey, cpuDecider }。
+//   ⚠ カウンターロックの分は今までの道のまま＝見た目も順番も変わらない。
+const EXTRA_CONTACT_INTERRUPTS = [];
+export function registerContactInterruptCard(entry) {
+  if (!entry || !entry.cardId) return;
+  if (EXTRA_CONTACT_INTERRUPTS.some((e) => e.cardId === entry.cardId)) return; // 二重登録は無視
+  EXTRA_CONTACT_INTERRUPTS.push(entry);
+}
+function eligibleExtraContactInterrupts(defender) {
+  return EXTRA_CONTACT_INTERRUPTS.filter((e) => {
+    try {
+      return !!e.checkEligibility?.(defender);
+    } catch (err) {
+      console.error("contact interrupt check failed", e.cardId, err);
+      return false; // 判定が落ちても承認そのものは止めない
+    }
+  });
+}
+
 export function buildContactApprovalModal() {
   modalEl = document.createElement("div");
   modalEl.id = "contact-approval-modal";
@@ -85,7 +107,11 @@ export function updateContactApprovalModal() {
   const canRespond = !isSpectatingGame() && (!isOnlineMode() || getSelfSeat() === pending.defender);
   const autoMode = isAutoProcessingEnabled();
   const counterLockEligible = canRespond && !!checkCounterLockEligibility?.(pending.defender);
-  const hasCounterLock = counterLockEligible && autoMode;
+  // 🔴【続き799】旧0th「反撃」も同じ窓に割り込む札。**ここに混ぜ忘れると、持っているのに
+  //   黙って自動承認されて、一度も使えないまま手札を奪われる。**
+  const extraInterrupts = canRespond ? eligibleExtraContactInterrupts(pending.defender) : [];
+  // 「割り込める札を持っている」＝カウンターロックか、足した札のどれか。
+  const hasCounterLock = (counterLockEligible || extraInterrupts.length > 0) && autoMode;
   // 自動処理モードON・応答可能・リアクションカード無し、の場合はボタン自体を出さない
   // （main.js側のcheckCounterLockAutoApproval()が自動で承認して先へ進める。final-lock-
   // approval.jsのゴメンナサイと同じ「使えない人にはボタンを見せてもチラつくだけ」の考え方）。
@@ -134,8 +160,12 @@ export function updateContactApprovalModal() {
     hideImmediately();
     if (!pseudoCpuCounterLockAutoDeclineInFlight) {
       pseudoCpuCounterLockAutoDeclineInFlight = true;
-      const useIt = counterLockEligible && !!cpuCounterLockDecider?.(pending.defender);
-      Promise.resolve(useIt ? useCounterLockHandler?.() : respondHandler?.(true)).finally(() => {
+      // 🔴【続き799】カウンターロックが無くても「反撃」なら止められることがある。
+      //   ⚠ 札ごとに cpuDecider を持てる（渡されていなければ「使えるなら使う」）。
+      const 使う札 = counterLockEligible && !!cpuCounterLockDecider?.(pending.defender)
+        ? useCounterLockHandler
+        : (extraInterrupts.find((e) => (e.cpuDecider ? !!e.cpuDecider(pending.defender) : true))?.onUse ?? null);
+      Promise.resolve(使う札 ? 使う札() : respondHandler?.(true)).finally(() => {
         pseudoCpuCounterLockAutoDeclineInFlight = false;
       });
     }
@@ -165,6 +195,8 @@ export function updateContactApprovalModal() {
     const buttons = document.createElement("div");
     buttons.className = "contact-approval-buttons";
     if (hasCounterLock) {
+      // 🔴【続き799】カウンターロックを持っていない時はこのボタンを出さない
+      //   （押しても何も起きない約束を残さない＝#729 の家族）。足した札のボタンを後ろに並べる。
       const useBtn = document.createElement("button");
       useBtn.className = "contact-approval-approve";
       useBtn.type = "button";
@@ -181,7 +213,18 @@ export function updateContactApprovalModal() {
         hideImmediately();
         respondHandler?.(true);
       });
-      buttons.appendChild(useBtn);
+      if (counterLockEligible) buttons.appendChild(useBtn);
+      for (const entry of extraInterrupts) {
+        const btn = document.createElement("button");
+        btn.className = "contact-approval-approve";
+        btn.type = "button";
+        btn.textContent = entry.labelKey ? t(entry.labelKey) : t("game.contact.useCounter");
+        btn.addEventListener("click", () => {
+          hideImmediately();
+          entry.onUse?.();
+        });
+        buttons.appendChild(btn);
+      }
       buttons.appendChild(declineBtn);
     } else {
       const approveBtn = document.createElement("button");

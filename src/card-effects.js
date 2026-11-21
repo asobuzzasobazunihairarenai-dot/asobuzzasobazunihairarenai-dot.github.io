@@ -2551,8 +2551,15 @@ export const CARD_EFFECTS = {
   // ちょっと待った！（紫）
   //   ● 「移動前のマスに強制移動する。移動先のカードはオープンしない。１マス移動する。」
   //   🔴 **前半だけが強制移動**。後半の「１マス移動する」は強制移動ではない（取り違えやすい）。
-  //   ⚠ ■（相手の最後のロックに割り込む）は**まだ**＝D の節。
+  //   ■ 「【追色１】相手が最後のロックを宣言した時に使える。相手がロックしようとした
+  //      カードを捨てる。その相手はこのターンにロックできない。」
+  //     🔴 **効果データには乗らない。** ゴメンナサイッ！（purple-sorry）とまったく同じ窓
+  //       （最後のロックの全員承認）に割り込むので、main.js の
+  //       findWaitAMomentEligibility / useWaitAMomentOnFinalLock に直接実装してある。
+  //     ⚠ handEffectReactiveOnly ＝**ハンドフェイズの自己申告では絶対に使えない**
+  //       （handEffect を持たない札なので、この印が無いと説明が出ない）。
   "0th-purple-wait": {
+    handEffectReactiveOnly: true,
     arrival: {
       actions: [
         { verb: VERBS.FORCED_MOVE_TO_PREVIOUS_CELL, noArrival: true },
@@ -2701,8 +2708,13 @@ export const CARD_EFFECTS = {
   //     🔴 `DRAW_IF_LOWEST_WEALTH` は**財力＝手札の枚数**（`getWealth().base` が手札の数）なので、
   //       「手札が1番少ない」と**まったく同じ条件**。新しい動詞は要らない。
   //     ⚠ 引けなかった（1番少なくない）なら捨てない＝`stopIfPreviousFailed`。
-  //   ⚠ ■（接触の宣言への割り込み）は**まだ**。別種の仕組みが要る。
+  //   ■ 「あなたへの接触の宣言時に使える。その接触を無効にする。あなたはその相手に接触する。」
+  //     🔴 **効果データには乗らない。** カウンターロック（red-counter-lock）とまったく同じ窓
+  //       （接触の承認）に割り込むので、main.js の
+  //       findCounterattackToken / useCounterattackOnContact に直接実装してある。
+  //     ⚠ handEffectReactiveOnly ＝**ハンドフェイズの自己申告では絶対に使えない**。
   "0th-red-counterattack": {
+    handEffectReactiveOnly: true,
     arrival: {
       actions: [
         { verb: VERBS.DRAW_IF_LOWEST_WEALTH, count: 2 },

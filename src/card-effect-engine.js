@@ -148,7 +148,9 @@ function redirectArrivalHandTarget(player) {
 // ⚠ 既にある「このターン移動できない」「このターン接触できない」と同じ、turnNumber 一致の
 //   自動失効パターン。ロックの可否は phase-automation の isCardLockable が見る。
 const lockDisabledUntilTurn = new Map(); // player -> turnNumber
-function disableLockForTurn(player) {
+// 🔴【続き799】export した。旧0th「ちょっと待った！」の手札効果は、効果データの動詞ではなく
+//   main.js の**最後のロックの承認フロー**から直に呼ぶ（ゴメンナサイッ！と同じ場所）。
+export function disableLockForTurn(player) {
   lockDisabledUntilTurn.set(player, getState().turnNumber);
 }
 export function isLockDisabledThisTurn(player) {
