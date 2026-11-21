@@ -1606,7 +1606,7 @@ returns table (
 language sql
 security definer
 set search_path = public
-as $
+as $$
   select b.id, b.created_at, u.email, p.display_name, b.comment, b.resolved,
          b.context ->> 'shotUrl' as shot_url,
          (b.context ? 'screen2' or b.context ? 'screen') as has_screen
@@ -1617,7 +1617,7 @@ as $
     and (p_before_id is null or b.id < p_before_id)
   order by b.id desc
   limit greatest(1, least(coalesce(p_limit, 100), 500))
-$;
+$$;
 revoke execute on function so7_get_admin_bug_reports_list(int, bigint) from public;
 grant execute on function so7_get_admin_bug_reports_list(int, bigint) to authenticated;
 
@@ -1633,12 +1633,12 @@ returns table (
 language sql
 security definer
 set search_path = public
-as $
+as $$
   select b.id, b.action_log, b.console_log, b.context
   from so7_bug_reports b
   where (auth.jwt() ->> 'email') in ('asobuzz.asobazunihairarenai@gmail.com','shogoshogo0929@gmail.com')
     and b.id = p_id
-$;
+$$;
 revoke execute on function so7_get_admin_bug_report(bigint) from public;
 grant execute on function so7_get_admin_bug_report(bigint) to authenticated;
 
