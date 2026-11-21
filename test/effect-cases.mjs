@@ -7,6 +7,97 @@
 // expect: Node 側で最終 state に対して確認するアサーション。
 // 盤面の座席→ロック辺: A=bottom, B=left, C=top, D=right（board-layout）。COLORS順=赤橙黄緑青桃紫。
 export const CASES = [
+  // ===== 旧0th 追加分（続き789）=====================================================
+  {
+    name: "旧0th 情報開示(到達): 中央と四隅から１マスずつ選んでオープンする（ユーザー裁定 2026-11-21）",
+    kind: "arrival",
+    cardId: "0th-pink-disclosure",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "0th-pink-disclosure", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        // 中央と四隅のうち3マスに裏向きのカード（残り2マスは空）
+        { id: "c", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "tl", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+        { id: "br", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 6, col: 6 } },
+        // 🔴 中央でも四隅でもないマスの裏向き＝**開いてはいけない**（対照）
+        { id: "other", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-pink-disclosure", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 3, col: 3 }, { row: 0, col: 0 }, { row: 6, col: 6 }] },
+    expect: [
+      { kind: "tokenFaceUp", id: "c" },
+      { kind: "tokenFaceUp", id: "tl" },
+      { kind: "tokenFaceUp", id: "br" },
+      { kind: "tokenFaceDown", id: "other" }, // 🔴 対象の5マス以外は開かない
+    ],
+  },
+  {
+    name: "旧0th 情報開示(到達): 中央と四隅に開けるものが無いなら、任意の１マスを開ける",
+    kind: "arrival",
+    cardId: "0th-pink-disclosure",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "0th-pink-disclosure", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        // 🔴 中央と四隅は**表向き**（＝開けるものが無い）
+        { id: "c", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "other", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-pink-disclosure", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    picks: { location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenFaceUp", id: "other" }, // 🔴 ぶら下がり節が通った
+    ],
+  },
+  {
+    name: "旧0th 予言者の技(到達): 手札１枚を、あなたの周囲（斜めも含む8マス）へ裏向きで置く",
+    kind: "arrival",
+    cardId: "0th-purple-apocalypse",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-apocalypse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "h1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-purple-apocalypse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 🔴 **斜め**（2,2）を選ぶ＝「周囲8マス」であって「隣4マス」ではないことを見る
+    picks: { handCard: ["h1"], location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "tokenAtCell", id: "h1", row: 2, col: 2 },
+      { kind: "tokenFaceDown", id: "h1" },
+    ],
+  },
+  {
+    name: "旧0th にじいろの呪い(到達): 自分の空いているロックエリアへ表向きで置く",
+    kind: "arrival",
+    cardId: "0th-black-rainbow-curse",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-black-rainbow-curse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-black-rainbow-curse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: ["index:0"] },
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "lock" },
+      { kind: "tokenFaceUp", id: "self" },
+      { kind: "tokenNotInHand", id: "self", player: "A" }, // 手札には加わらない
+    ],
+  },
+
   // ===== 旧0th EDITION（第2版 2026.04）・続き788 =====================================
   // ⚠ いま入っているのは「既にある動詞で足りる」分だけ。残りは docs/0th-effects-plan.md。
   {

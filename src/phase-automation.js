@@ -625,11 +625,17 @@ export function isCardLockable(token, player) {
   if (!color || color === "white" || color === "black") return false; // 無色は「ロックした」扱いにならない
   // 【#434】烙印が置かれた色へロックするには、ロックする札のほかに手札が2枚必要。
   if (hasContractBrandInSlot(player, color) && !canPayContractBrandLockCost(player, token.id)) return false;
+  // 🔴【続き789】旧0th「にじいろの呪い」★:「これの置かれたロックエリアへのロックには、
+  //   **同色のカードが２枚以上必要**になる。」烙印と**同じ形**（上の1行と対）。
+  //   ⚠ 烙印は「余分な手札2枚（色不問）」、呪いは「**同色が2枚以上**」＝ロックする札のほかに
+  //     同じ色がもう1枚手札に在ること。印字は「必要になる」＝**条件**であって捨てない。
+  if (hasRainbowCurseInSlot(player, color) && !hasAnotherCardOfColor(player, color, token.id)) return false;
   if (!isLockSlotOccupied(player, color)) return true;
   // 黒の契約の烙印がその色スロットを塞いでいるだけなら、その色はロックできる（ロックすると烙印が
   // 外れる＝★(b)。ユーザー訂正2026-08-09「その色をロックしなければ烙印は外れない」）。これが無いと
   // 塞がれた色を永久にロックできず、烙印が外せない詰みになる。
-  return isSlotOccupiedOnlyByContractBrand(player, color);
+  // 🔴【続き789】呪いが塞いでいる場合も同じ（塞がれたままだと**永久にロックできない詰み**になる）。
+  return isSlotOccupiedOnlyByContractBrand(player, color) || isSlotOccupiedOnlyByRainbowCurse(player, color);
 }
 // 【#434】誘惑の黒の烙印の★(b)は「これの置かれた色のロックエリアにロックしたなら、あなたの
 // 手札を２枚捨て、これを任意のマスに裏向きで置く」。ユーザー裁定（debug #434「手札が余分に2枚
@@ -656,6 +662,43 @@ function hasContractBrandInSlot(player, color) {
       t.location.index === colorIndex
   );
 }
+// 🔴【続き789】旧0th「にじいろの呪い」★。烙印の3つ（hasContractBrandInSlot /
+//   canPayContractBrandLockCost / isSlotOccupiedOnlyByContractBrand）と**同じ形**。
+//   ⚠ 条件の中身だけが違う（下のコメント参照）。
+function hasRainbowCurseInSlot(player, color) {
+  const colorIndex = COLORS.indexOf(color);
+  if (colorIndex === -1) return false;
+  return getState().tokens.some(
+    (t) =>
+      t.kind === "card" &&
+      t.cardId === "0th-black-rainbow-curse" &&
+      t.location.zone === "lock" &&
+      SIDE_TO_SEAT[t.location.side] === player &&
+      t.location.index === colorIndex
+  );
+}
+// 「同色のカードが２枚以上必要」＝ロックする札（excludeTokenId）の**ほかに**、同じ色が手札に1枚以上。
+// ⚠ 印字は「必要になる」＝**条件**。捨てないので、2枚目は手札に残る。
+function hasAnotherCardOfColor(player, color, excludeTokenId) {
+  return getState().tokens.some(
+    (t) =>
+      t.kind === "card" &&
+      t.location.zone === "hand" &&
+      t.location.player === player &&
+      t.id !== excludeTokenId &&
+      getCardDefinition(t.cardId)?.color === color
+  );
+}
+// 呪いだけがその色のスロットを塞いでいるか（塞がれたままだと詰みになるので、そこへはロックできる）。
+function isSlotOccupiedOnlyByRainbowCurse(player, color) {
+  const colorIndex = COLORS.indexOf(color);
+  if (colorIndex === -1) return false;
+  const side = SEAT_TO_SIDE[player];
+  const 並ぶ = getState().tokens.filter(
+    (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && t.location.index === colorIndex
+  );
+  return 並ぶ.length > 0 && 並ぶ.every((t) => t.cardId === "0th-black-rainbow-curse");
+}
 // ロックする札そのもの（excludeTokenId）は数えない＝「余分に2枚」。
 function canPayContractBrandLockCost(player, excludeTokenId) {
   const spare = getState().tokens.filter(
@@ -672,6 +715,8 @@ export function getLockBlockReason(token, player) {
   const color = getCardDefinition(token.cardId)?.color;
   if (!color) return null;
   if (hasContractBrandInSlot(player, color) && !canPayContractBrandLockCost(player, token.id)) return "contract-brand-cost";
+  // 🔴【続き789】呪いの条件を満たさない時も**理由を出す**（出さないと「押せないのに何も出ない」）。
+  if (hasRainbowCurseInSlot(player, color) && !hasAnotherCardOfColor(player, color, token.id)) return "rainbow-curse-need-two";
   return null;
 }
 // 【#434】ドラッグでロックスロットへ落とす経路（main.js）からも同じ判定をするための入口。

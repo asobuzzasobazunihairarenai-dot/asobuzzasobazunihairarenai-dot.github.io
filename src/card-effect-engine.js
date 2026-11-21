@@ -1339,6 +1339,18 @@ function getPlaceCardCellCandidates(destination, pieceLocation) {
     const となり = new Set(DIRECTIONS.map(({ dr, dc }) => pieceLocation.row + dr + "," + (pieceLocation.col + dc)));
     cells = cells.filter((c) => となり.has(c.row + "," + c.col));
   }
+  if (destination?.onlySurrounding) {
+    // 🔴【続き789】旧0th「予言者の技 -アポカリプス-」●:「あなたの**周囲**の任意のマスに置く。」
+    //   「周囲」＝斜めも含む**8マス**（用語集。「隣」＝前後左右4マスとは別物）。
+    //   ⚠ `withinCells` は**別の選び方（ALL_WITHIN_RANGE）専用**で、しかも距離がマンハッタン
+    //     ＝斜めが入らない。だから「選ぶ（CHOOSE）＋周囲8マス」はこの印が要る。
+    //   ⚠ 駒の位置が分からない時は**安全側（候補なし）に倒す**（上の2つと同じ）。
+    if (!pieceLocation || typeof pieceLocation.row !== "number") return [];
+    const 周囲 = new Set(
+      enumerateSurroundingOffsets().map(({ dr, dc }) => pieceLocation.row + dr + "," + (pieceLocation.col + dc))
+    );
+    cells = cells.filter((c) => 周囲.has(c.row + "," + c.col));
+  }
   if (destination?.excludeAdjacent) {
     // 駒の位置が分からない時は絞れない。**安全側（候補なし）に倒す**——
     // 絞らずに全マスを出すと「隣に置けてしまう」＝ルール違反になる。
@@ -2300,6 +2312,44 @@ async function runAction(action, ctx, helpers) {
         hadEffect = true;
       }
       return hadEffect;
+    }
+    // --- 旧0th EDITION（続き789）-----------------------------------------------
+    case VERBS.FLIP_AT_FIXED_CELLS_ONE_BY_ONE: {
+      // 情報開示（桃）●「場の中央と四隅のカードをオープンする。」
+      // 🔴 **ユーザー裁定（2026-11-21）**:「到達したプレイヤーが、場の四隅と中央の中から
+      //   **１マスずつ選択してオープンしていきます**。」
+      //   ⇒ **同時に複数の到達が起きる問題が消える**（1枚ずつ順に起き、次を選ぶのはその後）。
+      //   これが無いと「開けた5マスに駒が立っていた時の順番」を新しく決める必要があった。
+      // ⚠ 対象は action.cells（カードの定義に書く）。**ここに座標を書き下さない**
+      //   ——盤の大きさが変わった時に2か所を直すことになる。
+      // ⚠ **裏向きのカードが在るマスだけ**が候補（表向きはもう開いている＝善処の原則）。
+      const 的 = Array.isArray(action.cells) ? action.cells : [];
+      if (的.length === 0) return false;
+      let 開けた = 0;
+      for (let i = 0; i < 的.length; i++) {
+        const 候補 = 的
+          .filter((c) => inBounds(c.row, c.col))
+          .map((c) => ({ zone: "cell", row: c.row, col: c.col }))
+          .filter((c) => {
+            const 上 = findTopCardAtCell(c.row, c.col);
+            return !!上 && !上.faceUp;
+          });
+        if (候補.length === 0) break; // もう開けるものが無い
+        const 選 =
+          候補.length === 1 && !ctx.forcePrompt
+            ? 候補[0]
+            : await helpers.pickLocation(候補, t("ce.0thPickDisclosureCell", { i: 開けた + 1, n: 的.length }));
+        if (!選) break;
+        const 札 = findTopCardAtCell(選.row, 選.col);
+        if (!札 || 札.faceUp) break;
+        helpers.markPlacementTarget?.(選);
+        await helpers.flipCard(札.id);
+        開けた++;
+        // 🔴 オープンした所に駒が立っていたら到達が起きる。**1枚ずつ順に**起こす
+        //   （裁定どおり。ここで待つので、次のマスを選ぶのは到達が終わってから）。
+        if (hasPieceAt(選.row, 選.col)) await helpers.triggerArrivalAtIfFaceUp?.(選, ctx.player);
+      }
+      return 開けた > 0;
     }
     // --- 0thリメイクの限定カード（志炎者7枚・続き781）-----------------------------
     case VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW: {
@@ -5716,6 +5766,11 @@ export async function runArrivalEffect(ctx, helpers) {
   for (const action of 財力を満たす ? effectDef.actions : []) {
     if (action.stopIfPreviousFailed && !直前が成功) break;
     if (action.stopIfAnyPreviousFailed && !ここまで全部成功) break;
+    // 🔴【続き789】`stopIfPreviousFailed` の**裏返し**。「〜が１枚もないなら、…」の
+    //   ぶら下がり節に使う（旧0th「情報開示」●: 中央と四隅を開ける →
+    //   **1枚も開けなかったなら**任意の1マスを開ける）。
+    //   ⚠ `break` ではなく `continue` ——この後ろにまだ行動が続くことがあるので、ここだけ飛ばす。
+    if (action.onlyIfPreviousFailed && 直前が成功) continue;
     直前が成功 = await runActionSafely(action, runCtx, wrappedHelpers);
     if (!直前が成功) ここまで全部成功 = false;
     if (直前が成功) hadEffect = true;
@@ -5927,6 +5982,11 @@ async function runHandEffectOption(ctx, option, helpers) {
   for (const action of option.actions) {
     if (action.stopIfPreviousFailed && !直前が成功) break;
     if (action.stopIfAnyPreviousFailed && !ここまで全部成功) break;
+    // 🔴【続き789】`stopIfPreviousFailed` の**裏返し**。「〜が１枚もないなら、…」の
+    //   ぶら下がり節に使う（旧0th「情報開示」●: 中央と四隅を開ける →
+    //   **1枚も開けなかったなら**任意の1マスを開ける）。
+    //   ⚠ `break` ではなく `continue` ——この後ろにまだ行動が続くことがあるので、ここだけ飛ばす。
+    if (action.onlyIfPreviousFailed && 直前が成功) continue;
     直前が成功 = await runActionSafely(action, runCtx, helpers);
     if (!直前が成功) ここまで全部成功 = false;
   }

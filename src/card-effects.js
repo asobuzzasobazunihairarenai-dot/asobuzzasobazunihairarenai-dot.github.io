@@ -159,6 +159,8 @@ export const VERBS = {
   OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW: "opponents_may_discard_color_and_draw", // 志炎者(到達の前半)
   DISCARD_ALL_AT_CHOSEN_CELLS: "discard_all_at_chosen_cells", // 志炎者 赤: 任意のNマスのカードをすべて捨てる
   MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS: "move_facedown_cards_to_other_cells", // 志炎者 緑: 裏向きのカードを裏向きのまま別のマスへ
+  // --- 旧0th EDITION（続き789）-----------------------------------------------
+  FLIP_AT_FIXED_CELLS_ONE_BY_ONE: "flip_at_fixed_cells_one_by_one", // 情報開示●: 決まったマスから1つずつ選んでオープン
   ALL_OPPONENTS_DISCARD_HAND: "all_opponents_discard_hand", // 志炎者 青: 相手全員が手札を捨てる（N枚／M枚になるように）
 };
 
@@ -2602,16 +2604,73 @@ export const CARD_EFFECTS = {
   //   ■ 「２枚ドローして、それらを公開する。それらの手札効果はこのターン使うことができない。」
   //   ⚠ ●（中央と四隅を一度に開ける）は**まだ**＝C の節（同時に複数の到達が起きる順番を決める必要）。
   "0th-pink-disclosure": {
+    // 🔴 ● 「場の中央と四隅のカードをオープンする。オープンするカードが１枚もないなら、
+    //      任意の１マスのカードをオープンする。」
+    //   **ユーザー裁定（2026-11-21）**:「到達したプレイヤーが、場の四隅と中央の中から
+    //   **１マスずつ選択してオープンしていきます**。」⇒ 到達は1枚ずつ順に起きる。
+    //   ⚠ ぶら下がり節は「5マスとも開けるものが無かった時」だけ通る（stopIfPreviousFailed の裏返し
+    //     ＝前が**成功したら**やらない）ので、`onlyIfPreviousFailed` で書く。
+    arrival: {
+      actions: [
+        {
+          verb: VERBS.FLIP_AT_FIXED_CELLS_ONE_BY_ONE,
+          // ⚠ 盤は7x7。中央 (3,3) と四隅 (0,0)(0,6)(6,0)(6,6)。
+          cells: [
+            { row: 3, col: 3 },
+            { row: 0, col: 0 },
+            { row: 0, col: 6 },
+            { row: 6, col: 0 },
+            { row: 6, col: 6 },
+          ],
+        },
+        // 「１枚もないなら、任意の１マスのカードをオープンする。」
+        // ⚠ 範囲を渡さない＝場の49マス（0th拡張「色よ、笛」と同じ形）。
+        { verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, maxCount: 1, optional: false, onlyIfPreviousFailed: true },
+      ],
+    },
     handEffect: {
       actions: [{ verb: VERBS.PUBLIC_DRAW_DISABLE_HAND_EFFECTS_CONDITIONAL_DISCARD, count: 2, noConditionalDiscard: true }],
     },
   },
 
   // 予言者の技 -アポカリプス-（紫）
-  //   ⚠ **まだ**。●「あなたの周囲の任意のマスに裏向きで置く」は、PLACE_CARD の destination が
-  //     CHOOSE の時に**範囲を読まない**（withinCells は ALL_WITHIN_RANGE 専用、しかも距離が
-  //     マンハッタン＝「周囲8マス」ではない）。engine に手を入れる必要があるので C の節と一緒に。
-  //   ⚠ ■（2色宣言して繰り返す）も C の節。
+  //   ● 「あなたの手札から１枚を、あなたの周囲の任意のマスに裏向きで置く。」
+  //   🔴 「周囲」＝斜めも含む**8マス**。`withinCells` は別の選び方専用で距離もマンハッタンなので、
+  //     `onlySurrounding` を engine に足した（続き789）。
+  //   ⚠ ■（2色宣言して繰り返す）は**まだ**＝C の節。
+  "0th-purple-apocalypse": {
+    arrival: {
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "hand",
+          faceUp: false,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE, onlySurrounding: true },
+        },
+      ],
+    },
+  },
+
+  // にじいろの呪い（黒）
+  //   ★ 「これの置かれたロックエリアへのロックには、同色のカードが２枚以上必要になる…」
+  //     🔴 ★は**ロックの判定そのもの**なので、効果データではなく phase-automation.js の
+  //       `isCardLockable` に入れてある（烙印と同じ形・続き789）。
+  //   ● 「あなたの空いているロックエリアに、これを表向きで置く。」
+  //     ⚠ 烙印（black-contract-brand）の到達と**同じ一文**なので、同じ仕掛けを使う。
+  //   ⚠ ■（1番多くロックしている人が上記の到達効果を得る）は**まだ**＝D の節。
+  "0th-black-rainbow-curse": {
+    arrival: {
+      addsCardToHandAfter: false,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          destination: { selection: TARGET_SELECTIONS.OWN_EMPTY_LOCK_SLOTS },
+        },
+      ],
+    },
+  },
 
 };
 

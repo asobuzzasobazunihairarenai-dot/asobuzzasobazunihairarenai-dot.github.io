@@ -6028,6 +6028,10 @@ document.addEventListener(
             const lockBlock = tapped && tapped.location.player === getSelfSeat() ? getLockBlockReason(tapped, getSelfSeat()) : null;
             if (lockBlock === "contract-brand-cost") {
               showQuickNote(t("game.lock.brandNeedsTwoSpare", { brand: cardDisplayName("black-contract-brand") || t("game.brand.name") }));
+            } else if (lockBlock === "rainbow-curse-need-two") {
+              // 🔴【続き789】旧0th「にじいろの呪い」★。色枠は「空いている」ように見えるので、
+              //   黙って光らないと不具合に見える（烙印の #434 とまったく同じ理由）。
+              showQuickNote(t("game.lock.rainbowCurseNeedTwo"));
             } else if (lockBlock === "lock-disabled") {
               // 0th拡張（やり直しのカギ）。押しても何も起きない理由を伝える（黙って
               // 光らないだけだと「不具合かな」と思われる＝#434 で同じことをした）。
