@@ -303,7 +303,7 @@ import { initJankLogger } from "./jank-logger.js";
 import { initRankedNotify } from "./ranked-notify.js";
 import { initPushNotify, subscribeToPush } from "./push-notify.js";
 import { initAppCache } from "./sw-cache.js";
-import { beginEffectDelegation } from "./effect-delegation.js";
+import { beginEffectDelegation, getEffectDelegationTarget } from "./effect-delegation.js";
 import { registerRecommendedViewHelper } from "./tablet-2d-warning.js";
 import { registerRenderHelpers, animateFirstCardsDealt, animateBoardFilled } from "./setup-animation.js";
 import {
@@ -12304,6 +12304,31 @@ function maybeTriggerCardArrivalForExposedCard(location, fromDiff = false, prevT
   if (fromDiff && arrivalEffectProcessingDepth > 0) {
     pendingDiffArrivalTriggers.push({ kind: "exposed", location, prevTopTokenId });
     logAction("diag-diff-arrival-defer", { kind: "exposed", location, depth: arrivalEffectProcessingDepth });
+    return Promise.resolve();
+  }
+  // 🔴🔴【#733・続き786】**誰かに選ばせている最中は、ここで新しい到達を始めない。**
+  //   報告「CPU2が止まってます」の正体がこれだった。行動ログの筋書き:
+  //     パーティーの到達（全員に3択を聞く）→ ある人が「場の1枚を手札に加える」を選ぶ
+  //     → その札がどいて**下の札が露出**し、駒が乗っていたので**別の到達がここから始まる**
+  //     → 入れ子の到達は最後まで走って終わるのに、**パーティー側の待ちが永久に戻らない**
+  //       （実測: `diag-arrival-processing` の start 8 / end 8 で `pink-party` だけ end が無く、
+  //        最後の end が `depth:1` のまま＝到達処理中の旗が立ちっぱなし＝CPUが一歩も動けない）。
+  //   🔴 **なぜ戻らないか**: 選択モーダルの持ち主（`activeEffectPicker`）は**1つしかない**。
+  //     入れ子の到達が自分の選択を登録した時点で、外側（委任中）の登録が**上書きで消える**。
+  //     CPUの席は `activeEffectPicker` を見て自動で選ぶので、消えた側は**誰も答えない**。
+  //   ⇒ 委任中は**あとで流す**（既にある `pendingDiffArrivalTriggers` に積み、到達処理が
+  //     全部終わった時＝depth 0 で流す）。**到達が消えるのではなく、順番が後になるだけ。**
+  //   ⚠ 委任していない時は今までどおり**その場で**起きる（ふつうの到達の連鎖は変えない）。
+  //   ⚠ ここは `await` されることがある（#85）。すぐ解決する約束を返すので、
+  //     呼んだ側は待たずに自分の効果を続けられる＝これが狙い。
+  if (getEffectDelegationTarget()) {
+    pendingDiffArrivalTriggers.push({ kind: "exposed", location, prevTopTokenId });
+    logAction("diag-arrival-defer-delegation", {
+      kind: "exposed",
+      location,
+      delegateTo: getEffectDelegationTarget(),
+      depth: arrivalEffectProcessingDepth,
+    });
     return Promise.resolve();
   }
   // 診断（到達コンボ不発の調査）: パーティ等で上のカードが取り除かれ、下のカードが露出
