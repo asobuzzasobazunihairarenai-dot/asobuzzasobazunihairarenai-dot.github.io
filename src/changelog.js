@@ -74,18 +74,22 @@ export const CHANGELOG = [
       "Two additions to the **action log**: (1) **why the White Dragon of Oblivion (Color Bearer) moved** — which colour came up and which way it went, or that it did not move; and (2) **that a Situation card took effect**. Both happen on their own, so once the notice faded there was no way to look back. In online games these lines now appear in every player’s log too.",
     ],
     fixes: [
+      "カードをロックできるかどうかの判定で内部エラーが出ていたのを直しました。",
       "スマホで、カードを長押ししてから上へ払っても補足が開かなかったのを直しました。",
       "カードを大きく出した時に、我忘れの白き龍の円盤が大きすぎたのを直しました。",
       "勝利演出で、ジュエルの駒がキューブに見えていたのを直しました。",
       "実際にはアプリが守っているルールに「（自己申告）」と書かれていたのを直しました。",
     ],
     fixesEn: [
+      "An internal error occurred while deciding whether a card could be locked. Fixed.",
       "On a phone, holding a card and swiping up did not open its notes. Fixed.",
       "When a card was shown large, the White Dragon of Oblivion’s dial was too big. Fixed.",
       "In the victory sequence, a jewel piece looked like a cube. Fixed.",
       "Two notices said “on the honor system” for rules the app actually enforces. Fixed.",
     ],
     devItems: [
+      "🔴 **検査がこれを見逃した理由もはっきりした。** 続き787 の「import 漏れの検査」は**呼び出し（`name(`）しか見ていなかった**ので、`SEAT_TO_SIDE[player]` のような**表引きは素通り**だった（続き788 の申し送り「ALL_CAPS はまだ見ていない」そのものが実害になった）。⇒ **大文字だけの名前（定数の表）は「使った所」も見る**ように広げた（見る箇所 6,681 → 7,464）。🔴 **わざと import を外すと名指しで落ち、戻すと合格する**ことを確かめてある。⚠ 小文字で始まる定数はまだ見ていない（別の道が要る）。",
+      "🔴🔴 **続き789 から GitHub Actions が2回とも赤だった。原因は `SEAT_TO_SIDE` の import 漏れ**（にじいろの呪い★の `isSlotOccupiedOnlyByRainbowCurse`）。**ロックの可否を見るたびに ReferenceError** が出ていて、実測で**1回の対局に 1174件**。スモーク（CPU戦を8ターン）はこれで転ぶ。直したらスモークは完走（PASS）。⚠ **私が push 後に赤い印を見ていなかった**（CLAUDE.md に「忘れても後から赤い印で分かる」と書いてあるのに、見るのを忘れた）。",
       "🔴🔴 **#725 の番号は、最初「規則は書いたのに1つも描かれていなかった」。** `::after` で書いたが、**1つの要素に `::after` は1つだけ**で、`.cell` の `::after` は**候補選択中の暗転オーバーレイに既に使われていた**（`body.phase-move-picking .cell:not(…)::after` と `body.card-effect-picking-cells .cell:not(…)::after`。どちらも詳細度 0,4,2 でこちらの 0,3,1 に勝つ）。実測で **content が空（\"\"）・地が rgba(0,0,0,.55)** ＝**暗転の方が出ていた**。⇒ `::before`（`.cell` ではどこも使っていないことを確かめた）へ移した。**教訓: 疑似要素を使う前に、その要素の `::before` / `::after` が空いているか確かめる。**⚠ そしてこれは **#727 とまったく同じ家族**（後から足した見た目が、既にある規則と場所を取り合う）。⚠ **数字で「規則が在る」ことを確かめても足りない**——出ているかは**画素で数える**しかなかった（PNG の容量で比べたら番号ありとなしで同値 1932/1932 になり、見逃しかけた）。",
       "🔴🔴 **#726（長タップ後スワイプで補足が見れない）の原因は、閾値でも門番でもなく「指を動かした瞬間に拡大の対象が切り替わっていた」こと。** 盤面には `table.addEventListener(\"pointermove\", (e) => updateHover(...))` が在り、**触る指の動きでも走る**。上へ払うと指はすぐ札の外へ出て `findHoverTarget` が何も見つけず `updatePreview(null)` ＝ **previewCardId が null** になり、`onMove` の `if (!previewCardId …) return;` で構えが永久に立たなかった。🔴 **盤面のカードは実測 27〜30px しかないのに、構えの閾値は 36px** ＝ **構えに届く前に必ず札の外へ出る**＝この道は**一度も通れなかった**。⇒ 指で押さえている間（`previewFollowsTouch`）は**対象を切り替えない**（長押しが成立する1回だけ `force: true` で通す）。盤から指が出た時の `pointerleave` も同じ理由で見送る。",
       "🔴 **なぜ続き683 の実測では通っていたのか（いちばん大事な反省）。** あの時の実測は `pointermove` を **window へ**出していた。`updateHover` は **table** に付いているので走らず、**検査だけが通る形**になっていた。⇒ 教訓: **出来事は、アプリが実際に受けている要素へ出す。** 今回の実測は `#game-table` へ出し直し、さらに「札の外へ出てから構えが立つか」を見ている。",

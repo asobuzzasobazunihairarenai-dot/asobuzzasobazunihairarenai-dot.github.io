@@ -36,7 +36,12 @@ import { isGateInvasionQueueActive } from "./gate-invasion-modal.js";
 import { playSound } from "./sound.js";
 import { announceHandPickups } from "./hand-announcer.js";
 import { getPlayerName } from "./player-identity.js";
-import { SIDE_TO_SEAT, COLORS, SEAT_ORDER } from "./board-layout.js";
+// 🔴【続き791】`SEAT_TO_SIDE` を足した。続き789 で にじいろの呪い★ の
+//   `isSlotOccupiedOnlyByRainbowCurse` がこれを使っているのに **import していなかった**
+//   ＝ ロックの可否を見るたびに ReferenceError（実測で1回の対局に 1174件）。
+//   ⚠ 静的な検査（check-missing-import）は**ALL_CAPS の定数をまだ見ていない**ので
+//     素通りした（続き788 の申し送りに書いたとおりの穴が、そのまま実害になった）。
+import { SIDE_TO_SEAT, SEAT_TO_SIDE, COLORS, SEAT_ORDER } from "./board-layout.js";
 import { getCardDefinition } from "./cards-data.js";
 import { hasAnyoneWon } from "./victory.js";
 import { isPseudoCpuModeEnabled as isPseudoCpuModeEnabledLocal, isPseudoCpuIncludeSelf, getPseudoCpuDeadlineMs } from "./admin.js";
