@@ -72,6 +72,8 @@ jobs:
         run: node tools/check-card-packs.mjs
       - name: カードの下線の仕組み（解析・繋がり・印の閉じ忘れ）
         run: node tools/check-card-markup.mjs
+      - name: import 漏れ（よその export を import せずに呼んでいないか）
+        run: node tools/check-missing-import.mjs
       - name: CPUが割り込みの札を一度も使わないままになっていないか
         run: node tools/check-cpu-interrupts.mjs
       - name: 画面の文言（ja/en の鍵・二重書き・差し込み）
