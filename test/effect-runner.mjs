@@ -58,8 +58,15 @@ export async function runOneCase(spec) {
   // 🔴 本物と同じ記録の関数（noteInterruptWindow）を通す。これが無いと**その枝を一度も
   //   通せない**（窓は main.js の fireAnytimeCheckpoint が開けるもので、テストには無い）。
   //   ⚠ 第3引数 tokenId は 1st EDITION（裏貴族の賄賂）が使う「いまロックしようとしている札」。
+  //   ⚠ 第4引数 color は 0thリメイクの限定カード（志炎者7枚）の【志炎】が使う
+  //     「相手が**同色**のカードの手札効果を使った直後」（続き781）。
   if (spec.interruptWindow)
-    eng.noteInterruptWindow?.(spec.interruptWindow.kind, spec.interruptWindow.player, spec.interruptWindow.tokenId ?? null);
+    eng.noteInterruptWindow?.(
+      spec.interruptWindow.kind,
+      spec.interruptWindow.player,
+      spec.interruptWindow.tokenId ?? null,
+      spec.interruptWindow.color ?? null
+    );
   const picks = spec.picks || {};
   const cursors = {};
   const nextPick = (type) => {
@@ -433,7 +440,8 @@ export async function runOneCase(spec) {
       const opts = eng.getHandEffectOptions(spec.ctx.cardId);
       diag = {
         canUse: eng.canUseHandEffect(spec.ctx.cardId, spec.ctx.cardTokenId, spec.ctx.player),
-        options: opts.map((o) => ({ label: o.label, cost: o.cost, actions: o.actions, inh: o.inheritsArrival, usable: eng.isHandEffectOptionUsable(spec.ctx.cardId, spec.ctx.cardTokenId, spec.ctx.player, o) })),
+        // ⚠ id も持たせる（optionUsable の検査が「どの選択肢か」で引くため＝続き781）。
+        options: opts.map((o) => ({ id: o.id, label: o.label, cost: o.cost, actions: o.actions, inh: o.inheritsArrival, usable: eng.isHandEffectOptionUsable(spec.ctx.cardId, spec.ctx.cardTokenId, spec.ctx.player, o) })),
       };
     } catch (e) { diag = { probeError: String(e) }; }
   }

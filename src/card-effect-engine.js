@@ -158,9 +158,13 @@ export function isLockDisabledThisTurn(player) {
 //   main.js の fireAnytimeCheckpoint が種類を渡し、窓が閉じる時に clearInterruptWindow する。
 // ⚠ tokenId（ロックしようとしている札）は 1st EDITION の裏貴族の賄賂が使う
 //   （「相手がロックしようとしたカードをあなたの手札に加える」）。渡されなければ null。
-let interruptWindow = null; // { kind, player, tokenId }
-export function noteInterruptWindow(kind, player, tokenId = null) {
-  interruptWindow = kind ? { kind, player, tokenId: tokenId ?? null } : null;
+// 🔴【続き781】志炎者7枚の【志炎】のために **color** を足した。
+//   「相手が、このカードと**同色**のカードの手札効果を使用した直後に限り、宣言できる」
+//   ＝どの色の手札効果で開いた窓かを覚えていないと判定できない。
+//   ⚠ 渡されなければ null（今までの窓は1つも変わらない）。
+let interruptWindow = null; // { kind, player, tokenId, color }
+export function noteInterruptWindow(kind, player, tokenId = null, color = null) {
+  interruptWindow = kind ? { kind, player, tokenId: tokenId ?? null, color: color ?? null } : null;
 }
 export function clearInterruptWindow() {
   interruptWindow = null;
@@ -181,6 +185,18 @@ function getLockDeclaredTokenInWindow(viewer) {
   const id = interruptWindow?.tokenId;
   if (!id) return null;
   return getState().tokens.find((tk) => tk.id === id) ?? null;
+}
+
+// 🔴【続き781】志炎者7枚の【志炎】専用: 「相手が、このカードと同色のカードの
+//   **手札効果を使用した直後**に限り、宣言できる」の窓。
+// ⚠ やり直しのカギ（getLockDeclarerInWindow）と**同じ形**にそろえてある。
+//   ①窓の種類が hand-effect ②開けたのが自分ではない（「相手が」）③色が一致。
+// ⚠ 色は**使われたカードの色**。志炎者自身の色と比べるのは呼ぶ側。
+function getSameColorHandEffectWindow(viewer, color) {
+  if (!interruptWindow || interruptWindow.kind !== "hand-effect") return null;
+  if (!interruptWindow.player || interruptWindow.player === viewer) return null; // 「相手が」
+  if (!color || interruptWindow.color !== color) return null; // 「同色の」
+  return interruptWindow.player;
 }
 
 // 0th拡張（平和への願い）専用: 「次のあなたのターンの開始時、…その間に誰も手札効果を
@@ -605,6 +621,10 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
     //   使える（「相手がロックしようとしたカードをあなたの手札に加える」ため）。
     if (option.requiresLockDeclaredToken && !getLockDeclaredTokenInWindow(player)) return false;
   }
+  // 🔴【続き781】志炎者7枚の【志炎】。窓が開いていない時は宣言できない。
+  if (option.requiresOpponentSameColorHandEffect) {
+    if (!getSameColorHandEffectWindow(player, getCardDefinition(cardId)?.color)) return false;
+  }
   // リーチキャンセル（0th拡張）。実行は main.js の専用の窓が行うので、ふだんの経路では
   // 使えないままにする（handEffectReactiveOnly と二重の守り）。
   if (option.requiresArrivalEffectWindow) return false;
@@ -800,6 +820,10 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   if (option.requiresOpponentLockDeclaration) {
     if (!getLockDeclarerInWindow(player)) return t("ce.ex0NeedLockDeclaration");
     if (option.requiresLockDeclaredToken && !getLockDeclaredTokenInWindow(player)) return t("ce.ex0NeedLockDeclaration");
+  }
+  // 🔴【続き781】ここに書かないと「押せないのに理由が出ない」になる（#526 と同じ形）。
+  if (option.requiresOpponentSameColorHandEffect) {
+    if (!getSameColorHandEffectWindow(player, getCardDefinition(cardId)?.color)) return t("ce.needShienWindow");
   }
   if (option.requiresArrivalEffectWindow) return t("ce.ex0NeedArrivalWindow");
   // 🔴【#526】ここに書かないと「押せないのに理由が出ない」になる（続き651 と同じ形）。
@@ -2271,6 +2295,129 @@ async function runAction(action, ctx, helpers) {
       }
       return hadEffect;
     }
+    // --- 0thリメイクの限定カード（志炎者7枚・続き781）-----------------------------
+    case VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW: {
+      // 志炎者7枚の到達効果の前半。「相手全員は、自分の手札から◯のカードを１枚捨て、
+      //   ２枚ドローしてもよい。」
+      // 🔴 **捨てるかどうかは、その本人が決める**（大富豪の気紛れ・#471・#506 と同じ考え方）。
+      //   ⇒ 選ぶところだけ本人へ委ね、捨てる／引くはここで行う（状態を動かす所を1つにする）。
+      // ⚠ 色は**このカード自身の色**（印字が「このカードと同色」ではなく色名で書かれているが、
+      //   7枚とも自分の色なので同じ。データに color を書けばそちらが優先）。
+      // ⚠ 処理順の原則（自分の次の人から時計回り）。
+      // 🔴 戻り値は「**1人以上が捨てたか**」。次の行動に stopIfPreviousFailed が付いているので、
+      //   ここが false なら後半（大きい効果）は起きない＝「１人以上がそうしたなら」。
+      const 色 = action.color ?? getCardDefinition(ctx.cardId)?.color ?? null;
+      if (!色) return false;
+      const 引く枚数 = action.draw ?? 2;
+      let 捨てた人 = 0;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (p === ctx.player) continue;
+        // ⚠ ファースト／エターナル等「他のカードの効果の対象にならない」札は出せない。
+        const 候補 = getHandTokens(p).filter(
+          (tk) => getCardDefinition(tk.cardId)?.color === 色 && isTargetableByOtherCardEffects(tk.cardId)
+        );
+        if (候補.length === 0) continue; // 出せる札が無い人には聞かない（善処の原則）
+        const 返事 = await helpers.delegateToPlayer?.(p, "may-discard-color-draw", {
+          candidates: 候補.map((tk) => tk.id),
+          color: 色,
+          draw: 引く枚数,
+          cardId: ctx.cardId,
+          forPlayer: p,
+        });
+        const 選んだ = 返事 && 返事.tokenId ? 候補.find((tk) => tk.id === 返事.tokenId) : null;
+        if (!選んだ) continue; // 「しない」を選んだ（または選べなかった）
+        await helpers.discardAndSync(選んだ.id);
+        if (引く枚数 > 0) await helpers.drawCards(p, 引く枚数);
+        捨てた人++;
+        await helpers.announceEffectReason?.(
+          ctx.cardId,
+          t("ce.cfDiscardedColorAndDrew", { name: helpers.getPlayerName(p), n: 引く枚数 })
+        );
+      }
+      return 捨てた人 > 0;
+    }
+    case VERBS.DISCARD_ALL_AT_CHOSEN_CELLS: {
+      // 志炎者 赤。「任意のNマスのカードをすべて捨てる。」
+      // 🔴 1マスぶんは既にある動詞（DISCARD_ALL_AT_CHOSEN_CELL）がやるので、**呼び直す**
+      //   （続き765 の MOVE と同じ形。捨てた後のマスは候補から外れるので、同じマスを
+      //   2回選んでしまうことは無い＝自然に「Nマス」になる）。
+      // ⚠ 途中で候補が尽きたらそこで止める（善処の原則）。1マスでも捨てれば true。
+      const 欲しい = action.count ?? 1;
+      let 捨てた = 0;
+      for (let i = 0; i < 欲しい; i++) {
+        const できた = await runAction({ ...action, verb: VERBS.DISCARD_ALL_AT_CHOSEN_CELL, count: 1 }, ctx, helpers);
+        if (!できた) break;
+        捨てた++;
+      }
+      return 捨てた > 0;
+    }
+    case VERBS.ALL_OPPONENTS_DISCARD_HAND: {
+      // 志炎者 青。「相手全員は自分の手札を１枚捨てる。」／「〜が２枚になるように捨てる。」
+      // 🔴 **どれを捨てるかは本人が選ぶ**（手札は非公開情報。使用者が選べてしまうと中身が割れる）。
+      // ⚠ downTo の時、手札がその枚数以下の人は**何も捨てない**（「〜になるように」の決まり）。
+      // ⚠ 処理順の原則（自分の次の人から時計回り）。
+      let 何か起きた = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        if (p === ctx.player) continue;
+        const 枚 = getHandTokens(p).length;
+        const 捨てる数 = Number.isFinite(action.downTo) ? Math.max(0, 枚 - action.downTo) : Math.min(枚, action.count ?? 1);
+        if (捨てる数 <= 0) continue;
+        const 残す = 枚 - 捨てる数;
+        const 前 = getHandTokens(p).length;
+        await helpers.delegateToPlayer?.(p, "discard-down-to", { n: 残す, forPlayer: p });
+        const 実際 = 前 - getHandTokens(p).length;
+        if (実際 > 0) {
+          何か起きた = true;
+          await helpers.announceEffectReason?.(ctx.cardId, t("ce.discardedN", { name: helpers.getPlayerName(p), n: 実際 }));
+        }
+      }
+      return 何か起きた;
+    }
+    case VERBS.MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS: {
+      // 志炎者 緑。「任意のNマスの裏向きのカードを、裏向きのまま別のマスに置く。」
+      // 🔴 **裏向きのまま**動かす（中身を見てはいけない＝ユーザー確認・続き766）。
+      //   ⇒ 一度も表にしない。moveAndSync の faceUp を触らない。
+      // ⚠ 「別のマス」＝今あるマス以外。盤面のどのマスでもよい（空きでなくてもよい＝積める）。
+      // ⚠ 途中で候補が尽きたらそこで止める（善処の原則）。
+      const 欲しい2 = action.count ?? 1;
+      let 動かした = 0;
+      for (let i = 0; i < 欲しい2; i++) {
+        const 裏の札 = getState().tokens.filter(
+          (tk) => tk.kind === "card" && tk.location.zone === "cell" && !tk.faceUp
+        );
+        if (裏の札.length === 0) break;
+        // どのマスの裏向きを動かすか（マスで選ぶ＝その時の1番上を取る＝１番上の原則）
+        const 元候補 = [];
+        const 見た = new Set();
+        for (const tk of 裏の札) {
+          const 鍵 = tk.location.row + "," + tk.location.col;
+          if (見た.has(鍵)) continue;
+          const 上 = findTopCardAtCell(tk.location.row, tk.location.col);
+          if (!上 || 上.faceUp) continue; // 1番上が表なら、ここの裏向きは取れない
+          見た.add(鍵);
+          元候補.push({ zone: "cell", row: tk.location.row, col: tk.location.col });
+        }
+        if (元候補.length === 0) break;
+        const 元 =
+          元候補.length === 1 && !ctx.forcePrompt
+            ? 元候補[0]
+            : await helpers.pickLocation(元候補, t("ce.cfPickFacedownToMove", { i: i + 1, n: 欲しい2 }));
+        if (!元) break;
+        const 札 = findTopCardAtCell(元.row, 元.col);
+        if (!札 || 札.faceUp) break;
+        // ⚠ マスの範囲を書き下さない（2か所に書くとズレる）。既にある一覧から今のマスだけ外す。
+        const 先候補 = getAllCellCandidates().filter((c) => !(c.row === 元.row && c.col === 元.col));
+        if (先候補.length === 0) break;
+        const 先 = await helpers.pickLocation(先候補, t("ce.cfPickFacedownDest", { i: i + 1, n: 欲しい2 }));
+        if (!先) break;
+        helpers.markPlacementTarget?.(先);
+        // 🔴 faceUp は渡さない（裏のまま）。
+        await helpers.moveAndSync(札.id, { zone: "cell", row: 先.row, col: 先.col });
+        helpers.markPlacedLocation?.(先);
+        動かした++;
+      }
+      return 動かした > 0;
+    }
     case VERBS.DISCARD_ALL_AT_CHOSEN_CELL: {
       // 紅蓮の火山 ワイナウエア専用: 任意の１マスの、そこにあるカード全て（スタック分
       // 含め全部、表裏問わず）を捨てる。
@@ -3353,7 +3500,14 @@ async function runAction(action, ctx, helpers) {
       // マックール（0th拡張）到達効果。「あなたの隣のマスのカードを２枚、あなたの手札に加える。」
       // ⓘ 「隣」＝前後左右の4マス。同じマスに2枚積まれていれば、同じマスを2回選んでもよい
       //   （毎回その時の一番上を取る＝１番上の原則）。
-      const want = action.count ?? 1;
+      // 🔴【続き781】志炎者 橙は「あなたの隣のカードを**すべて**」なので count: "all" を受ける。
+      //   ⚠ 数でないものをそのまま `i < want` に入れると**1回も回らない**（実測で捕まえた）。
+      //   「すべて」＝隣にカードが在る限り取り続ける＝上限は隣4マスの積みの合計。
+      //   盤面のカードの総数を上限にしておけば、無限には回らない。
+      const すべて = action.count === "all";
+      const want = すべて
+        ? getState().tokens.filter((tk) => tk.kind === "card" && tk.location.zone === "cell").length
+        : action.count ?? 1;
       let 取った = 0;
       for (let i = 0; i < want; i++) {
         const cells = [];
@@ -3363,8 +3517,10 @@ async function runAction(action, ctx, helpers) {
           if (inBounds(row, col) && hasCardAt(row, col)) cells.push({ zone: "cell", row, col });
         }
         if (cells.length === 0) break; // 善処の原則
+        // 🔴 「すべて」の時は**聞かない**——どれも結局取るので、選ばせるのは手を止めるだけ
+        //   （しかも「i / n」の n が盤面の総枚数になって意味の無い数字が出る）。
         const cell =
-          cells.length === 1 && !ctx.forcePrompt
+          すべて || (cells.length === 1 && !ctx.forcePrompt)
             ? cells[0]
             : await helpers.pickLocation(cells, t("ce.ex0PickAdjacentCard", { i: i + 1, n: want }));
         if (!cell) break;

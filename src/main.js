@@ -4716,9 +4716,51 @@ async function runDelegatedArrivalTask(player, taskType, taskArg) {
   if (taskType === "discard-down-to") return runDiscardDownToTask(player, taskArg);
   if (taskType === "may-lock-one-except-final") return runMayLockOneTask(player);
   if (taskType === "yaeza-option") return runYaezaOptionTask(player);
+  if (taskType === "may-discard-color-draw") return runMayDiscardColorDrawTask(player, taskArg);
   return false;
 }
 
+// 0thリメイクの限定カード（志炎者7枚）専用: 到達効果の前半
+//   「相手全員は、自分の手札から◯のカードを１枚捨て、２枚ドローしてもよい。」を本人に聞く。
+// 🔴 **捨てるかどうかも、どれを捨てるかも本人が決める**（手札は非公開情報。使った人に
+//   選ばせると中身が割れる＝#471・#506 の考え方）。
+// 🔴 返すのは**選んだ札の id だけ**。捨てる／引くは engine 側がやる
+//   （状態を動かす所を1つにしておかないと、オンラインで二重に走る）。
+// ⚠ 候補は engine が色で絞って渡してくる。ここでは**渡された中から選ぶだけ**
+//   （色の判定を2か所に書くとズレる）。
+async function runMayDiscardColorDrawTask(player, taskArg) {
+  const ids = Array.isArray(taskArg?.candidates) ? taskArg.candidates : [];
+  const 候補 = getState().tokens.filter((t) => ids.includes(t.id));
+  if (候補.length === 0) return null; // 出せる札が無い（善処の原則）
+  const 色名 = t("game.color." + taskArg.color);
+  const 色 = 色名 && 色名 !== "game.color." + taskArg.color ? 色名 : String(taskArg.color ?? "");
+  const 枚 = taskArg?.draw ?? 2;
+  const options = [
+    { id: "cf-discard", label: t("cef.opt.cfDiscardColorDraw"), usable: true },
+    { id: "cf-decline", label: t("cef.opt.cfDeclineDiscardColor"), usable: true },
+  ];
+  // ⚠ 何を聞かれているかを文で出す（押す前に分かるように）。
+  const picked = await pickOptionForEffect(
+    taskArg?.cardId ?? null,
+    options,
+    t("ce.cfMayDiscardColorDraw", { color: 色, n: 枚, card: cardDisplayName(taskArg?.cardId) })
+  );
+  const id = typeof picked === "string" ? picked : picked?.id ?? null;
+  if (id !== "cf-discard" || isDelegationExpired()) return null;
+  // どれを捨てるか。1枚しか無ければ聞かない。
+  let 選 = 候補[0];
+  if (候補.length >= 2) {
+    const ordered = await requestHandCardsOrderedForEffect(
+      player,
+      t("ce.cfPickColorCardToDiscard", { color: 色 }),
+      候補.map((tk) => tk.id),
+      { limit: 1 }
+    );
+    if (ordered && ordered[0]) 選 = ordered[0];
+  }
+  if (!選 || isDelegationExpired()) return null;
+  return { tokenId: 選.id };
+}
 // 0th拡張（ピーターフッド・ヴド族との契約）専用: 「手札がN枚以下になるように捨てる」を本人に聞く。
 // ⚠ 中身は runSlumOfficialDiscardTask（3枚固定）と同じ作りで、枚数だけ引数にした版。
 //   あちらは文言キーが3枚前提なので別に用意してある。
@@ -10558,10 +10600,12 @@ function revealDiscardedCardsForEffect(player, cardIds) {
 //   区別が要る（渡さなければ今までどおり＝種類なしの窓）。
 // 🔴 第3引数 tokenId は「いまロックしようとしている札」。1st EDITION の裏貴族の賄賂が
 //   「相手がロックしようとしたカードをあなたの手札に加える」ために要る（渡さなければ null）。
-function fireAnytimeCheckpoint(afterPlayer, kind = null, tokenId = null) {
-  noteInterruptWindow(kind, afterPlayer, tokenId);
+// 🔴 第4引数 color は「どの色の手札効果で開いた窓か」。志炎者7枚の【志炎】が
+//   「相手が、このカードと**同色**のカードの手札効果を使用した直後に限り」のために見る。
+function fireAnytimeCheckpoint(afterPlayer, kind = null, tokenId = null, color = null) {
+  noteInterruptWindow(kind, afterPlayer, tokenId, color);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
-  if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer, kind, tokenId });
+  if (isOnlineMode()) broadcastAnytimeCheckpoint({ afterPlayer, kind, tokenId, color });
 }
 
 // 🔴 【#491・#500・2026-11-04】ロック宣言の窓だけは**閉じるまで待つ**。
@@ -10593,8 +10637,11 @@ async function fireLockDeclareAndShouldAbort(player, tokenId) {
 // （同期的に）先に呼ばれてモーダルを出し始めているのが通常のため、こちらは単に
 // 同じ関数をもう一度呼ぶだけでよい——2回目の呼び出しは「既にモーダル表示中」
 // ガードで自然にサイレントno-opになる（hand_effect_use受信側と同じ考え方）。
-onAnytimeCheckpointEvents(({ afterPlayer, kind, tokenId }) => {
-  noteInterruptWindow(kind ?? null, afterPlayer, tokenId ?? null);
+// 🔴【続き781】color を取り出し忘れると、**オンラインでだけ【志炎】が出せない**
+//   （自分の端末では窓に色が乗るのに、相手の端末には届かない）。中継は payload を
+//   そのまま運ぶので、足りないのは**ここで受け取る1語**だけ。
+onAnytimeCheckpointEvents(({ afterPlayer, kind, tokenId, color }) => {
+  noteInterruptWindow(kind ?? null, afterPlayer, tokenId ?? null, color ?? null);
   triggerAnytimeInterruptCheckpoint(afterPlayer);
 });
 
@@ -11185,7 +11232,10 @@ async function runAutoHandEffect(cardId, cardTokenId, player) {
     // ユーザー要望（続き76/77）「カード効果処理の直後にも割り込みモーダルを出す」。
     // 続き77でanytime_checkpoint broadcastに乗せ、オンライン中も他クライアントへ届く
     // ようにした。
-    fireAnytimeCheckpoint(player);
+    // 🔴【続き781】ここは**手札効果の直後**なので、窓に種類と**使った札の色**を乗せる。
+    //   志炎者7枚の【志炎】が「相手が同色の手札効果を使った直後」に出せるようになる。
+    //   ⚠ 色が分からない時は null（＝今までどおり種類だけの窓）。
+    fireAnytimeCheckpoint(player, "hand-effect", null, getCardDefinition(cardId)?.color ?? null);
     render();
   }
 }

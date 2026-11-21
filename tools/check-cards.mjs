@@ -95,7 +95,29 @@ const firstEdTextIds = (() => {
     return [];
   }
 })();
-const known = new Set([...cards.map((c) => c.id), ...ex0Ids, ...firstEdIds, ...firstEdTextIds]);
+// 旧0th・志炎者（0thリメイクの限定カード）も同じ理由で一覧に入れる（続き781）。
+const old0thIdsForKnown = (() => {
+  try {
+    return [...read("src/cards-data-0th.js").matchAll(/\{\s*id:\s*"(0th-[a-z0-9-]+)"/g)].map((m) => m[1]);
+  } catch (e) {
+    return [];
+  }
+})();
+const cfIdsForKnown = (() => {
+  try {
+    return [...read("src/cards-data-cf.js").matchAll(/\{\s*id:\s*"(cf-[a-z0-9-]+)"/g)].map((m) => m[1]);
+  } catch (e) {
+    return [];
+  }
+})();
+const known = new Set([
+  ...cards.map((c) => c.id),
+  ...ex0Ids,
+  ...firstEdIds,
+  ...firstEdTextIds,
+  ...old0thIdsForKnown,
+  ...cfIdsForKnown,
+]);
 for (const [label, ids] of [["効果データ", effectIds], ["日本語の文", jaIds], ["英語の文", enIds]]) {
   for (const id of ids) {
     if (!known.has(id)) note(`カード一覧に無いのに ${label} だけ在る: ${id}（消し忘れ？）`);
@@ -433,7 +455,15 @@ if (firstEdSrc) {
 {
   const ならす = (x) => x.replace(/^\d+\.\s*/, "").replace(/[\s\u3000]+/g, "");
   const 実名 = new Set();
-  for (const p of ["src/cards-data.js", "src/cards-data-1st.js", "src/cards-data-ex0.js"]) {
+  // 🔴【続き781】**セットを足したらここにも足す。** 抜けると「実在するのに実在しない」と出る
+  //   （志炎者7枚の効果データを入れた時に、cards-data-cf.js が無くて7件とも誤検知になった）。
+  for (const p of [
+    "src/cards-data.js",
+    "src/cards-data-1st.js",
+    "src/cards-data-ex0.js",
+    "src/cards-data-0th.js",
+    "src/cards-data-cf.js",
+  ]) {
     let src = null;
     try {
       src = read(p);

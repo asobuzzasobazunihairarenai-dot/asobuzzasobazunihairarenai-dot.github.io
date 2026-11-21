@@ -150,6 +150,16 @@ export const VERBS = {
   PICKUP_ALL_AT_CHOSEN_CELL_TO_HAND: "pickup_all_at_chosen_cell_to_hand", // 愚直な欲求(E橙): 任意の1マスのカードを全部手札へ
   WEALTH_BONUS_FOR_ALL_UNTIL_NEXT_TURN: "wealth_bonus_for_all_until_next_turn", // 富豪の教え(E黄): 全員の財力を1多く
   SWAP_ENTIRE_HAND_WITH_CHOSEN: "swap_entire_hand_with_chosen", // カオスチェンジ(E紫): 相手と手札を全部交換
+
+  // --- 0thリメイクの限定カード（志炎者7枚・続き781）-------------------------------
+  // 🔴 7枚とも**同じ骨**（色だけ違う）なので、動詞も7枚で共有する。
+  //   到達: 「相手全員は、自分の手札から◯のカードを１枚捨て、２枚ドローしてもよい。
+  //          １人以上がそうしたなら、〈効果〉。」
+  //   手札: 「以下の効果のうち１つ得る。・〈小〉 ・【志炎】〈大〉」
+  OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW: "opponents_may_discard_color_and_draw", // 志炎者(到達の前半)
+  DISCARD_ALL_AT_CHOSEN_CELLS: "discard_all_at_chosen_cells", // 志炎者 赤: 任意のNマスのカードをすべて捨てる
+  MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS: "move_facedown_cards_to_other_cells", // 志炎者 緑: 裏向きのカードを裏向きのまま別のマスへ
+  ALL_OPPONENTS_DISCARD_HAND: "all_opponents_discard_hand", // 志炎者 青: 相手全員が手札を捨てる（N枚／M枚になるように）
 };
 
 // 効果の主語（誰が対象か）。
@@ -2256,6 +2266,187 @@ export const CARD_EFFECTS = {
     },
   },
 
+  // --- 0thリメイクの限定カード（志炎者7枚・続き781）-------------------------------
+  // 🔴 **7枚とも同じ骨**（色だけ違う）。印字:
+  //   到達: 「相手全員は、自分の手札から◯のカードを１枚捨て、２枚ドローしてもよい。
+  //          １人以上がそうしたなら、〈大きい効果〉。」
+  //   手札: 「以下の効果のうち１つ得る。・〈小さい効果〉 ・【志炎】〈大きい効果〉」
+  // 🔴 【志炎】＝**払うコストではなく割り込みの窓**（公式サイトの基本用語集）。
+  //   「相手が、このカードと同色のカードの**手札効果を使用した直後に限り**、宣言できる」。
+  //   ⇒ requiresOpponentSameColorHandEffect が窓を見る（やり直しのカギの
+  //     requiresOpponentLockDeclaration と**同じ形**）。usableAnytime が無いと
+  //     自分のハンドフェイズ以外で出せないので、必ず対で付ける。
+  // ⚠ このカード自身の処遇は書かれていないので**既定どおり**——到達なら手札に加え、
+  //   手札効果なら発動時に捨てる（資料「効果カード自身の記載がなければ発動時に捨てる」）。
+
+  // 黄を待つ志炎者　-スキンティラ-（黄）
+  //   ⓘ 任意の４マスのカードをオープンする。⚠ withinCells を渡さない＝**場の49マス全体**（0th拡張「色よ、笛」と同じ形）。
+  "cf-yellow-scintilla": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, maxCount: 4, optional: false , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-yellow-scintilla-plain", labelKey: "cef.opt.cfFlip1", actions: [{ verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, maxCount: 1, optional: false }] },
+      {
+        id: "cf-yellow-scintilla-shien",
+        labelKey: "cef.opt.cfShienFlip4",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.FLIP_UP_TO_N_WITHIN_RANGE, maxCount: 4, optional: false }],
+      },
+    ],
+  },
+
+  // 桃を待つ志炎者　-フランマ-（桃）
+  //   ⓘ ユーザー判断で**２枚→３枚**（到達と【志炎】の両方・続き766）。相手が2枚引けるぶん釣り合う。
+  "cf-pink-flamma": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.DRAW, count: 3, target: TARGETS.SELF , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-pink-flamma-plain", labelKey: "cef.opt.cfDraw1", actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }] },
+      {
+        id: "cf-pink-flamma-shien",
+        labelKey: "cef.opt.cfShienDraw3",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.DRAW, count: 3, target: TARGETS.SELF }],
+      },
+    ],
+  },
+
+  // 赤を待つ志炎者　-イグニス-（赤）
+  //   ⓘ 任意のNマスの、そこにあるカードを**全部**（積まれている分も表裏も問わず）捨てる。
+  "cf-red-ignis": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.DISCARD_ALL_AT_CHOSEN_CELLS, count: 3 , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-red-ignis-plain", labelKey: "cef.opt.cfDiscardCell1", actions: [{ verb: VERBS.DISCARD_ALL_AT_CHOSEN_CELLS, count: 1 }] },
+      {
+        id: "cf-red-ignis-shien",
+        labelKey: "cef.opt.cfShienDiscardCell3",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.DISCARD_ALL_AT_CHOSEN_CELLS, count: 3 }],
+      },
+    ],
+  },
+
+  // 橙を待つ志炎者　-ブランド-（橙）
+  //   ⓘ 「あなたの隣」＝**前後左右の4マス**（斜めは「周囲」＝総合ルール）。すべて＝積まれている分も全部。
+  "cf-orange-brand": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.PICKUP_ADJACENT_CARDS_TO_HAND, count: "all" , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-orange-brand-plain", labelKey: "cef.opt.cfPickAdj1", actions: [{ verb: VERBS.PICKUP_ADJACENT_CARDS_TO_HAND, count: 1 }] },
+      {
+        id: "cf-orange-brand-shien",
+        labelKey: "cef.opt.cfShienPickAdjAll",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.PICKUP_ADJACENT_CARDS_TO_HAND, count: "all" }],
+      },
+    ],
+  },
+
+  // 青を待つ志炎者　-カンデラ-（青）
+  //   ⓘ ⚠ 手札が２枚以下の人は捨てない（「〜になるように捨てる」の決まり）。
+  "cf-blue-candela": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.ALL_OPPONENTS_DISCARD_HAND, downTo: 2 , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-blue-candela-plain", labelKey: "cef.opt.cfOppDiscard1", actions: [{ verb: VERBS.ALL_OPPONENTS_DISCARD_HAND, count: 1 }] },
+      {
+        id: "cf-blue-candela-shien",
+        labelKey: "cef.opt.cfShienOppDiscardTo2",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.ALL_OPPONENTS_DISCARD_HAND, downTo: 2 }],
+      },
+    ],
+  },
+
+  // 緑を待つ志炎者　-エンバー-（緑）
+  //   ⓘ 🔴 **裏向きのまま**動かす（中身を見てはいけない＝ユーザー確認・続き766）。
+  "cf-green-ember": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS, count: 2 , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-green-ember-plain", labelKey: "cef.opt.cfMoveFacedown1", actions: [{ verb: VERBS.MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS, count: 1 }] },
+      {
+        id: "cf-green-ember-shien",
+        labelKey: "cef.opt.cfShienMoveFacedown2",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS, count: 2 }],
+      },
+    ],
+  },
+
+  // 紫を待つ志炎者　-ファウィラ-（紫）
+  //   ⓘ 「一気に」＝途中のマスのカードや駒の有無を問わない。強制移動なのでカードの無いマスにも行ける。
+  "cf-purple-favilla": {
+    arrival: {
+      actions: [
+        { verb: VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW, draw: 2 },
+        // 🔴 「１人以上がそうしたなら」＝**捨てた人が1人も居なければ起きない**。
+        { verb: VERBS.FORCED_MOVE, count: 2, atOnce: true , stopIfPreviousFailed: true },
+      ],
+    },
+    handEffectOptions: [
+      { id: "cf-purple-favilla-plain", labelKey: "cef.opt.cfForcedMove1", actions: [{ verb: VERBS.FORCED_MOVE, count: 1 }] },
+      {
+        id: "cf-purple-favilla-shien",
+        labelKey: "cef.opt.cfShienForcedMove2",
+        // 🔴 【志炎】の窓でしか宣言できない（相手が同色の手札効果を使った直後）。
+        usableAnytime: true,
+        usableAnytimeLabelKey: "cef.shienWindow",
+        requiresOpponentSameColorHandEffect: true,
+        actions: [{ verb: VERBS.FORCED_MOVE, count: 2, atOnce: true }],
+      },
+    ],
+  },
+
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------
@@ -2414,6 +2605,17 @@ function renderAction(action, context) {
       return `このマスから十字方向の計${toFullWidthNumber(action.cellCount)}マスに山札から${count}枚ずつ裏向きで置く。それらをすべてオープンする。`;
     case VERBS.DISCARD_RANDOM_FROM_QUALIFYING_OPPONENTS:
       return `手札が${toFullWidthNumber(action.minHandSize)}枚以上ある相手全員の手札から、無作為に１枚ずつ選び、それらを捨てる。`;
+    // --- 0thリメイクの限定カード（志炎者7枚・続き781）---
+    case VERBS.OPPONENTS_MAY_DISCARD_COLOR_AND_DRAW:
+      return `相手全員は、自分の手札からこれと同色のカードを１枚捨て、${toFullWidthNumber(action.draw ?? 2)}枚ドローしてもよい。`;
+    case VERBS.DISCARD_ALL_AT_CHOSEN_CELLS:
+      return `任意の${toFullWidthNumber(action.count ?? 1)}マスのカードをすべて捨てる。`;
+    case VERBS.ALL_OPPONENTS_DISCARD_HAND:
+      return Number.isFinite(action.downTo)
+        ? `相手全員は自分の手札が${toFullWidthNumber(action.downTo)}枚になるように捨てる。`
+        : `相手全員は自分の手札を${toFullWidthNumber(action.count ?? 1)}枚捨てる。`;
+    case VERBS.MOVE_FACEDOWN_CARDS_TO_OTHER_CELLS:
+      return `任意の${toFullWidthNumber(action.count ?? 1)}マスの裏向きのカードを、裏向きのまま別のマスに置く。`;
     case VERBS.DISCARD_ALL_AT_CHOSEN_CELL:
       return "任意の１マスのカードをすべて捨てる。";
     case VERBS.PUBLIC_DRAW_THEN_DISCARD_AT_TURN_END:

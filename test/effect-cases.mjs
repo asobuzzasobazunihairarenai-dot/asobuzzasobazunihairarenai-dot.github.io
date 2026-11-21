@@ -7,6 +7,440 @@
 // expect: Node 側で最終 state に対して確認するアサーション。
 // 盤面の座席→ロック辺: A=bottom, B=left, C=top, D=right（board-layout）。COLORS順=赤橙黄緑青桃紫。
 export const CASES = [
+
+  // ===== 0thリメイクの限定カード（志炎者7枚・続き781）=====================
+  // 🔴 7枚とも**同じ骨**（色だけ違う）:
+  //   到達: 相手全員が「同色を1枚捨てて2枚引く」かを選び、**1人以上がそうしたなら**大きい効果。
+  //   手札: 小さい効果／【志炎】大きい効果（相手が同色の手札効果を使った直後だけ）。
+  // ⚠ 相手が捨てる札は**実在するリメイクの同色カード**を置く（色が引けないと候補に入らない）。
+  {
+    name: "志炎者 赤 イグニス(到達): 相手が同色を捨てたので、任意の３マスのカードをすべて捨てる",
+    kind: "arrival",
+    cardId: "cf-red-ignis",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "t2", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 2 } },
+        { id: "t3", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }], location: [{ row: 1, col: 1 }, { row: 1, col: 2 }, { row: 1, col: 3 }] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "tokenGone", id: "t1" },
+      { kind: "tokenGone", id: "t2" },
+      { kind: "tokenGone", id: "t3" },
+    ],
+  },
+  {
+    name: "志炎者 橙 ブランド(到達): 相手が同色を捨てたので、あなたの隣のカードをすべて手札に加える（前後左右の4マス）",
+    kind: "arrival",
+    cardId: "cf-orange-brand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-orange-brand", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "orange-mass-change", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        { id: "t2", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 4, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-orange-brand", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "tokenZone", id: "t1", zone: "hand" },
+      { kind: "tokenZone", id: "t2", zone: "hand" },
+    ],
+  },
+  {
+    name: "志炎者 黄 スキンティラ(到達): 相手が同色を捨てたので、任意の４マスのカードをオープンする（在る分だけ＝善処の原則）",
+    kind: "arrival",
+    cardId: "cf-yellow-scintilla",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-yellow-scintilla", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "yellow-sleight-of-hand", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "t2", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-yellow-scintilla", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }], location: [{ row: 1, col: 1 }, { row: 1, col: 2 }, "skip"] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "tokenFaceUp", id: "t1" },
+      { kind: "tokenFaceUp", id: "t2" },
+    ],
+  },
+  {
+    name: "志炎者 緑 エンバー(到達): 相手が同色を捨てたので、任意の２マスの裏向きのカードを、**裏向きのまま**別のマスへ",
+    kind: "arrival",
+    cardId: "cf-green-ember",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-green-ember", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "t2", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-green-ember", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }], location: [{ row: 1, col: 1 }, { row: 5, col: 5 }, { row: 1, col: 2 }, { row: 5, col: 6 }] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "tokenAtCell", id: "t1", row: 5, col: 5 },
+      { kind: "tokenFaceDown", id: "t1" },
+      { kind: "tokenAtCell", id: "t2", row: 5, col: 6 },
+      { kind: "tokenFaceDown", id: "t2" },
+    ],
+  },
+  {
+    name: "志炎者 青 カンデラ(到達): 相手が同色を捨てたので、相手全員は手札が２枚になるように捨てる（本人に委ねる）",
+    kind: "arrival",
+    cardId: "cf-blue-candela",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-blue-candela", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "blue-choosable-trap", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-blue-candela", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }, true] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "called", name: "delegateToPlayer", arg: "discard-down-to", n: 1 },
+    ],
+  },
+  {
+    name: "志炎者 桃 フランマ(到達): 相手が同色を捨てたので、３枚ドロー（＋到達でこのカード自身が手札に入るので計4枚）",
+    kind: "arrival",
+    cardId: "cf-pink-flamma",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-pink-flamma", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "pink-party", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-pink-flamma", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "handCount", player: "A", n: 4 },
+    ],
+  },
+  {
+    name: "志炎者 紫 ファウィラ(到達): 相手が同色を捨てたので、２マス先に一気に強制移動する",
+    kind: "arrival",
+    cardId: "cf-purple-favilla",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-purple-favilla", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "purple-trial-ritual", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-purple-favilla", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bsame" }], location: [{ row: 3, col: 5 }] },
+    expect: [
+      // 🔴 相手（B）本人に「捨てるか」を聞いている
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      // 同色の札だけが捨てられ、違う色は残る
+      { kind: "tokenGone", id: "bsame" },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "pieceAt", player: "A", row: 3, col: 5 },
+    ],
+  },
+  {
+    name: "志炎者 赤(到達): 誰も捨てなかったので、３マスを捨てる効果は起きない（「１人以上がそうしたなら」）",
+    kind: "arrival",
+    cardId: "cf-red-ignis",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bsame", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "B" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 🔴 相手が「しない」を選んだ（null が返る）
+    picks: { delegate: [null] },
+    expect: [
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      { kind: "tokenZone", id: "bsame", zone: "hand" }, // 捨てていない
+      { kind: "tokenZone", id: "t1", zone: "cell" },    // 🔴 大きい効果が起きていない
+    ],
+  },
+  {
+    name: "志炎者 赤(到達): 同色の手札を持っていない相手には聞かない（善処の原則）",
+    kind: "arrival",
+    cardId: "cf-red-ignis",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 0 },
+    ],
+  },
+  {
+    name: "志炎者 赤 イグニス(手札・ふつうの方): 任意の１マスのカードをすべて捨てる",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-plain"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "tokenGone", id: "t1" },
+    ],
+  },
+  {
+    name: "志炎者 橙 ブランド(手札・ふつうの方): あなたの隣の１枚を手札に加える",
+    kind: "hand",
+    cardId: "cf-orange-brand",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-orange-brand", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-orange-brand", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-orange-brand-plain"] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "tokenZone", id: "t1", zone: "hand" },
+    ],
+  },
+  {
+    name: "志炎者 黄 スキンティラ(手札・ふつうの方): 任意の１マスのカードをオープンする",
+    kind: "hand",
+    cardId: "cf-yellow-scintilla",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-yellow-scintilla", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-yellow-scintilla", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-yellow-scintilla-plain"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "tokenFaceUp", id: "t1" },
+    ],
+  },
+  {
+    name: "志炎者 緑 エンバー(手札・ふつうの方): 裏向きのカードを裏向きのまま別のマスへ",
+    kind: "hand",
+    cardId: "cf-green-ember",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-green-ember", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-green-ember", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-green-ember-plain"], location: [{ row: 1, col: 1 }, { row: 5, col: 5 }] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "tokenAtCell", id: "t1", row: 5, col: 5 },
+      { kind: "tokenFaceDown", id: "t1" },
+    ],
+  },
+  {
+    name: "志炎者 青 カンデラ(手札・ふつうの方): 相手全員は手札を１枚捨てる",
+    kind: "hand",
+    cardId: "cf-blue-candela",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-blue-candela", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "bh1", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-blue-candela", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-blue-candela-plain"], delegate: [true] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "called", name: "delegateToPlayer", arg: "discard-down-to", n: 1 },
+    ],
+  },
+  {
+    name: "志炎者 桃 フランマ(手札・ふつうの方): １枚ドロー",
+    kind: "hand",
+    cardId: "cf-pink-flamma",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-pink-flamma", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-pink-flamma", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-pink-flamma-plain"] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "handCount", player: "A", n: 1 },
+    ],
+  },
+  {
+    name: "志炎者 紫 ファウィラ(手札・ふつうの方): １マス強制移動する",
+    kind: "hand",
+    cardId: "cf-purple-favilla",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-purple-favilla", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-purple-favilla", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-purple-favilla-plain"], location: [{ row: 3, col: 4 }] },
+    expect: [
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時にこのカード自身を捨てる（記載が無ければ＝資料）
+      { kind: "pieceAt", player: "A", row: 3, col: 4 },
+    ],
+  },
+  {
+    name: "志炎者 赤(手札・【志炎】): 相手が同色の手札効果を使った直後なら宣言でき、３マスを捨てる",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    // 🔴 窓は本物と同じ記録（noteInterruptWindow）から開ける。
+    interruptWindow: { kind: "hand-effect", player: "B", color: "red" },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "B",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "t2", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 2 } },
+        { id: "t3", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-shien"], location: [{ row: 1, col: 1 }, { row: 1, col: 2 }, { row: 1, col: 3 }] },
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "tokenGone", id: "t1" },
+      { kind: "tokenGone", id: "t2" },
+      { kind: "tokenGone", id: "t3" },
+    ],
+  },
+  {
+    name: "志炎者 赤(手札・【志炎】): 窓が別の色なら宣言できない（ふつうの方だけ使える）",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    // 🔴 対照: 同じ場面で**色だけ違う**窓。これが無いと「使えない」が0しか出ない検査になる。
+    interruptWindow: { kind: "hand-effect", player: "B", color: "blue" },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "B",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-plain"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-shien", usable: false },
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: true },
+    ],
+  },
+
   {
     name: "ジャンプ台(到達): 2マス先へ移動し、このカード自身は手札に加えない",
     kind: "arrival",
@@ -5345,6 +5779,16 @@ export function checkExpect(res, exp) {
     }
     // 「その手札効果が今使えるか」。🔴 財力の条件を満たさない時に**押せないこと**を直接見る
     //   （効果の結果だけ見ると「何も起きなかった」と区別がつかない）。
+    // 🔴【続き781】**選択肢1つずつ**「今使えるか」を見る。志炎者の【志炎】のように
+    //   「窓が開いている時だけ宣言できる」枝は、カード全体の handUsable では分からない
+    //   （ふつうの方が使えるので canUse は true のまま）。
+    case "optionUsable": {
+      const opts = res.diag?.options || [];
+      const o = opts.find((x) => x.id === exp.optionId);
+      if (!o) return `選択肢 ${exp.optionId} が無い（在るのは ${opts.map((x) => x.id).join(", ")}）`;
+      if (!!o.usable !== !!exp.usable) return `選択肢 ${exp.optionId} が使えるか ${!!o.usable}（期待 ${!!exp.usable}）`;
+      return null;
+    }
     case "handUsable": {
       const 実際 = !!res.diag?.canUse;
       if (実際 !== !!exp.value) return `手札効果が使えるか ${実際}（期待 ${!!exp.value}）`;
