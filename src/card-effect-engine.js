@@ -5444,6 +5444,14 @@ async function runAction(action, ctx, helpers) {
       if (!arrivalDef?.actions?.length) return false;
       let hadEffect = false;
       for (const a of arrivalDef.actions) {
+        // 🔴【続き785】`arrivalOnly: true` の行は**引き継がない**。
+        //   ユーザー判断（2026-11-21）「手札効果の時は引かないようにしよう！」。
+        //   【状況】カードの到達効果の冒頭に足した「１枚ドロー。」は**デジタル版だけの調整**で、
+        //   印字の手札効果「上記の到達時の効果を得る。」が指しているのは**印字の到達効果**
+        //   （＝場の中央に置くだけ）。⇒ 引き継ぐ側で落とすのが筋。
+        //   ⚠ 印は**足した行そのもの**に付ける（手札効果の側に「draw を除く」と書くと、
+        //     到達効果を直した時にここだけ古くなる＝2か所に同じ事実を書くことになる）。
+        if (a?.arrivalOnly) continue;
         if (await runActionSafely(a, ctx, helpers)) hadEffect = true;
       }
       return hadEffect;

@@ -1893,7 +1893,13 @@ export const CARD_EFFECTS = {
       // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
       //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
       //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
-      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      //   🔴 arrivalOnly: **手札効果には引き継がない**（ユーザー判断 2026-11-21
+      //     「手札効果の時は引かないようにしよう！」）。印字の手札効果「上記の到達時の効果を得る。」が
+      //     指しているのは**印字の到達効果**＝場の中央に置くだけ、なので筋が通る。
+      actions: [
+        { verb: VERBS.DRAW, count: 1, target: TARGETS.SELF, arrivalOnly: true },
+        { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER },
+      ],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -1915,7 +1921,13 @@ export const CARD_EFFECTS = {
       // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
       //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
       //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
-      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      //   🔴 arrivalOnly: **手札効果には引き継がない**（ユーザー判断 2026-11-21
+      //     「手札効果の時は引かないようにしよう！」）。印字の手札効果「上記の到達時の効果を得る。」が
+      //     指しているのは**印字の到達効果**＝場の中央に置くだけ、なので筋が通る。
+      actions: [
+        { verb: VERBS.DRAW, count: 1, target: TARGETS.SELF, arrivalOnly: true },
+        { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER },
+      ],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -1990,7 +2002,13 @@ export const CARD_EFFECTS = {
       // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
       //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
       //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
-      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      //   🔴 arrivalOnly: **手札効果には引き継がない**（ユーザー判断 2026-11-21
+      //     「手札効果の時は引かないようにしよう！」）。印字の手札効果「上記の到達時の効果を得る。」が
+      //     指しているのは**印字の到達効果**＝場の中央に置くだけ、なので筋が通る。
+      actions: [
+        { verb: VERBS.DRAW, count: 1, target: TARGETS.SELF, arrivalOnly: true },
+        { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER },
+      ],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -2031,7 +2049,13 @@ export const CARD_EFFECTS = {
       // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
       //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
       //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
-      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      //   🔴 arrivalOnly: **手札効果には引き継がない**（ユーザー判断 2026-11-21
+      //     「手札効果の時は引かないようにしよう！」）。印字の手札効果「上記の到達時の効果を得る。」が
+      //     指しているのは**印字の到達効果**＝場の中央に置くだけ、なので筋が通る。
+      actions: [
+        { verb: VERBS.DRAW, count: 1, target: TARGETS.SELF, arrivalOnly: true },
+        { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER },
+      ],
     },
     handEffect: {
       keepsCardOnUse: true,
@@ -2096,7 +2120,13 @@ export const CARD_EFFECTS = {
       // 🔴【続き783】ユーザー指示「状況カードすべての到達効果の冒頭に「１枚ドロー。」を追加しよう」。
       //   ⚠ **印刷されたカードには書かれていない**（デジタル版だけの調整）。カードの補足に明記してある。
       //   ⚠ 手札効果「上記の到達時の効果を得る。」は到達効果をそのまま得るので、**手札から使った時も引く**。
-      actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }, { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER }],
+      //   🔴 arrivalOnly: **手札効果には引き継がない**（ユーザー判断 2026-11-21
+      //     「手札効果の時は引かないようにしよう！」）。印字の手札効果「上記の到達時の効果を得る。」が
+      //     指しているのは**印字の到達効果**＝場の中央に置くだけ、なので筋が通る。
+      actions: [
+        { verb: VERBS.DRAW, count: 1, target: TARGETS.SELF, arrivalOnly: true },
+        { verb: VERBS.PLACE_SELF_AT_BOARD_CENTER },
+      ],
     },
     handEffect: {
       keepsCardOnUse: true,

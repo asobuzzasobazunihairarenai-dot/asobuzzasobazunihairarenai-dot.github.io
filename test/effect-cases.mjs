@@ -7,6 +7,54 @@
 // expect: Node 側で最終 state に対して確認するアサーション。
 // 盤面の座席→ロック辺: A=bottom, B=left, C=top, D=right（board-layout）。COLORS順=赤橙黄緑青桃紫。
 export const CASES = [
+  // ===== 【状況】カードの「１枚ドロー。」は到達だけ（続き783・785）=====================
+  // 🔴 ユーザー指示: 到達効果の冒頭に「１枚ドロー。」を足す（2026-11-21）→
+  //   そのあと「**手札効果の時は引かないようにしよう！**」。
+  //   印字の手札効果「上記の到達時の効果を得る。」が指しているのは**印字の到達効果**
+  //   （＝場の中央に置くだけ）なので、引き継ぐ側で落とすのが筋＝`arrivalOnly: true`。
+  // 🔴 **この2本は対になっている。** 片方だけだと「引かない」が**山札が空でも通る**
+  //   0しか出ない検査になる。
+  {
+    name: "状況(到達): 中央へ置き、１枚ドローする（デジタル版だけの調整）",
+    kind: "arrival",
+    cardId: "1st-red-unrest",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 5, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-unrest", faceUp: true, location: { zone: "cell", row: 5, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-unrest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 5, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 },  // 中央へ置かれた
+      { kind: "handCount", player: "A", n: 1 },             // 🔴 1枚引いた
+      { kind: "deckLen", n: 1 },
+    ],
+  },
+  {
+    name: "状況(手札): 中央へ置くが、１枚ドローはしない（ユーザー判断 2026-11-21）",
+    kind: "hand",
+    cardId: "1st-red-unrest",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 5, col: 3 } },
+        { id: "self", kind: "card", cardId: "1st-red-unrest", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "1st-red-unrest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 5, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 },  // 中央へは置かれる
+      { kind: "handCount", player: "A", n: 0 },             // 🔴 引いていない（手札はこれ1枚だったので0）
+      { kind: "deckLen", n: 2 },                            // 🔴 山札が減っていない
+    ],
+  },
+
 
   // ===== 0thリメイクの限定カード（志炎者7枚・続き781）=====================
   // 🔴 7枚とも**同じ骨**（色だけ違う）:
