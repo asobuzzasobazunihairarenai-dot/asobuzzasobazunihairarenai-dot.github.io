@@ -7,6 +7,156 @@
 // expect: Node 側で最終 state に対して確認するアサーション。
 // 盤面の座席→ロック辺: A=bottom, B=left, C=top, D=right（board-layout）。COLORS順=赤橙黄緑青桃紫。
 export const CASES = [
+  // ===== 旧0th EDITION（第2版 2026.04）・続き788 =====================================
+  // ⚠ いま入っているのは「既にある動詞で足りる」分だけ。残りは docs/0th-effects-plan.md。
+  {
+    name: "旧0th ダッシュ(到達): １マス移動する（強制移動ではない＝移動先は本人が選ぶ）",
+    kind: "arrival",
+    cardId: "0th-red-dash",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-red-dash", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-red-dash", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 4 }] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 4 },
+      // 🔴 相手を選ばせる道へ落ちていない（self: true）＝プレイヤー選択を呼んでいない
+      { kind: "called", name: "pickPlayer", n: 0 },
+    ],
+  },
+  {
+    name: "旧0th 神鳴(到達): 自分のゲートへ強制移動し、移動先のカードはオープンしない",
+    kind: "arrival",
+    cardId: "0th-yellow-thunder",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-yellow-thunder", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "gateCard", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-yellow-thunder", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenFaceDown", id: "gateCard" }, // 🔴 オープンしない
+    ],
+  },
+  {
+    name: "旧0th 神鳴(手札): 任意の１マスのカードをすべて捨てる",
+    kind: "hand",
+    cardId: "0th-yellow-thunder",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-yellow-thunder", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "t2", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-yellow-thunder", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenGone", id: "t1" },
+      { kind: "tokenGone", id: "t2" }, // 「すべて」＝積まれている分も
+      { kind: "tokenGone", id: "self" }, // 手札効果は発動時に自分を捨てる
+    ],
+  },
+  {
+    name: "旧0th 仕掛けられた罠(到達): 手札を半分捨てる",
+    kind: "arrival",
+    cardId: "0th-blue-set-trap",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-blue-set-trap", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "h1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+        { id: "h3", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+        { id: "h4", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-blue-set-trap", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { handCardsOrdered: [["h1", "h2"]] },
+    expect: [
+      // 手札4枚の半分＝2枚捨て、到達でこのカード自身が手札に入るので 2+1=3
+      { kind: "handCount", player: "A", n: 3 },
+    ],
+  },
+  {
+    name: "旧0th カラフルホール(到達): 任意の１マスのカードをすべて手札に加える",
+    kind: "arrival",
+    cardId: "0th-white-colorful-hole",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-white-colorful-hole", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+        { id: "t2", kind: "card", cardId: "blue-choosable-trap", faceUp: false, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-white-colorful-hole", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "tokenZone", id: "t1", zone: "hand" },
+      { kind: "tokenZone", id: "t2", zone: "hand" },
+    ],
+  },
+  {
+    name: "旧0th 誰かの落とし物(到達): １枚ドロー",
+    kind: "arrival",
+    cardId: "0th-orange-lost-item",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-orange-lost-item", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-orange-lost-item", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "deckLen", n: 1 },
+      // 引いた1枚＋到達でこのカード自身が手札に入る
+      { kind: "handCount", player: "A", n: 2 },
+    ],
+  },
+  {
+    name: "旧0th 強欲なパレット(到達): あなたの手札をすべて捨てる",
+    kind: "arrival",
+    cardId: "0th-black-greedy-palette",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-black-greedy-palette", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "h1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-black-greedy-palette", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { handCardsOrdered: [["h1", "h2"]] },
+    expect: [
+      { kind: "tokenGone", id: "h1" },
+      { kind: "tokenGone", id: "h2" },
+    ],
+  },
+
   // ===== 【状況】カードの「１枚ドロー。」は到達だけ（続き783・785）=====================
   // 🔴 ユーザー指示: 到達効果の冒頭に「１枚ドロー。」を足す（2026-11-21）→
   //   そのあと「**手札効果の時は引かないようにしよう！**」。

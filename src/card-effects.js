@@ -2492,6 +2492,127 @@ export const CARD_EFFECTS = {
     ],
   },
 
+  // --- 旧0th EDITION（第2版 2026.04）通常カード・続き788 ------------------------
+  // 🔴 計画書は [docs/0th-effects-plan.md](docs/0th-effects-plan.md)。
+  //   ここに入れたのは「**既にある動詞で足りる**」分と、A の節（１マス移動）。
+  //   残り（B・C・D の節）は**まだ**＝カードは出るが自己申告で遊ぶ。
+  // ⚠ 旧0th は**管理者だけ**が選べるセット。遊んでいる人の画面は変わらない。
+
+  // ダッシュ（赤）
+  //   ● 「１マス移動する。」 ■ 「このターン、通常の移動をしたなら、１マス移動する。」
+  //   🔴 **強制移動ではない**（ユーザー確認済み 2026-11-19）＝移動先は本人が選び、到達も起きる。
+  //     `MOVE_CHOSEN_PLAYER_ONE_CELL` が元からその作りなので、`self: true` で自分に当てる。
+  //   ⚠ ■の「通常の移動をしたなら」は**接触を数えない**（requiresNormalMoveThisTurn）。
+  "0th-red-dash": {
+    arrival: { actions: [{ verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL, self: true }] },
+    handEffect: {
+      requiresNormalMoveThisTurn: true,
+      actions: [{ verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL, self: true }],
+    },
+  },
+
+  // ちょっと待った！（紫）
+  //   ● 「移動前のマスに強制移動する。移動先のカードはオープンしない。１マス移動する。」
+  //   🔴 **前半だけが強制移動**。後半の「１マス移動する」は強制移動ではない（取り違えやすい）。
+  //   ⚠ ■（相手の最後のロックに割り込む）は**まだ**＝D の節。
+  "0th-purple-wait": {
+    arrival: {
+      actions: [
+        { verb: VERBS.FORCED_MOVE_TO_PREVIOUS_CELL, noArrival: true },
+        { verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL, self: true },
+      ],
+    },
+  },
+
+  // 神鳴 -カミナリ-（黄）
+  //   ● 「あなたのゲートに強制移動する。移動先のカードはオープンしない。」
+  //   ■ 「任意の１マスのカードをすべて捨てる。」
+  "0th-yellow-thunder": {
+    arrival: { actions: [{ verb: VERBS.FORCED_MOVE_TO_OWN_GATE, noArrival: true }] },
+    handEffect: { actions: [{ verb: VERBS.DISCARD_ALL_AT_CHOSEN_CELL }] },
+  },
+
+  // 盗賊の技 -スティール-（黄）
+  //   ● 「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーの手札から無作為に１枚、
+  //      あなたの手札に加える。」 ■ 「上記の到達効果を得る。」
+  //   ⚠ リトルマウス（0th拡張）は2枚。こちらは**1枚**。
+  "0th-yellow-steal": {
+    arrival: { actions: [{ verb: VERBS.STEAL_RANDOM_FROM_MOST_LOCKED, count: 1 }] },
+    handEffect: { inheritsArrival: true, actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }] },
+  },
+
+  // カラフルホール（白）
+  //   ● 「任意の１マスのカードをすべてあなたの手札に加える。」
+  //   ■ 「１番多くロックしているプレイヤーを１人選ぶ。そのプレイヤーのロックしている１枚を、
+  //      そのプレイヤーに選ばせ、あなたの手札に加える。」
+  "0th-white-colorful-hole": {
+    arrival: { actions: [{ verb: VERBS.PICKUP_ALL_AT_CHOSEN_CELL_TO_HAND }] },
+    handEffect: { actions: [{ verb: VERBS.STEAL_LOCKED_FROM_MOST_LOCKED }] },
+  },
+
+  // 富裕層の気まぐれ（緑）
+  //   ● 「手札が３枚以上ある全員は、自分の手札から１枚を、カードの置かれていない任意のマスに
+  //      裏向きで置く。置けなかったカードは捨てる。」 ■ 「上記の到達効果を得る。」
+  "0th-green-rich-whim": {
+    arrival: { actions: [{ verb: VERBS.ALL_PLAYERS_PLACE_ONE_CARD_IN_EMPTY_CELL, minHandSize: 3 }] },
+    handEffect: { inheritsArrival: true, actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }] },
+  },
+
+  // 民の道の建設（緑）
+  //   ● 「カードの置かれていない任意の５マスに山札から１枚ずつ裏向きで置く。」
+  //   ⚠ ■（裏向きのまま2枚を動かす）は**まだ**＝B の節。
+  "0th-green-peoples-road": {
+    arrival: { actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 5 }] },
+  },
+
+  // 仕掛けられた罠（青）
+  //   ● 「あなたの手札を半分捨てる。」 ⚠ ■は**まだ**＝B の節。
+  "0th-blue-set-trap": {
+    arrival: { actions: [{ verb: VERBS.DISCARD_HALF_HAND }] },
+  },
+
+  // 欲しがりの吊り橋（青）
+  //   ● 2択。どちらも既にある動詞で足りる。 ⚠ ■は**まだ**＝B の節。
+  "0th-blue-greedy-bridge": {
+    arrivalOptions: [
+      { id: "0th-bridge-discard", labelKey: "cef.opt.0thBridgeDiscard", actions: [{ verb: VERBS.DISCARD_ONE_HAND_CARD }] },
+      { id: "0th-bridge-back", labelKey: "cef.opt.0thBridgeBack", actions: [{ verb: VERBS.FORCED_MOVE_TO_PREVIOUS_CELL, noArrival: true }] },
+    ],
+  },
+
+  // 誰かの落とし物（橙）
+  //   ● 「１枚ドロー。」 ⚠ ■（相手のゲートへ置く）は**まだ**＝B の節。
+  "0th-orange-lost-item": {
+    arrival: { actions: [{ verb: VERBS.DRAW, count: 1, target: TARGETS.SELF }] },
+  },
+
+  // フォース（橙）
+  //   ● 「あなたの隣の１枚をあなたの手札に加える。」 ⚠ ■（距離の縛りが無い移動）は**まだ**＝A の節。
+  "0th-orange-force": {
+    arrival: { actions: [{ verb: VERBS.PICKUP_ADJACENT_CARDS_TO_HAND, count: 1 }] },
+  },
+
+  // 強欲なパレット（黒）
+  //   ● 「あなたの手札をすべて捨てる。」 ⚠ ■（いつでも使える・全員に2択）は**まだ**＝D の節。
+  "0th-black-greedy-palette": {
+    arrival: { actions: [{ verb: VERBS.DISCARD_OWN_HAND }] },
+  },
+
+  // 情報開示（桃）
+  //   ■ 「２枚ドローして、それらを公開する。それらの手札効果はこのターン使うことができない。」
+  //   ⚠ ●（中央と四隅を一度に開ける）は**まだ**＝C の節（同時に複数の到達が起きる順番を決める必要）。
+  "0th-pink-disclosure": {
+    handEffect: {
+      actions: [{ verb: VERBS.PUBLIC_DRAW_DISABLE_HAND_EFFECTS_CONDITIONAL_DISCARD, count: 2, noConditionalDiscard: true }],
+    },
+  },
+
+  // 予言者の技 -アポカリプス-（紫）
+  //   ⚠ **まだ**。●「あなたの周囲の任意のマスに裏向きで置く」は、PLACE_CARD の destination が
+  //     CHOOSE の時に**範囲を読まない**（withinCells は ALL_WITHIN_RANGE 専用、しかも距離が
+  //     マンハッタン＝「周囲8マス」ではない）。engine に手を入れる必要があるので C の節と一緒に。
+  //   ⚠ ■（2色宣言して繰り返す）も C の節。
+
 };
 
 // --- 効果データ → 表示テキスト生成 -----------------------------------------------------

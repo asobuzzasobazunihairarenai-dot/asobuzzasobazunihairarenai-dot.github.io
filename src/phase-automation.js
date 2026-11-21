@@ -12,6 +12,7 @@
 // main.js側の状態変更関数（render・findTopCardAt等）は、他のモジュールと同じ
 // 「register helper」注入パターンで main.js から渡してもらう（循環import回避）。
 
+import { noteNormalMove } from "./normal-move-mark.js"; // 【続き788】通常の移動をしたかの印（葉）
 import { getState, isOnlineMode, drawFromPile, flipToken, nextTurn, setPriorityState, setTurnPhase } from "./state.js";
 import { getSelfSeat, getCurrentGameId, fetchAndHydrate, getSyncedTimerConfig, broadcastPhaseChange, onPhaseChangeEvents, isSpectatingGame, drawFromMyDeck } from "./online.js";
 import { markSelfHandled } from "./self-handled-tokens.js";
@@ -370,6 +371,11 @@ export function markPhaseMoveActionTaken(reason = "unknown") {
   //   ⚠ 接触は「移動」ではないので歩数を使わない＝その場で終わり。
   //   ⚠ 救済・復元（fallback-* / restore / movement-disabled / already-acted）も終わり。
   const 移動だ = reason === "tap-move" || reason === "drag-move" || reason === "auto-move";
+  // 🔴【続き788】旧0th の**ダッシュの手札効果**「このターン、**通常の移動をしたなら**、１マス移動する。」
+  //   のために、「通常の移動をしたターン」を覚える。
+  //   ⚠ `moveActionTaken` では足りない——**接触でも立つ**ので、接触したターンに使えてしまう。
+  //   ⚠ ここは印を立てる所が1つにまとまっている唯一の場所（#722 と同じ理由）。
+  if (移動だ) noteNormalMove(getState().turnNumber);
   if (移動だ && currentPhase === "move" && !moveActionTaken) {
     moveStepsUsed++;
     if (moveStepsUsed < 歩ける歩数(phaseOwner)) {

@@ -15,6 +15,7 @@
 // 関数とプレイヤーに選ばせる関数を`helpers`として渡してもらう、他の箇所と同じ
 // 「呼び出し元に注入してもらう」設計）。
 
+import { didNormalMoveOnTurn } from "./normal-move-mark.js"; // 【続き788】旧0th ダッシュ（手札）の条件
 import { getState } from "./state.js";
 import { VERBS, TARGETS, TARGET_SELECTIONS, CARD_EFFECTS, optionLabel, effectActionsHandleSelf } from "./card-effects.js";
 import { getCardDefinition } from "./cards-data.js";
@@ -625,6 +626,9 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   if (option.requiresOpponentSameColorHandEffect) {
     if (!getSameColorHandEffectWindow(player, getCardDefinition(cardId)?.color)) return false;
   }
+  // 🔴【続き788】旧0th のダッシュ（手札）「このターン、**通常の移動をしたなら**、１マス移動する。」
+  //   ⚠ **接触は数えない**（接触は「移動」ではない）＝接触したターンには使えない。
+  if (option.requiresNormalMoveThisTurn && !didNormalMoveOnTurn(getState().turnNumber)) return false;
   // リーチキャンセル（0th拡張）。実行は main.js の専用の窓が行うので、ふだんの経路では
   // 使えないままにする（handEffectReactiveOnly と二重の守り）。
   if (option.requiresArrivalEffectWindow) return false;
@@ -825,6 +829,8 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
   if (option.requiresOpponentSameColorHandEffect) {
     if (!getSameColorHandEffectWindow(player, getCardDefinition(cardId)?.color)) return t("ce.needShienWindow");
   }
+  // 🔴【続き788】旧0th ダッシュ（手札）。ここに書かないと「押せないのに理由が出ない」。
+  if (option.requiresNormalMoveThisTurn && !didNormalMoveOnTurn(getState().turnNumber)) return t("ce.needNormalMoveThisTurn");
   if (option.requiresArrivalEffectWindow) return t("ce.ex0NeedArrivalWindow");
   // 🔴【#526】ここに書かないと「押せないのに理由が出ない」になる（続き651 と同じ形）。
   {
@@ -2631,11 +2637,18 @@ async function runAction(action, ctx, helpers) {
       helpers.stopSuspenseSound?.(); // 結果が出るので鼓動を止める
       if (tokenIds.length === 0) return false;
       for (const tokenId of tokenIds) disableHandEffectForTurn(tokenId);
-      const hasOrange = tokenIds.some((tokenId) => {
-        const token = getState().tokens.find((t) => t.id === tokenId);
-        if (!token) return false;
-        return token.cardId === "rainbow-shard" || getCardDefinition(token.cardId)?.color === "orange";
-      });
+      // 🔴【続き788】旧0th の**情報開示**（桃）の手札効果は「２枚ドローして公開。それらの手札効果は
+      //   このターン使えない」**だけ**で、**橙が出ても手札は捨てない**。
+      //   ⇒ `noConditionalDiscard: true` でその枝を飛ばす。
+      //   ⚠ 印を付けなければ禁断の果実（マルメゴ）は今までどおり（1行も変えていない）。
+      //   ⚠ 「手札効果を今ターン封じる」所（上の disableHandEffectForTurn）は**両方で要る**ので共通のまま。
+      const hasOrange = action.noConditionalDiscard
+        ? false
+        : tokenIds.some((tokenId) => {
+            const token = getState().tokens.find((t) => t.id === tokenId);
+            if (!token) return false;
+            return token.cardId === "rainbow-shard" || getCardDefinition(token.cardId)?.color === "orange";
+          });
       if (hasOrange) {
         const handTokens = getHandTokens(ctx.player);
         // 【#357】2枚以上まとめて捨てる時は、本人に順番を選んでもらう（ユーザー要望「複数枚捨てる時は
@@ -5020,8 +5033,17 @@ async function runAction(action, ctx, helpers) {
       // 貴族の特権（1st）手札効果の②「任意のプレイヤーを１人選ぶ。そのプレイヤーは１マス移動する。」
       // ⚠ 「任意のプレイヤー」＝自分も含む。移動先は**その本人**が選ぶ（委任）。
       // ⚠ 「移動」なので到達する（オープンしないとは書かれていない）。
+      // 🔴【続き788】旧0th の「**１マス移動する。**」（ダッシュ●／ダッシュ■／ちょっと待った！●）は
+      //   **到達した本人が動く**ので、`self: true` で選ばせずに自分を動かす。
+      //   ⚠ **相手を選ばせる道へ落とさないこと**（#720 の家族。候補が自分1人でも聞きに行く作り）。
+      //   ⚠ **強制移動ではない**（ユーザー確認済み・2026-11-19）＝移動先は本人が選び、
+      //     移動先の到達効果も起きる。この動詞は元からその作りなので、そのまま使える。
       const 全員 = getState().activePlayers;
-      const 相手 = 全員.length === 1 && !ctx.forcePrompt ? 全員[0] : await helpers.pickPlayer(全員, t("ce.fePickMover"));
+      const 相手 = action.self
+        ? ctx.player
+        : 全員.length === 1 && !ctx.forcePrompt
+          ? 全員[0]
+          : await helpers.pickPlayer(全員, t("ce.fePickMover"));
       if (!相手) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === 相手);
       if (!piece || piece.location.zone !== "cell") return false;
