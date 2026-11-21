@@ -52,6 +52,54 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-21",
+    summary: [
+      "選んだマスに「選んだ順」の番号が出ます",
+      "偉大なる大号令で、置く順を1マスずつ選べます",
+      "行動ログに、色者が動いた理由と【状況】が残ります",
+    ],
+    summaryEn: [
+      "Picked spaces now show the order you picked them",
+      "The Great Decree lets you choose the order you place",
+      "The action log now records the Color Bearer and Situations",
+    ],
+    items: [
+      "複数のマスを選ぶ効果では、**選んだマスに番号**が出るようになりました（1マスだけの時は出ません）。どのマスをどの順で選んだのかが、ひと目で分かります。",
+      "**偉大なる大号令**で山札からカードを置く時、**どのマスから置くかを1マスずつ選べる**ようになりました。置く場所は中央のまわりの8マスに決まっていますが、山札は上から順に出るので、**どの順で置くか**で「どのカードがどのマスに行くか」が変わります。残り何マスかも「2/8」のように出ます。",
+      "**行動ログ**に2つ足しました。①**我忘れの白き龍（色者）が動いた理由**——何色が出て、どちらへ動いたか／動かなかったか。②**【状況】カードが効いたこと**。どちらも勝手に起きるので、お知らせが消えると後から追えませんでした。オンラインでは**相手の画面の行動ログにも**残ります。",
+    ],
+    itemsEn: [
+      "When an effect has you pick several spaces, each one you pick now shows **its number in the order you picked it** (no number when only one is selected). You can see at a glance which space you chose first.",
+      "When **the Great Decree** places cards from the deck, you now **pick the next space one at a time**. The eight spaces around the centre are fixed, but the deck comes off the top, so **the order you choose** decides which card lands where. A counter shows how many are left (for example “2/8”).",
+      "Two additions to the **action log**: (1) **why the White Dragon of Oblivion (Color Bearer) moved** — which colour came up and which way it went, or that it did not move; and (2) **that a Situation card took effect**. Both happen on their own, so once the notice faded there was no way to look back. In online games these lines now appear in every player’s log too.",
+    ],
+    fixes: [
+      "スマホで、カードを長押ししてから上へ払っても補足が開かなかったのを直しました。",
+      "カードを大きく出した時に、我忘れの白き龍の円盤が大きすぎたのを直しました。",
+      "勝利演出で、ジュエルの駒がキューブに見えていたのを直しました。",
+      "実際にはアプリが守っているルールに「（自己申告）」と書かれていたのを直しました。",
+    ],
+    fixesEn: [
+      "On a phone, holding a card and swiping up did not open its notes. Fixed.",
+      "When a card was shown large, the White Dragon of Oblivion’s dial was too big. Fixed.",
+      "In the victory sequence, a jewel piece looked like a cube. Fixed.",
+      "Two notices said “on the honor system” for rules the app actually enforces. Fixed.",
+    ],
+    devItems: [
+      "🔴🔴 **#725 の番号は、最初「規則は書いたのに1つも描かれていなかった」。** `::after` で書いたが、**1つの要素に `::after` は1つだけ**で、`.cell` の `::after` は**候補選択中の暗転オーバーレイに既に使われていた**（`body.phase-move-picking .cell:not(…)::after` と `body.card-effect-picking-cells .cell:not(…)::after`。どちらも詳細度 0,4,2 でこちらの 0,3,1 に勝つ）。実測で **content が空（\"\"）・地が rgba(0,0,0,.55)** ＝**暗転の方が出ていた**。⇒ `::before`（`.cell` ではどこも使っていないことを確かめた）へ移した。**教訓: 疑似要素を使う前に、その要素の `::before` / `::after` が空いているか確かめる。**⚠ そしてこれは **#727 とまったく同じ家族**（後から足した見た目が、既にある規則と場所を取り合う）。⚠ **数字で「規則が在る」ことを確かめても足りない**——出ているかは**画素で数える**しかなかった（PNG の容量で比べたら番号ありとなしで同値 1932/1932 になり、見逃しかけた）。",
+      "🔴🔴 **#726（長タップ後スワイプで補足が見れない）の原因は、閾値でも門番でもなく「指を動かした瞬間に拡大の対象が切り替わっていた」こと。** 盤面には `table.addEventListener(\"pointermove\", (e) => updateHover(...))` が在り、**触る指の動きでも走る**。上へ払うと指はすぐ札の外へ出て `findHoverTarget` が何も見つけず `updatePreview(null)` ＝ **previewCardId が null** になり、`onMove` の `if (!previewCardId …) return;` で構えが永久に立たなかった。🔴 **盤面のカードは実測 27〜30px しかないのに、構えの閾値は 36px** ＝ **構えに届く前に必ず札の外へ出る**＝この道は**一度も通れなかった**。⇒ 指で押さえている間（`previewFollowsTouch`）は**対象を切り替えない**（長押しが成立する1回だけ `force: true` で通す）。盤から指が出た時の `pointerleave` も同じ理由で見送る。",
+      "🔴 **なぜ続き683 の実測では通っていたのか（いちばん大事な反省）。** あの時の実測は `pointermove` を **window へ**出していた。`updateHover` は **table** に付いているので走らず、**検査だけが通る形**になっていた。⇒ 教訓: **出来事は、アプリが実際に受けている要素へ出す。** 今回の実測は `#game-table` へ出し直し、さらに「札の外へ出てから構えが立つか」を見ている。",
+      "⚠ #726 であと2つ直した。①**構えが「横のぶれ」で外れていた**（`構え = 上へ>=36 && 上へ>横へ` を毎回計算し直していたので、親指で払うと弧を描いて横が勝つ）⇒ **いちど構えたら保つ**（上へが閾値の6割を下回った時だけ外す。最初に構える条件は変えていない）。②**この長押しだけ `pointercancel` を受けていなかった**（他の5か所とカメラ操作は受けている）⇒ 取られた時も、構えていれば補足を開き、`previewFollowsTouch` を必ず戻す（以前は立ったまま残っていた）。",
+      "🔴🔴 **#727（色者アイコンがデカすぎる）は汎用セレクタの事故。** 実測で円盤が**カードの幅ちょうど 100%**で出ていた（狙いは 28.3% ＝ 印刷カードと同じ）。`.card-arrival-modal img { width: 100% }` は**カードがまだ生の `<img>` だった頃**の規則で、いまカードは `.card-box`（div）なのでカードには当たらない。ところが続き773 で**カードの面の中に円盤を `<img>` で重ねた**ので、**その円盤を掴むようになった**（詳細度 0,1,1 ＞ `.card-face-dial` の 0,1,0 ＝こちらが勝つ）。おまけに白い2px枠・角丸・大きな影まで付いていた。⇒ **`>` を入れて直の子だけに絞った**（3つのモーダル＋明るいテーマの分で4か所）。**教訓: 要素名だけのセレクタ（`modal img`）は、後から中に入れた部品を黙って掴む。クラスを足すのではなく、範囲（`>`）で閉じる。**",
+      "⚠ #727 の実測は**4通りとも測った**（到達拡大・手札使用・受け取り・素のカード面）。汎用セレクタの事故は**出し先ごと**に起きるので、1か所だけ直して「直った」と言うと残りで同じ形が生きている（#477 の家族）。4通りとも 幅 28.3% / 中心y 22.5% / 枠 0px で一致。⚠ 【色者】の行頭の菱形は `<span>` の背景画像なので**元から無関係**だった（最初それも疑ったが、測って外した）。",
+      "🔴 **#730（勝利演出でジュエルがキューブになる）の答えはアプリの中に在った。** 演出は**本物の駒を複製**するが、宝石の立体を描くのは WebGL で、描く相手は `table.querySelectorAll(\".piece.is-jewel-piece\")` ＝ **#game-table の中だけ**。演出の層は body 直下なので複製には立体が描かれず、**DOM の立方体がそのまま見えていた**。飛翔演出（#545/#549）が**まったく同じこと**で `markOutsideBoardPiece()` ＝ `is-jewel-ghost`（壁4枚を消して天面だけ見せる）を既に持っていたので、同じ手当てを当てた。⚠ **総点検で1か所見つけた**: 自分の状態欄の小さな駒（`selfStatusPieceThumbEl`）も盤面の外なので同じ形だった ⇒ こちらも直した。盤面の中の2か所（`renderBoardTokens`）は WebGL が描くので触っていない。",
+      "⚠ **#729 の調べで、状況カードは「記録は在るが自分の席の画面だけ」だと分かった。** `logAction(\"situation\", …)` は #588 から在ったが、走らせるのは**その席の本人のクライアントだけ**なので、オンラインでは**他の人の行動ログに1行も残らない**（見た目の合図だけ届いていた）。色者は**1件も記録していなかった**。⇒ 色者は4つの結末すべてで1行残し、**お知らせと同じ文を使う**（2か所に書くとズレる）。他の人の画面ぶんは、お知らせが既に `broadcastEffectReason` で全員へ届いているので**受け側でも同じ1行を残す**＝**新しい通信路もサーバーの変更も要らない**。状況も同じ考えで受け側に足した。",
+      "⚠ **#732 は総点検の結果「文だけが古かった」。** 接触禁止は `contactDisabledUntilTurn`（#239 で強制するようにした）、移動ブーストは `phase-automation.js` の `歩ける歩数()`（#722・続き764 で1マスずつ／一気にを区別した）で**どちらも実際に強制している**ので「（自己申告）」は嘘。ja/en とも外した。あわせて優先権の説明の「**今はカード効果の自動処理が無いため**」も事実が古かったので「自動処理が及ばない場面では」へ。残る「自己申告」は**本当に手動で表すもの**だけ（優先権の受け渡し・設定の説明）。",
+      "⚠ #724 は**「選べる」だけでなく「選んだ順が効く」**をテストに固定した（山札は**配列の末尾が一番上**なので、末尾の札が最初に選んだマスへ行くことと、2枚目が2番目のマスへ行くことの**両方**を見る。1枚目だけ見ると「たまたま同じ所」でも通る）。",
+      "🔴 **道具のミス（記録）。** ①ヒアドキュメントに**バックスラッシュを2回食われた**（正規表現が壊れた）⇒ **スクリプトは Write で書く**（作業ルールどおり）。②`python` が**この環境では動かない**（編集が2回とも空振りして「ok」も出なかった）。③実測の期待値を**4回**間違えた（補足のモーダルは id で `#card-note-modal`／`#card-preview` は既定 `display:none` でクラスではない／盤面のカードは WebGL が描くので `.card-face-mount` が無い／マスの枠と描かれるカードの位置は3D変形でずれる＝教訓4）。④`\\\\u201c` と二重に書いて、文字ではなく「バックスラッシュ＋u201c」を探していた ⇒ 曲がった引用符は `String.fromCharCode` で作る。",
+    ],
+  },
+  {
     date: "2026-11-20",
     summary: [
       "図鑑でカードを開いた時の札が大きくなりました",

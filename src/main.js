@@ -2757,6 +2757,9 @@ onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, forPlayer, optionLabel, mo
   //   霧散演出（canvas）も、割り込みの窓も出さない——出すと「相手が手札効果を宣言した」
   //   という別の意味になってしまう。波紋と右上の札だけを、送り手と同じ形で出す。
   if (mode === "situation") {
+    // 🔴【#729・続き790】**ここでも行動ログに1行残す。** 走らせるのはその席の本人の
+    //   クライアントだけなので、残さないと他の人の履歴から【状況】が丸ごと消える。
+    try { logAction("situation", { player: forPlayer ?? fromPlayer, cardId }); } catch (err) {}
     void playSituationCardEffect(cardId);
     return;
   }
@@ -2788,6 +2791,13 @@ onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, forPlayer, optionLabel, mo
 // ローカル表示済みなので、ここでは自分以外からの通知だけを表示する。
 onEffectReasonEvents(({ fromPlayer, cardId, text }) => {
   if (isSelfAction(fromPlayer)) return;
+  // 🔴【#729・続き790】色者の件は**他の人の画面でも行動ログに残す**。
+  //   走らせるのは1つのクライアントだけなので、ここで残さないと
+  //   「自分の画面にだけ履歴が在る」という半端な形になる（#592 の家族）。
+  //   ⚠ 色者の札に限る（他の効果のお知らせは今までどおりログに残さない）。
+  if (cardId === "ex0-white-dragon") {
+    try { logAction("shikija", { player: fromPlayer, cardId, text }); } catch (err) {}
+  }
   showEffectReasonModal(cardId, text);
 });
 // 試練の儀式「踏んだカード」の中央じらしフリップ演出を、実行者以外の全プレイヤーにも再生する
@@ -5121,6 +5131,16 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   //   **カードの名前**を入れていたので「捨色は なないろの欠片」と出て、色と結びつかなかった。
   // ⚠ 動かなかった時（無色／行き先が盤の外）も**黙っていた**。それも言う
   //   （「正しいのに何も起きない」は不具合に見える＝#659・#716 と同じ家族）。
+  // 🔴【#729・続き790】ユーザー要望「色者の動きや状況効果の発動も行動ログに」。
+  //   盤面は同期されるので駒は動くが、**なぜ動いたか**はお知らせが消えたら何も残らない
+  //   （#723「下方向に移動しましたが、なんで？」がまさにそれ）。
+  //   ⚠ **お知らせと同じ文を使う**（2か所に書くと必ずズレる）。
+  //   ⚠ 他の人の画面ぶんは、お知らせが既に全員へ届いているので**受け側で同じ1行を残す**
+  //     （onEffectReasonEvents の中。新しい通信路もサーバーの変更も要らない）。
+  const 色者のお知らせ = async (文) => {
+    try { logAction("shikija", { player: endedPlayer ?? getState().turnPlayer, cardId: "ex0-white-dragon", text: 文 }); } catch (err) {}
+    await announceEffectNoticeForEffect("ex0-white-dragon", 文);
+  };
   const base = color ? SHIKIJA_DIRS[color] : null;
   // ⚠ t() は**無い鍵をそのまま返す**ので、鍵が返ってきたらカードの名前で代える（文言の穴を作らない）。
   const 色の鍵 = color ? colorLabel(color) : null;
@@ -5134,13 +5154,13 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
     const dest = 候補.length === 0 ? null : await requestCellChoiceForEffect(候補, t("ce.ex0ShikijaRainbowPick"));
     if (dest) {
       await moveAndSyncForEffect(token.id, dest, undefined, undefined, false, true);
-      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaRainbow", { color: 色名, card: 札名 }));
+      await 色者のお知らせ(t("ce.ex0ShikijaRainbow", { color: 色名, card: 札名 }));
     } else {
-      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
+      await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
     }
   } else if (!base) {
     // 無色（白・黒）＝**動かない**。②の色の効果だけを得る。
-    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
+    await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
   } else {
     const seat = getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
     const { dr, dc } = rotateOffsetForSeat(base.dr, base.dc, seat);
@@ -5149,9 +5169,9 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
     const 向き = t("ce.ex0Dir." + base.key);
     if (row >= 0 && row <= 6 && col >= 0 && col <= 6) {
       await moveAndSyncForEffect(token.id, { zone: "cell", row, col }, undefined, undefined, false, true);
-      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaMoved", { color: 色名, card: 札名, dir: 向き }));
+      await 色者のお知らせ(t("ce.ex0ShikijaMoved", { color: 色名, card: 札名, dir: 向き }));
     } else {
-      await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaEdge", { color: 色名, card: 札名, dir: 向き }));
+      await 色者のお知らせ(t("ce.ex0ShikijaEdge", { color: 色名, card: 札名, dir: 向き }));
     }
   }
   // ② その色の効果を得る。記載があるのは白と黒だけ（「効果に記載の無い色が出た場合は何もしない」）。
@@ -15060,10 +15080,21 @@ function render() {
   // pendingPlacementLocationsが選択の対象候補（activeEffectPicker）とは別に、
   // PLACE_CARDが完了する（main.jsのclearEffectUiHighlightsが呼ばれる）まで
   // 再表示のたびに貼り直す。
+  // 🔴【#725・続き790】ユーザー要望「複数マスを選択する際に選択したら**番号**がマスにつくと
+  //   いいかも！順番わかるように！」。
+  //   ⚠ `pendingPlacementLocations` は **Set** だが、JS の Set は**挿入順を保つ**ので、
+  //     その並びがそのまま「選んだ順」になる（別に順番を持つ必要が無い）。
+  //   ⚠ 1つしか選んでいない時は**番号を出さない**（「1」だけ出ても意味が無く、邪魔なだけ）。
+  const 選んだ数 = pendingPlacementLocations.size;
+  let 順 = 0;
   for (const key of pendingPlacementLocations) {
+    順++;
     const [row, col] = key.split(",").map(Number);
     const targetEl = findLocationElement(table, { zone: "cell", row, col });
-    if (targetEl) targetEl.classList.add("card-effect-placement-target");
+    if (!targetEl) continue;
+    targetEl.classList.add("card-effect-placement-target");
+    if (選んだ数 >= 2) targetEl.dataset.placeOrder = String(順);
+    else delete targetEl.dataset.placeOrder;
   }
   // ユーザー要望「配置後ここに配置したよがわかるように配置場所をしっかりハイライト
   // してください。マスの枠だけでなくカードの面もね」。
@@ -16870,7 +16901,13 @@ function showAllPieceNameBubbles() {
   pieceNameBubblesShown = pieceNameBubbleEls.length > 0;
 }
 
-function updateHover(clientX, clientY) {
+// 🔴【#726・続き790】`force`: 長押しの拡大を**出す**時の1回だけ true。
+//   指で押さえている間（previewFollowsTouch）は、指が動いても**対象を切り替えない**。
+//   切り替えると、上へ払った瞬間に札の外へ出て previewCardId が null になり、
+//   「離すと補足を開く」の構えが**永久に立たない**（盤面の札は 27〜30px しかないのに
+//   構えの閾値は 36px ＝ 構えに届く前に必ず札の外へ出る）。
+function updateHover(clientX, clientY, { force = false } = {}) {
+  if (previewFollowsTouch && !force) return;
   // 【#317】盤面の手前に別の画面（全画面ページ・基本設定パネル・返事待ちモーダル）が
   // 出ている間は、盤面のホバー/拡大プレビューを出さない。
   // 【続き582】ただし「盤面を見る」で覗いている間は**ホバーだけ通す**。あれは覆いを残した
@@ -16909,6 +16946,9 @@ function initHoverHandlers() {
   const table = document.getElementById("game-table");
   table.addEventListener("pointermove", (e) => updateHover(e.clientX, e.clientY));
   table.addEventListener("pointerleave", () => {
+    // 🔴【#726・続き790】指で押さえている間は消さない。上へ払えば盤の外へ出るので、
+    //   ここで消すと構えが立つ前に拡大ごと消える。離した時は onUp が片付ける。
+    if (previewFollowsTouch) return;
     clearHover();
     updatePreview(null);
     hideAllPieceNameBubbles();
@@ -17795,6 +17835,11 @@ const TOUCH_HOLD_MOVE_CANCEL_PX = 10; // これ以上動いたら長押しをや
 // 【B-1】長押し拡大中に、これだけ上へ動かしたら「離すと補足を開く」構えになる。
 //   ⚠ 長押しが成立した後なので、ドラッグへの昇格とはぶつからない（settled 済み）。
 const PEEK_NOTE_SWIPE_PX = 36;
+// 🔴【#726・続き790】いちど構えたら、**この割合まで指が戻らない限り保つ**。
+//   報告「長タップ後スワイプで補足見れないですね」の原因の1つが、構えを**毎回**
+//   計算し直していたこと——親指で上へ払うと弧を描くので、途中で「横の方が大きい」に
+//   なって**出ていた構えが消えていた**。最初に構える条件は変えていない。
+const PEEK_NOTE_KEEP_RATIO = 0.6;
 function startTouchHoldOrDrag(e, hit) {
   const startX = e.clientX;
   const startY = e.clientY;
@@ -17805,6 +17850,8 @@ function startTouchHoldOrDrag(e, hit) {
   function cleanupListeners() {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    // 🔴【#726・続き790】取り消し（pointercancel）も必ず外す。付けたものは外す。
+    window.removeEventListener("pointercancel", onCancel);
   }
   function releaseAbortSlot() {
     if (activeSingleTouchAbort === abort) activeSingleTouchAbort = null;
@@ -17815,7 +17862,9 @@ function startTouchHoldOrDrag(e, hit) {
     settled = true;
     peeking = true;
     previewFollowsTouch = true; // 【#358】この拡大は「押した指と反対側」へ出す
-    updateHover(startX, startY); // 既存のホバー処理（ハイライト＋拡大プレビュー）をそのまま流用
+    // 🔴【#726・続き790】`force: true` ＝ **この1回だけ**対象を決める。
+    //   これ以降は指が動いても切り替えない（上の updateHover の説明参照）。
+    updateHover(startX, startY, { force: true }); // 既存のホバー処理（ハイライト＋拡大プレビュー）をそのまま流用
   }, TOUCH_HOLD_MS);
 
   function onMove(ev) {
@@ -17824,7 +17873,11 @@ function startTouchHoldOrDrag(e, hit) {
       if (!previewCardId || !cardNoteTextFor(previewCardId)) return;
       const 上へ = startY - ev.clientY;
       const 横へ = Math.abs(ev.clientX - startX);
-      const 構え = 上へ >= PEEK_NOTE_SWIPE_PX && 上へ > 横へ; // 横に流れた時は構えない
+      // 🔴【#726・続き790】**いちど構えたら保つ**（指が下へ戻った時だけ外す）。
+      //   まだ構えていない時の条件は今までどおり（横に流れた時は構えない）。
+      const 構え = peekWantsNote
+        ? 上へ >= PEEK_NOTE_SWIPE_PX * PEEK_NOTE_KEEP_RATIO
+        : 上へ >= PEEK_NOTE_SWIPE_PX && 上へ > 横へ;
       if (構え === peekWantsNote) return;
       peekWantsNote = 構え;
       applyPreviewSwipeHint(getPreviewEl(), previewCardId, 構え ? "ready" : "hint", ev.clientX, ev.clientY);
@@ -17882,6 +17935,29 @@ function startTouchHoldOrDrag(e, hit) {
   // まだ待機中/プレビュー中ならそのまま安全に打ち切り、既にドラッグへ昇格していれば
   // cancelDragSession()で位置を戻す（ピンチはほぼ一瞬で2本目が触れるため、大抵は
   // ドラッグへ昇格する前=待機中のうちに打ち切れる）。
+  // 🔴【#726・続き790】指の操作がブラウザに取られた時（pointercancel）。
+  //   この長押しだけ受けていなかったので、取られると **pointerup が永久に来ず**、
+  //   補足が開かないうえ previewFollowsTouch が立ったまま残っていた。
+  //   ⚠ 補足を開くのは**構えていた時だけ**（構えていなければ拡大を消すだけ）。
+  //   ⚠ ピンチの中断は abort() の方で、あちらは先に構えを外して listener も外すので
+  //     ここには落ちてこない。
+  function onCancel() {
+    clearTimeout(timer);
+    cleanupListeners();
+    if (peeking) {
+      const 開く札 = peekWantsNote ? previewCardId : null;
+      peekWantsNote = false;
+      previewFollowsTouch = false;
+      clearHover();
+      updatePreview(null);
+      if (開く札) showCardNoteModal(開く札, { guardMs: 450 });
+    } else if (dragSession) {
+      cancelDragSession();
+    }
+    settled = true;
+    releaseAbortSlot();
+  }
+
   function abort() {
     clearTimeout(timer);
     cleanupListeners();
@@ -17899,6 +17975,8 @@ function startTouchHoldOrDrag(e, hit) {
 
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
+  // 🔴【#726・続き790】取られた時も必ず終わらせる（付けていなかったのはここだけ）。
+  window.addEventListener("pointercancel", onCancel);
 }
 
 // 盤面のWebGL描画（board-3d.js）がONの間、CSS は .board-card 等の background-image を
@@ -19541,6 +19619,11 @@ function buildFriendlyLogItems() {
       msg = e.detail?.cardId
         ? t("game.log.contactTook", { name: あいて, card: cardDisplayName(e.detail.cardId) })
         : t("game.log.contactNothing", { name: あいて });
+    } else if (e.category === "shikija" && e.detail?.text) {
+      // 🔴【#729・続き790】色者は**誰のターン終了時にも勝手に動く**ので1行残す。
+      //   文はお知らせと同じものをそのまま使う（作り直すと食い違う）。
+      player = e.detail.player;
+      msg = t("game.log.shikija", { text: e.detail.text });
     } else if (e.category === "situation" && e.detail?.cardId) {
       // 【#588】状況カードは誰のターン開始時にも勝手に効くので、1行残す。
       player = e.detail.player;
@@ -21554,7 +21637,10 @@ function updateSelfHandStatus() {
   inner.className = "self-status-piece-thumb-inner";
   const tilt = getComputedStyle(document.documentElement).getPropertyValue("--table-tilt").trim();
   inner.style.transform = `rotateX(${tilt})`;
-  inner.appendChild(buildCubePiece(myColor, getSelfSeat()));
+  // 🔴【#730 の総点検・続き790】ここも**盤面の外**なので、宝石の駒だと
+  //   WebGL が描かず DOM の立方体が見える＝**ジュエルなのにキューブ**になる。
+  //   飛翔演出・勝利演出と同じ手当て（壁を消して天面だけ見せる）。
+  inner.appendChild(markOutsideBoardPiece(buildCubePiece(myColor, getSelfSeat())));
   selfStatusPieceThumbEl.appendChild(inner);
   addSimpleTooltip(selfStatusPieceThumbEl, t("game.self.pieceSkin"));
 

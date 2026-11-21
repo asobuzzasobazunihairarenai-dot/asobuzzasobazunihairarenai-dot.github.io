@@ -5245,6 +5245,35 @@ export const CASES = [
     ],
   },
   {
+    name: "偉大なる大号令(到達): 置く順を選べる（選んだ順に山札の上から置かれる）",
+    kind: "arrival",
+    cardId: "1st-black-great-order",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-black-great-order", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: {
+        // 🔴 **末尾が一番上**。1枚目=blue-slum-official / 2枚目=pink-present / 3枚目=yellow-sleight-of-hand。
+        deck: [
+          "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad",
+          "yellow-sleight-of-hand", "pink-present", "blue-slum-official",
+        ],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "1st-black-great-order", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    // 置く順を**こちらで決める**（残りは台本に無いので候補の先頭から順に埋まる）。
+    picks: { location: [{ row: 4, col: 4 }, { row: 2, col: 2 }] },
+    expect: [
+      { kind: "deckLen", n: 0 }, // 8マスぶん置いた
+      { kind: "cellStackOrder", row: 4, col: 4, cards: ["blue-slum-official"] }, // 1枚目＝最初に選んだマス
+      { kind: "cellStackOrder", row: 2, col: 2, cards: ["pink-present"] }, // 2枚目＝2番目に選んだマス
+    ],
+  },
+  {
     name: "偉大なる大号令(到達): 中央の周囲８マスへ置き、全員が中央の隣へ動き、手札が揃う",
     kind: "arrival",
     cardId: "1st-black-great-order",

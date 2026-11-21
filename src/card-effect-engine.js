@@ -5407,13 +5407,32 @@ async function runAction(action, ctx, helpers) {
     }
     case VERBS.PLACE_DECK_CARDS_AROUND_CENTER: {
       // 偉大なる大号令（1st）到達の1文目「場の中央の周囲８マスに山札からカードを裏向きで置く。」
+      // 🔴【#724・続き790】報告「**置く時の順番を選べない**。複数マスに置く場合は選べるように！」。
+      //   置く**マス**は8つに決まっているが、**どの順で置くか**で「どの札がどのマスに行くか」が変わる
+      //   （山札は上から順に出るため）。⇒ **1マスずつ選ばせる**。
+      //   ⚠ 選ぶのは**置く本人**。CPU の席なら pickLocation 側が自動で決める（画面は出ない）。
+      //   ⚠ 山札が尽きたらそこで終わり（善処の原則）。選び残したマスには置かれない。
+      //   ⚠ 1マスしか残っていない時は聞かない（選ぶ余地が無い＝他の効果と同じ作法）。
       let 置いた8 = 0;
+      const 残り8 = [];
       for (const { dr, dc } of enumerateSurroundingOffsets()) {
         const row = BOARD_CENTER.row + dr;
         const col = BOARD_CENTER.col + dc;
-        if (!inBounds(row, col)) continue;
+        if (inBounds(row, col)) 残り8.push({ zone: "cell", row, col });
+      }
+      const 全部 = 残り8.length;
+      while (残り8.length > 0) {
         if (getState().piles.deck.length === 0) break;
-        await helpers.placeFromDeck({ zone: "cell", row, col });
+        const 選 =
+          残り8.length === 1 && !ctx.forcePrompt
+            ? 残り8[0]
+            : await helpers.pickLocation(残り8, t("ce.pickPlaceOrder", { i: 置いた8 + 1, n: 全部 }), { purpose: "place" });
+        if (!選) break;
+        const k = 残り8.findIndex((c) => c.row === 選.row && c.col === 選.col);
+        if (k < 0) break;
+        残り8.splice(k, 1);
+        helpers.markPlacementTarget?.(選); // 🔴【#725】選んだ順に番号が出る
+        await helpers.placeFromDeck(選);
         置いた8++;
       }
       if (置いた8 === 0) return false;

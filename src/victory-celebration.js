@@ -694,6 +694,14 @@ function spawnGhostCube(layer, piece, cube, sizePx, player) {
   const clone = piece.cloneNode(true);
   clone.classList.remove("is-my-turn-glow", "is-victory-charging", "is-victory-pulse", "hover-active");
   clone.removeAttribute("data-owner"); // 飾りペットを二重に出さない
+  // 🔴【#730・続き790】報告「勝利演出の時、ジュエルが、キューブになる」。
+  //   宝石の立体を描くのは WebGL で、描く相手は **#game-table の中の駒だけ**。
+  //   この演出の層は body 直下＝盤面の外なので、複製には立体が描かれず
+  //   **DOM の立方体（壁4枚）がそのまま見えていた**。
+  //   ⇒ 飛翔演出（#545/#549）と同じ手当て＝**壁を消して天面だけ見せる**。
+  //     本家は main.js の `markOutsideBoardPiece()`（あちらを import すると循環＝続き573）。
+  //     見た目の規則は style.css の `.piece.is-jewel-ghost` に1つだけ在る。
+  if (clone.classList.contains("is-jewel-piece")) clone.classList.add("is-jewel-ghost");
   clone.classList.add("vic-cube-clone"); // 置き直す時にこれを測る（placeGhostCube）
   inner.appendChild(clone);
   outer.appendChild(inner);

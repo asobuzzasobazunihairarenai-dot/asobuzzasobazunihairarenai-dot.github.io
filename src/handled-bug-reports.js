@@ -441,6 +441,35 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  // ── 2026-11-21（続き790）────────────────────────────────────────────
+  724: {
+    ja: "直しました。偉大なる大号令で山札から置く時、**どのマスから置くかを1マスずつ選べる**ようにしました。置く場所は中央のまわりの8マスに決まっていますが、山札は上から順に出るので、**どの順で置くか**で「どのカードがどのマスに行くか」が変わります。残り何マスかも「2/8」のように出ます。",
+    en: "Fixed. When the Great Decree places cards from the deck, you now pick the next space one at a time. The eight spaces around the centre are fixed, but the deck comes off the top, so the order you choose decides which card lands where. A counter shows how many are left (for example \"2/8\").",
+  },
+  725: {
+    ja: "付けました。複数のマスを選ぶ効果では、選んだマスに**選んだ順の番号**が出ます（1マスだけの時は出ません）。",
+    en: "Added. When an effect has you pick several spaces, each one you pick now shows its number in the order you picked it. (No number appears when only one space is selected.)",
+  },
+  726: {
+    ja: "直りました。原因は**指を動かした瞬間に拡大の対象が切り替わっていた**ことでした。盤面のカードは画面上では小さいので、上へ払うと指はすぐ札の外へ出ます。そこで拡大が別の場所へ移ってしまい、「離すと補足を開く」の構えが立たないまま終わっていました。これからは、**指で押さえている間は対象が変わりません**。あわせて2つ直しました: 親指で払うと弧を描いて横へぶれますが、**いちど構えたら保つ**ようにしました。また、払っている途中でブラウザに指の操作を取られた時も、構えていれば**ちゃんと補足が開く**ようにしました（以前は何も起きないまま拡大が残っていました）。",
+    en: "Fixed. The cause was that the enlarged card switched targets the moment your finger moved. Board cards are small on screen, so swiping up takes your finger off the card almost at once; the enlargement moved elsewhere and the \"release to open notes\" state never engaged. Now the target stays put while your finger is down. Two related fixes: a thumb swipe curves sideways, so once the state engages it is kept; and if the browser takes over the gesture mid-swipe, the notes still open instead of nothing happening.",
+  },
+  727: {
+    ja: "直しました。円盤が**カードの幅いっぱい**に広がっていました（印刷されたカードと同じ 28% になるはずのところ）。カードを大きく出すところの古い決まりが、カードの上に重ねた円盤まで掴んでいたのが原因です。到達拡大・手札の使用・カードの受け取りの**3か所とも**直して、印刷されたカードと同じ大きさ・同じ位置になったことを測って確かめました。",
+    en: "Fixed. The dial was being stretched to the full width of the card (it should match the printed card at about 28%). An old rule for showing a card large was also catching the dial laid over it. All three places - arrival zoom, hand-effect use and card received - are fixed, and the size and position now measure the same as the printed card.",
+  },
+  729: {
+    ja: "入れました。**色者が動いた理由**（何色が出て、どちらへ動いたか／動かなかったか）と、**【状況】カードが効いたこと**が行動ログに1行ずつ残ります。どちらも勝手に起きるので、お知らせが消えると後から追えませんでした。オンラインでは**相手の画面の行動ログにも**残ります（これまでは効いた本人の画面にしか残っていませんでした）。",
+    en: "Added. The action log now records why the Color Bearer moved (which colour came up and which way it went, or that it did not move) and that a Situation card took effect. Both happen on their own, so once the notice faded there was no way to look back. In online games these lines now appear in every player's log, not only on the screen where the effect ran.",
+  },
+  730: {
+    ja: "直しました。勝利演出では駒を複製して光らせているのですが、ジュエルの立体を描く仕組みは盤面の中の駒だけを見ているので、複製は**ふつうのキューブの形**で出ていました。飛んでいる駒で以前おこなったのと同じ手当て（横の壁を消して上の面だけ見せる）を当てて、ジュエルのまま見えるようにしました。自分の状態欄に出る小さな駒も同じ理由でキューブになっていたので、あわせて直しました。",
+    en: "Fixed. The victory sequence clones your piece to make it glow, but the code that draws the jewel shape only looks at pieces on the board, so the clone fell back to the plain cube. The same treatment already used for pieces in flight (hide the side walls, show only the top face) now applies, so it stays a jewel. The small piece shown in your own status area had the same problem and is fixed too.",
+  },
+  732: {
+    ja: "直しました。「（自己申告）」と出ていた2つのお知らせ——相手を隣へ動かした時の「このターンあなたは接触できません」と、「通常の移動を２マス先まで一気に行えます」——は、**どちらも実際にアプリが守っています**。文だけが昔のまま残っていたので外しました。総点検もしました。ほかに「自己申告」と書いてあるのは、優先権の受け渡しのように**本当に手動で表すもの**だけです。",
+    en: "Fixed. Two notices said \"(on the honor system)\" - \"you can't make contact this turn\" after moving someone next to you, and \"may move up to 2 squares in one go\" - but the app does enforce both. The wording was simply left over, so it is gone. I checked the rest: the only places that still say so are ones that really are manual, such as passing priority.",
+  },
   // ── 2026-11-21（続き786）────────────────────────────────────────────
   733: {
     ja: "直しました。CPUが止まるのは、パーティーのように**全員に選ばせる効果の最中**に、取ったカードの下から別のカードが出てきて、そこで**もう1つの到達効果が始まってしまう**のが原因でした。選択のモーダルは1つしか出せないので、先に待っていた方の答えが永久に返ってこなくなっていました。これからは、誰かに選ばせている間に出てきた到達効果は**その効果が終わってから**起きます（無くなるのではなく、順番が後になります）。",

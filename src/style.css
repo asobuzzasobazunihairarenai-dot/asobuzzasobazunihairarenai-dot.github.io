@@ -10604,7 +10604,7 @@ body.lite-render .table-background-bg {
   color: #fbbf24;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
-.card-arrival-modal img,
+.card-arrival-modal > img,
 .card-arrival-modal .card-box {
   width: 100%;
   display: block;
@@ -11934,7 +11934,7 @@ body.phase-lock-picking .hand-card:not(.phase-lock-highlight):not(.card-effect-t
   color: rgb(var(--so7-accent));
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
-.hand-effect-use-modal img,
+.hand-effect-use-modal > img,
 .hand-effect-use-modal .card-box {
   width: 100%;
   display: block;
@@ -11987,7 +11987,7 @@ body.phase-lock-picking .hand-card:not(.phase-lock-highlight):not(.card-effect-t
   color: #6ee7b7;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
-.card-received-modal img,
+.card-received-modal > img,
 .card-received-modal .card-box {
   width: 100%;
   display: block;
@@ -16549,6 +16549,39 @@ body.reduce-glow .hand-card.is-anytime-usable-glow {
 }
 body.reduce-glow .cell.card-effect-placement-target {
   animation: none;
+}
+/* 🔴【#725・続き790】選んだ順の番号。2マス以上選んだ時だけ出る（main.js が data-place-order を付ける）。
+   ⚠ **文字色を決め打ちしてよい数少ない所**——この札は自分で濃い地を持つので、
+     明暗どちらのテーマでも見え方が変わらない（教訓15 の例外。志炎者の「？」札と同じ考え方）。
+   ⚠ 盤面は3D変形の中なので、**重なり順は z-index で明示する**（教訓3）。
+   ⚠ 大きさは rem（画面に合わせて縮むステージの中なので、px だと端末で別物になる）。
+   🔴🔴 **`::after` ではなく `::before` を使う。** 1つの要素に `::after` は**1つだけ**で、
+     `.cell` の `::after` は**候補選択中の暗転オーバーレイに既に使われている**
+     （`body.phase-move-picking .cell:not(…)::after` ＝ 11842行 ／
+      `body.card-effect-picking-cells .cell:not(…)::after` ＝ 16340行。どちらも
+      詳細度 0,4,2 でこちらの 0,3,1 に勝つ）。
+     最初 `::after` で書いたら、実測で **content が空（""）・地が rgba(0,0,0,.55)**＝
+     **暗転の方が出ていて番号は1つも描かれていなかった**。
+     **教訓: 疑似要素を使う前に、その要素の `::before` / `::after` が空いているか確かめる。**
+     `.cell` の `::before` はどこでも使っていない（確かめた）。 */
+.cell.card-effect-placement-target[data-place-order]::before {
+  content: attr(data-place-order);
+  position: absolute;
+  top: 0.1rem;
+  left: 0.1rem;
+  z-index: 6;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.2rem;
+  border-radius: 0.55rem;
+  background: rgba(var(--so7-accent), 0.95);
+  color: #0b1016;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.45);
 }
 #tutorial-callout {
   position: fixed;
@@ -23698,7 +23731,7 @@ body.theme-light .card-received-modal-name {
 body.theme-light .card-received-modal-subtitle {
   color: #5b6b5f;
 }
-body.theme-light .card-received-modal img,
+body.theme-light .card-received-modal > img,
 body.theme-light .card-received-modal .card-box,
 body.theme-light .card-received-modal-card .card-box {
   border-color: rgba(28, 122, 58, 0.45);
