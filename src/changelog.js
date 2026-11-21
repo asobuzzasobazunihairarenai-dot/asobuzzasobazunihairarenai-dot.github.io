@@ -54,6 +54,33 @@ export const CHANGELOG = [
   {
     date: "2026-11-21",
     summary: [
+      "我忘れの白き龍が動く時に、4つの見せ場がつきました",
+      "山札の並びが分からない時は、置く順を聞かなくなりました",
+    ],
+    summaryEn: [
+      "The White Dragon of Oblivion now moves with a four-beat sequence",
+      "You are no longer asked for a placement order you cannot know",
+    ],
+    items: [
+      "**我忘れの白き龍（色者）が動く時の見せ場をつけました。** ①**捨色のカードが場の中央でめくれます**（何色が出たのかが札そのもので分かります） ②**カードの円盤の、その色のくさびが光って、その方向へ矢が伸びます**（「なんでその向きに動いたの？」への直接の答えです。白・黒のときは矢を出さず中央が脈打ち、虹のときは七色に一巡します） ③**龍が動いた道に色の尾が残ります** ④白・黒のときは**札から3マスぶんの輪**が広がり、**効果が届いた駒が光ります**（これまで「誰に効いたのか」は画面に出ていませんでした）。⚠ 「動きを減らす」設定にしている方には出ません。オンラインでは全員の画面に同じものが出ます。",
+      "**山札から複数のマスに置く効果で、山札の並びが分からない時は置く順を聞かなくなりました。** 中身が分からないのに順番を選んでも意味がないためです。**山札が切れて捨て場がそのまま山札になった後**は、捨て場の並びから順番が分かるので、これまでどおり1マスずつ選べます。",
+    ],
+    itemsEn: [
+      "**The White Dragon of Oblivion (Color Bearer) now has a four-beat sequence when it moves.** (1) The discarded colour card **flips up at the centre of the board**, so you can see which colour came up. (2) On the card's dial, **that colour's wedge lights up and an arrow points the way** - a direct answer to “why did it move that way?” (for white or black there is no arrow and the centre pulses instead; for rainbow the wedges cycle through all seven colours). (3) **A coloured trail marks the path it took.** (4) For white or black, **a ring spreads exactly three squares** from the card and **the pieces it reached light up** - until now there was nothing on screen showing who was affected. Nothing is shown if you have reduced motion turned on, and in online games everyone sees the same thing.",
+      "**When an effect places several cards from the deck and the deck order is unknown, you are no longer asked for the order.** Choosing an order for cards you cannot see has no meaning. **After the deck runs out and the discard pile becomes the deck**, the order is knowable from the discard pile, so you can pick space by space as before.",
+    ],
+    devItems: [
+      "🔴🔴 **ターン終了時の演出は、盤面のDOMに置くと生き残れない。** 実測（MutationObserver）で尾は**確かに1回作られていた**のに、測る時には0件だった。盤面の演出は次の `render()`（`table.innerHTML = \"\"`）で捨てられるが、色者はターンの**終わり**に動くので、**その直後から次の人の手番の描き直しが続く**（【状況】の輪が無事なのは、あちらがターンの**頭**＝人が動く前に出るから）。⇒ **画面に重ねる**（body 直下・`position: fixed`）形へ。位置と大きさは**マスの画面上の矩形**から測るので、尾は**本当に通った道**をなぞる。⚠ 盤面の3Dの傾きには乗らないが、**見えないよりずっとよい**（勝利演出・長押しの案内も body 直下）。",
+      "🔴 **円盤の演出は「お知らせの方」に出す。** 盤面の色者の札は実測 27〜30px で、そこに描かれる円盤は**8px ほど**しかない——くさびを光らせても見えない。お知らせの円盤は 4.6rem あって読めるうえ、**既に全員へ配信されている**。⚠ 円盤は `<img>` なので子を持てない ⇒ 包みを1つ挟んだ（外側の余白と中央寄せを包みが引き継ぐので見た目は不変）。⚠ **円盤の角度は「回していない向き」**——お知らせの円盤は**印刷されたままの向き**なので、席ごとの回転を掛けると**別のくさびを指す**。盤面の尾は逆に**画面でどう動いたか**で引く。",
+      "⚠ **配信は既にある1本（effect_reason）に相乗りさせた。** お知らせは元から全員へ届くので、payload に `shikija` を1語足すだけで第2〜4拍が全員の画面に出る＝**新しい通信路もサーバーの変更も不要**。🔴 受け側は payload を**名前で取り出している**ので、足した名前を受け側にも書いた（続き756 で「自分の画面にしか出ない」を踏んだのと同じ形）。",
+      "⚠ **置く順を聞くかどうかの印は state に入れていない。** オンラインでは state がサーバーから来るので、クライアントが足した欄は `hydrateState` で**丸ごと消える**（state に入れるなら Edge Function の再デプロイが要る）。見た目の話なのでクライアントのローカルな記録で足りる＝`src/deck-order-known.js`（他を import しない葉）。ノーシャッフルの入れ替わりは **dispatch と hydrateState の両方**で拾う（オンラインは後者でしか見えない）。⚠ 読み込み直すと忘れる＝聞かなくなるだけなので安全側。",
+      "⚠ **テストの土台に持ち越しの罠があった。** `hydrateState` は前後の山札を見て印を立てるので、**前のケースの残り**（山札0・捨て場あり → 山札あり）で**勝手に立つ**。毎回必ず忘れさせてから、ケースが `deckOrderKnown: true` と言った時だけ立てる形にした。テストは「分からない＝1度も聞かない（`pickLocation` 0回）」と「分かる＝選んだ順が効く」の対で見ている。",
+      "🔴 **実測の段取りで4回つまずいた（全部私の問題）。** ①オープニング画面を閉じ忘れて**アニメの時計が止まっていた**（playState は running なのに currentTime が 0 のまま）②初回起動のBGMの案内が盤を覆っていた ③準備画面の覆いが長押しを食べていた ④**一瞬しか出ない物を「ある瞬間」で測って 0 と誤判定**（尾 0.95秒・輪 1.6秒で自分から消える）。**教訓: 「出ていない」と出たら、まず画面の上に何か乗っていないか・時計が動いているかを見る。**",
+    ],
+  },
+  {
+    date: "2026-11-21",
+    summary: [
       "選んだマスに「選んだ順」の番号が出ます",
       "偉大なる大号令で、置く順を1マスずつ選べます",
       "行動ログに、色者が動いた理由と【状況】が残ります",

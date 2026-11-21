@@ -6,6 +6,8 @@
 import * as st from "../src/state.js";
 import * as eng from "../src/card-effect-engine.js";
 import { t as uiT } from "../src/ui-text.js";
+// 🔴【続き791】「山札の並びが分かり得るか」。置く順を聞くかどうかがこれで決まる。
+import * as dok from "../src/deck-order-known.js";
 
 // 【#659・続き750】軽い通知（announceEffectNotice）を**鍵の名前で**記録する。
 //   文そのものを記録すると、台本が日本語に縛られる（言語を切り替えると落ちる）。
@@ -39,6 +41,13 @@ export async function runOneCase(spec) {
   }
   st.hydrateState(hydrated);
   if (spec.movedFrom) eng.notePieceLocationsForMovedFrom?.();
+
+  // 🔴【続き791】「山札の並びが分かり得る」をケース間で持ち越さない。
+  //   ⚠ `hydrateState` は前後の山札を見て立てるので、**前のケースの残り**
+  //     （山札0・捨て場あり → 山札あり）で**勝手に立つ**。必ず忘れさせてから、
+  //     ケースが `deckOrderKnown: true` と言った時だけ立てる。
+  dok.forgetDeckOrderKnown();
+  if (spec.deckOrderKnown) dok.noteDeckOrderKnown();
 
   // 🔴【#627・2026-11-14】無意味ループ防止（#49）の「この連鎖で通ったマスの回数」。
   //   本物は main.js が持つ Map で、`recordMoveVisited` が増やし `isLoopMoveDest` が見る。

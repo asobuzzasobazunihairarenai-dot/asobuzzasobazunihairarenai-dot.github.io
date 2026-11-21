@@ -181,7 +181,10 @@ const REASON_MODAL_IMAGES = {
 // holdUntilClick=true の時は自動で消えず、モーダルのクリック／✕／画面どこかのクリックで
 // 初めて閉じる（＝CPU戦の自動スキップOFFで、CPUの結果通知をプレイヤーが読み終えるまで
 // 止めるため）。戻り値は「閉じたら解決するPromise」（呼び出し側が待てるように）。
-export async function showEffectReasonModal(cardId, text, { holdUntilClick = false, onUserDismiss = null } = {}) {
+// 🔴【#728・続き791】`dial`: 円盤の上に重ねる演出の指定（色者の第2拍）。
+//   { mode: "move" | "nomove" | "rainbow", angle: 度（0=上・時計回り）, color: CSSの色 }
+//   ⚠ 知らない mode や未指定の時は**何も重ねない**（今までと1ミリも変わらない）。
+export async function showEffectReasonModal(cardId, text, { holdUntilClick = false, onUserDismiss = null, dial = null } = {}) {
   if (isCelebrationActive()) return;
   await waitForNoticeSlot();
   if (isCelebrationActive()) return;
@@ -244,13 +247,38 @@ export async function showEffectReasonModal(cardId, text, { holdUntilClick = fal
     // 文に添える絵（いまは色者の円盤だけ）。絵が読めなくても文は出す＝進行は止めない。
     const 絵 = REASON_MODAL_IMAGES[cardId];
     if (絵) {
+      // 🔴【#728・続き791】円盤は <img> なので子を持てない ⇒ **包みを1つ挟む**。
+      //   包みが外側の余白と中央寄せを引き継ぐので見た目は変わらない（CSS 側で合わせてある）。
+      const 包み = document.createElement("div");
+      包み.className = "effect-reason-modal-dial-wrap";
       const img = document.createElement("img");
       img.className = 絵.cls;
       img.src = 絵.src;
       img.alt = "";
       img.decoding = "async";
-      img.addEventListener("error", () => img.remove());
-      modal.appendChild(img);
+      img.addEventListener("error", () => 包み.remove());
+      包み.appendChild(img);
+      // 🔴 第2拍「円盤が答える」。捨色のくさびが光り、その方向へ矢が伸びる。
+      //   ⚠ 「動かない」（無色）は**矢を出さない**——出すと動いたように読める。
+      //   ⚠ 虹は七色に一巡するだけ（行き先は人が選ぶので、円盤は答えを持たない）。
+      if (dial && (dial.mode === "move" || dial.mode === "nomove" || dial.mode === "rainbow")) {
+        const 色 = dial.color || "#ffffff";
+        const 角 = Number.isFinite(dial.angle) ? dial.angle : 0;
+        if (dial.mode === "move") {
+          for (const cls of ["shikija-dial-wedge", "shikija-dial-arrow"]) {
+            const el = document.createElement("div");
+            el.className = cls;
+            el.style.setProperty("--shikija-angle", 角 + "deg");
+            el.style.setProperty("--shikija-color", 色);
+            包み.appendChild(el);
+          }
+        } else {
+          const el = document.createElement("div");
+          el.className = dial.mode === "rainbow" ? "shikija-dial-rainbow" : "shikija-dial-nomove";
+          包み.appendChild(el);
+        }
+      }
+      modal.appendChild(包み);
     }
 
     const textEl = document.createElement("div");

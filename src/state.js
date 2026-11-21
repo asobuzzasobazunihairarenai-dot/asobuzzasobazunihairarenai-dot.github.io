@@ -10,6 +10,9 @@ import { getDeckNormalCards, getEternalCards, getFirstCards, ETERNAL_CARDS, getC
 import { setMyStackSuspended } from "./my-stack.js"; // マイ山札（続き725）。import を1つも持たない葉なので循環しない
 import { COLORS, GATE_POSITIONS, SEAT_ORDER, SEAT_TO_SIDE } from "./board-layout.js";
 import { logAction, registerTurnInfoProvider } from "./action-log.js";
+// 🔴【続き791】「山札の並びが分かり得るか」の記録（他を import しない葉）。
+//   ノーシャッフルの入れ替わりを拾うためだけに使う。判定の持ち主はあちら1つ。
+import { noteDeckPilesChanged, forgetDeckOrderKnown } from "./deck-order-known.js";
 
 let nextId = 1;
 const uid = (prefix) => `${prefix}-${nextId++}`;
@@ -198,7 +201,11 @@ export function setOnlineTransport(fn) {
 
 // online.jsがサーバーから取得した最新状態を、そのままローカルのstateとして採用する。
 export function hydrateState(newState) {
+  // 🔴【続き791】オンラインは state がサーバーから来るので、入れ替わりは**ここでしか**見えない。
+  //   ⚠ 見逃したら忘れたまま（＝聞かない）。盤面は正しいので安全側。
+  const 前の山 = state.piles;
   state = newState;
+  noteDeckPilesChanged(前の山, state.piles);
   for (const fn of listeners) fn(state);
 }
 
@@ -979,7 +986,13 @@ function reduce(current, action) {
 
 function dispatch(action) {
   logAction("dispatch", action);
+  const 前の山 = state.piles;
   state = reduce(state, action);
+  // 🔴【続き791】山札が切れて捨て場がそのまま山札になった（ノーシャッフル）瞬間を拾う。
+  //   ⚠ **ここ1か所**で両方の道を拾える（DRAW_FROM_PILE の中の原子的な補充と、
+  //     単独の REFILL_DECK_FROM_DISCARD）。呼び出し側を1つずつ直すと必ず漏れる（#477 の家族）。
+  if (action.type === "RESET_GAME") forgetDeckOrderKnown();
+  else noteDeckPilesChanged(前の山, state.piles);
   for (const fn of listeners) fn(state);
 }
 

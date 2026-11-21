@@ -17,6 +17,8 @@
 
 import { didNormalMoveOnTurn } from "./normal-move-mark.js"; // 【続き788】旧0th ダッシュ（手札）の条件
 import { getState } from "./state.js";
+// 🔴【続き791】山札の並びが分かり得る時だけ「置く順」を聞く（ユーザー判断）。
+import { isDeckOrderKnown } from "./deck-order-known.js";
 import { VERBS, TARGETS, TARGET_SELECTIONS, CARD_EFFECTS, optionLabel, effectActionsHandleSelf } from "./card-effects.js";
 import { getCardDefinition } from "./cards-data.js";
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ11: 表示用のカード名
@@ -5421,17 +5423,27 @@ async function runAction(action, ctx, helpers) {
         if (inBounds(row, col)) 残り8.push({ zone: "cell", row, col });
       }
       const 全部 = 残り8.length;
+      // 🔴【続き791・ユーザー判断】**山札の並びが分からないなら聞かない。**
+      //   「山札の中の順番が全くわからない状態の時は、置く順番を選ぶ必要はないので
+      //     自動でいいと思います！」
+      //   分かり得るのは、山札が切れて**捨て場をそのまま裏返して**山札にした以降
+      //   （捨て場は誰でも順番を見られる）。将来「山札の中身を見る」効果が増えたら、
+      //   deck-order-known.js の方へ足せばここは触らなくてよい。
+      //   ⚠ 聞かない時は**元の挙動そのまま**（決まった順に置くだけ・印も付けない）。
+      const 順を聞く = isDeckOrderKnown() || !!ctx.forcePrompt;
       while (残り8.length > 0) {
         if (getState().piles.deck.length === 0) break;
         const 選 =
-          残り8.length === 1 && !ctx.forcePrompt
+          !順を聞く || (残り8.length === 1 && !ctx.forcePrompt)
             ? 残り8[0]
             : await helpers.pickLocation(残り8, t("ce.pickPlaceOrder", { i: 置いた8 + 1, n: 全部 }), { purpose: "place" });
         if (!選) break;
         const k = 残り8.findIndex((c) => c.row === 選.row && c.col === 選.col);
         if (k < 0) break;
         残り8.splice(k, 1);
-        helpers.markPlacementTarget?.(選); // 🔴【#725】選んだ順に番号が出る
+        // 🔴【#725】選んだ順に番号が出る。**聞いた時だけ**付ける
+        //   （自動で置いた時に 1〜8 が光ると、選んでいないのに選んだように見える）。
+        if (順を聞く) helpers.markPlacementTarget?.(選);
         await helpers.placeFromDeck(選);
         置いた8++;
       }

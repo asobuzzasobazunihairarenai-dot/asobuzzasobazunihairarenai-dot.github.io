@@ -2789,8 +2789,12 @@ onHandEffectUseEvents(({ fromPlayer, cardId, cardIds, forPlayer, optionLabel, mo
 // ユーザー要望（続き70）「試練の儀式やザギャンブルでの結果は相手にもモーダルで
 // 教えてあげてください」。使った本人は既にannounceEffectReasonForEffect内で
 // ローカル表示済みなので、ここでは自分以外からの通知だけを表示する。
-onEffectReasonEvents(({ fromPlayer, cardId, text }) => {
+onEffectReasonEvents(({ fromPlayer, cardId, text, shikija }) => {
   if (isSelfAction(fromPlayer)) return;
+  // 🔴【#728・続き791】色者の演出も**同じ形で**出す（出さないと「送った人の画面にしか
+  //   演出が出ない」という半端な形になる＝#592・#621 の家族）。
+  //   ⚠ 盤面に出る分はここで、円盤の分は下の showEffectReasonModal に渡す。
+  if (shikija) playShikijaBoardBeats(shikija);
   // 🔴【#729・続き790】色者の件は**他の人の画面でも行動ログに残す**。
   //   走らせるのは1つのクライアントだけなので、ここで残さないと
   //   「自分の画面にだけ履歴が在る」という半端な形になる（#592 の家族）。
@@ -2798,7 +2802,8 @@ onEffectReasonEvents(({ fromPlayer, cardId, text }) => {
   if (cardId === "ex0-white-dragon") {
     try { logAction("shikija", { player: fromPlayer, cardId, text }); } catch (err) {}
   }
-  showEffectReasonModal(cardId, text);
+  // 🔴【#728・続き791】円盤の演出も同じく渡す（渡さないと相手の画面では円盤が光らない）。
+  showEffectReasonModal(cardId, text, { dial: shikija?.dial ?? null });
 });
 // 試練の儀式「踏んだカード」の中央じらしフリップ演出を、実行者以外の全プレイヤーにも再生する
 // （ユーザー要望2026-08-08。踏んだカードは公開情報。本人はannounceSteppedCardForEffect内で
@@ -3788,9 +3793,99 @@ async function announceEffectChoiceForEffect(cardId, player, optionLabel) {
 // だけで即returnし、モーダル自身の自動消去タイマー(REASON_MODAL_DURATION_MS)で自然に消える。
 // CPU結果ホールド(cpuResultHoldActive)もかけない——読ませて止める必要のない軽い通知のため
 // （止めるべき“結果”はannounceEffectReasonForEffectのまま）。他プレイヤーへの中継は従来通り行う。
-function announceEffectNoticeForEffect(cardId, text) {
-  if (isOnlineMode()) broadcastEffectReason({ fromPlayer: getSelfSeat(), cardId, text });
-  showEffectReasonModal(cardId, text); // holdUntilClick=false・戻り値のPromiseは待たない
+// 🔴【#728・続き791】`shikija`: 色者の演出の指定。**全員の画面で同じものを出す**ため、
+//   既にあるこの通信路（effect_reason）に相乗りさせる＝新しい通信路もサーバーの変更も不要。
+//   ⚠ 受け側（onEffectReasonEvents）でも同じ名前を取り出すこと（続き756 の実害）。
+function announceEffectNoticeForEffect(cardId, text, shikija = null) {
+  if (isOnlineMode()) broadcastEffectReason({ fromPlayer: getSelfSeat(), cardId, text, shikija });
+  showEffectReasonModal(cardId, text, { dial: shikija?.dial ?? null }); // 戻り値のPromiseは待たない
+  playShikijaBoardBeats(shikija);
+}
+
+// 🔴【#728・続き791】色者の演出のうち**盤面に出る分**（第3拍の尾・第4拍の輪と光）。
+//   ⚠ 「演出を控える」人には**1ミリも待たせない**（冒頭で戻る＝既にある入口を使う）。
+//   ⚠ 盤面に置く物は `appendEffectHost` 経由（render() が盤面を作り直すと消える＝#621 の実害）。
+//   ⚠ 状態は1つも変えない（見た目だけ）。失敗しても対局は止めない。
+function playShikijaBoardBeats(shikija) {
+  if (!shikija) return;
+  if (isArrivalEffectDisabled()) return;
+  // 🔴🔴【続き791】**画面に重ねる**（盤面の子にすると消える）。
+  //   実測: 尾は確かに1回作られていたのに、測る時には0件だった。盤面の演出は
+  //   次の `render()`（`table.innerHTML = ""`）で捨てられるが、色者はターンの**終わり**に
+  //   動くので、**その直後から次の人の手番の描き直しが続く**。
+  //   （【状況】の輪が無事なのは、あちらがターンの**頭**＝人が動く前に出るから。）
+  //   ⚠ 盤面の3Dの傾きには乗らないが、**見えないよりずっとよい**。
+  //     勝利演出・長押しの案内も同じく body 直下（このアプリの先例どおり）。
+  //   ⚠ 位置と大きさは**マスの画面上の矩形**から測る＝3D変形込みの実際の見え方。
+  setTimeout(() => {
+    try {
+      const table = document.getElementById("game-table");
+      if (!table) return;
+      const 矩形 = (c) => {
+        const el = c && findLocationElement(table, { zone: "cell", row: c.row, col: c.col });
+        const r = el && el.getBoundingClientRect();
+        return r && r.width > 0 ? r : null;
+      };
+      const 中心 = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      const 置く = (el, ms) => {
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), ms);
+      };
+      // 第3拍: 移動元の中心から移動先の中心へ、**本当に通った道**をなぞる尾。
+      if (shikija.from && shikija.to) {
+        const a = 矩形(shikija.from);
+        const b2 = 矩形(shikija.to);
+        if (a && b2) {
+          const p = 中心(a);
+          const q = 中心(b2);
+          const 長さ = Math.max(8, Math.hypot(q.x - p.x, q.y - p.y) * 1.6);
+          // 要素は「下端が移動先」で上へ伸びる。移動元の方を向ける（0度＝上）。
+          const 角 = (Math.atan2(p.x - q.x, q.y - p.y) * 180) / Math.PI;
+          const 尾 = document.createElement("div");
+          尾.className = "shikija-trail";
+          尾.style.left = q.x + "px";
+          尾.style.top = q.y + "px";
+          尾.style.width = Math.max(6, b2.width * 0.42) + "px";
+          尾.style.height = 長さ + "px";
+          尾.style.setProperty("--shikija-trail-angle", 角 + "deg");
+          尾.style.setProperty("--shikija-color", shikija.color || "#fff");
+          置く(尾, 950);
+        }
+      }
+      // 第4拍: 色者の札から**ちょうど3マスぶん**の輪＋範囲に入った駒が光る。
+      if (shikija.ring) {
+        const r0 = 矩形(shikija.ring);
+        if (r0) {
+          const c0 = 中心(r0);
+          const 径 = r0.width * 7; // 左右3マス＋自分1マス
+          const 輪 = document.createElement("div");
+          輪.className = "shikija-range-ring";
+          輪.style.left = c0.x + "px";
+          輪.style.top = c0.y + "px";
+          輪.style.width = 径 + "px";
+          輪.style.height = 径 + "px";
+          輪.style.setProperty("--shikija-color", shikija.color || "#fff");
+          置く(輪, 1600);
+        }
+        for (const p of shikija.touched || []) {
+          const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === p);
+          if (!piece || piece.location.zone !== "cell") continue;
+          const r1 = 矩形(piece.location);
+          if (!r1) continue;
+          const 光 = document.createElement("div");
+          光.className = "shikija-touch-glow" + (shikija.touchKind === "down" ? " is-down" : "");
+          光.style.left = r1.left - r1.width * 0.1 + "px";
+          光.style.top = r1.top - r1.height * 0.1 + "px";
+          光.style.width = r1.width * 1.2 + "px";
+          光.style.height = r1.height * 1.2 + "px";
+          光.style.setProperty("--shikija-color", shikija.color || "#fff");
+          置く(光, 1100);
+        }
+      }
+    } catch (err) {
+      console.error("playShikijaBoardBeats failed", err);
+    }
+  }, 220);
 }
 
 // ユーザー要望「効果が不発だった場合（例: マスチェンジで３マス以内に相手がいない等）は
@@ -5137,10 +5232,22 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   //   ⚠ **お知らせと同じ文を使う**（2か所に書くと必ずズレる）。
   //   ⚠ 他の人の画面ぶんは、お知らせが既に全員へ届いているので**受け側で同じ1行を残す**
   //     （onEffectReasonEvents の中。新しい通信路もサーバーの変更も要らない）。
-  const 色者のお知らせ = async (文) => {
+  const 色者のお知らせ = async (文, 演出 = null) => {
     try { logAction("shikija", { player: endedPlayer ?? getState().turnPlayer, cardId: "ex0-white-dragon", text: 文 }); } catch (err) {}
-    await announceEffectNoticeForEffect("ex0-white-dragon", 文);
+    await announceEffectNoticeForEffect("ex0-white-dragon", 文, 演出);
   };
+  // 🔴【#728・続き791】色の CSS 値。7色は変数から、無色は明暗で出し分ける
+  //   （`--color-*` を決め打ちで写さない＝表を2か所に持たない）。
+  const 色のCSS = (c) =>
+    c === "white" ? "#ffffff" : c === "black" ? "#141c26" : c && c !== "rainbow" ? "var(--color-" + c + ")" : "#f6c945";
+  // 🔴 **第1拍「捨色をめくる」。** 何色が出たのかを札そのもので見せる。
+  //   ⚠ 既にある中央じらしフリップを使う＝**全員の画面に配信される**（新しい通信路は不要）。
+  //   ⚠ 演出を切っている人は中で即戻る（待たされない）。
+  try {
+    await revealCenterCardForAll(捨色カード, t("ce.ex0ShikijaRevealLabel"));
+  } catch (err) {
+    /* めくりに失敗しても処理は続ける（見た目だけ） */
+  }
   const base = color ? SHIKIJA_DIRS[color] : null;
   // ⚠ t() は**無い鍵をそのまま返す**ので、鍵が返ってきたらカードの名前で代える（文言の穴を作らない）。
   const 色の鍵 = color ? colorLabel(color) : null;
@@ -5154,13 +5261,20 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
     const dest = 候補.length === 0 ? null : await requestCellChoiceForEffect(候補, t("ce.ex0ShikijaRainbowPick"));
     if (dest) {
       await moveAndSyncForEffect(token.id, dest, undefined, undefined, false, true);
-      await 色者のお知らせ(t("ce.ex0ShikijaRainbow", { color: 色名, card: 札名 }));
+      // 第2拍: 虹は円盤が七色に一巡する（行き先は人が選ぶので、円盤は1つの答えを持たない）。
+      await 色者のお知らせ(t("ce.ex0ShikijaRainbow", { color: 色名, card: 札名 }), {
+        dial: { mode: "rainbow" },
+        color: 色のCSS(color),
+        from: { row: token.location.row, col: token.location.col },
+        to: { row: dest.row, col: dest.col },
+      });
     } else {
-      await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
+      await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }), { dial: { mode: "nomove" } });
     }
   } else if (!base) {
     // 無色（白・黒）＝**動かない**。②の色の効果だけを得る。
-    await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }));
+    // 第2拍: 矢は出さない（出すと動いたように読める）。中央の切り欠きが脈打ち8方向が暗くなる。
+    await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }), { dial: { mode: "nomove" } });
   } else {
     const seat = getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
     const { dr, dc } = rotateOffsetForSeat(base.dr, base.dc, seat);
@@ -5168,10 +5282,26 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
     const col = token.location.col + dc;
     const 向き = t("ce.ex0Dir." + base.key);
     if (row >= 0 && row <= 6 && col >= 0 && col <= 6) {
+      // 🔴 **お知らせは動いた「後」に出す。** 動く前に出すと、すぐ後ろの移動が
+      //   render() を呼んで盤面を作り直すので、**盤面に置いた尾がその場で捨てられる**
+      //   （#621 と同じ罠。実測で尾 0件だった）。
+      //   ⚠ 円盤の角度は **回していない向き（base）**。お知らせの円盤は印刷されたままの
+      //     向きなので、席ごとの回転を掛けると**別のくさびを指す**。
+      //   ⚠ 盤面の尾（第3拍）は逆に**来た方向**（画面でどう動いたか）で引く＝from/to から出す。
+      const 元のマス = { row: token.location.row, col: token.location.col };
       await moveAndSyncForEffect(token.id, { zone: "cell", row, col }, undefined, undefined, false, true);
-      await 色者のお知らせ(t("ce.ex0ShikijaMoved", { color: 色名, card: 札名, dir: 向き }));
+      await 色者のお知らせ(t("ce.ex0ShikijaMoved", { color: 色名, card: 札名, dir: 向き }), {
+        dial: { mode: "move", angle: (Math.atan2(base.dc, -base.dr) * 180) / Math.PI, color: 色のCSS(color) },
+        color: 色のCSS(color),
+        burstColor: color,
+        from: 元のマス,
+        to: { row, col },
+      });
     } else {
-      await 色者のお知らせ(t("ce.ex0ShikijaEdge", { color: 色名, card: 札名, dir: 向き }));
+      // 盤の端で動けない時も円盤は答える（向きは出したが行き先が無い）。
+      await 色者のお知らせ(t("ce.ex0ShikijaEdge", { color: 色名, card: 札名, dir: 向き }), {
+        dial: { mode: "move", angle: (Math.atan2(base.dc, -base.dr) * 180) / Math.PI, color: 色のCSS(color) },
+      });
     }
   }
   // ② その色の効果を得る。記載があるのは白と黒だけ（「効果に記載の無い色が出た場合は何もしない」）。
@@ -5185,7 +5315,14 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   });
   if (color === "white" && 近い人.length > 0) {
     for (const p of 近い人) await drawCardsForEffect(p, 2);
-    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaWhite"));
+    // 🔴 第4拍「色が届く」。札から**ちょうど3マスぶん**の輪が広がり、範囲の駒が光る。
+    //   ⚠ 「誰に効いたのか」は今まで画面に1つも出ていなかった。
+    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaWhite"), {
+      color: 色のCSS(color),
+      ring: { row: here.row, col: here.col },
+      touched: 近い人,
+      touchKind: "up",
+    });
   } else if (color === "black" && 近い人.length > 0) {
     for (const p of 近い人) {
       const hand = getState().tokens.filter(
@@ -5193,7 +5330,13 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
       );
       for (const tk of hand) await discardFromHandReveal(tk.id);
     }
-    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaBlack"));
+    // 第4拍（黒）＝下へ沈む暗い波。
+    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaBlack"), {
+      color: 色のCSS(color),
+      ring: { row: here.row, col: here.col },
+      touched: 近い人,
+      touchKind: "down",
+    });
   }
   render();
 }

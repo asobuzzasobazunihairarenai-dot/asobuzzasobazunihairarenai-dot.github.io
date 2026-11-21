@@ -5245,8 +5245,42 @@ export const CASES = [
     ],
   },
   {
-    name: "偉大なる大号令(到達): 置く順を選べる（選んだ順に山札の上から置かれる）",
+    name: "偉大なる大号令(到達): 山札の並びが分からないなら置く順を聞かない（ユーザー判断 2026-11-21）",
     kind: "arrival",
+    cardId: "1st-black-great-order",
+    // 🔴 `deckOrderKnown` を**付けない**＝並びが全く分からない状態（ふつうの対局）。
+    //   「置く順番を選ぶ必要はないので自動でいい」（ユーザー判断）。
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-black-great-order", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: {
+        deck: [
+          "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad",
+          "yellow-sleight-of-hand", "pink-present", "blue-slum-official",
+        ],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "1st-black-great-order", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    // 台本に置き場所を書いてあっても**使われない**のが正しい（聞かないので）。
+    picks: { location: [{ row: 4, col: 4 }, { row: 2, col: 2 }] },
+    expect: [
+      { kind: "deckLen", n: 0 }, // 8マスぶん置いた（自動でも最後まで置く）
+      { kind: "called", name: "pickLocation", n: 0 }, // 🔴 1度も聞いていない
+      // 🔴 対照: 聞いていないので、台本の (4,4) に1枚目は来ない
+      { kind: "cellStackOrder", row: 4, col: 4, cards: ["red-jump-pad"] },
+    ],
+  },
+  {
+    name: "偉大なる大号令(到達): 山札の並びが分かるなら置く順を選べる（選んだ順に上から）",
+    kind: "arrival",
+    // 🔴【続き791】**捨て場をそのまま裏返して山札にした以降**＝並びが分かり得る状態。
+    //   この時だけ置く順を聞く（ユーザー判断）。
+    deckOrderKnown: true,
     cardId: "1st-black-great-order",
     state: {
       activePlayers: ["A", "C"], turnPlayer: "A",

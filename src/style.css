@@ -18076,6 +18076,172 @@ body.theme-light-ingame .effect-reason-modal-text {
 }
 /* 【続き768】円盤の地は暗いままで（白線が読める）、輪だけモーダルの枠と同じ金に。
    クリーム色の地から浮かせるため、ここだけ軽い影を足す。 */
+/* ═══ 🔴【#728・続き791】色者の演出 ═══════════════════════════════════════════
+   第2拍「円盤が答える」。お知らせの円盤の上に重ねる。
+   ⚠ 円盤は <img> なので子を持てない ⇒ **包みを1つ挟む**。
+     包みが外側の余白と中央寄せを引き継ぎ、円盤自身の余白は 0 にする（見た目は変えない）。
+   ⚠ 重ねる物は包みに対して inset: 0（円盤の枠と余白のぶんだけ外へ出るが、
+     中身を 92% に縮めてあるので円盤の中に収まる）。こうすると**機種ごとの倍率**
+     （スマホ・タブレットで円盤と余白が倍になる）でも一緒に付いてくる。 */
+.effect-reason-modal-dial-wrap {
+  position: relative;
+  width: max-content;
+  margin: 0.1rem auto 0.5rem;
+}
+.effect-reason-modal-dial-wrap .effect-reason-modal-dial {
+  margin: 0;
+}
+/* 捨色のくさびが光る。45度の扇を、捨色の向きへ回す（--shikija-angle）。 */
+.shikija-dial-wedge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  transform: rotate(var(--shikija-angle, 0deg)) scale(0.92);
+  background: linear-gradient(to top, transparent 8%, var(--shikija-color, #fff) 95%);
+  /* 中心から上へ伸びる45度の扇（tan(22.5°)=0.414 ⇒ 上端の半幅 20.7%）。 */
+  clip-path: polygon(50% 50%, 29.3% 0%, 70.7% 0%);
+  opacity: 0;
+  animation: shikija-wedge 1.6s ease-out forwards;
+}
+@keyframes shikija-wedge {
+  0% { opacity: 0; }
+  18% { opacity: 0.85; }
+  70% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+/* 中心から外へ伸びる矢。くさびと同じ向きへ回す。 */
+.shikija-dial-arrow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: rotate(var(--shikija-angle, 0deg));
+  opacity: 0;
+  animation: shikija-arrow 1.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+.shikija-dial-arrow::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  width: 26%;
+  height: 30%;
+  transform: translateX(-50%);
+  background: var(--shikija-color, #fff);
+  clip-path: polygon(50% 0%, 100% 62%, 62% 62%, 62% 100%, 38% 100%, 38% 62%, 0% 62%);
+  filter: drop-shadow(0 0 0.18rem var(--shikija-color, #fff));
+}
+@keyframes shikija-arrow {
+  0% { opacity: 0; transform: rotate(var(--shikija-angle, 0deg)) scale(0.55); }
+  22% { opacity: 1; transform: rotate(var(--shikija-angle, 0deg)) scale(1.06); }
+  72% { opacity: 1; transform: rotate(var(--shikija-angle, 0deg)) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--shikija-angle, 0deg)) scale(1); }
+}
+/* 無色（白・黒）＝**動かない**。矢は出さず、中央の切り欠きが脈打ち、8方向が暗くなる。 */
+.shikija-dial-nomove {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.25) 16%, rgba(0, 0, 0, 0.55) 44%, rgba(0, 0, 0, 0.55) 100%);
+  opacity: 0;
+  animation: shikija-nomove 1.6s ease-out forwards;
+}
+@keyframes shikija-nomove {
+  0% { opacity: 0; transform: scale(0.8); }
+  20% { opacity: 1; transform: scale(1); }
+  60% { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+/* 虹＝8つのくさびが七色に一巡してから、周囲8マスを選ばせる。 */
+.shikija-dial-rainbow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color-red) 0deg, var(--color-orange) 45deg, var(--color-yellow) 90deg,
+    var(--color-green) 135deg, var(--color-blue) 180deg, var(--color-purple) 225deg,
+    var(--color-pink) 270deg, var(--color-red) 360deg
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: shikija-rainbow 1.6s linear forwards;
+}
+@keyframes shikija-rainbow {
+  0% { opacity: 0; transform: rotate(0deg) scale(0.9); }
+  20% { opacity: 0.75; }
+  80% { opacity: 0.4; }
+  100% { opacity: 0; transform: rotate(360deg) scale(0.9); }
+}
+
+/* 第3拍「龍が滑る」。移動先のマスから、**来た方向へ**色の尾を引く。
+   ⚠ 盤面は3D変形の中なので、尾はマスの子として置く（盤の傾きにそのまま乗る）。 */
+/* 🔴【続き791】**画面に重ねる**（盤面の子にすると、次の手番の描き直しで消える）。
+   位置・長さ・太さは JS がマスの画面上の矩形から測って入れる。 */
+.shikija-trail {
+  position: fixed;
+  z-index: 9000;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(var(--shikija-trail-angle, 0deg));
+  background: linear-gradient(to bottom, var(--shikija-color, #fff) 0%, transparent 86%);
+  filter: blur(0.5px);
+  opacity: 0;
+  animation: shikija-trail 0.85s ease-out forwards;
+}
+@keyframes shikija-trail {
+  0% { opacity: 0; }
+  18% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+/* 第4拍「色が届く」。色者の札から**ちょうど3マスぶん**の輪。
+   ⚠ 【状況】の輪（situation-ring）は 6.4倍まで広がるので流用できない
+     （あちらは「場の中央から全体へ」。こちらは**3マスで止まる**のが意味）。
+   7マスぶん（左右3＋自分1）の幅を 1.0 倍で出すので、半径がちょうど3マスになる。 */
+/* 🔴【続き791】同じ理由で画面に重ねる。大きさ（3マスぶん）は JS が入れる。 */
+.shikija-range-ring {
+  position: fixed;
+  z-index: 9000;
+  border: 0.18rem solid var(--shikija-color, #f6c945);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0.9rem var(--shikija-color, #f6c945), inset 0 0 0.9rem var(--shikija-color, #f6c945);
+  animation: shikija-range 1.5s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+@keyframes shikija-range {
+  0% { transform: translate(-50%, -50%) scale(0.12); opacity: 0; }
+  18% { opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+/* 範囲に入った駒のマスが光る。白＝上へ昇る淡い光／黒＝下へ沈む暗い波。
+   ⚠ 駒そのものに box-shadow を足さない（既に持っていて合成されない＝教訓10）。
+     マスの子として重ねる。 */
+/* 🔴【続き791】同じ理由で画面に重ねる。位置と大きさは JS が入れる。 */
+.shikija-touch-glow {
+  position: fixed;
+  z-index: 9000;
+  pointer-events: none;
+  border-radius: 12%;
+  background: linear-gradient(to top, transparent 0%, var(--shikija-color, #fff) 100%);
+  opacity: 0;
+  animation: shikija-touch-up 1s ease-out forwards;
+}
+.shikija-touch-glow.is-down {
+  background: linear-gradient(to bottom, transparent 0%, var(--shikija-color, #000) 100%);
+  animation: shikija-touch-down 1s ease-out forwards;
+}
+@keyframes shikija-touch-up {
+  0% { opacity: 0; transform: translateY(18%); }
+  28% { opacity: 0.75; }
+  100% { opacity: 0; transform: translateY(-26%); }
+}
+@keyframes shikija-touch-down {
+  0% { opacity: 0; transform: translateY(-18%); }
+  28% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(26%); }
+}
 body.theme-light-ingame .effect-reason-modal-dial {
   border-color: rgba(176, 141, 63, 0.5);
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22);
