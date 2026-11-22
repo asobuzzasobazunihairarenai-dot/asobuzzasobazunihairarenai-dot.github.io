@@ -303,6 +303,80 @@ export const CASES = [
       { kind: "handHasCard", player: "A", cardId: "0th-black-greedy-palette" },
     ],
   },
+  // ─── 続き801（#744 / #765）: 「おまかせ」ボタンと置く順 ───
+  {
+    name: "旧0th 情報開示(到達): #765 「おまかせ」を押すと、残りは聞かずに開けていく",
+    kind: "arrival",
+    cardId: "0th-pink-disclosure",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 2, col: 2 } },
+        { id: "self", kind: "card", cardId: "0th-pink-disclosure", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "c0", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "c1", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 0, col: 0 } },
+        { id: "c2", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 0, col: 6 } },
+        { id: "c3", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 6, col: 0 } },
+        { id: "c4", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 6, col: 6 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-pink-disclosure", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 2, col: 2 } },
+    // 1マス目は自分で選び、2マス目で「おまかせ」
+    picks: { location: [{ row: 0, col: 0 }, "auto"] },
+    expect: [
+      // 🔴 5マスとも開く（おまかせの後も止まらない）
+      { kind: "tokenFaceUp", id: "c0" },
+      { kind: "tokenFaceUp", id: "c1" },
+      { kind: "tokenFaceUp", id: "c2" },
+      { kind: "tokenFaceUp", id: "c3" },
+      { kind: "tokenFaceUp", id: "c4" },
+      // 🔴 聞いたのは2回だけ（1マス目＋おまかせ）＝それ以降は聞いていない
+      { kind: "called", name: "pickLocation", n: 2 },
+    ],
+  },
+  {
+    name: "増殖する木々(到達): #744 山札の並びが分かるなら、置く順を選べる",
+    kind: "arrival",
+    cardId: "green-growing-trees",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      // 🔴 山札は**末尾が一番上**。最初に置かれるのは blue-bus-stop。
+      piles: { deck: ["red-jump-pad", "green-growing-trees", "blue-bus-stop"], eternal: [], first: [], discard: [] },
+    },
+    // 「捨て場をそのまま裏返して山札にした後」＝並びが分かる（続き791 のユーザー判断）
+    deckOrderKnown: true,
+    ctx: { player: "A", cardId: "green-growing-trees", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    // 1枚目は (0,2) へ、あとは「おまかせ」
+    picks: { location: [{ row: 0, col: 2 }, "auto"] },
+    expect: [
+      // 🔴 選んだマスに**一番上の札**が行く
+      { kind: "cardAtCell", row: 0, col: 2, cardId: "blue-bus-stop" },
+      { kind: "called", name: "pickLocation", n: 2 },
+    ],
+  },
+  {
+    name: "増殖する木々(到達): #744 対照: 山札の並びが分からないなら1度も聞かない",
+    kind: "arrival",
+    cardId: "green-growing-trees",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad", "green-growing-trees", "blue-bus-stop"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "green-growing-trees", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    picks: {},
+    expect: [
+      { kind: "called", name: "pickLocation", n: 0 },
+    ],
+  },
   // ─── 続き800 の直し（不具合報告 #768 / #763 / #767）の回帰 ───
   {
     name: "旧0th ダッシュ(手札): #768 宣言すると、このターン１マス多く歩ける（ハンドフェイズはムーブの前）",

@@ -16443,7 +16443,12 @@ body.reduce-glow #card-effect-picker-hint.show {
   /* 案内バナー(#card-effect-picker-hint)を上部へ移したので、そのすぐ下へ合わせる。 */
   top: 7.4rem;
   left: 50%;
-  transform: translateX(-50%);
+  /* 🔴【続き801】**ステージの縮小を打ち消す。** このアプリは body ごと縮小するので、
+     position: fixed のこのボタンも一緒に縮み、スマホ横では実測 70x17px・字は実質6px だった
+     ＝**指で押せないし読めない**（#453・#569・#721 と同じ家族）。
+     ⚠ PC（倍率1）では max(1, …) が 1 ＝**今までと1pxも変わらない**。
+     ⚠ 上限 2.4（窓がとても小さい時に巨大化しないように）。 */
+  transform: translateX(-50%) scale(min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
   z-index: 3201;
   display: none;
   padding: 0.4rem 1.1rem;
@@ -16478,9 +16483,15 @@ body.reduce-glow #card-effect-picker-hint.show {
    同じ中央寄せのまま真下に置く。色は控えめにして、主役（確定）と見分けが付くようにする。 */
 #card-effect-auto-button {
   position: fixed;
-  top: 10.3rem;
+  /* 🔴【続き801】スキップと重ならないよう下げた（大きくすると上へも伸びるため）。 */
+  top: 12.8rem;
   left: 50%;
-  transform: translateX(-50%);
+  /* 🔴【続き801】**ステージの縮小を打ち消す。** このアプリは body ごと縮小するので、
+     position: fixed のこのボタンも一緒に縮み、スマホ横では実測 70x17px・字は実質6px だった
+     ＝**指で押せないし読めない**（#453・#569・#721 と同じ家族）。
+     ⚠ PC（倍率1）では max(1, …) が 1 ＝**今までと1pxも変わらない**。
+     ⚠ 上限 2.4（窓がとても小さい時に巨大化しないように）。 */
+  transform: translateX(-50%) scale(min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
   z-index: 3201;
   display: none;
   padding: 0.3rem 0.9rem;

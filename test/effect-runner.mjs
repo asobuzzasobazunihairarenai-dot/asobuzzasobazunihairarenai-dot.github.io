@@ -93,6 +93,9 @@ export async function runOneCase(spec) {
   // "index:N" / トークンid（handCard用）/ 生の値（player/option/colors）。
   const resolveLocation = (spec2, candidates) => {
     if (spec2 === "skip") return null; // 「これ以上選ばない」（allowSkip の効果を明示的に終了）
+    // 🔴【#744 / #765・続き801】「おまかせ」＝残りはこちらで決める、の印（場所ではない）。
+    //   本物は main.js の #card-effect-auto-button が同じものを返す。
+    if (spec2 === "auto") return { auto: true };
     if (spec2 == null) return candidates && candidates[0];
     if (typeof spec2 === "string" && spec2.startsWith("index:")) return candidates[parseInt(spec2.slice(6), 10)];
     if (spec2 && spec2.zone === "lock") return (candidates || []).find((c) => c.zone === "lock" && c.side === spec2.side && c.index === spec2.index) || spec2;

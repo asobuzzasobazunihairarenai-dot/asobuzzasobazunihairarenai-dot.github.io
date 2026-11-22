@@ -6384,6 +6384,15 @@ document.addEventListener(
           picker.resolve(null);
           return;
         }
+        // 🔴【#744 / #765・続き801】「おまかせ」＝残りはこちらで決める。
+        //   **場所ではなく印**を返す（受ける動詞が「それ以降は聞かない」と決める）。
+        //   ⚠ スキップと同じく、ここで拾う必要がある——上で preventDefault/stopPropagation
+        //     しているので、ボタン自身の click は届かない。
+        if (el.closest("#card-effect-auto-button")) {
+          activeEffectPicker = null;
+          picker.resolve({ auto: true });
+          return;
+        }
         const cellEl = el.closest(".cell");
         if (cellEl) {
           const row = Number(cellEl.dataset.row);
@@ -9609,6 +9618,9 @@ async function requestCellChoiceForEffect__inner(candidates, hint, options = {})
     cellPickAutoResolved = false;
     const loc = await requestCellChoiceForEffectOnce(candidates, hint, options);
     if (!loc) return null; // スキップ／中止はそのまま返す
+    // 🔴【#744 / #765・続き801】「おまかせ」の印は**場所ではない**ので、
+    //   「このマスでいいですか？」を出さずにそのまま返す。
+    if (loc.auto) return loc;
     if (cellPickAutoResolved) return loc; // 自動代行が選んだ＝本人の操作ではないので確認しない
     // 🔴 【#481】「ジェイクの到達効果で7マス選ぶ時、1マスずつ確認は煩わしい」。
     //   **何マスも続けて選ばせる効果**では、効果側が skipConfirm を立てて確認を省ける。
@@ -9729,6 +9741,17 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
     }
     if (hint) showEffectPickerHint(hint); // showEffectPickerHint内でCPU中は自動スキップ
     if (options.allowSkip && !cpuSelecting) showEffectSkipButton(options.skipLabel ?? t("game.pick.noMore"));
+    // 🔴【#744 / #765・続き801】「おまかせ」。**眠っていた showEffectAutoButton を使う**
+    //   （2026-09-28 に作られたまま、どこからも呼ばれていなかった）。
+    //   ⚠ CPU の番には出さない（もともと自動で決まるので）。
+    //   ⚠ onClick も渡しておく（届く経路があれば二重に効くが、Promise の resolve は1回しか効かない）。
+    if (options.allowAuto && !cpuSelecting) {
+      showEffectAutoButton(t("game.pick.autoRest"), () => {
+        const p = activeEffectPicker;
+        activeEffectPicker = null;
+        p?.resolve?.({ auto: true });
+      });
+    }
     activeEffectPicker = {
       type: "cell",
       owner: pickerOwner(options.owner) ?? null,
@@ -9749,6 +9772,7 @@ function requestCellChoiceForEffectOnce(candidates, hint, options = {}) {
         setEffectTargetPieces(null); // 【#383】駒の光も必ず消す（どの経路でもここを通る）
         hideEffectPickerHint();
         hideEffectSkipButton();
+        hideEffectAutoButton(); // 【#744 / #765・続き801】どの経路でもここを通る
         resolve(loc);
         // ロック候補のミニロックハイライトを即座に消す（解決後）。
         updateMiniLockArea();

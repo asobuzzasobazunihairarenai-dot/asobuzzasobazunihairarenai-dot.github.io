@@ -2360,6 +2360,9 @@ async function runAction(action, ctx, helpers) {
       const 的 = Array.isArray(action.cells) ? action.cells : [];
       if (的.length === 0) return false;
       let 開けた = 0;
+      // 🔴【#765・続き801】「おすすめ順のボタンがあっほうがいい！」⇒ 途中で**残りを任せられる**。
+      //   任された後は候補の並び順（＝カードに書いてある中央→四隅）で開けていく。
+      let 聞く = true;
       for (let i = 0; i < 的.length; i++) {
         const 候補 = 的
           .filter((c) => inBounds(c.row, c.col))
@@ -2370,9 +2373,11 @@ async function runAction(action, ctx, helpers) {
           });
         if (候補.length === 0) break; // もう開けるものが無い
         const 選 =
-          候補.length === 1 && !ctx.forcePrompt
+          !聞く || (候補.length === 1 && !ctx.forcePrompt)
             ? 候補[0]
-            : await helpers.pickLocation(候補, t("ce.0thPickDisclosureCell", { i: 開けた + 1, n: 的.length }));
+            : await helpers.pickLocation(候補, t("ce.0thPickDisclosureCell", { i: 開けた + 1, n: 的.length }), { allowAuto: true });
+        // 🔴【#765・続き801】「おまかせ」＝ここから先は聞かない。
+        if (選 && 選.auto) { 聞く = false; i--; continue; }
         if (!選) break;
         const 札 = findTopCardAtCell(選.row, 選.col);
         if (!札 || 札.faceUp) break;
@@ -3019,6 +3024,45 @@ async function runAction(action, ctx, helpers) {
         return false;
       }
       if (destinations.length === 0) return false;
+      // 🔴【#744・続き801】報告「増殖する木々の到達効果について**置く順番を選べるように**！」。
+      //   置く**マス**は範囲で決まっているが、山札は上から出るので**どの順で置くか**で
+      //   「どの札がどのマスに行くか」が変わる（偉大なる大号令＝#724 と同じ話）。
+      //   ⚠ **山札から置く時だけ**（手札から置く時は自分で札を選ぶので順の問題が無い）。
+      //   ⚠ **並びが分からないなら聞かない**（続き791 のユーザー判断。`isDeckOrderKnown`）。
+      //   ⚠ 1マスしか無い時は聞かない（選ぶ余地が無い）。
+      // 🔴 **「範囲内すべて」の時だけ。** マスを自分で選ぶ形（CHOOSE）は、**選んだ順が
+      //   そのまま置く順**なので、ここで聞くと**二重に聞く**ことになる
+      //   （既存のテスト「増殖する樹々(手札)」が 3回のはずの選択を 6回と数えて捕まえた）。
+      if (
+        action.destination?.selection === TARGET_SELECTIONS.ALL_WITHIN_RANGE &&
+        action.source === "deck" &&
+        destinations.length >= 2 &&
+        (isDeckOrderKnown() || !!ctx.forcePrompt) &&
+        helpers.pickLocation
+      ) {
+        const 残り = [...destinations];
+        const 並べた = [];
+        const 全 = 残り.length;
+        let 聞く2 = true;
+        while (残り.length > 0) {
+          const 選 =
+            !聞く2 || (残り.length === 1 && !ctx.forcePrompt)
+              ? 残り[0]
+              : await helpers.pickLocation(残り, t("ce.pickPlaceOrder", { i: 並べた.length + 1, n: 全 }), { purpose: "place", allowAuto: true });
+          // 「おまかせ」＝ここから先は聞かず、残りを並び順で片付ける。
+          if (選 && 選.auto) { 聞く2 = false; continue; }
+          if (!選) break;
+          const k = 残り.findIndex((c) => c.row === 選.row && c.col === 選.col);
+          if (k < 0) break;
+          並べた.push(残り[k]);
+          残り.splice(k, 1);
+          // ⚠ 番号の印は**聞いている間だけ**（偉大なる大号令と同じ決まり＝#725）。
+          //   自動で置いた分に番号が光ると、選んでいないのに選んだように見える。
+          if (聞く2) helpers.markPlacementTarget?.(選);
+        }
+        // 選び残しがあっても**1マスも落とさない**（残りは元の並びのまま後ろへ）。
+        destinations = [...並べた, ...残り];
+      }
       for (const dest of destinations) {
         if (action.source === "self") {
           // ジャンプ台の手札効果／黒の契約の烙印の到達効果専用: このカード自身
@@ -5865,13 +5909,15 @@ async function runAction(action, ctx, helpers) {
       //   （捨て場は誰でも順番を見られる）。将来「山札の中身を見る」効果が増えたら、
       //   deck-order-known.js の方へ足せばここは触らなくてよい。
       //   ⚠ 聞かない時は**元の挙動そのまま**（決まった順に置くだけ・印も付けない）。
-      const 順を聞く = isDeckOrderKnown() || !!ctx.forcePrompt;
+      let 順を聞く = isDeckOrderKnown() || !!ctx.forcePrompt;
       while (残り8.length > 0) {
         if (getState().piles.deck.length === 0) break;
         const 選 =
           !順を聞く || (残り8.length === 1 && !ctx.forcePrompt)
             ? 残り8[0]
-            : await helpers.pickLocation(残り8, t("ce.pickPlaceOrder", { i: 置いた8 + 1, n: 全部 }), { purpose: "place" });
+            : await helpers.pickLocation(残り8, t("ce.pickPlaceOrder", { i: 置いた8 + 1, n: 全部 }), { purpose: "place", allowAuto: true });
+        // 🔴【#744・続き801】「おまかせ」＝ここから先は聞かず、残りを並び順で片付ける。
+        if (選 && 選.auto) { 順を聞く = false; continue; }
         if (!選) break;
         const k = 残り8.findIndex((c) => c.row === 選.row && c.col === 選.col);
         if (k < 0) break;

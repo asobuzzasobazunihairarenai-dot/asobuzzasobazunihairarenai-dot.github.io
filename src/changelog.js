@@ -54,6 +54,36 @@ export const CHANGELOG = [
   {
     date: "2026-11-22",
     summary: [
+      "マスを１つずつ選ぶ場面に「**おまかせ**」のボタンが出るようになりました",
+      "「増殖する木々」の到達効果でも、**置く順番**を選べるようになりました",
+      "盤面の「これ以上選ばない」「おまかせ」のボタンが、**スマホでも読める大きさ**になりました",
+    ],
+    summaryEn: [
+      "An “Auto” button now appears when an effect asks you to pick cells one at a time",
+      "Growing Trees now lets you choose the order it places cards, too",
+      "The “Stop choosing” and “Auto” buttons are now readable on a phone",
+    ],
+    items: [
+      "マスを１つずつ選ばせる効果に「**おまかせ（残りはおすすめ順）**」のボタンが出るようになりました。途中まで自分で選んで、あとは任せる、という使い方ができます。⚠ 出るのは**あなたが選ぶ番の時だけ**です。",
+      "「増殖する木々」の到達効果でも、**どのマスから置くか**を選べるようになりました（「偉大なる大号令」と同じ形）。⚠ **山札の並びが分かる時だけ**聞きます——山札が尽きて捨て場をそのまま裏返した後など、順番が意味を持つ場面です。分からない時は今までどおり自動で置きます。",
+      "盤面の上に出る「これ以上選ばない」「おまかせ」のボタンが、**画面の大きさに関係なく同じ大きさ**で出るようになりました。スマホ横では実測で **70x17px**（字は実質6px）＝押すことも読むこともできない大きさだったのが、**206x30px** になりました。",
+    ],
+    itemsEn: [
+      "Effects that ask you to pick cells one at a time now show an “Auto (use the suggested order)” button, so you can choose the first few yourself and leave the rest. It only appears on your own turn to choose.",
+      "Growing Trees now also lets you choose which cell it places on first, like Great Decree. You are only asked when the deck order is actually knowable (for example after the discard pile has been flipped over to become the deck); otherwise it places automatically as before.",
+      "The “Stop choosing” and “Auto” buttons that appear over the board now keep the same physical size on any screen. On a landscape phone they measured 70x17px (about 6px text) — too small to read or tap; they are now 206x30px.",
+    ],
+    devItems: [
+      "🔴🔴 **「おまかせ」ボタンは既に在った。** `#card-effect-auto-button` と `showEffectAutoButton` / `hideEffectAutoButton` は 2026-09-28 に作られていたが、**どこからも呼ばれていなかった**（実際の「おまかせ」は手札の並び替えモーダルの中の別のボタン）。CSS も在った。⇒ **新しく作らず、眠っていたこれを使った**。**教訓（続き782 ⑤の再掲）: 「無い」と思ったら、足す前に grep する。** 私は一度新しく作ってしまい、`Identifier 'effectAutoButtonEl' has already been declared` で気づいた（続き782 と**まったく同じ形**）。",
+      "🔴 **押した時に返すのは「場所」ではなく「印」**（`{ auto: true }`）。main.js 側に「このあとずっとおまかせ」という状態を持つと、**いつ消すか**（効果が終わった時・途中で止まった時・オンラインの委任が切れた時）をどこかで必ず取りこぼす。印なら**その効果のループの中だけ**で完結する。⚠ 印は場所ではないので「このマスでいいですか？」は出さずに返す。",
+      "⚠ **押下は自前の当たり判定で拾う**（スキップボタンと同じ）。マス選択中の pointerdown は preventDefault/stopPropagation するので、**ボタン自身の click は届かない**（教訓4）。眠っていた `showEffectAutoButton` は click 前提だったので、`onClick` も渡しつつ**当たり判定の側でも拾う**形にした（Promise の resolve は1回しか効かないので二重でも安全）。",
+      "🔴 **撮って気づいた: ボタンがスマホで押せない大きさだった。** 実測 70x17px・字は実質6px——このアプリは body ごと縮小するので、`position: fixed` のボタンも**一緒に縮む**（#453・#569・#721 と同じ家族）。⇒ `--stage-scale` で割って打ち消す（ミニロック・図鑑の札が既に使っている手）。⚠ 上限 2.4／PC（倍率1）では `max(1, …)` が 1 ＝**今までと1pxも変わらない**。⚠ **スキップボタンも同じ病気**だったので一緒に直した（並んで出るので片方だけ大きいと不揃い）。",
+      "⚠ 増殖する木々の到達（`ALL_WITHIN_RANGE`）は**マスを選ばない**効果なので、置く**順**だけを聞く形にした（置く先の集合は変えていない）。**山札から置く時だけ**・**並びが分かる時だけ**（続き791 のユーザー判断）。選び残しがあっても**1マスも落とさない**（残りは元の並びのまま後ろへ足す）。",
+    ],
+  },
+  {
+    date: "2026-11-22",
+    summary: [
       "手札をまとめて捨てる時、**捨てる順番**を選べるようになりました",
     ],
     summaryEn: [

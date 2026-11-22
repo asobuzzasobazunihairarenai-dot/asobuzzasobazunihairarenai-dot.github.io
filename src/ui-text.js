@@ -2285,6 +2285,8 @@ const UI = {
     "game.pick.lockSlotCard": "このスロットのカード（使うカードを選んでください）",
     "game.pick.handPhaseCard": "ハンドフェイズで使うカードを選んでください",
     "game.pick.stackedCard": "使うカードを選んでください（下から上の順）",
+    // 🔴【#744 / #765・続き801】1マスずつ選ばせる画面で、残りをこちらに任せるボタン。
+    "game.pick.autoRest": "おまかせ（残りはおすすめ順）",
     "game.pick.noMore": "これ以上選ばない",
     "game.pick.discardOrderConfirm": "これで捨てる（{n}/{total}枚）",
     "game.pick.discardOrderConfirmAny": "これで捨てる（{n}枚）",
@@ -4810,6 +4812,7 @@ const UI = {
     "game.pick.lockSlotCard": "Cards in this slot (choose the one to use)",
     "game.pick.handPhaseCard": "Choose a card to use in the Hand phase",
     "game.pick.stackedCard": "Choose a card to use (bottom to top)",
+    "game.pick.autoRest": "Auto (use the suggested order)",
     "game.pick.noMore": "Stop choosing",
     "game.pick.discardOrderConfirm": "Discard in this order ({n}/{total})",
     "game.pick.discardOrderConfirmAny": "Discard these ({n})",
