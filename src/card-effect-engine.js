@@ -3381,10 +3381,18 @@ async function runAction(action, ctx, helpers) {
           await helpers.discardAndSync(token.id, { batchNotice: true });
         }
         if (捨てた.length > 0) helpers.revealDiscardedCards?.(p, 捨てた);
-        await helpers.drawCards(p, action.count);
+        await helpers.drawCards(p, Number(action.count) || 0);
       }
       // お知らせ（ユーザー要望）: 全員の手札が変わったこと。
-      await helpers.announceEffectReason?.(ctx.cardId, t("ce.discardAllAndDraw", { n: action.count }));
+      // 🔴【続き804】**0枚の時は引く話をしない。** 旧0th いろ落ちガエル● は「全員は手札を
+      //   すべて捨てる。」だけで、ドローは1文字も書かれていない（`count: 0` で使っている）。
+      //   ⚠ `action.count` が無い時も0枚として扱う——印の名前を書き間違えた時に
+      //     「undefined 枚ドローしました」と出るのが、この札で実際に起きていた。
+      const 引いた枚数 = Number(action.count) || 0;
+      await helpers.announceEffectReason?.(
+        ctx.cardId,
+        引いた枚数 > 0 ? t("ce.discardAllAndDraw", { n: 引いた枚数 }) : t("ce.discardAllNoDraw")
+      );
       return true;
     }
     case VERBS.DISCARD_OWN_HAND_DOWN_TO: {

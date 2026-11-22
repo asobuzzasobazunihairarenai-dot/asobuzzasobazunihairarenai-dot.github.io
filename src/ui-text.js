@@ -1337,6 +1337,8 @@ const UI = {
     "ce.lowestWealthDraw": "{name}は財力が１番小さいので{n}枚ドローします。",
     "ce.swappedHands": "{a}と{b}は手札を1枚ずつ交換しました。",
     "ce.discardAllAndDraw": "全員が手札を全て捨てて、{n}枚ドローしました。",
+    // 🔴【続き804】旧0th いろ落ちガエル●＝捨てるだけでドローしない札（count: 0）。
+    "ce.discardAllNoDraw": "全員が手札を全て捨てました。",
     "ce.pickDiscardOrder": "捨てる順にカードを押してください（もう一度押すと外れます）",
     "ce.tapAgainToUnselect": "（もう一度押すと外れます）",
     "ce.forestPickCellOrder": "捨てる順にマスを押してください（{i}/{n}）",
@@ -3868,6 +3870,7 @@ const UI = {
     "ce.lowestWealthDraw": "{name} has the lowest Wealth, so they draw {n} card(s).",
     "ce.swappedHands": "{a} and {b} each swapped one card from their hand.",
     "ce.discardAllAndDraw": "Everyone discarded their whole hand and drew {n} card(s).",
+    "ce.discardAllNoDraw": "Everyone discarded their whole hand.",
     "ce.pickDiscardOrder": "Tap the cards in the order you want to discard them (tap again to unselect)",
     "ce.tapAgainToUnselect": " (tap again to unselect)",
     "ce.forestPickCellOrder": "Tap the squares in the order you want to discard them ({i}/{n})",

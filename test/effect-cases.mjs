@@ -499,6 +499,46 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【続き804】`ALL_PLAYERS_DISCARD_HAND_AND_DRAW` に **`drawCount: 0`** と書いていて、
+    //   あの動詞が読むのは `count` だったので**印が1つ効いていなかった**
+    //   （引く枚数はたまたま0になるが、お知らせが「undefined 枚ドローしました」）。
+    //   `tools/check-action-flags.mjs` が見つけた。印字は「全員は手札をすべて捨てる。」
+    //   ＝**ドローは1文字も書かれていない**ので、1枚でも引いたら間違い。
+    //   ⚠ 「引かない」は**山札の枚数**で見る（手札だけ見ると、引いてまた捨てた0枚と区別できない）。
+    //   ⚠ 役割分担: **印の名前の食い違い**を捕まえるのは `check-action-flags.mjs`（静的）で、
+    //     こちらは**挙動**（1枚も引かない）を留める。エンジン側は `Number(action.count) || 0` と
+    //     書いてあるので、名前を間違えても「undefined 枚」とは出なくなった＝この検査だけでは
+    //     名前の間違いは見つからない。
+    name: "旧0th いろ落ちガエル(到達): 全員が手札をすべて捨てる。１枚も引かない",
+    kind: "arrival",
+    cardId: "0th-black-faded-frog",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 1, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-black-faded-frog", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "a1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "a2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "C" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-black-faded-frog", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // ⚠ 後半（GIVE_SELF_TO_FEWEST_LOCKED）は誰に渡すか聞く（A も C もロック0枚）。
+    picks: { player: ["C"] },
+    expect: [
+      { kind: "handCount", player: "A", n: 0 },
+      // ⚠ C は1枚（**渡されたこの札だけ**）。最初に持っていた1枚は捨てている。
+      //   0枚と書いて落ちた＝私の数え方の間違い。
+      { kind: "handCount", player: "C", n: 1 },
+      // 🔴 ここが本体: **山札が1枚も減っていない**（＝誰も引いていない）。
+      { kind: "deckLen", n: 3 },
+      // これ自身は1番少なくロックしている人の手札へ（＝自分の手札には戻らない）。
+      { kind: "tokenZone", id: "self", zone: "hand" },
+    ],
+  },
+  {
     name: "旧0th 神鳴(到達): 自分のゲートへ強制移動し、移動先のカードはオープンしない",
     kind: "arrival",
     cardId: "0th-yellow-thunder",

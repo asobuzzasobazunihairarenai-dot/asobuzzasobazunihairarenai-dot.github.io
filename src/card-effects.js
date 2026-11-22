@@ -2765,7 +2765,10 @@ export const CARD_EFFECTS = {
   //   ● 「全員は手札をすべて捨てる。１番少なくロックしているプレイヤーを１人選ぶ。
   //      これをそのプレイヤーの手札に加える。」
   //     ⚠ これ自身は渡すので、自分の手札には加えない。
-  //     ⚠ 全員が捨てる処理は既にある動詞（色落ちキャットと同じ）を drawCount 0 で使う。
+  //     ⚠ 全員が捨てる処理は既にある動詞（色落ちキャットと同じ）を count 0 で使う。
+  //     🔴【続き804】ここは `drawCount: 0` と書いていた。あの動詞が読むのは **`count`** なので
+  //       **印が1つ効いていなかった**（引く枚数はたまたま0になるが、お知らせが
+  //       「undefined 枚ドローしました」になっていた）。`tools/check-action-flags.mjs` が見つけた。
   //   ■ 「１番多くロックしている全員は、自分のロックしている１枚を選んで捨てる。
   //      あなたの手札をすべて捨てる。」
   // なないろのあめ（白）
@@ -2780,7 +2783,7 @@ export const CARD_EFFECTS = {
     arrival: {
       addsCardToHandAfter: false,
       actions: [
-        { verb: VERBS.ALL_PLAYERS_DISCARD_HAND_AND_DRAW, drawCount: 0 },
+        { verb: VERBS.ALL_PLAYERS_DISCARD_HAND_AND_DRAW, count: 0 },
         { verb: VERBS.GIVE_SELF_TO_FEWEST_LOCKED },
       ],
     },
