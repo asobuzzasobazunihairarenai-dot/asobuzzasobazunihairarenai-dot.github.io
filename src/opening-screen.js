@@ -37,6 +37,7 @@ import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { startTitlePetWalk } from "./title-pet.js";
 import { t } from "./ui-text.js";
+import { logAction } from "./action-log.js"; // 【続き800】燃える演出が実機で重い時に、その数字を残す
 import { isUiV2 } from "./ui-v2.js"; // 【続き706】タイトル画面の v2 の構図
 import { getLang, setLangWithNotice, onLangChange, SUPPORTED_LANGS, LANG_LABEL } from "./i18n.js";
 import { RULE_VIDEO_SHORT_ID, ruleVideoUrl } from "./rule-videos.js";
@@ -123,7 +124,11 @@ function buildHueriseBurn(色, 時間ms) {
       //   収まってしまい、ふちが歪まずただ平行移動するだけ**だった＝ほぼ真円に見えた。
       //   細かくして5オクターブ＝大きなうねりと細かい毛羽立ちが同時に出る（紙の繊維）。
       baseFrequency: "0.055 0.048",
-      numOctaves: 5,
+      // 🔴【続き800】5 → 3。乱流は**画素ごとに octave の数だけ**計算するので、
+      //   ここが実機の重さに直結する（iPhone で1コマ目が何秒もかかると、時間で進める
+      //   この演出は**開いた時にはもう穴が大きい**＝「燃える前にタイトルが出た」に見える）。
+      //   3 でも大きなうねりと毛羽立ちは出る（撮って確かめた）。
+      numOctaves: 3,
       seed: Math.floor(Math.random() * 9999),
       result: "noise",
     });
@@ -241,27 +246,55 @@ function buildHueriseBurn(色, 時間ms) {
     // ⚠ **じわじわ**（ユーザー指定）。最初はゆっくり、後になるほど速く＝実際の紙の燃え方。
     //   rAF で回す（CSS の @property でも動くが、同じコマで半径とフィルタの強さの両方を
     //   動かしたいので、1か所で決める方が合う）。
-    const 始まり = performance.now();
+    // 🔴🔴【続き800】**時計は「最初に本当に描けたコマ」で合わせ直す。**
+    //   ここが iPhone の報告（「燃える演出の前からタイトル画面が表示されちゃってます」）の本体。
+    //   前は `performance.now()` をこの行で取っていたので、**1コマ目の描画に時間がかかる端末では、
+    //   最初に目に入ったコマで既に穴が大きく開いていた**（例: 1コマ目に2秒かかると、
+    //   その時点で進み具合 (2000/3800)^1.75 ≒ 0.32 ＝ 半径170px）。
+    //   ⇒ **1コマ目が来た時刻を始まりにする。** こうすれば、どれだけ重い端末でも
+    //     演出は必ず「穴ゼロ」から始まる（終わりが間に合わず途中で切れることはあっても、
+    //     **始まりを飛ばすことはなくなる**）。
+    let 始まり = null;
     let 止める = false;
     // 🔴 **遅い端末では乱流をあきらめる保険。** feDisplacementMap は画素ごとの計算なので、
-    //   古い端末だとコマ落ちする可能性がある。最初の8コマの間隔を見て、明らかに重ければ
+    //   古い端末だとコマ落ちする可能性がある。最初の数コマの間隔を見て、明らかに重ければ
     //   フィルタを外す（＝ふちは真円になるが、カクカクするよりはよい）。
     //   ⚠ 0しか出ない見張りではない（わざと遅くすれば必ず外れる）。
+    // 【続き800】**8コマ → 4つの間隔**。8コマ待つ間に演出の大半が終わってしまう端末が在る
+    //   （1コマ 500ms なら 8コマ＝4秒＝演出より長い）。早く捨てるほど効く。
+    // 🔴 **1コマ目は数えない。** 時計をそこで合わせ直すので間隔が必ず 0 になり、
+    //   平均に 0 が混ざって**1回のひっかかりだけでフィルタが落ちる**（撮った絵で気づいた
+    //   ——ふちが真円になっていた）。2コマ目以降の間隔だけを見る。
+    const 見る間隔数 = 4;
     let コマ数 = 0;
-    let 前の時刻 = 始まり;
+    let 前の時刻 = 0;
     let 合計間隔 = 0;
     let フィルタを外した = false;
+    // ⚠ ひっかかり（1コマが極端に長い）を飲む budget。飲んだ分だけ始まりを後ろへずらす＝
+    //   その間 演出は「止まる」だけで、**飛ばない**。飲みすぎると終わりが間に合わないので上限つき。
+    const 飲める合計 = 600;
+    let 飲んだ = 0;
+    let 前のうねり = -1;
     const 進む = (now) => {
       if (止める) return;
-      if (!フィルタを外した && コマ数 < 8) {
-        合計間隔 += now - 前の時刻;
-        前の時刻 = now;
+      if (始まり === null) { 始まり = now; 前の時刻 = now; }
+      const 間隔 = now - 前の時刻;
+      // ⚠ 1コマ目（間隔 0）は数えない。2コマ目から 4つの間隔を見る。
+      if (!フィルタを外した && 始まり !== now && コマ数 < 見る間隔数) {
+        合計間隔 += 間隔;
         コマ数++;
-        if (コマ数 === 8 && 合計間隔 / 8 > 60) {
+        if (コマ数 === 見る間隔数 && 合計間隔 / 見る間隔数 > 60) {
           burning.removeAttribute("filter");
           フィルタを外した = true;
+          try { logAction("diag-huerise-burn", { 外した: true, 平均間隔: Math.round(合計間隔 / 見る間隔数) }); } catch (err) {}
         }
       }
+      if (間隔 > 180 && 飲んだ < 飲める合計) {
+        const 飲む = Math.min(間隔 - 180, 飲める合計 - 飲んだ);
+        始まり += 飲む;
+        飲んだ += 飲む;
+      }
+      前の時刻 = now;
       const t = Math.min(1, (now - 始まり) / 時間ms);
       const p = Math.pow(t, 1.75); // じわじわ始まって、終わりに一気に広がる
       const r = p * 終わりの半径;
@@ -281,7 +314,11 @@ function buildHueriseBurn(色, 時間ms) {
       bloomIn.setAttribute("offset", (R2 > 0 ? Math.max(0, (r + BLOOM_IN) / R2) : 0).toFixed(4));
       bloomPeak.setAttribute("offset", (R2 > 0 ? Math.max(0, (r + BLOOM_PEAK) / R2) : 0).toFixed(4));
       // 広がるほど炎のふちは大きくうねる（小さいうちに強く振ると形が崩れる）。
-      disp.setAttribute("scale", String(10 + 34 * p));
+      // 🔴【続き800】**毎コマ書き換えない。** フィルタの属性を触るたびに、ブラウザは
+      //   乱流（いちばん高い所）まで含めて**フィルタを丸ごと焼き直す**。段（8刻み）にして
+      //   書き換えの回数を 1/10 以下に落とす。見た目の差は撮っても分からない。
+      const うねり = Math.round((10 + 34 * p) / 8) * 8;
+      if (うねり !== 前のうねり) { 前のうねり = うねり; disp.setAttribute("scale", String(うねり)); }
       if (t < 1) requestAnimationFrame(進む);
     };
     requestAnimationFrame(進む);
@@ -1196,7 +1233,23 @@ export function initOpeningScreen() {
         燃やせた = true;
       }
     }
-    startGate.classList.add(燃やせた ? "is-burning" : "is-closing");
+    // 🔴🔴【続き800】燃える時は、**SVG の紙が実際に1回描かれてから**ゲートの白を手放す。
+    //   `is-burning` はゲートの地を即座に透明にするので、SVG の最初の描画が遅れる端末だと
+    //   その隙間でタイトルが丸見えになる（iPhone の報告）。2コマ待てば1回は描かれている。
+    //   ⚠ 保険として 300ms で必ず手放す（rAF が来ない状況でも演出が止まらないように）。
+    //   ⚠ 燃えない時（既定のフェード）は今までどおり即座。
+    if (燃やせた) {
+      let 渡した = false;
+      const 渡す = () => {
+        if (渡した) return;
+        渡した = true;
+        startGate.classList.add("is-burning");
+      };
+      requestAnimationFrame(() => requestAnimationFrame(渡す));
+      setTimeout(渡す, 300);
+    } else {
+      startGate.classList.add("is-closing");
+    }
     // ⚠ 人魂は止める（止めないと、薄れていく紙の上で動き続けて目が散る）。
     stopAuras();
     // 🔴 **何が起きても必ず消える**: この setTimeout は、SVG が動くかどうかに関係なく走る。

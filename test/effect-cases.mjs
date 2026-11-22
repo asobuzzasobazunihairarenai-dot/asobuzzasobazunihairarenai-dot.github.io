@@ -247,6 +247,134 @@ export const CASES = [
     ],
   },
   {
+    name: "旧0th 富裕層の気まぐれ(到達): #756 手札3枚以上の人だけに、手札専用の委任で聞く",
+    kind: "arrival",
+    cardId: "0th-green-rich-whim",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-green-rich-whim", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "a1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "a2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "a3", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        // C は2枚＝「手札が３枚以上ある全員は」に当たらない
+        { id: "c1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "C" } },
+        { id: "c2", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "C" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-green-rich-whim", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [true] },
+    expect: [
+      // 🔴 手札専用の委任（山札からは置けない）
+      { kind: "called", name: "delegateToPlayer", arg: "rich-whim-place", n: 1 },
+      // 🔴 対照: 合同建設の委任は**1回も**使わない（使い回しに戻ったら落ちる）
+      { kind: "called", name: "delegateToPlayer", arg: "joint-construction", n: 0 },
+      // 手札2枚の C には聞かない＝委任は全部で1回だけ
+      { kind: "called", name: "delegateToPlayer", n: 1 },
+    ],
+  },
+  {
+    name: "旧0th 強欲なパレット(到達): #769 手札をすべて捨てる時、捨てる順を聞く",
+    kind: "arrival",
+    cardId: "0th-black-greedy-palette",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-black-greedy-palette", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "h1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "h2", kind: "card", cardId: "green-growing-trees", location: { zone: "hand", player: "A" } },
+        { id: "h3", kind: "card", cardId: "blue-bus-stop", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-black-greedy-palette", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 捨てる順を h3 → h1 → h2 にする（捨て場はそのまま裏返して山札になるので順が効く）
+    picks: { handCardsOrdered: [["h3", "h1", "h2"]] },
+    expect: [
+      { kind: "called", name: "pickHandCardsOrdered", n: 1 },
+      // 🔴 **選んだ順で積まれている**（順を無視して元の並びで捨てたら落ちる）
+      { kind: "pileOrder", pile: "discard", cards: ["blue-bus-stop", "red-jump-pad", "green-growing-trees"] },
+      // 1枚も残さない（残る1枚は**強欲なパレット自身**＝到達したカードは手札に加わる）
+      { kind: "handCount", player: "A", n: 1 },
+      { kind: "handHasCard", player: "A", cardId: "0th-black-greedy-palette" },
+    ],
+  },
+  // ─── 続き800 の直し（不具合報告 #768 / #763 / #767）の回帰 ───
+  {
+    name: "旧0th ダッシュ(手札): #768 宣言すると、このターン１マス多く歩ける（ハンドフェイズはムーブの前）",
+    kind: "hand",
+    cardId: "0th-red-dash",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-red-dash", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-red-dash", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      // 🔴 これが false に戻ったら、また**一度も使えない札**になっている。
+      { kind: "handUsable", value: true },
+      // 「一気に」ではなく**1マスずつ2回**（#722 の決まり）。
+      { kind: "moveBoost", player: "A", active: true, atOnce: false },
+    ],
+  },
+  {
+    name: "旧0th 欲しがりの吊り橋(到達・戻る): #763 戻った先のカードはオープンしない",
+    kind: "arrival",
+    cardId: "0th-blue-greedy-bridge",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-blue-greedy-bridge", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "back", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    movedFrom: { A: { row: 3, col: 2 } },
+    ctx: { player: "A", cardId: "0th-blue-greedy-bridge", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["0th-bridge-back"] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 2 },
+      // 🔴 印字「移動先のカードはオープンしない。」
+      { kind: "tokenFaceDown", id: "back" },
+    ],
+  },
+  {
+    name: "旧0th ちょっと待った！(到達): #767 もう通ったマスでも戻れる（オープンしない＝ループにならない）",
+    kind: "arrival",
+    cardId: "0th-purple-wait",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-wait", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "back", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    movedFrom: { A: { row: 3, col: 2 } },
+    // 🔴 CPU の上限は2。戻り先を**既に2回通ったことにする**＝直す前はここで弾かれていた
+    //   （報告「ちょっと待ったへの２回目の到達時、戻らなかった」）。
+    cpuDriving: true,
+    visited: [{ row: 3, col: 2 }, { row: 3, col: 2 }],
+    ctx: { player: "A", cardId: "0th-purple-wait", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 戻ったあとの「１マス移動する。」で (3,3) へ戻す（本人が選ぶ）。
+    picks: { location: [{ row: 3, col: 3 }] },
+    expect: [
+      // 戻れている（弾かれていない）
+      { kind: "tokenFaceDown", id: "back" },
+      { kind: "pieceAt", player: "A", row: 3, col: 3 },
+    ],
+  },
+  {
     name: "旧0th 神鳴(到達): 自分のゲートへ強制移動し、移動先のカードはオープンしない",
     kind: "arrival",
     cardId: "0th-yellow-thunder",

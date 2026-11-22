@@ -4115,6 +4115,10 @@ function dismissDeclaredColorsIndicator() {
 // 呼び出し（引数なし＝従来通り）は、今までどおりすぐ消す。
 // outcome: { hit: boolean, color: 当たった色 } を card-effect-engine.js から受け取る。
 async function announceColorsResolvedForEffect(outcome = null) {
+  // 🔴【#772・続き800】**出ていないなら何もしない。** 効果が終わる所から無条件に
+  //   呼べるようにするため（card-effect-engine.js の runHandEffectOption）。
+  //   ここで早返りしないと、宣言していない札でも毎回「消してよい」を配信してしまう。
+  if (!declaredColorsIndicatorEl) return;
   const el = declaredColorsIndicatorEl;
   if (el && outcome && typeof outcome.hit === "boolean" && !isArrivalEffectDisabled()) {
     el.classList.add("is-resolving");
@@ -4600,6 +4604,52 @@ function requestPlaceSourceChoiceForEffect() {
 // 合同建設専用のタスクハンドラ。「何もない2マスに山札または手札から1枚ずつ裏向きで
 // 置く」を、実際にこのプレイヤー本人の画面で（自分の番なら直接、他プレイヤーの番なら
 // delegateToPlayerForEffect経由で）解決する。
+// 🔴【#756・続き800】旧0th「富裕層の気まぐれ」●の委任。合同建設とは**別の札**なので別の関数にする。
+//   印字:「手札が３枚以上ある全員は、**自分の手札から**１枚を、**カードの置かれていない**
+//        任意のマスに裏向きで置く。**置けなかったカードは捨てる。**」
+//   ⚠ 合同建設との違いは3つ: ①山札からは置けない ②**駒が居るマスも選べる**（「何もないマス」
+//     とは別。用語集では「カードの置かれていないマス」＝駒の有無を問わない）③置けなければ捨てる。
+//   ⚠ 手札が3枚以上かは**頼む側（card-effect-engine.js）が見る**ので、ここでは見ない。
+async function runRichWhimPlaceTask(player) {
+  const 手札 = getState().tokens.filter(
+    (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+  );
+  if (手札.length === 0) return false;
+  // 「カードの置かれていないマス」＝カードが無ければよい（駒は居てもよい）。
+  const 候補 = [];
+  for (let row = 0; row <= 6; row++) {
+    for (let col = 0; col <= 6; col++) {
+      const カードあり = getState().tokens.some(
+        (t) => t.kind === "card" && t.location.zone === "cell" && t.location.row === row && t.location.col === col
+      );
+      if (!カードあり) 候補.push({ zone: "cell", row, col });
+    }
+  }
+  if (isCpuBrainDriving(player)) {
+    const 札 = 手札[0];
+    if (候補.length === 0) {
+      await discardFromHandReveal(札.id); // 「置けなかったカードは捨てる。」
+      return true;
+    }
+    const 先 = chooseEmptyCellToPlace(候補, player) ?? 候補[0];
+    await moveAndSyncForEffect(札.id, { zone: "cell", row: 先.row, col: 先.col });
+    return true;
+  }
+  const 札 = await requestHandCardChoiceForEffect(player, t("game.pick.placeFromHand"));
+  if (!札 || isDelegationExpired()) return false;
+  if (候補.length === 0) {
+    // 🔴 印字の「置けなかったカードは捨てる。」。黙って終わらせない（#659・#716 の家族）。
+    await discardFromHandReveal(札.id);
+    await announceEffectChoiceForEffect("0th-green-rich-whim", player, t("ce.0thRichWhimDiscarded"));
+    return true;
+  }
+  const 先 = await requestCellChoiceForEffect(候補, t("game.pick.cardlessCell"));
+  if (!先 || isDelegationExpired()) return false;
+  await moveAndSyncForEffect(札.id, { zone: "cell", row: 先.row, col: 先.col });
+  await announceEffectChoiceForEffect("0th-green-rich-whim", player, t("game.place.handFaceDown"));
+  return true;
+}
+
 async function runJointConstructionTask(player) {
   // ユーザー要望によりマス数を２→１に変更（続き51）。
   const emptyCells = getEmptyCellCandidatesForEffect();
@@ -4820,6 +4870,7 @@ async function runPartyOptionTask(player) {
 //   ものだけにする）。昔からある4つのタスクは引数を使わないので、渡さなければ今までどおり。
 async function runDelegatedArrivalTask(player, taskType, taskArg) {
   if (taskType === "joint-construction") return runJointConstructionTask(player);
+  if (taskType === "rich-whim-place") return runRichWhimPlaceTask(player); // 【#756・続き800】旧0th 富裕層の気まぐれ●
   if (taskType === "slum-official-discard") return runSlumOfficialDiscardTask(player);
   if (taskType === "party-option") return runPartyOptionTask(player);
   if (taskType === "discard-hand-ordered") return runDiscardWholeHandOrderedTask(player);

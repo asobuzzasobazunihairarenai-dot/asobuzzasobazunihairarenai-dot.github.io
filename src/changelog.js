@@ -54,6 +54,48 @@ export const CHANGELOG = [
   {
     date: "2026-11-22",
     summary: [
+      "手札をまとめて捨てる時、**捨てる順番**を選べるようになりました",
+    ],
+    summaryEn: [
+      "You can now choose the order when an effect discards your whole hand",
+    ],
+    items: [
+      "「手札をすべて捨てる」効果で、**どの順で捨てるか**を選べるようになりました。捨て場は山札が尽きた時に**そのまま裏返して山札になる**（混ぜ直しません）ので、どの順で積むかが次の一手の価値を変えます。⚠ 「半分捨てる」「N枚になるように捨てる」など、ほかの複数枚を捨てる効果は**もともと選べていました**。全部を見直して、聞いていなかったのはここだけでした。",
+    ],
+    itemsEn: [
+      "When an effect discards your entire hand, you can now choose the order. The discard pile is flipped over to become the new deck when the deck runs out (it is not reshuffled), so the order you stack them in changes what comes next. Other multi-card discards (discard half, discard down to N, and so on) already let you choose.",
+    ],
+    fixes: [
+      "HUERISE の画面をタップした時、燃える演出が始まる前に次の画面が見えてしまうことがあったのを直しました。",
+      "旧0th「ダッシュ」の手札効果が使えなかったのを直しました。",
+      "旧0th「欲しがりの吊り橋」「ちょっと待った！」で、戻った先のカードが開いてしまっていたのを直しました。",
+      "旧0th「ちょっと待った！」に２回目に止まった時、戻れなかったのを直しました。",
+      "旧0th「情報開示」の手札効果に、ザ・ギャンブルのような当たり外れの演出が出ていたのをやめました。",
+      "旧0th「富裕層の気まぐれ」で、山札からも置けてしまっていたのを直しました。",
+      "色を宣言したあと、画面の左に表示が残り続けることがあったのを直しました。",
+    ],
+    fixesEn: [
+      "On the HUERISE screen, the next page could appear before the burn animation started. Fixed.",
+      "The hand effect of 0th EDITION “Dash” could not be used. Fixed.",
+      "0th EDITION “Greedy Bridge” and “Wait a Moment!” opened the card you were sent back onto. Fixed.",
+      "Landing on 0th EDITION “Wait a Moment!” a second time did not send you back. Fixed.",
+      "The hand effect of 0th EDITION “Disclosure” played the win/lose fanfare of The Gamble. Removed.",
+      "0th EDITION “Whim of the Rich” also offered placing a card from the deck. Fixed.",
+      "The declared-colour display could stay stuck on the left side of the screen. Fixed.",
+    ],
+    devItems: [
+      "🔴🔴 **#768「ダッシュの手札効果が使えない」の正体は、フェイズの順番だった。** このゲームのフェイズは **lock → hand → move**（`PHASES`）で、ハンドフェイズはムーブフェイズの**前**。だから `requiresNormalMoveThisTurn`（このターンに通常の移動をしたか）は自分のハンドフェイズでは**原理的に一度も真にならない** ＝ あの札は**一度も使えなかった**。⇒ 「宣言しておいて、このターンの通常の移動のあとに１マス多く歩ける」形（`ANNOUNCE_MOVEMENT_BOOST_THIS_TURN` の `plain`＝貧民の行進■・ジョイナールと同じ）に直した。接触で終えたターンは歩数を使わないので「通常の移動をしたなら」はそのまま守られる。**教訓: 条件を書く前に、その条件が真になり得る順番かを見る。**",
+      "🔴🔴 **#763 と #767 は同じ1行だった。** `FORCED_MOVE_TO_PREVIOUS_CELL` が `action.noArrival` を**まるごと無視していた**（印字「移動先のカードはオープンしない。」があり、データにも入っているのに読んでいなかった）。⇒ ①戻った先を開けない ②**開けないならループの見張りに掛けない**（そこから連鎖が伸びないので、ループになりようがない）。②が無いと、2回目の到達で「もう通ったマス」と見なされて**戻れなかった**（#767）。⚠ リーチキャンセルは印字に「オープンしない」が無い＝`noArrival` を付けていないので、今までどおり。",
+      "🔴 **#756 の正体は、委任の使い回し。** 富裕層の気まぐれ●は**合同建設専用**の委任（`joint-construction`）をそのまま使っていたので、印字と**4つ**食い違っていた: ①「山札から/手札から」の2択が出る（印字は手札だけ）②「何もないマス」しか選べない（印字は**カードの置かれていない**マス＝駒が居てもよい）③`minHandSize: 3` を**誰も読んでいなかった** ④「置けなかったカードは捨てる。」が**まるごと無かった**。⇒ 専用の委任（`rich-whim-place`）に分けた。合同建設は1行も変えていない。",
+      "🔴 **#772「色宣言モーダルが画面左に残る」は、消す所を動詞ごとに書いていたから。** 宣言色の常駐表示は `announceColorsResolved` で消えるが、**呼んでいない動詞が在った**（予言者の技■・強欲なパレット■）。⇒ **手札効果が終わる所1か所で必ず片付ける**ようにした。色を宣言する札がこれから増えても自動で守られる（ユーザー要望「次回以降新カードが追加される時も同様です」）。⚠ 表示が出ていない時は何もしない（main.js 側で早返り）。",
+      "🔴 **#769 の総点検の結果**: 複数枚を捨てる動詞のうち、順番を聞いていなかったのは `DISCARD_OWN_HAND`（手札をすべて捨てる）**だけ**だった。`DISCARD_OWN_HAND_DOWN_TO`／`DISCARD_HALF_HAND`／`ALL_PLAYERS_DISCARD_HAND_AND_DRAW`／`ALL_OPPONENTS_DISCARD_HAND`／禁断の果実は**もう聞いていた**。使っている札は強欲なパレット●・いろ落ちガエル■の2枚。",
+      "🔴🔴 **iPhone の「燃える前にタイトルが見える」は、WebKit の描画ではなく\u300c時間で進めていた\u300dせいだった。** 演出は `(now - 始まり) / 3800` で進むので、**1コマ目の描画に2秒かかる端末では、最初に目に入ったコマで既に穴が半径170px**（実測）。⇒ ①**時計を「最初に本当に描けたコマ」で合わせ直す** ②ひっかかりを 600ms まで飲む（止まるだけで**飛ばない**）③乱流の octave を 5→3、強さの書き換えを段にして**フィルタの焼き直しを 1/10 以下**に ④**SVG の紙が1回描かれてから**ゲートの白を手放す（保険 300ms）。⚠ 遅さの見張りは **2〜5コマ目の4つの間隔**で見る——最初「3コマの平均」にしたら、**時計を合わせ直したせいで1コマ目の間隔が必ず0になり**、1回のひっかかりだけで乱流が落ちて**ふちが真円になっていた**（数字では1つも落ちず、**焼いた絵を見て**初めて分かった）。**教訓: 平均を取る時は、0 が混ざる項を数えない。**A/B: わざと戻すと「1コマ目が2秒遅れた時に穴がゼロから始まる」が**両エンジンで落ちる**（半径 163 / 120）。",
+      "⚠ **再現に3回つまずいた（全部こちらの測り方）。** ①headless の WebKit は **rAF がほぼ止まる**（5秒で2コマ）⇒ rAF を自分で汲む形にした ②screenshot が数秒かかるので、終わりの `setTimeout(3800)` が**撮る前に先に走っていた**⇒ 長い timer を引き伸ばしてから測る ③`fs.rmSync(recursive)` がこの環境では**プロセスを黙って殺す**（出力も終了コードも残らない）。**「再現した」と言う前に、測り方のせいでないかを潰す。**",
+    ],
+  },
+  {
+    date: "2026-11-22",
+    summary: [
       "旧0th EDITION のカード効果が、**19種すべて**自動で処理されます",
       "割り込みのカードのボタンが、持っているカードの分だけ出るようになりました",
     ],

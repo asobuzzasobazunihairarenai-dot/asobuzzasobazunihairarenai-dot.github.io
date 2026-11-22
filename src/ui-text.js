@@ -1316,6 +1316,12 @@ const UI = {
     "ce.movedNextTo": "{target}を{name}の隣へ移動させました。このターンあなたは接触できません。",
     "ce.revealRest": "残り{n}枚をすべて公開する",
     "ce.gambleLose": "残念、{name}は橙が出たため手札を全て捨て、このターンは移動できません。",
+    // 🔴【#766・続き800】旧0th 情報開示■。ギャンブルの祝いの代わりに出す静かな一行。
+    "ce.publicDrawDisabled": "{n}枚を公開しました。このターン、これらの手札効果は使えません。",
+    // 🔴【#756・続き800】旧0th 富裕層の気まぐれ●「置けなかったカードは捨てる。」
+    "ce.0thRichWhimDiscarded": "置けるマスが無かったので、そのカードを捨てました。",
+    // 🔴【#756・続き800】「カードの置かれていないマス」＝駒が居てもよい（「何もないマス」とは別）。
+    "game.pick.cardlessCell": "カードの置かれていないマスを選んでください",
     "ce.gambleSafe": "{name}は橙が出ませんでした。手札はそのまま残ります！",
     "ce.moveBoost": "{name}はこのターン、通常の移動を２マス先まで一気に行えます。",
     // 🔴【#714】「一気に」ではない２マス移動（貧民の行進・走書の赤歴　ジョイナール）。
@@ -3847,6 +3853,9 @@ const UI = {
     "ce.movedNextTo": "Moved {target} next to {name}. You can't make contact this turn.",
     "ce.revealRest": "Reveal all {n} remaining",
     "ce.gambleLose": "Bad luck — orange came up, so {name} discards their whole hand and can't move this turn.",
+    "ce.publicDrawDisabled": "Revealed {n} card(s). Their hand effects cannot be used this turn.",
+    "ce.0thRichWhimDiscarded": "There was no cell to place it, so the card was discarded.",
+    "game.pick.cardlessCell": "Choose a cell with no card on it",
     "ce.gambleSafe": "No orange for {name} — their hand is safe!",
     "ce.moveBoost": "This turn {name} may make their normal move up to 2 squares in one go.",
     "ce.moveBoostPlain": "This turn {name} moves 2 squares on a normal move (not in one go, so they cannot pass through a square with no card or with a piece on it).",

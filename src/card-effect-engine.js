@@ -2668,7 +2668,11 @@ async function runAction(action, ctx, helpers) {
       // ギャンブル同様に紙吹雪で祝い、失敗（橙あり）は従来どおり結果モーダルで知らせる。
       // publicDrawReturningTokensはtokenIdを返す（手札効果封じ・橙判定に必要）。中央フリップ
       // 公開（gambleReveal）はcardIdを取るので、引いたtokenからcardIdを引き当てて渡す。
-      helpers.startSuspenseSound?.();
+      // 🔴【#766・続き800】`noConditionalDiscard` の札（旧0th 情報開示■）は**当たり外れが無い**ので、
+      //   ギャンブルの演出（鼓動・「1枚公開/全部公開」のもったいぶり・紙吹雪）を出さない。
+      //   報告「情報開示の2枚ドローはギャンブルと同じにしなくていい。」
+      const ギャンブル風 = !action.noConditionalDiscard;
+      if (ギャンブル風) helpers.startSuspenseSound?.();
       // 【#346】以前は「公開エリアへ引く → 中央でじらしフリップ」の順だったので、フリップの前に
       // カードが手札（公開エリア＝手札の扇の末尾）に見えてしまい、ワクワクが無かった。ザ・ギャンブルが
       // #95 で直したのと同じ helpers.publicDrawThenReveal（山にあるうちに中央でフリップ → 公開エリアへ）と、
@@ -2701,7 +2705,7 @@ async function runAction(action, ctx, helpers) {
       helpers.beginPublicDrawDefer?.();
       try {
         while (remaining > 0) {
-          if (helpers.pickHandEffectOption && remaining > 1) {
+          if (ギャンブル風 && helpers.pickHandEffectOption && remaining > 1) {
             const opt = await helpers.pickHandEffectOption(
               ctx.cardId,
               [
@@ -2725,7 +2729,7 @@ async function runAction(action, ctx, helpers) {
         await helpers.endPublicDrawDefer?.(ctx.player, revealedCardIds);
       }
       const tokenIds = [...publicDrawIdsOf()].filter((id) => !beforeIds.has(id));
-      helpers.stopSuspenseSound?.(); // 結果が出るので鼓動を止める
+      if (ギャンブル風) helpers.stopSuspenseSound?.(); // 結果が出るので鼓動を止める
       if (tokenIds.length === 0) return false;
       for (const tokenId of tokenIds) disableHandEffectForTurn(tokenId);
       // 🔴【続き788】旧0th の**情報開示**（桃）の手札効果は「２枚ドローして公開。それらの手札効果は
@@ -2773,6 +2777,9 @@ async function runAction(action, ctx, helpers) {
           ctx.cardId,
           t("ce.gambleLose", { name: helpers.getPlayerName(ctx.player) })
         );
+      } else if (!ギャンブル風) {
+        // 🔴【#766・続き800】情報開示■。祝う所ではないので、何が起きたかだけを静かに伝える。
+        await helpers.announceEffectReason?.(ctx.cardId, t("ce.publicDrawDisabled", { n: tokenIds.length }));
       } else if (helpers.celebrate) {
         // 橙が出なかった＝手札を捨てずに済んだ（成功）。ザ・ギャンブルの「宣言色が出なかった
         // 時」と同様に紙吹雪＋英語見出しで祝う。
@@ -4842,9 +4849,20 @@ async function runAction(action, ctx, helpers) {
       // （マス・山札か手札か・どのカードか）はhelpers.delegateToPlayerに委ねる
       // （main.js側：自分の番ならその場で、他プレイヤーの番ならオンライン中継で
       // 対象プレイヤー本人の画面に委任する）。
+      // 🔴【#756・続き800】旧0th「富裕層の気まぐれ」●は**合同建設とは別の札**。
+      //   「手札が３枚以上ある全員は、**自分の手札から**１枚を、**カードの置かれていない**
+      //    任意のマスに裏向きで置く。置けなかったカードは捨てる。」
+      //   ⇒ ①手札だけ（山札の選択肢を出さない）②駒が居るマスも選べる
+      //     ③手札が足りない人には聞かない ④置けなければ捨てる
+      //   報告「富裕層の気まぐれで山札からおけるようなモーダルでちゃってる」。
+      const 手札だけ = !!action.handOnly;
+      const 要る枚数 = Number.isFinite(action.minHandSize) ? action.minHandSize : 0;
       let hadEffect = false;
       for (const p of rotatedActivePlayersFrom(ctx.player)) {
-        if (await helpers.delegateToPlayer(p, "joint-construction")) hadEffect = true;
+        // ⚠ 「手札が３枚以上ある全員は」＝足りない人には**そもそも聞かない**（善処の原則）。
+        if (要る枚数 > 0 && getHandTokens(p).length < 要る枚数) continue;
+        const 頼み = 手札だけ ? "rich-whim-place" : "joint-construction";
+        if (await helpers.delegateToPlayer(p, 頼み)) hadEffect = true;
       }
       return hadEffect;
     }
@@ -4930,9 +4948,32 @@ async function runAction(action, ctx, helpers) {
       // 違い、自分の手札だけを全て捨てる。
       const handTokens = getHandTokens(ctx.player);
       if (handTokens.length === 0) return false;
+      // 🔴【#769・続き800】**捨てる順を本人に選ばせる。**
+      //   報告「強欲なパレットは複数枚捨てる効果です。捨てる順を選べるようにしよう！」
+      //   捨て場は山札が尽きた時に**そのまま裏返して山札になる**（シャッフルしない）ので、
+      //   どの順で積むかがそのまま次の一手の価値を変える。
+      //   ⚠ 他の「複数枚捨てる」動詞（DISCARD_OWN_HAND_DOWN_TO / DISCARD_HALF_HAND /
+      //     ALL_PLAYERS_DISCARD_HAND_AND_DRAW / ALL_OPPONENTS_DISCARD_HAND / 禁断の果実）は
+      //     **もう聞いていた**。総点検して、聞いていなかったのはここだけだった。
+      //   ⚠ 1枚以下・CPUの番なら pickHandCardsOrdered 側が画面を出さずに決めるので、
+      //     ここで人間かどうかを気にしなくてよい（禁断の果実と同じ作り）。
+      let 並び = handTokens;
+      if (handTokens.length >= 2 && helpers.pickHandCardsOrdered) {
+        const ordered = await helpers.pickHandCardsOrdered(
+          ctx.player,
+          t("ce.pickDiscardOrderN", { n: handTokens.length }),
+          handTokens.map((tk) => tk.id),
+          { limit: handTokens.length }
+        );
+        if (Array.isArray(ordered) && ordered.length > 0) {
+          // 選ばれなかった札（途中で閉じた等）は元の並びのまま後ろへ足す＝**1枚も残さない**。
+          const 済 = new Set(ordered.map((tk) => tk.id));
+          並び = [...ordered, ...handTokens.filter((tk) => !済.has(tk.id))];
+        }
+      }
       // 【#711】まとめて1つのミニモーダルに（1枚ごとに出すと同じ場所で上書きし合う）。
       const 捨てた全部 = [];
-      for (const token of handTokens) {
+      for (const token of 並び) {
         捨てた全部.push(token.cardId);
         await helpers.discardAndSync(token.id, { batchNotice: true });
       }
@@ -5136,6 +5177,9 @@ async function runAction(action, ctx, helpers) {
         const 色 = getCardDefinition(公開[0])?.color ?? null;
         // 🔴 「なないろの欠片」はすべての色を兼ねる（カードの補足どおり）。
         const 当たり = 色 === "rainbow" || (色 && colors.includes(色));
+        // 🔴【#772・続き800】宣言色の常駐表示（画面左に寄るやつ）は、ここで結果を出して
+        //   片付ける。呼ばないと**画面に残りっぱなしになる**（報告そのもの）。
+        await helpers.announceColorsResolved?.({ hit: !!当たり, color: 色 === "rainbow" ? "rainbow" : 色 ?? null });
         if (!当たり) break;
         当たった回数++;
       }
@@ -6416,6 +6460,13 @@ async function runHandEffectOption(ctx, option, helpers) {
   // ⚠ ここを忘れると「手札効果で動かされた時だけオープンしない」という、
   //   いちばん分かりにくい形で出る（報告そのもの）。
   if (runCtx.arrivedAt) await helpers.handleArrivalDestination?.(runCtx.arrivedAt);
+  // 🔴【#772・続き800】**宣言色の常駐表示をここで必ず片付ける。**
+  //   あれは画面の左へ寄って居座るので、消し忘れるとずっと残る（報告「色宣言モーダルが
+  //   ずっと画面左に残ってます」＝旧0th 強欲なパレット■・予言者の技■）。
+  //   ⚠ **動詞ごとに消すのをやめて、終わる所1か所で消す**。こうすれば、色を宣言する札が
+  //     これから増えても自動で守られる（ユーザー要望「次回以降新カードが追加される時も同様」）。
+  //   ⚠ 表示が出ていない時は何も起きない（main.js 側で早返り）。
+  await helpers.announceColorsResolved?.();
   recordHandEffectUsage(ctx.cardId, ctx.player);
   return true;
 }

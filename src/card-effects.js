@@ -2542,9 +2542,18 @@ export const CARD_EFFECTS = {
   //   ⚠ ■の「通常の移動をしたなら」は**接触を数えない**（requiresNormalMoveThisTurn）。
   "0th-red-dash": {
     arrival: { actions: [{ verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL, self: true }] },
+    // 🔴🔴【#768・続き800】報告「ダッシュの手札効果が使えない」。
+    //   **フェイズの順番は lock → hand → move**（phase-automation.js の PHASES）。
+    //   ハンドフェイズはムーブフェイズの**前**なので、`requiresNormalMoveThisTurn`
+    //   （このターンに通常の移動をしたか）は自分のハンドフェイズでは**原理的に一度も真に
+    //   ならない** ＝ この札は一度も使えなかった。
+    //   ⇒ 「宣言しておいて、このターンの通常の移動のあとに１マス多く歩ける」形にする。
+    //     `ANNOUNCE_MOVEMENT_BOOST_THIS_TURN` の `plain`（＝一気にではなく **1マスずつ2回**）は
+    //     貧民の行進■・走書の赤歴 ジョイナールが既に使っている仕組み。
+    //   ⚠ **接触で終えたターンは歩数を使わない**ので、「通常の移動をしたなら」の条件は
+    //     この形でもそのまま守られる（接触しただけでは1マス多く歩けない）。
     handEffect: {
-      requiresNormalMoveThisTurn: true,
-      actions: [{ verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL, self: true }],
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, plain: true }],
     },
   },
 
@@ -2598,7 +2607,9 @@ export const CARD_EFFECTS = {
   //   ● 「手札が３枚以上ある全員は、自分の手札から１枚を、カードの置かれていない任意のマスに
   //      裏向きで置く。置けなかったカードは捨てる。」 ■ 「上記の到達効果を得る。」
   "0th-green-rich-whim": {
-    arrival: { actions: [{ verb: VERBS.ALL_PLAYERS_PLACE_ONE_CARD_IN_EMPTY_CELL, minHandSize: 3 }] },
+    // 🔴【#756・続き800】`handOnly` ＝ 山札からは置けない（印字「自分の手札から１枚を」）。
+    //   `minHandSize` も**これまで誰も読んでいなかった**ので、動詞の側で読むようにした。
+    arrival: { actions: [{ verb: VERBS.ALL_PLAYERS_PLACE_ONE_CARD_IN_EMPTY_CELL, minHandSize: 3, handOnly: true }] },
     handEffect: { inheritsArrival: true, actions: [{ verb: VERBS.INHERIT_ARRIVAL_ACTIONS }] },
   },
 
