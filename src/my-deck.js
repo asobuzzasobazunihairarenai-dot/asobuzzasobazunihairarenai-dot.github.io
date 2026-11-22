@@ -10,8 +10,10 @@
 // 用語:
 //  ・通常カード = リメイクの19種＋**パックや報酬で手に入れた札**（0th拡張・1st・限定報酬）。
 //    ファースト/エターナルは対象外。
-//  ・スペシャルカード = 無色(白黒)・なないろの欠片。1枚につき非スペシャルの通常カードを
-//    3枚入れる必要がある（3:1税）。
+//  ・スペシャルカード = 無色(白黒)・なないろの欠片・**ONLYカード**。1枚につき非スペシャルの
+//    通常カードを3枚入れる必要がある（3:1税）。🔴【2026-11-23・ユーザー裁定】ONLY も
+//    スペシャル（マイデッキ戦.txt の原稿どおり。あそこには「（ONLYカードについてはまだ
+//    アプリに実装されていません。）」と書いてあった＝#761 で候補に並ぶようになったので実装した）。
 //  ・所持 = リメイクの19種は全員が最初から上限まで持っている。それ以外は**サーバーの持ち物**
 //    （card-packs.js の copiesOf）。🔴【#761・2026-11-23】それまでは候補がリメイクの19種
 //    だけで、パックで引いた札を入れられなかった。
@@ -27,6 +29,7 @@ import { CARD_COLOR_ORDER } from "./card-sort.js"; // 色の並び（この表�
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ13: 表示用のカード名
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
+// ⚠ **この表だけでスペシャルを判定しない**（ONLY カードも税の対象＝スペシャルか を使う）。
 export const SPECIAL_CARD_COLORS = new Set(["white", "black", "rainbow"]);
 // ファーストカード（＝駒）に選べる7色。
 export const FIRST_COLORS = ["red", "orange", "yellow", "green", "blue", "pink", "purple"];
@@ -40,9 +43,15 @@ export const FIRST_COLORS = ["red", "orange", "yellow", "green", "blue", "pink",
 export const NOIR_FIRST_COLOR = "noir";
 export const ADMIN_FIRST_COLORS = [...FIRST_COLORS, NOIR_FIRST_COLOR];
 
+// 🔴 スペシャルかどうかは**色だけでは決まらない**（ONLY カードも税の対象）。
+//   ⚠ **def を受けるこちらを正にする。** cardId から引き直す形だけを置くと、
+//     カードの表をそのまま見ている所（おまかせデッキ）が「色だけ見る古い判定」のまま
+//     取り残される（実際そうなっていた＝下の makeRandomDeck）。
+function スペシャルか(def) {
+  return !!def && (SPECIAL_CARD_COLORS.has(def.color) || !!def.only);
+}
 export function isSpecialDeckCard(cardId) {
-  const def = getCardDefinition(cardId);
-  return !!def && SPECIAL_CARD_COLORS.has(def.color);
+  return スペシャルか(getCardDefinition(cardId));
 }
 
 export const MIN_DECK_SIZE = 7;
@@ -188,7 +197,7 @@ export function makeRandomDeck(name) {
     // まだ上限(所持/同名7)に達していない非スペシャルカードから1枚選ぶ。
     // ⚠ **持っている札から**選ぶ（NON_SPECIAL_CARDS のような決め打ちの表にしない＝#761）。
     const pool = getDeckableCards().filter(
-      (c) => !SPECIAL_CARD_COLORS.has(c.color) && (cards[c.id] ?? 0) < maxCopiesFor(c.id)
+      (c) => !スペシャルか(c) && (cards[c.id] ?? 0) < maxCopiesFor(c.id)
     );
     if (pool.length === 0) break;
     const pick = pool[Math.floor(Math.random() * pool.length)];

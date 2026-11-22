@@ -55,15 +55,19 @@ export const CHANGELOG = [
     date: "2026-11-23",
     summary: [
       "マイデッキに、**パックで手に入れたカード**を入れられるようになりました",
+      "ONLYカードをマイデッキに入れるには、**ふつうのカードが3枚ずつ必要**になりました",
     ],
     summaryEn: [
       "Cards from packs can now go into My Deck",
+      "Each ONLY card in My Deck now needs 3 ordinary cards",
     ],
     items: [
       "マイデッキの候補に、**パックや報酬で手に入れたカードも並ぶ**ようになりました（0th EDITION 拡張・1st EDITION・限定報酬）。並ぶのは**持っているカードだけ**で、入れられる枚数も**持っている枚数まで**です。同じ名前は7枚まで、ONLYカード（絵の左下に ONLY と印字）は1種類1枚まで——**マイ山札と同じ決まり**にそろえました。⚠ これまで上限が「実物に刷られている枚数」だったカード（色落ちキャット1枚・白黒2枚）も**7枚まで**になりました。緩くなる方向なので、いま保存してあるマイデッキはそのまま使えます。",
+      "**ONLYカード**（絵の左下に ONLY と刷ってあるカード）が、マイデッキでは**スペシャルカード**の扱いになりました。無色のカードや「なないろの欠片」と同じで、**1枚入れるごとに、スペシャルでない通常カードを3枚**入れる必要があります。マイデッキ戦の決まりとして前から決まっていたもので、ONLYカードがマイデッキの候補に並ぶようになったので、ここで効くようになりました。ⓘ ONLYカードは**1種類につき1枚まで**（こちらは今までどおり）。⚠ すでに保存してあるマイデッキにONLYカードが入っている場合、編集画面で「スペシャルカードに必要な枚数が足りません」と出ることがあります。その時はふつうのカードを足してください。",
     ],
     itemsEn: [
       "Cards you have obtained from packs or rewards (0th Edition Expansion, 1st Edition and limited rewards) now appear as My Deck candidates. Only cards you actually own are listed, and you can add up to as many copies as you own: at most 7 of the same name, and 1 for an ONLY card - the same rules as My Stack. Cards that were previously capped at their printed count (Faded Cat 1, white and black 2) can now go up to 7 as well, so every deck you have saved stays valid.",
+      "**ONLY cards** (the ones with ONLY printed at the lower left of the art) now count as **special cards** in My Deck, just like colorless cards and Shard of Seven Colors: each one requires **3 non-special normal cards** in the same deck. This was always part of the My Deck rules; it takes effect now that ONLY cards appear as My Deck candidates. You can still include at most one copy of each ONLY card. If a deck you already saved contains an ONLY card, the editor may now tell you that you need more non-special cards: just add ordinary cards until it clears.",
     ],
     fixes: [
       "盤面の後ろの床の絵が、縦に伸びて見えていたのを直しました",
@@ -89,6 +93,11 @@ export const CHANGELOG = [
       "⚠ **#754「なぜ、私のゲートのカードがオープンされてる？」は、ログを最後まで追った結果「ルールどおり」だった。** 行動ログでは、ちょっと待った！の到達で (6,3)→(5,3)→強制移動で (6,3) と往復したあと、**「１マス移動する」で自分のゲート (6,3) へ入り直し**、そこで裏向きの札（誰かの好きな花）がオープンされて到達が起きていた。駒は最初から自分のゲートに居るので**その札は普段めくれない**＝「自分のゲートの札は裏のまま」という感覚になりやすいが、一度離れて戻れば**ふつうの到達**になる。⇒ 直す所は無い。ただし**「移動先のカードはオープンしない」が、続く「１マス移動する」にも掛かるのか**は読み方が割れるので、ユーザーに聞いている。",
       "ⓘ **#750 の実測は、撮り比べでは測れなかった。** 「CSS が描いた盤面」と「WebGL が描いた盤面」を撮り比べる形にしたが、**対照（背景を別の絵に差し替える）を立てたら差が 0 のまま**で、この撮り比べは背景を見ていないと分かった（一度 `scale` を1に戻した時は、背景がプレイマットの裏に完全に隠れていた）。⇒ **検証用の覗き穴**（`debugPaintedQuadSize`。`debugOpenCellPick` と同じ作法でアプリからは呼ばない）を置き、WebGL が描いた板の縦横比を直に測る形にした。実測 1.7402（狙い＝絵の比 1.777 × 倍率の比 4.75/4.85 = 1.7402）。⚠ **非一様な倍率を忘れて一度落とした**——「無い」と出たら、まず自分の数え方を疑う。",
       "ⓘ 実測 `scratchpad/_p803.mjs` **17項目**（NG 0・例外0・404 0）。#761 は「持ち物が届く前は19種」「届いたら持っている札が並ぶ（23種）」「枚数＝持っている枚数（上限7・ONLYは1）」「持っていない札は0枚」「色の順」「編集画面にも並ぶ」、#750 は板の縦横比＋対照2本（プレイマットは今までどおり箱いっぱい／直す前の形になっていない）。",
+      "🔴🔴 **続き800 で「直した」と書いた #763 / #767 が、コードに入っていなかった。** `FORCED_MOVE_TO_PREVIOUS_CELL`（旧0th 欲しがりの吊り橋●・ちょっと待った！●）は、今日調べた時点でも `action.noArrival` を1行も読んでおらず、`ctx.arrivedAt = dest` を無条件で立てていた（＝戻った先の裏向きの札が開く）。コミット 20e302b の card-effect-engine.js の差分に `noArrival` は**1文字も無い**。⇒ 他の3つの動詞（厳重警戒・マックール・偉大なる大号令＝#577 でそろえた形）と同じ並びで本当に入れた。**教訓: 「直した」は、コミットの差分を見て初めて言える。**",
+      "🔴 **その2本のテストが、直す前でも通る形だった（0しか出ない検査）。** #763 は `tokenFaceDown` を見ていたが、テストの土台では `moveAndSync` が札をめくらない（めくるのは main.js 側）ので**いつでも真**。#767 は「戻れなかった時も駒は出発マスのまま」で期待値と一致していた。⇒ 駒に立つ `arrivalSuppressed` の印（本番で online.js と remote-move-animator.js が実際に読む印）と、**駒の移動が2回起きたこと**で見る形に直した。わざと元へ戻すと**2本とも名指しで落ちる**ことを確かめてある。",
+      "🔴 **#754 の答えは「読点に戻す」だった**（ユーザー裁定「かかりません。戻る時だけです」＋「効果文を元のオリジナル文の通り句点ではなく読点で繋いだほうがいいですか？」）。ちょっと待った！の到達効果を、ぜんぶに効く言い換え（「〜に強制移動し、」→「〜に強制移動する。」）**から外して印字どおりの読点に戻した**。句点で切ると「移動先のカードはオープンしない。」が独立した一文に見え、**続く「１マス移動する。」にも掛かるように読める**（実際にそう読まれた）。⚠ **神鳴と欲しがりの吊り橋は句点のまま**——あちらは「オープンしない。」の**後ろに何も続かない**ので迷う余地がなく、0th拡張の厳重警戒は**印字が句点**。⇒ そろえるより、**曖昧になる1枚だけ**を印字どおりにした。カードの補足にも掛かる範囲を足し、**裁定の回帰テストを1本**足した（続く１マス移動では印が立たないこと＝わざと立てると落ちる）。",
+      "🔴 **ONLY カードの 3:1 税は「もともとそう決まっていた」**（ユーザー「税はかけます。もともとOnlyカードに税をかけるルールだったはずです」＝**そのとおりだった**）。マイデッキ戦.txt の原稿に「無色カード、ONLYカード、なないろの欠片については、一旦スペシャルカードと呼称する」と書かれており、続けて「（ONLYカードについてはまだアプリに実装されていません。）」とまで書いてあった。my-deck.js の冒頭コメントも「スペシャル＝無色(白黒)・なないろの欠片・**ONLY(未実装)**」だった（#761 の書き直しで落としていた）。**教訓: 「掛けていません」と報告する前に、原稿を読む。**",
+      "🔴 **スペシャルの判定を『def を受ける形』に作り直した。** `isSpecialDeckCard(cardId)` に `|| def.only` を足すだけでは足りない——**おまかせデッキの抽選**（`makeRandomDeck`）はカードの表をそのまま見て `!SPECIAL_CARD_COLORS.has(c.color)` で絞っていたので、**色だけ見る古い判定のまま取り残され**、ONLY を引いて**税を破ったデッキを作る**ところだった。⇒ `スペシャルか(def)` を正にして両方がそれを呼ぶ形に。実測で40回回して ONLY・無色・なないろが0枚、40回とも検証を通ることを見ている。⚠ `SPECIAL_CARD_COLORS` の定義の上には「この表だけで判定しない」と書いた。",
     ],
     devItemsEn: [
       "#750: the WebGL painter ignored background-size: contain. The floor art is 1672x941 but its box is square, so the quad stretched the image vertically by 1.78x. A containBox() helper now honours contain (falling back to the full box until the texture has loaded, then flagging a rebuild). cover is deliberately left alone, since a quad cannot be clipped the way CSS clips a background.",
@@ -102,6 +111,11 @@ export const CHANGELOG = [
       "#754 turned out to be the rules working as written: the piece left its own gate and stepped back onto it, which opens the face-down card there like any other arrival. Whether the \"do not open the destination card\" clause also covers the following one-cell move is a wording question for the user.",
       "The screenshot comparison for #750 proved blind once a control was added, so a verification-only probe reports the painted quad's aspect directly. Measured 1.7402 against the expected 1.7402 (image ratio times the non-uniform scale).",
       "Measurement: scratchpad/_p803.mjs, 17 assertions, no failures, no exceptions, no 404s.",
+      "The #763 / #767 fixes described in dev note 800 were never actually in the code: FORCED_MOVE_TO_PREVIOUS_CELL still ignored action.noArrival and set ctx.arrivedAt unconditionally, so moving back onto a face-down card opened it. The fix now follows the same shape as the three other movement verbs. Lesson: a fix is only done once you have read the commit diff.",
+      "Both regression tests for those reports passed even without the fix. In the test harness moveAndSync never flips cards, so the tokenFaceDown assertion was always true, and for #767 the piece stays on its starting cell when the move is blocked, which matched the expectation. They now assert the piece arrivalSuppressed flag (the flag production actually reads) and that two piece moves happened; reverting the fix makes both fail by name.",
+      "Per the user ruling, the restriction that the destination card is not opened applies only to the forced move back, so the arrival text for Hold On! goes back to the printed comma form instead of the project-wide rewrite that splits it into two sentences. Splitting it made the restriction look like a free-standing sentence that also covered the following one-cell move. Thunder and Greedy Bridge keep the split form because nothing follows it there. A regression test now pins the ruling.",
+      "The 3:1 special-card tax on ONLY cards was in the My Deck spec all along, including an explicit note that it had not been implemented in the app yet. It became reachable now that ONLY cards are My Deck candidates. Lesson: read the spec before reporting that a rule is not applied.",
+      "The special-card test now takes a card definition rather than an id. Adding the ONLY check to isSpecialDeckCard alone would have left the random-deck generator filtering on color only, so it could have produced decks that break the tax. Verified over 40 generated decks: no special cards, all valid.",
     ],
   },
   {

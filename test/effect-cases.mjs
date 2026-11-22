@@ -417,8 +417,14 @@ export const CASES = [
     picks: { option: ["0th-bridge-back"] },
     expect: [
       { kind: "pieceAt", player: "A", row: 3, col: 2 },
-      // 🔴 印字「移動先のカードはオープンしない。」
+      // ⚠ これは**土台では直す前でも通る**（moveAndSync は札をめくらない。めくるのは main.js 側）。
       { kind: "tokenFaceDown", id: "back" },
+      // 🔴【続き804】**ここが本当の検査。** 印字「移動先のカードはオープンしない。」は、
+      //   駒に立つ arrivalSuppressed の印で表される（本番では online.js と
+      //   remote-move-animator.js がこれを読んで到達を起こさない）。
+      //   ⚠ 続き800 でこの札を「直した」と書いたが**コードに入っていなかった**
+      //     ——上の2行だけでは気づけなかった。印を直に見る。
+      { kind: "tokenFlag", id: "pieceA", flag: "arrivalSuppressed", value: true },
     ],
   },
   {
@@ -443,9 +449,53 @@ export const CASES = [
     // 戻ったあとの「１マス移動する。」で (3,3) へ戻す（本人が選ぶ）。
     picks: { location: [{ row: 3, col: 3 }] },
     expect: [
-      // 戻れている（弾かれていない）
       { kind: "tokenFaceDown", id: "back" },
       { kind: "pieceAt", player: "A", row: 3, col: 3 },
+      // 🔴【続き804】**ここが本当の検査。** 上の2行は**直す前でも通る**——戻るのが
+      //   弾かれた時も駒は (3,3) のままで、札もめくれない（土台では）＝0しか出ない検査だった。
+      //   ⇒ **移動が2回起きたこと**で見る（戻る＋その後の「１マス移動する」）。
+      //   弾かれると1回しか起きない。
+      // ⚠ 数えるのは**駒の移動だけ**（最後にこのカード自身が手札へ動くので全体では3回。
+      //   最初 n:2 と書いて落ちた＝私の数え方の間違い。「無い」と出たら、まず自分の数え方を疑う）。
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 2 },
+      // 🔴 そして**最後の移動はふつうの移動**なので、オープンしない印は**下りている**
+      //   （ユーザー裁定・2026-11-23「かかりません。戻る時だけです」）。
+      { kind: "tokenFlag", id: "pieceA", flag: "arrivalSuppressed", value: false },
+    ],
+  },
+  {
+    // 🔴【ユーザー裁定・2026-11-23】ちょっと待った！の「移動先のカードはオープンしない」は
+    //   **戻る時だけ**に掛かる。続く「１マス移動する」で移動した先の札は**ふつうにオープンする**。
+    //   ⚠ 効果文も印字どおり読点で繋いである（句点で切ると、独立した一文に見えて
+    //     続く「１マス移動する」にも掛かるように読めた＝#754 の訴え）。
+    //   ⚠ ここを守らないと、誰かが「１マス移動する」側（MOVE_CHOSEN_PLAYER_ONE_CELL）にも
+    //     noArrival を足してしまう——あの動詞は**4か所で共有**している（ダッシュ●■・
+    //     ちょっと待った！●・貴族の特権）ので、足すと巻き添えが出る。
+    name: "旧0th ちょっと待った！(到達): オープンしないのは戻る時だけ（続く１マス移動はふつうに到達する）",
+    kind: "arrival",
+    cardId: "0th-purple-wait",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-wait", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 戻る先の札（めくらない）
+        { id: "back", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 2 } },
+        // そのあと１マス移動した先の札（**めくる**）
+        { id: "next", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    movedFrom: { A: { row: 3, col: 2 } },
+    ctx: { player: "A", cardId: "0th-purple-wait", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 戻ったあとの「１マス移動する。」で (2,2) を選ぶ（本人が選ぶ）。
+    picks: { location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 2, col: 2 },
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 2 }, // 戻る＋１マス移動（駒の移動だけ数える）
+      // 🔴 最後の移動は**ふつうの移動**＝オープンしない印は立たない（立つと (2,2) の札が開かない）。
+      { kind: "tokenFlag", id: "pieceA", flag: "arrivalSuppressed", value: false },
+      { kind: "tokenFaceDown", id: "back" }, // 戻った先はめくらない
     ],
   },
   {

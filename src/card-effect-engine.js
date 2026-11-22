@@ -4385,15 +4385,37 @@ async function runAction(action, ctx, helpers) {
       //     1回目（来たばかり）＝戻れる／2回目（もう1度戻ろうとしている）＝止める
       //     ＝「2枚で往復する」という元の心配はそのまま防げる。
       //   ⚠ 人間は今までどおり（10回）。他の動詞の上限は1行も変えていない。
+      // 🔴🔴【#767・続き804】**オープンしない移動には、この見張りを掛けない。**
+      //   報告「ちょっと待ったへの２回目の到達時、戻らなかった」。行き先は「移動前のマス」
+      //   ＝**この連鎖で必ず通っているマス**なので、2周目で必ず上限に届いて弾かれる。
+      //   オープンしないなら、そこから**新しい**札がめくれて連鎖が伸びることは無い。
+      //   ⚠ 連鎖そのものは**前に進む側**（MOVE_CHOSEN_PLAYER_ONE_CELL）の見張りが
+      //     止める（CPU は1回・人間は10回で、戻ってきたマスが候補から外れる）ので、
+      //     こちらを外しても無限には回らない。
+      //   ⚠ リーチキャンセル（noArrival が無い）は**今までどおり**見張りに掛かる
+      //     ——あちらは戻った先の札をめくるので、そこから連鎖が伸び得る。
+      //   🔴 続き800 でこれを「直した」と書いたが、**コードには入っていなかった**
+      //     （コミット 20e302b の差分に noArrival が1文字も無い）。ここで本当に入れる。
       const revisitLimit = helpers.isCpuDriving?.(ctx.player) ? 2 : HUMAN_MOVE_REVISIT_LIMIT;
-      if (helpers.isLoopMoveDest?.(dest, revisitLimit)) {
+      if (!action.noArrival && helpers.isLoopMoveDest?.(dest, revisitLimit)) {
         await helpers.announceEffectReason?.(ctx.cardId, t("ce.L748"));
         return false;
       }
-      await helpers.moveAndSync(ctx.pieceTokenId, dest);
+      // 🔴【#763・続き804】**`noArrival` を読む**（旧0th 欲しがりの吊り橋●・ちょっと待った！●の
+      //   印字「移動先のカードはオープンしない。」）。並びは他の3つの動詞と同じにそろえてある
+      //   （#577 で厳重警戒・マックール・偉大なる大号令をそろえた形）。
+      //   ⚠ 「オープンしない」は**裏の札をめくらない**という意味で、**既に表向きなら到達する**
+      //     （#559 で貧民の行進について確定した読み）。だから else で triggerArrivalAtIfFaceUp。
+      //   ⚠ リーチキャンセル（0th拡張）は印字に「オープンしない」が**無い**＝noArrival を
+      //     付けていないので、今までどおり戻った先に到達する（1行も変わらない）。
+      //   🔴【2026-11-23・ユーザー裁定】ちょっと待った！の「オープンしない」は**戻る時だけ**に
+      //     掛かる。続く「１マス移動する」の先は**ふつうにオープンする**（あちらは別の動詞
+      //     ＝MOVE_CHOSEN_PLAYER_ONE_CELL なので、ここに noArrival を足しても影響しない）。
+      await helpers.moveAndSync(ctx.pieceTokenId, dest, undefined, !!action.noArrival);
       helpers.recordMoveVisited?.(dest);
       ctx.pieceLocation = dest;
-      ctx.arrivedAt = dest; // 強制移動は「移動」なので、戻った先のカードに到達する
+      if (!action.noArrival) ctx.arrivedAt = dest; // 強制移動は「移動」なので、戻った先のカードに到達する
+      else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
       return true;
     }
     case VERBS.GATE_CHARGE_PLACE_OR_RETURN: {
