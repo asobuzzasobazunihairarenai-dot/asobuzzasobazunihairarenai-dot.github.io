@@ -29,6 +29,9 @@ import {
   SPECIAL_TAX_RATIO,
 } from "./my-deck.js";
 import { CARD_COLOR_ORDER } from "./card-sort.js";
+// 🔴【#761】パックで手に入れた札も候補に出すようになったので、**持ち物がサーバーから
+//   届いた時に並べ直す**。届く前に開くと（通信は非同期）リメイクの19種だけが並ぶ。
+import { onCardPacksChange } from "./card-packs.js";
 // デッキごとの駒スキン・ペット・裏面の選択に使うピッカー（onSelectでグローバルを変えず値だけ
 // 受け取る）は、クリック時に動的importする。静的importにすると piece-skins→shop-content→
 // piece-skins の循環でモジュール評価順が崩れ、SKIN_VARIANTS のTDZ→起動時ブラックスクリーンに
@@ -75,6 +78,7 @@ let currentDeck = null;
 let workingDeck = {};
 // cardId → コレクションカードのDOM（変更時に状態だけ更新するため保持）。
 const collectionTiles = new Map();
+let 購読をやめる = null; // 持ち物の変化の購読（#761）
 
 function countOf(cardId) {
   return Number(workingDeck[cardId]) || 0;
@@ -270,7 +274,8 @@ function buildCollectionCard(card) {
 
   const name = document.createElement("div");
   name.className = "mdb-col-card-name";
-  name.textContent = card.name;
+  // ⚠ `card.name` ではなく表示用の名前（英語のときに def.name だと日本語のまま出る）。
+  name.textContent = cardDisplayName(card.id);
   tile.appendChild(name);
 
   // 左クリックで追加。右クリックはカード補足メニュー。ホバーで拡大プレビュー（ゲーム画面と同等）。
@@ -301,6 +306,17 @@ function refreshCollectionCard(card) {
   }
   const pipEls = tile.querySelectorAll(".mdb-col-card-pip");
   pipEls.forEach((pip, i) => pip.classList.toggle("is-lit", i < n));
+}
+
+// ── コレクション（上段） ─────────────────────────────────────────────────
+// 🔴【#761】**持ち物が届いたら建て直す。** 顔ぶれそのものが変わる（持っている札だけを
+//   並べる）ので、1枚ずつ直す refreshCollectionCard では足りない。
+function rebuildCollection() {
+  if (!collectionEl) return;
+  hidePreview(); // 作り直すので、古い拡大プレビューは消しておく
+  collectionEl.innerHTML = "";
+  collectionTiles.clear();
+  for (const card of getDeckableCards()) collectionEl.appendChild(buildCollectionCard(card));
 }
 
 // ── 現在のデッキ（下段） ─────────────────────────────────────────────────
@@ -641,6 +657,14 @@ export function openMyDeckBuilder(deckId, onClose) {
   }
   workingDeck = { ...currentDeck.cards };
   collectionTiles.clear();
+  // 🔴 持ち物が届いたら顔ぶれを建て直す（開いている間だけ）。
+  購読をやめる?.();
+  購読をやめる = onCardPacksChange(() => {
+    if (!overlayEl) return;
+    rebuildCollection();
+    rebuildDeckList();
+    refreshSummary();
+  });
 
   overlayEl = document.createElement("div");
   overlayEl.id = "my-deck-page";
@@ -714,7 +738,7 @@ export function openMyDeckBuilder(deckId, onClose) {
   // 上段: コレクション。
   collectionEl = document.createElement("div");
   collectionEl.id = "mdb-collection";
-  for (const card of getDeckableCards()) collectionEl.appendChild(buildCollectionCard(card));
+  rebuildCollection();
   overlayEl.appendChild(collectionEl);
 
   // 下段: 現在のデッキ。
@@ -762,6 +786,8 @@ export function openMyDeckBuilder(deckId, onClose) {
 
 export function closeMyDeckBuilder() {
   clearTimeout(toastTimer);
+  購読をやめる?.();
+  購読をやめる = null;
   collectionTiles.clear();
   hideNoteMenu();
   previewEl?.remove();

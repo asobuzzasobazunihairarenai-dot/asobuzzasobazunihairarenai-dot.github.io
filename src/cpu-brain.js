@@ -21,6 +21,7 @@ import { isCpuPeekAllowed, isCpuOpponentAware } from "./cpu-battle-state.js";
 // #310: 「ディメンションをこのターン既に使ったか」を見るため（重ねても意味が無いので二度撃たない）。
 // card-effect-engine.js は cpu-brain.js を import しないので循環しない。
 import { isMovementBoostActiveThisTurn } from "./card-effect-engine.js";
+import { logAction } from "./action-log.js"; // 値踏みで転んだ時に、黙らせずに記録する（#745）
 
 // カードごとの「そのマスに着地して到達効果を受けるのが得か損か」の大まかな評価値。
 // 確信の持てるものだけ載せる（不明・中立なカードは 0 のまま＝載せない）。過剰な決めつけで
@@ -1115,7 +1116,12 @@ function handEffectValueFor(card, seat, state, handCount) {
     case "cf-orange-brand":   // あなたの隣のカードを手札に加える
     case "cf-pink-flamma":    // ドロー
     case "cf-purple-favilla": // 強制移動
-      return cf志炎の値(t, seat, state, handCount);
+      // 🔴【#745・続き803】ここは `cf志炎の値(t, …)` と書いてあった。**`t` はこの関数に
+      //   存在しない**（引数は card / seat / state / handCount）ので、CPU が志炎者の札を
+      //   値踏みするたびに ReferenceError で落ち、**CPU が一歩も動けず対局が止まっていた**
+      //   （報告の console_log に 200ms おきの `Can't find variable: t` が並んでいた）。
+      //   ⚠ しかも中身は札を**一度も見ていない**ので、引数そのものが要らなかった。
+      return cf志炎の値(seat, state, handCount);
     // --- 取りこぼしていた割り込み3枚（続き782 で見つけた）-----------------------------
     // 🔴 どれも `default: 0` に落ちていて**一度も選ばれていなかった**（#620/#624 と同じ形）。
     case "ex0-yellow-little-mouse":
@@ -1173,7 +1179,9 @@ function handEffectValueFor(card, seat, state, handCount) {
 //   ・**窓の中（＝相手の手札効果に割り込める）なら積極的に撃つ**。大きい方が使えるので見返りが大きい。
 //   ・自分のハンドフェイズでは**小さい方**しか使えないので、手札に余裕がある時だけ。
 //   ・手札が1枚（これだけ）なら撃たない——この札自身を捨てるので手札が0になる。
-function cf志炎の値(token, seat, state, handCount) {
+// ⚠ 札そのものは見ない（7枚とも同じ形で、色が違うだけ）。引数に札を取らないのは
+//   わざと——取ると「渡し忘れ」が起きる（#745 で実際に起きた）。
+function cf志炎の値(seat, state, handCount) {
   if (handCount <= 1) return 0; // これを捨てると手札が無くなる
   // 窓の中かどうかは**本家の判定に聞く**（条件を書き写すとズレる）。
   // ⚠ ここでは「自分のターンではない＝割り込みの場面」で代用する。窓そのものは
@@ -1191,7 +1199,24 @@ export function chooseHandEffectCard(usableCards, driveSeat) {
   let best = null;
   let bestScore = 0; // 0以下（未対応／今は使うべきでない）は採用しない
   for (const t of usableCards) {
-    const score = handEffectValueFor(t, driveSeat, state, handCount);
+    // 🔴🔴【#745・続き803】**1枚の値踏みで転んでも、CPU を止めない。**
+    //   報告「なんか止まってしまいました！」の正体は、ここで投げられた
+    //   `ReferenceError: Can't find variable: t`（志炎者の分岐の書き間違い）だった。
+    //   例外がそのまま上へ抜けると **CPU が一歩も動けず、対局が丸ごと止まる**
+    //   ——しかも 200ms おきに投げ続けるので、画面には何の説明も出ない。
+    //   ⚠ **握りつぶすのではなく、札の名前を添えて必ず記録する**（不具合報告に載る）。
+    //     黙って 0 を返すだけにすると、今度は「CPU がその札を一生使わない」が
+    //     静かに起きる（#620/#624 と同じ形）。
+    let score = 0;
+    try {
+      score = handEffectValueFor(t, driveSeat, state, handCount);
+    } catch (err) {
+      try {
+        logAction("diag-cpu-value-error", { cardId: t?.cardId ?? null, seat: driveSeat, message: String(err?.message || err) });
+      } catch (e) {}
+      console.error("[cpu-brain] 値踏みで例外", t?.cardId, err);
+      score = 0;
+    }
     if (score > bestScore) {
       bestScore = score;
       best = t;

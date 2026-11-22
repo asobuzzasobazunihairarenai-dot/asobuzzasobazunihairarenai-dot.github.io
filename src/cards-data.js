@@ -314,7 +314,13 @@ export function hasNoPrintedFace(cardId) {
   if (typeof cardId !== "string") return false;
   // 文字入りの絵を持つカードは除く（いまは該当なし＝hasBakedCardFace 参照）。
   if (hasBakedCardFace(cardId)) return false;
+  // 🔴【#761・続き803】**志炎者（cf-）を足し忘れていた。** すぐ上の getCardImagePath に
+  //   「4つ目のセットを足した人が、同じ穴をもう一度掘らないように」と書いてあるのに、
+  //   続き779 で志炎者を足した時に**ここだけ漏れた**。絵は assets/cards-blank/ に在るのに
+  //   `assets/cards/cf-*.webp` を取りに行って **404** になっていた
+  //   （マイデッキ編集に並べた実測で出た。山札一覧・霧散演出・飛翔ゴーストでも同じ）。
   return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("0th-")
+    || cardId.startsWith("cf-")
     || cardId.startsWith("eternal-1st-") || cardId.startsWith("first-1st-");
 }
 

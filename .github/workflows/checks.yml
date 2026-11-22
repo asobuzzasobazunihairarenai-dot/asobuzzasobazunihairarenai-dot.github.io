@@ -78,6 +78,8 @@ jobs:
         run: node tools/check-missing-import.mjs
       - name: CPUが割り込みの札を一度も使わないままになっていないか
         run: node tools/check-cpu-interrupts.mjs
+      - name: ハンドフェイズの自動スキップが判定できない札を残していないか
+        run: node tools/check-hand-skip.mjs
       - name: 画面の文言（ja/en の鍵・二重書き・差し込み）
         run: node tools/check-ui-text.mjs
       # 🔴 これ自身が「手元とCIのズレ」を見張る（続き711）。ここが抜けるとまた静かに離れる。

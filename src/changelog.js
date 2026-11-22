@@ -52,6 +52,59 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-23",
+    summary: [
+      "マイデッキに、**パックで手に入れたカード**を入れられるようになりました",
+    ],
+    summaryEn: [
+      "Cards from packs can now go into My Deck",
+    ],
+    items: [
+      "マイデッキの候補に、**パックや報酬で手に入れたカードも並ぶ**ようになりました（0th EDITION 拡張・1st EDITION・限定報酬）。並ぶのは**持っているカードだけ**で、入れられる枚数も**持っている枚数まで**です。同じ名前は7枚まで、ONLYカード（絵の左下に ONLY と印字）は1種類1枚まで——**マイ山札と同じ決まり**にそろえました。⚠ これまで上限が「実物に刷られている枚数」だったカード（色落ちキャット1枚・白黒2枚）も**7枚まで**になりました。緩くなる方向なので、いま保存してあるマイデッキはそのまま使えます。",
+    ],
+    itemsEn: [
+      "Cards you have obtained from packs or rewards (0th Edition Expansion, 1st Edition and limited rewards) now appear as My Deck candidates. Only cards you actually own are listed, and you can add up to as many copies as you own: at most 7 of the same name, and 1 for an ONLY card - the same rules as My Stack. Cards that were previously capped at their printed count (Faded Cat 1, white and black 2) can now go up to 7 as well, so every deck you have saved stays valid.",
+    ],
+    fixes: [
+      "盤面の後ろの床の絵が、縦に伸びて見えていたのを直しました",
+      "CPU戦が途中で止まってしまうことがあったのを直しました",
+      "使えるカードが1枚も無いのに、ハンドフェイズが自動で飛ばされないことがあったのを直しました",
+      "一部のカードの絵が出ないことがあったのを直しました",
+    ],
+    fixesEn: [
+      "The floor behind the board looked stretched vertically.",
+      "A match against the CPU could stop partway through.",
+      "The hand phase was not skipped automatically even when no card could be used.",
+      "Some card art did not appear.",
+    ],
+    devItems: [
+      "🔴🔴 **#750「プレイマットの後ろの背景が縦な向きな気がする」の正体は、WebGL が `background-size: contain` を見ていなかったこと。** 床の絵は 1672x941（16:9）だが `.table-background-bg` の箱は**正方形**で、CSS は contain で収めている。ところが WebGL 側は**箱いっぱいに板を張る**ので、絵が**縦に 1.78 倍**に伸びていた。報告の「最初の頃は横だったと思うけど」もそのとおりで、**2026-09-05（第3段）でキャンバスを盤面DOMの奥へ置いた時に床とプレイマットを WebGL 側へ移した**のが変わり目。⇒ `containBox()` を足して contain を尊重するようにした（絵が読めていない間は今までどおり箱いっぱい。読み終わった時に `needsRebuild` を立てて置き直す）。⚠ **cover は扱わない**——あちらは箱からはみ出した分を CSS が切り落とすが、板は切り落とせない（テクスチャを他の要素と使い回すので repeat/offset も触れない）。",
+      "🔴 **その取り違えを生んだのは、古いまま残っていた覚え書きだった。** board-3d.js の `PAINT_SELECTOR` の上には「床とプレイマットはここに入れない。**background-size:contain なので箱と絵の縦横比が違い、板にそのまま貼ると伸びてしまう**」と**起きることまで書いてあった**のに、第3段で2つとも入れた時に**覚え書きだけ直し忘れていた**。⇒ 書き直した。**覚え書きが古いまま残ると、同じ取り違えがまた起きる。**",
+      "🔴🔴 **#745「なんか止まってしまいました！」の正体は、`cpu-brain.js` の `ReferenceError: Can't find variable: t`。** 志炎者の分岐で `cf志炎の値(t, …)` と書いていたが、`t` はその関数に存在しない（引数は card / seat / state / handCount）。CPU が手札効果を値踏みするたびに例外が飛び、**CPU が一歩も動けず対局が丸ごと止まっていた**——報告の console_log に 200ms おきの同じ行が並んでいた。続き782 で入れた書き間違い。⇒ 引数そのものを無くした（中身は札を一度も見ていなかった）。",
+      "🔴 **あわせて、致命度そのものを下げた。** `chooseHandEffectCard` の中で1枚ずつ try/catch し、転んだ札の名前を `diag-cpu-value-error` に残して次の札へ進む。**握りつぶすのではなく記録する**——黙って 0 を返すだけにすると、今度は「CPU がその札を一生使わない」が静かに起きる（#620/#624 と同じ形）。",
+      "🔴 **この取り違えは、いまある検査3本のどれでも捕まらない。** `check-missing-import` は「よその export を**呼んでいる**か」、`check-engine-names` は「エンジンの中の**呼び出し**」、`check-undeclared` は「**代入**」しか見ない。`t` は**呼び出しでも代入でもなく、ただの引数**。しかも同じ関数の中に `(t) => …` という**本物の arrow 引数**が別に在るので、スコープを見ない検査はどれも「`t` は宣言済み」と判断する（実際に2通り試して2通りとも素通りした）。⇒ **正しい見張りは静的検査ではなく実行**（カードごとに値踏みを1回走らせて ReferenceError だけを落とす）。申し送りに書いた。",
+      "🔴 **#764「使えるカードがないのにハンドフェイズが自動でスキップされない」は、旧0th の効果データが0件だったため。** 自動スキップ（`handHasNoUsableCards`）は札を1枚ずつ「①割り込み専用なら使えない ②効果データがあるなら `canUseHandEffect` で判定 ③どちらでもなければ**使えるかもしれないので残す**」と見る。③は「まだ実装していない効果を取りこぼして飛ばさない」ための安全側の逃げだが、**新しいセットを丸ごと足した直後は全部が③に落ちる**。報告の時点（2026-11-21）の旧0th は19種とも効果データが無く、**旧0thで遊ぶ限り一度も自動スキップされなかった**。続き788〜799 で19種とも実装したので解消している（実測で確認）。",
+      "🔴 **同じことが次のセットで起きないよう、検査を1本足した**（24本目・`tools/check-hand-skip.mjs`）。手札に入り得る札125種が「効果データを持つ」か「割り込み専用の印が立っている」かのどちらかであることを見る。わざと印を1つ外すと名指しで落ちる（A/B 済み）。**旧0th を足した日にこれが在れば、その日に分かっていた。**",
+      "🔴 **#761 の実測で 404 が1件出た——志炎者（`cf-`）が `hasNoPrintedFace` に入っていなかった。** 志炎者の絵は文字を焼き込まない作りで `assets/cards-blank/` に在るのに、`getCardImagePath` が `assets/cards/cf-*.webp` を取りに行っていた。**その関数のすぐ上には「4つ目のセットを足した人が、同じ穴をもう一度掘らないように」と書いてある**のに、続き779 でそこだけ漏れた。山札一覧・霧散演出・飛翔ゴーストでも同じ 404 が出ていたはず。",
+      "⚠ **#754「なぜ、私のゲートのカードがオープンされてる？」は、ログを最後まで追った結果「ルールどおり」だった。** 行動ログでは、ちょっと待った！の到達で (6,3)→(5,3)→強制移動で (6,3) と往復したあと、**「１マス移動する」で自分のゲート (6,3) へ入り直し**、そこで裏向きの札（誰かの好きな花）がオープンされて到達が起きていた。駒は最初から自分のゲートに居るので**その札は普段めくれない**＝「自分のゲートの札は裏のまま」という感覚になりやすいが、一度離れて戻れば**ふつうの到達**になる。⇒ 直す所は無い。ただし**「移動先のカードはオープンしない」が、続く「１マス移動する」にも掛かるのか**は読み方が割れるので、ユーザーに聞いている。",
+      "ⓘ **#750 の実測は、撮り比べでは測れなかった。** 「CSS が描いた盤面」と「WebGL が描いた盤面」を撮り比べる形にしたが、**対照（背景を別の絵に差し替える）を立てたら差が 0 のまま**で、この撮り比べは背景を見ていないと分かった（一度 `scale` を1に戻した時は、背景がプレイマットの裏に完全に隠れていた）。⇒ **検証用の覗き穴**（`debugPaintedQuadSize`。`debugOpenCellPick` と同じ作法でアプリからは呼ばない）を置き、WebGL が描いた板の縦横比を直に測る形にした。実測 1.7402（狙い＝絵の比 1.777 × 倍率の比 4.75/4.85 = 1.7402）。⚠ **非一様な倍率を忘れて一度落とした**——「無い」と出たら、まず自分の数え方を疑う。",
+      "ⓘ 実測 `scratchpad/_p803.mjs` **17項目**（NG 0・例外0・404 0）。#761 は「持ち物が届く前は19種」「届いたら持っている札が並ぶ（23種）」「枚数＝持っている枚数（上限7・ONLYは1）」「持っていない札は0枚」「色の順」「編集画面にも並ぶ」、#750 は板の縦横比＋対照2本（プレイマットは今までどおり箱いっぱい／直す前の形になっていない）。",
+    ],
+    devItemsEn: [
+      "#750: the WebGL painter ignored background-size: contain. The floor art is 1672x941 but its box is square, so the quad stretched the image vertically by 1.78x. A containBox() helper now honours contain (falling back to the full box until the texture has loaded, then flagging a rebuild). cover is deliberately left alone, since a quad cannot be clipped the way CSS clips a background.",
+      "The note above PAINT_SELECTOR still said the floor and playmat were excluded, and even predicted this exact stretch - but both were added back in September when the canvas moved behind the board DOM, and only the note was left stale. It has been rewritten.",
+      "#745: cpu-brain.js threw ReferenceError: Can't find variable: t every time the CPU valued a hand effect, because the Shien-sha branch passed an argument that does not exist in that function. The CPU could not take a single step, so the match froze; the report's console log held the same line every 200ms.",
+      "chooseHandEffectCard now evaluates each card inside its own try/catch, records diag-cpu-value-error with the card id, and moves on, so a future slip degrades to one unused card instead of a frozen match.",
+      "None of the three existing checks can catch that slip: they look at calls, assignments or engine-internal calls, and the name was a plain argument. The same function also has a genuine arrow parameter with that name, so any checker without real scope tracking treats it as declared (two attempts both passed it). The right guard is a runtime one.",
+      "#764: the hand-phase auto-skip keeps any card it cannot judge, which is correct for unimplemented effects but means a whole new set blocks it. Old 0th had no effect data at all when the report was filed, so the hand phase never auto-skipped in that edition. Implementing all 19 cards resolved it.",
+      "A new check (the 24th) asserts that every card that can reach a hand either has hand-effect data or is marked interrupt-only. Removing one mark makes it fail by name.",
+      "A 404 surfaced while measuring #761: the Shien-sha cards were missing from hasNoPrintedFace, so their art was requested from the wrong folder. The very function above it warns against exactly this omission.",
+      "#754 turned out to be the rules working as written: the piece left its own gate and stepped back onto it, which opens the face-down card there like any other arrival. Whether the \"do not open the destination card\" clause also covers the following one-cell move is a wording question for the user.",
+      "The screenshot comparison for #750 proved blind once a control was added, so a verification-only probe reports the painted quad's aspect directly. Measured 1.7402 against the expected 1.7402 (image ratio times the non-uniform scale).",
+      "Measurement: scratchpad/_p803.mjs, 17 assertions, no failures, no exceptions, no 404s.",
+    ],
+  },
+  {
     date: "2026-11-22",
     summary: [
       "図鑑の「カード一覧」に、**すべてのカード**が並ぶようになりました",

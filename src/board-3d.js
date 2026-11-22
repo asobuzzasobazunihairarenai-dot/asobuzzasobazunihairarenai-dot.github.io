@@ -132,15 +132,18 @@ const textureLoader = new THREE.TextureLoader();
 
 // この段で「絵を担当する」要素。ここに挙げたものだけWebGLで描き、CSS側では絵を消す
 // （src/style.css の body.board-3d-on 参照）。枠線・光彩・文字は今まで通りDOMのまま。
-// 【除外メモ】.table-background-bg（一番外側の「床」の絵）はここに入れない。
-// 4.75倍に拡大された巨大な板で、傾けると地平線の彼方まで伸びる（実測で画面座標
-// -59197〜60799px）。しかも background-size:contain なので箱と絵の縦横比が違い、板に
-// そのまま貼ると伸びてしまう。要素は1つだけで合成レイヤーの数の問題には関係しないため、
-// これはCSSのままにしておく。
-// 【同じ理由で .playmat-bg も除外】キャンバスは1枚なので、DOMの重なり順の“途中”に
-// 割り込めない（プレイマットはマスの枠線より奥、カードは手前）。ここではキャンバスを
-// 盤面のDOMより**手前**に置き、手前に来るべきもの（カード・駒・山）だけをWebGLに移す。
-// プレイマットと床は画像1枚ずつで、合成レイヤーが増える原因ではないためCSSのままでよい。
+// 🔴🔴【#750・続き803】**ここには一度「床とプレイマットは入れない」と書いてあった。**
+//   その後（2026-09-05・第3段）キャンバスを盤面DOMの**奥**へ置く作りに変えた時に、
+//   重なり順のために2つとも**入れた**のに、この覚え書きだけ古いまま残っていた。
+//   しかもそこには「background-size:contain なので箱と絵の縦横比が違い、板にそのまま
+//   貼ると伸びてしまう」と**起きることまで書いてあった**——そのとおりになった
+//   （1672x941 の絵が正方形の板いっぱいに伸び、**縦に1.78倍**＝「背景が縦向き」）。
+//   ⇒ いまは下の containBox() が `background-size: contain` を尊重するので入れてよい。
+//   ⚠ **覚え書きが古いまま残ると、同じ取り違えがまた起きる。**
+// 【床（.table-background-bg）について】4.75倍に拡大された巨大な板で、傾けると地平線の
+// 彼方まで伸びる（実測で画面座標 -59197〜60799px）。
+// 【プレイマット（.playmat-bg）について】`background-size: 100% 100%`（箱いっぱいに
+// 引き伸ばす）なので、板にそのまま貼るのが**CSSとまったく同じ**＝調整は要らない。
 // 【#245】山の側面（.stack-front/back/left/right）はここに入れない。あちらは画像を持たず
 // CSSの色と inset の影だけで描いているので、WebGLに移そうとしても板が作られず、
 // 塗りを剥がした結果まるごと消えてしまう（ユーザー報告「山札の側面がなくなっちゃってます」）。
@@ -698,6 +701,9 @@ function getTexture(url, maxPx = 0) {
       //   ⚠ いま貼っているものは pruneImageTextures が必ず守るので、読み終わった直後の
       //     この絵が捨てられることはない（板から外れていたなら、捨てて正しい）。
       pruneImageTextures();
+      // 🔴【#750】**置き直しも要る。** containBox は絵の本当の大きさを使うので、
+      //   読み終わるまでは「箱いっぱい」で置かれている。描き直すだけでは直らない。
+      needsRebuild = true;
       scheduleRender();
     });
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -843,6 +849,44 @@ function updateLightRig() {
   }
 }
 
+// 🔴【#750・続き803】CSS の `background-size: contain` を尊重して、絵を貼る矩形を出す。
+//   板は既定で「箱いっぱい」に貼るが、contain は**絵の縦横比を保ったまま箱に収める**ので、
+//   そのまま貼ると縦横比が狂う（床の絵が縦に伸びて見えていたのがこれ）。
+//   ⚠ **cover は扱わない。** あちらは箱からはみ出した分をCSSが切り落とすが、板は
+//     切り落とせない（テクスチャは複数の要素で使い回すので repeat/offset も触れない）。
+//     いまのまま「箱いっぱい」の方が、はみ出すより事故が小さい。
+//   ⚠ 絵がまだ読めていない間は null（＝今までどおり箱いっぱい）。読み終わった時に
+//     getTexture が needsRebuild を立てるので、次のコマで正しい形に置き直される。
+function containBox(cs, mesh, w, h) {
+  if (cs.backgroundSize !== "contain") return null;
+  const img = mesh.material.map?.image;
+  const nw = img?.naturalWidth || img?.width || 0;
+  const nh = img?.naturalHeight || img?.height || 0;
+  if (!(nw > 0 && nh > 0)) return null;
+  const s = Math.min(w / nw, h / nh);
+  const iw = nw * s;
+  const ih = nh * s;
+  const pos = String(cs.backgroundPosition || "0% 0%").trim().split(/s+/);
+  return {
+    x: 貼る位置(pos[0], w - iw),
+    y: 貼る位置(pos[1] ?? pos[0], h - ih),
+    w: iw,
+    h: ih,
+  };
+}
+// background-position の片側を、余白（箱 − 絵）に対する実際のずれに直す。
+// ⚠ getComputedStyle は多くの場合 "0% 0%" / "50% 50%" / "12px 0px" に正規化するが、
+//   語（center/left/…）で返るブラウザもあるので両方を受ける。
+function 貼る位置(token, free) {
+  const s = String(token || "0%");
+  if (s === "center") return free / 2;
+  if (s === "left" || s === "top") return 0;
+  if (s === "right" || s === "bottom") return free;
+  const n = parseFloat(s);
+  if (!Number.isFinite(n)) return 0;
+  return s.endsWith("%") ? (n / 100) * free : n;
+}
+
 function ensureMesh(el, url) {
   let mesh = meshByElement.get(el);
   if (!mesh) {
@@ -918,12 +962,18 @@ function paintOne(el, table, shapeSpecs, orderRef) {
     const base = localMatrixTo(el, table);
     // 1つの要素が「絵の板」と「形の板（枠線・背景色・グロー）」の両方を持つことがある
     // （盤面のカード＝絵はWebGL・枠線もWebGL）。CSSと同じく、枠線は絵の上に描く。
-    const place = (mesh, pad) => {
+    // box（省略可）＝箱の中で絵を貼る矩形。**絵の板にだけ**渡す（#750）。
+    // 枠線・背景色の板（shape）は箱そのものなので、今までどおり渡さない。
+    const place = (mesh, pad, box) => {
+      const bx = box ? box.x : 0;
+      const by = box ? box.y : 0;
+      const bw = box ? box.w : w;
+      const bh = box ? box.h : h;
       const m = base.clone();
-      // 板は「左上原点・幅w高さh」。PlaneGeometryは中心原点なので中心へずらす。
+      // 板は「左上原点・幅bw高さbh」。PlaneGeometryは中心原点なので中心へずらす。
       // グロー（外へ広がるぼかし）がある時はその分だけ一回り大きくする（中心は同じ）。
-      m.multiply(new THREE.Matrix4().makeTranslation(w / 2, h / 2, 0));
-      m.multiply(new THREE.Matrix4().makeScale(w + pad * 2, h + pad * 2, 1));
+      m.multiply(new THREE.Matrix4().makeTranslation(bx + bw / 2, by + bh / 2, 0));
+      m.multiply(new THREE.Matrix4().makeScale(bw + pad * 2, bh + pad * 2, 1));
       mesh.matrixAutoUpdate = false;
       mesh.matrix.copy(m);
       mesh.material.opacity = vis.opacity;
@@ -958,7 +1008,8 @@ function paintOne(el, table, shapeSpecs, orderRef) {
     };
     if (url) {
       out.painted = true;
-      place(ensureMesh(el, url), 0);
+      const imgMesh = ensureMesh(el, url);
+      place(imgMesh, 0, containBox(cs, imgMesh, w, h));
     }
     if (shape) {
       out.shaped = true;
@@ -1759,6 +1810,19 @@ function ensureRenderer() {
 // ために、基本設定「動きが重い・カクつくとき」と管理者モードから切り替えられるようにしてある
 // （WebGLを開始できない端末では ensureRenderer が false を返し、自動的に従来のCSS描画のまま
 //  になる。描画中に打ち切られた場合も webglcontextlost で自動的に戻る）。
+// 🔴【#750・続き803】**検証用の覗き穴**（アプリからは呼ばない）。
+//   WebGL が描いた板の大きさは DOM に出ないので、実測が「絵が縦に伸びていないか」を
+//   確かめる手段が無かった。要素を渡すと、その板の**横と縦の長さ**を返す。
+//   ⚠ 行列の 0列目・1列目の長さ＝板の幅と高さ（PlaneGeometry は 1x1 なので倍率がそのまま）。
+export function debugPaintedQuadSize(el) {
+  const mesh = meshByElement.get(el);
+  if (!mesh) return null;
+  const e = mesh.matrix.elements;
+  const w = Math.hypot(e[0], e[1], e[2]);
+  const h = Math.hypot(e[4], e[5], e[6]);
+  return { w, h, ratio: h > 0 ? w / h : 0, visible: mesh.visible };
+}
+
 export function setBoard3dEnabled(on) {
   setBoard3dEnabledSetting(!!on);
   return setBoard3dActive(!!on);

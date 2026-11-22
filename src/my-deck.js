@@ -8,13 +8,22 @@
 //   その対戦の間だけプロフィール既定を上書きして使う。保存形は { decks:[...], selectedId }。
 //
 // 用語:
-//  ・通常カード = NORMAL_CARDS（7色×2種＋虹＋白黒）。ファースト/エターナルは対象外。
-//  ・スペシャルカード = 無色(白黒)・なないろの欠片・ONLY(未実装)。1枚につき非スペシャルの
-//    通常カードを3枚入れる必要がある（3:1税）。
-//  ・所持 = 現状は0thEDITIONの基本セットを全員が初期所持している前提。所持数は
-//    NORMAL_CARDSのcount（色落ちキャット1、白/黒各2、他は7）。
+//  ・通常カード = リメイクの19種＋**パックや報酬で手に入れた札**（0th拡張・1st・限定報酬）。
+//    ファースト/エターナルは対象外。
+//  ・スペシャルカード = 無色(白黒)・なないろの欠片。1枚につき非スペシャルの通常カードを
+//    3枚入れる必要がある（3:1税）。
+//  ・所持 = リメイクの19種は全員が最初から上限まで持っている。それ以外は**サーバーの持ち物**
+//    （card-packs.js の copiesOf）。🔴【#761・2026-11-23】それまでは候補がリメイクの19種
+//    だけで、パックで引いた札を入れられなかった。
 
 import { NORMAL_CARDS, getCardDefinition } from "./cards-data.js";
+// 🔴 下の4つは**どれも葉**（import を1つも持たない）ので、ここから取っても輪にならない。
+//   とくに card-packs.js は online.js を import しない作りなので安全（あちらの冒頭を参照）。
+import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張（パックから出る）
+import { FIRST_ED_NORMAL_CARDS } from "./cards-data-1st.js"; // 1st EDITION（パックから出る）
+import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 志炎者7枚（限定報酬）
+import { copiesOf, getCollection, COPY_MAX } from "./card-packs.js"; // 持ち物（サーバーの写し）
+import { CARD_COLOR_ORDER } from "./card-sort.js"; // 色の並び（この表を2か所に書かない）
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ13: 表示用のカード名
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
@@ -38,6 +47,9 @@ export function isSpecialDeckCard(cardId) {
 
 export const MIN_DECK_SIZE = 7;
 export const MAX_SAME_NAME_COUNT = 7;
+// 🔴 ONLY カード（絵の左下に ONLY と印字）は**1種類につき1枚まで**。
+//   公式の山札カスタマイズルールと同じで、my-stack.js の MAX_ONLY と同じ値。
+export const MAX_ONLY_COUNT = 1;
 export const SPECIAL_TAX_RATIO = 3;
 export const RANDOM_DECK_SIZE = 7; // おまかせ/タイムアップ時のランダムデッキ枚数
 
@@ -51,20 +63,71 @@ export function maxDeckSlots(hasExtraSlots) {
   return MYDECK_BASE_SLOTS + (hasExtraSlots ? MYDECK_EXTRA_SLOTS : 0);
 }
 
+// ── 候補と所持 ─────────────────────────────────────────────────────────────
+// 🔴【#761・2026-11-23・ユーザー判断】**パックで手に入れた札も候補に並べる。**
+//   「並べるのはユーザーが所持しているものすべてです。所持できるのは通常カードは
+//     一種類につき7枚、Onlyカードは1種類につき1枚です。マイ山札の時と同じです。」
+//   ⇒ ①候補＝**持っている札だけ**（リメイク19種＋パックの 0th拡張・1st＋限定報酬）
+//     ②1種類の上限＝**ONLY は1枚・ほかは7枚**（my-stack.js の capFor と同じ決まり）
+//   ⚠ それまでの上限は**実物に刷られている枚数**（色落ちキャット1・白/黒2）だった。
+//     7枚にそろえたので**緩くなる方向**＝既にあるマイデッキが無効になることはない。
 const NORMAL_BY_ID = new Map(NORMAL_CARDS.map((c) => [c.id, c]));
-const NON_SPECIAL_CARDS = NORMAL_CARDS.filter((c) => !SPECIAL_CARD_COLORS.has(c.color));
+const DECKABLE_CARDS = [
+  ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS, ...CF_NORMAL_CARDS,
+];
+const DECKABLE_BY_ID = new Map(DECKABLE_CARDS.map((c) => [c.id, c]));
 
+// リメイクの19種は**最初から全員が上限まで持っている**（card-packs.js の copiesOf と
+// 同じ決まり。ここで別の数え方をすると、コレクションの画面と枚数が食い違う）。
+function 持ち物に数える札か(cardId) {
+  return !NORMAL_BY_ID.has(cardId);
+}
+// 持ち物をサーバーから1度でも読めたか。
+function 持ち物を読んだか() {
+  try {
+    return !!getCollection()?.読んだ;
+  } catch (err) {
+    return false;
+  }
+}
+
+// 1種類に入れられる上限（ONLY は1枚）。
+export function capForCard(cardId) {
+  return DECKABLE_BY_ID.get(cardId)?.only ? MAX_ONLY_COUNT : MAX_SAME_NAME_COUNT;
+}
+
+// 🔴 **持っていなくても「マイデッキに入り得る札」なら true。**
+//   normalizeDeck がこれで保存済みのデッキを濾すので、ここを所持で絞ると
+//   **持ち物が届く前に読み込んだだけで、保存したデッキから札が黙って消える**。
+//   所持で絞るのは getDeckableCards（画面に並べる顔ぶれ）と maxCopiesFor（枚数）の方。
 export function isDeckableCard(cardId) {
-  return NORMAL_BY_ID.has(cardId);
+  return DECKABLE_BY_ID.has(cardId);
 }
-export function getDeckableCards() {
-  return NORMAL_CARDS.slice();
-}
+
+// その札を何枚持っているか。
 export function getOwnedCount(cardId) {
-  return NORMAL_BY_ID.get(cardId)?.count ?? 0;
+  if (!DECKABLE_BY_ID.has(cardId)) return 0;
+  if (!持ち物に数える札か(cardId)) return COPY_MAX;
+  // 🔴 **持ち物をまだ読めていない間は「0枚」と言わない。** 0 を返すと、サーバーの返事が
+  //   届く前に、保存済みのマイデッキが一瞬「入れすぎ」で弾かれて保存できなくなる。
+  if (!持ち物を読んだか()) return capForCard(cardId);
+  return copiesOf(cardId, true);
 }
 export function maxCopiesFor(cardId) {
-  return Math.min(getOwnedCount(cardId), MAX_SAME_NAME_COUNT);
+  return Math.min(getOwnedCount(cardId), capForCard(cardId));
+}
+
+// 画面に並べる顔ぶれ。⚠ こちらは**逆に慎重側**——持ち物を読めていない間は
+//   リメイクの19種だけを出す（届いたら画面側が並べ直す＝onCardPacksChange）。
+export function ownsDeckableCard(cardId) {
+  if (!DECKABLE_BY_ID.has(cardId)) return false;
+  if (!持ち物に数える札か(cardId)) return true;
+  return 持ち物を読んだか() && copiesOf(cardId, true) > 0;
+}
+export function getDeckableCards() {
+  return DECKABLE_CARDS.filter((c) => ownsDeckableCard(c.id)).sort(
+    (a, b) => CARD_COLOR_ORDER.indexOf(a.color) - CARD_COLOR_ORDER.indexOf(b.color)
+  );
 }
 
 // deck.cards（{ [cardId]: count }）を検証する。
@@ -123,7 +186,10 @@ export function makeRandomDeck(name) {
   const cards = {};
   for (let i = 0; i < RANDOM_DECK_SIZE; i++) {
     // まだ上限(所持/同名7)に達していない非スペシャルカードから1枚選ぶ。
-    const pool = NON_SPECIAL_CARDS.filter((c) => (cards[c.id] ?? 0) < maxCopiesFor(c.id));
+    // ⚠ **持っている札から**選ぶ（NON_SPECIAL_CARDS のような決め打ちの表にしない＝#761）。
+    const pool = getDeckableCards().filter(
+      (c) => !SPECIAL_CARD_COLORS.has(c.color) && (cards[c.id] ?? 0) < maxCopiesFor(c.id)
+    );
     if (pool.length === 0) break;
     const pick = pool[Math.floor(Math.random() * pool.length)];
     cards[pick.id] = (cards[pick.id] ?? 0) + 1;
