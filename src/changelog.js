@@ -53,13 +53,29 @@ import { markChangelogRead } from "./changelog-signature.js";
 export const CHANGELOG = [
   {
     date: "2026-11-22",
+    summary: [
+      "図鑑の「カード一覧」に、**すべてのカード**が並ぶようになりました",
+    ],
+    summaryEn: [
+      "The card list in the Codex now shows every card",
+    ],
+    items: [
+      "図鑑の「カード一覧」が、**いま選んでいるエディションだけでなく、すべてのカード**を並べるようになりました（0th拡張・1st EDITION・リメイク・エターナル・ファースト）。⚠ **対局中の「山札一覧」は今までどおり、その対局の山の中身だけ**です（そこで全部出すと「一覧に無い札が出てくる」の逆で混乱するため）。⚠ まだ手に入れていない限定報酬の札は「？」のまま並びます。",
+    ],
+    itemsEn: [
+      "The Codex card list now shows every card instead of only the edition you have selected (0th Expansion, 1st Edition, Remake, Eternals and Firsts). During a match the deck list still shows only the cards in that match's deck. Limited rewards you do not own yet still appear as \"?\".",
+    ],
     fixes: [
       "ホーム画面に追加したiPhoneで、画面の下に余白ができて下のボタンが押せなくなることがあったのを直しました",
       "カードの効果で何かを選ぶ場面のあと、選ぶものが画面に出ないまま対局が進まなくなることがあったのを直しました",
+      "明るいテーマなのに、カード一覧の画面だけ急に暗くなっていたのを直しました",
+      "図鑑の「カード一覧を開く」に並ぶカードの絵が、細い帯に潰れていたのを直しました",
     ],
     fixesEn: [
       "On an iPhone app added to the Home Screen, a blank band could appear at the bottom and cut off the buttons there.",
       "After a card effect asked you to choose something, the game could stop with nothing left to click.",
+      "The card list screen stayed dark even in the light theme.",
+      "The card art on the Codex's \"Open card list\" tile was squashed into a thin strip.",
     ],
     devItems: [
       "🔴🔴 **#731（下に余白）の正体が分かった。#531 の直しは効いていたが、直っていなかった。** 実機のスクリーンショット（932x430＝画面の全面）で決着: `inner` も `visualViewport` も `clientHeight` も **371**、`outerHeight` だけ 430、そして**画像の下 59px が真っ黒**＝そこには1ピクセルも描かれていない。ステージ倍率は 0.478 ＝ #531 の「standalone なら outerHeight を信じる」は**当たっていた**。🔴 **59 の正体は縦持ちの時の上下の帯**（縦持ちの inner は 430x873 ＝ 932-59）。iOS が縦持ちで決めた差し引きを、横にしても引き続けている＝**レイアウトの大きさが古いまま**。だから outerHeight を採っても**寸法だけ 430 になり、ブラウザは 371 までしか描かない**＝下 13.7% の中身が切れる。余白が埋まらないどころか**悪くしていた**。",
@@ -67,6 +83,10 @@ export const CHANGELOG = [
       "🔴🔴 **#753（ムーブフェイズなのにハイライトが出ない）は、取り残された候補選択だった。** 行動ログで決着: 到達の連鎖が閉じた直後（`diag-arrival-processing {phase:\"end\", depth:0}`）の `diag-anytime-checkpoint` が **`pickerActive:true`**、その2秒後の `diag-phase-deferred {phase:\"move\", via:\"reconcile\"}` が**その対局の最後の1行**＝そこから27秒、何も起きないまま優先権だけが延長へ流れた。画面の記録も `effectCells:0 / pickTargets:0 / moveCells:0`＝**押せる物が1つも無い**。🔴 しかも**既にある見張り（runHandEffectBusyWatchdog）は `if (activeEffectPicker) return;` で降りる**——「誰かが選んでいる最中なら手を出さない」という正しい配慮が、**詰まっている当のものだけを見逃す**形になっていた。",
       "⇒ **「選べるものが1つも無い候補選択」だけを掃除する見張り**を足した（#717 と同じ判断で、出す所・消す所を1つずつ直す形は採らない＝触る所が20か所以上あり1つ直しても次が残る）。⚠ 次が**全部**そろった時だけ動く: ①同じ候補選択が25秒以上そのまま ②返事待ちのモーダルが1つも出ていない ③**光っているマス・アバターが1つも無い** ④委任も CPU の選択も走っていない。🔴 ③は「候補の配列が空か」では見ない——報告の `effectCells` は**DOM に光っている物の数**で、配列が在っても貼り直しに失敗すれば 0 になるし、モーダルで選ぶ種類は配列が空にならない。**押せる物が画面に在るか**なら、どの種類でも同じ1つの物差しで足りる。⚠ 掃除の仕方は「選ぶのをやめた」（resolve(null)）＝**スキップと同じ道**なので、効果の側は既にこの結末を扱える。",
       "🔴🔴 **続き790〜801 で直した24件を、1件も `handled-bug-reports.js` に登録していなかった**（取りこぼしは続き672・678・691・786 に続いて**5回目**）。管理者ダッシュボードの「未対処」が実際より24件多く出ていた。⇒ 登録した（#724 #725 #726 #727 #728 #729 #730 #732 #734 #738 #744 #747 #748 #749 #752 #755 #756 #763 #765 #766 #767 #768 #769 #772）。**直したらその場で足す。**",
+      "🔴 **#735「カード一覧を開くのとこのカードが実際のカードになってない」は、同じルールに `background-size` が2回あったせい。** #684 で実物の絵を敷いた時に `background-size: cover; background-position: center;` を**ルールの頭**に足したが、**同じルールの下の方に続き722 の `background-size: 100% 0.5rem; background-position: top left;`（紙＋7色の細い帯）が残っていて後が勝っていた**。⇒ 実物の絵が **0.5rem の帯に潰され**、画面では「白い札の上に色の線が1本」に見えていた。直し方は**絵を敷く側（codex-page.js）で cover を一緒に書く**形にした——CSS 側の「紙＋細い帯」は**絵が無い時の見た目**として残したいため。**教訓: 同じ宣言を1つのルールに2回書かない。後が黙って勝つ（教訓9 の家族）。**",
+      "🔴 **#737「カード一覧画面が急にダークです」は、見た目を JS のじか書き（style.cssText）で持っていたから。** じか書きは普通の規則では勝てないので、明暗2テーマの上書きが**1つも効かない**（続き721 と同じ形）。図鑑の側は明るいテーマに直してあるので、そこから入ると**そこだけ暗転**して見えた。⇒ **色だけ**を style.css へ移し（レイアウトの値は1つも動かしていない）、`body.theme-light` の上書きを足した。⚠ **暗いテーマの見え方は1ピクセルも変えていない**（じか書きの値をそのまま書き写した）。⚠ 明るいテーマの色は図鑑（#codex-page）と同じ紙と金でそろえた＝画面が切り替わっても地続きに見える。",
+      "🔴 **#739 / #740（カード一覧は全部／対局中はその山の中身）。** 対局中かどうかで分ける（`isDeckListMode()`）形は元からあったので、**対局が始まっていない時に全部出す**枝を足しただけ。⚠ **未公開のものまで並べたわけではない**: 旧0th は管理者だけのセットなので管理者の時だけ足し、志炎者（限定報酬）は**持っていなければ1枚ずつ「？」で伏せる**仕掛けが既に入っている（#738・続き793）。実測で 99枚・8つの節が並び、志炎者は7枚とも「？」のままであることを見ている。",
+      "⚠ 実測の数え方でまた1件落ちた（私の方の間違い）: 札のタイルの地は暗いテーマで `rgba(255,255,255,0.03)` ＝ **数字だけ読むと「255＝真っ白」**に見える。**アルファを下の地に合成してから**測らないと嘘になる。",
       "⚠ #768 の補足（ユーザーから）: 「**通常の移動**」は用語集どおり「**ムーブフェイズでの移動**」。続き800 の直しはそのとおりになっている（印を立てるのは tap/drag/auto の移動だけで、接触では立たない）。**同じ罠に次に当たらないよう `normal-move-mark.js` に書き残した**——`requiresNormalMoveThisTurn` は**自分のハンドフェイズでは原理的に真にならない**（lock→hand→move の順）ので、手札効果の条件には使えない。",
     ],
     devItemsEn: [
@@ -75,6 +95,10 @@ export const CHANGELOG = [
       "#753 (move phase with no highlights): a leaked effect picker. The log shows pickerActive:true right after the arrival chain closed, then one diag-phase-deferred and nothing for 27 seconds. The existing watchdog bails out on `if (activeEffectPicker) return;`, so the one thing that was stuck was the one thing it never touched.",
       "A second watchdog now clears a picker that has nothing to click: the same picker stuck for 25 seconds, no blocking modal, no highlighted cell or avatar, and no delegation or CPU choice in progress. It resolves the picker as a skip, which the effects already handle.",
       "24 reports fixed in sessions 790-801 had never been added to handled-bug-reports.js, so the admin dashboard showed 24 more open reports than there were. They are registered now.",
+      "#735 (the cards on the Codex tile did not look like real cards): the rule set background-size twice. The cover value added when real art was introduced sat above an older `background-size: 100% 0.5rem` from the paper-and-stripe look, so the later one won and squashed every illustration into a 0.5rem strip. The art side now sets cover inline, leaving the stripe look as the fallback for cards without art.",
+      "#737 (the card list stayed dark in the light theme): that screen kept its look in inline styles, which no theme rule can override. The colours moved to style.css with a light-theme override; the dark theme renders exactly as before.",
+      "#739 / #740: the deck list already branched on whether a match is running, so the fix only adds the \"show everything\" branch for outside a match. Admin-only sets are still admin-only and unowned limited rewards still show as \"?\".",
+      "A measurement of mine was wrong again: the tile background is rgba(255,255,255,0.03) in the dark theme, which reads as pure white unless the alpha is composited over what is behind it.",
       "Note from the user on #768: \"normal movement\" means movement in the move phase, as the glossary says. The session-800 fix already matches that, and the reason the old condition could never fire from your own hand phase (lock comes before hand, which comes before move) is now written down in normal-move-mark.js.",
     ],
   },

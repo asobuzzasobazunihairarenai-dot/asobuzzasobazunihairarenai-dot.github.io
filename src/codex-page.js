@@ -66,7 +66,15 @@ export function openCodexPage(onClose) {
     const i = document.createElement("i");
     const 候補 = NORMAL_CARDS.filter((c) => c.color === 色);
     const 札 = 候補[Math.floor(Math.random() * 候補.length)];
-    if (札) i.style.backgroundImage = `url("${getCardIllustPath(札.id)}")`;
+    if (札) {
+      i.style.backgroundImage = `url("${getCardIllustPath(札.id)}")`;
+      // 🔴【#735・続き802】**大きさと位置も一緒に書く。** CSS 側（ui-v2.css）は
+      //   「絵が無い時の紙＋細い帯」のために `background-size: 100% 0.5rem` を持っており、
+      //   絵だけ差し替えると**0.5rem の帯に潰れて**「白い札に色の線が1本」になっていた
+      //   （報告「実際のカードになってない」）。ここで書けば絵の在る札だけが札いっぱいに出る。
+      i.style.backgroundSize = "cover";
+      i.style.backgroundPosition = "center";
+    }
     fan.appendChild(i);
   }
   deckBtn.insertBefore(fan, deckBtn.firstChild);

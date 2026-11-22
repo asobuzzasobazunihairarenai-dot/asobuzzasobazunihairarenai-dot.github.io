@@ -2016,9 +2016,15 @@ body.ui-v2 .codex-deck-fan {
 }
 /* 【#684】実物のカードの絵を敷く（JS が1枚ずつ選んで background-image を入れる）。
    絵が入らなかった時は、下の nth-child の色の帯がそのまま出る（壊れない）。 */
+/* 🔴【#735・続き802】ここに `background-size: cover; background-position: center;` が
+   書いてあったが、**同じルールの下の方に `background-size: 100% 0.5rem` があって後が勝ち**、
+   1行も効いていなかった（#684 で実物の絵を敷いた時に、続き722 の「紙＋7色の細い帯」の値を
+   消し忘れた）。⇒ 実物の絵は**カードの天地いっぱいに出したいのに 0.5rem の帯に潰され**、
+   画面では「白い札の上に色の線が1本」に見えていた＝報告「実際のカードになってない」。
+   ⚠ 直し方は**絵を敷く側（codex-page.js）で cover を一緒に書く**形にした。
+     ここの「紙＋細い帯」は**絵が無い時の見た目**として残したいため（消すと色の板になる）。
+   ⚠ 同じ宣言を1つのルールに2回書かない。後が黙って勝つ。 */
 body.ui-v2 .codex-deck-fan i {
-  background-size: cover;
-  background-position: center;
   position: absolute;
   left: 50%;
   bottom: 0;

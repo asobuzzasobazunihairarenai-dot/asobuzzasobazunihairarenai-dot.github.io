@@ -29171,3 +29171,56 @@ body.is-tablet-device .deck-chooser-row { gap: 1rem; }
 .black-seal.is-white .black-seal-ring {
   box-shadow: 0 0 0.9rem rgba(232, 244, 255, 0.95), inset 0 0 0.7rem rgba(255, 255, 255, 0.75);
 }
+
+/* 🔴【#737・続き802】山札一覧（カード一覧）の色。
+   報告「カード一覧画面 が急にダークです」。あの画面は見た目を **deck-viewer.js の
+   じか書き（style.cssText）** で持っていたので、明暗2テーマの上書きが1つも効かず、
+   明るいテーマの図鑑から入ると**そこだけ暗転**していた（続き721 と同じ形）。
+   ⇒ **色だけ**をここへ移した。**暗いテーマの見え方は今までと1ピクセルも変えていない**
+   （じか書きしてあった値をそのまま書き写してある）。レイアウトの値は JS に残したまま。
+   ⚠ 文字色は決め打ちで1か所に書く——ここは自分で地を持つ画面なので、継承では決まらない
+   （教訓15 が言っているのは「**地を持たない部品**に決め打ちするな」）。 */
+#deck-viewer-panel {
+  background: rgba(15, 23, 32, 0.98);
+  color: #e2e8f0;
+}
+.deck-viewer-tile {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  color: #e2e8f0;
+}
+.deck-viewer-heading {
+  color: #7dd3fc;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+}
+#deck-viewer-card-modal {
+  background: rgba(15, 23, 32, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #e2e8f0;
+}
+.deck-viewer-note {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 明るいテーマ。図鑑（#codex-page）と同じ紙と金でそろえる＝画面が切り替わっても地続きに見える。 */
+body.theme-light #deck-viewer-panel {
+  background: rgba(247, 243, 233, 0.98);
+  color: #3a3226;
+}
+body.theme-light .deck-viewer-tile {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(176, 141, 63, 0.3);
+  color: #3a3226;
+}
+body.theme-light .deck-viewer-heading {
+  color: #9a7a2f;
+  border-bottom-color: rgba(176, 141, 63, 0.4);
+}
+body.theme-light #deck-viewer-card-modal {
+  background: rgba(247, 243, 233, 0.98);
+  border-color: rgba(176, 141, 63, 0.45);
+  color: #3a3226;
+}
+body.theme-light .deck-viewer-note {
+  background: rgba(176, 141, 63, 0.1);
+}

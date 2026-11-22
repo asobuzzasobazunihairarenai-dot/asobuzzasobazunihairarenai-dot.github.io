@@ -23,6 +23,9 @@ import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 0thリメイクの限�
 import { getCardSet, CARD_SETS } from "./card-set.js";
 // 🔴【#738・続き793】限定報酬の札を**持っていない間は伏せる**ために持ち物を見る。
 import { getCollection } from "./card-packs.js";
+// 🔴【#739・続き802】図鑑で全部出す時に、**旧0th（管理者だけのセット）**を足すかの判定に使う。
+//   ⚠ online.js は card-packs.js が既に取り込んでいる（上の import）ので、輪は増えない。
+import { isAdminUser } from "./online.js";
 import { showCardFace } from "./card-face-display.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName, getCardNote } from "./card-text.js"; // UI英語化フェーズ12: 表示用のカード名・補足
@@ -91,11 +94,13 @@ export function deckViewerTitle() {
 function buildCardTile(def, showCount) {
   const tile = document.createElement("button");
   tile.type = "button";
+  // 🔴【#737・続き802】**色は CSS（style.css の .deck-viewer-tile）が持つ。**
+  //   じか書きだと明暗2テーマの上書きが効かず、明るいテーマでも暗いままになる。
+  tile.className = "deck-viewer-tile";
   tile.style.cssText = `
     position: relative; display: flex; flex-direction: column; align-items: center;
-    gap: 0.2rem; padding: 0.3rem; background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(148, 163, 184, 0.15); border-radius: 0.4rem; cursor: pointer;
-    font-family: sans-serif; color: #e2e8f0; text-align: center;
+    gap: 0.2rem; padding: 0.3rem; border-radius: 0.4rem; cursor: pointer;
+    font-family: sans-serif; text-align: center;
   `;
 
   // 🔴【#660 の続き・2026-11-14（続き716）】ユーザー報告「**拡張と1stの効果文テキストが
@@ -231,9 +236,10 @@ function buildSection(title, cardDefs, showCount) {
   heading.textContent = showCount
     ? t("deckviewer.sectionDeck", { title, n: cardDefs.length, total: 合計 })
     : t("deckviewer.section", { title, n: cardDefs.length });
+  heading.className = "deck-viewer-heading"; // 色は style.css（#737・続き802）
   heading.style.cssText = `
-    font-weight: bold; color: #7dd3fc; margin-bottom: 0.4rem;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 0.3rem;
+    font-weight: bold; margin-bottom: 0.4rem;
+    padding-bottom: 0.3rem;
     font-family: sans-serif;
   `;
   section.appendChild(heading);
@@ -254,13 +260,13 @@ function buildCardModal() {
   backdrop.style.cssText = "position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); z-index: 2100; display: none;";
 
   const modal = document.createElement("div");
+  modal.id = "deck-viewer-card-modal"; // 色は style.css（#737・続き802）
   modal.style.cssText = `
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: min(62rem, calc(94vw / var(--stage-scale, 1)));
     max-height: calc(92vh / var(--stage-scale, 1)); overflow-y: auto;
-    background: rgba(15, 23, 32, 0.98); border: 1px solid rgba(148, 163, 184, 0.4);
     border-radius: 0.5rem; padding: 1rem; z-index: 2101;
-    font-family: sans-serif; color: #e2e8f0; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    font-family: sans-serif; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     display: none;
   `;
 
@@ -286,8 +292,9 @@ function buildCardModal() {
   name.style.cssText = "font-weight: bold; font-size: 1.35rem; margin-bottom: 0.5rem; line-break: strict;";
 
   const note = document.createElement("div");
+  note.className = "deck-viewer-note"; // 色は style.css（#737・続き802）
   note.style.cssText = `
-    padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem;
+    padding: 0.5rem; border-radius: 0.25rem;
     font-size: 1rem; line-height: 1.7; white-space: pre-wrap; line-break: strict;
   `;
   textCol.appendChild(name);
@@ -325,9 +332,8 @@ function buildPanel(close) {
   // 広げ、中身は縦スクロールで見せる。
   panel.style.cssText = `
     position: fixed; inset: 0; overflow-y: auto;
-    background: rgba(15, 23, 32, 0.98);
     padding: 1rem 1.2rem 2rem; z-index: 2001;
-    font-family: sans-serif; font-size: 0.85rem; color: #e2e8f0;
+    font-family: sans-serif; font-size: 0.85rem;
     display: none;
   `;
 
@@ -384,8 +390,17 @@ export function buildDeckSections(opts = {}) {
   // 🔴 「いま山札に入っているものだけ」を出す。セットが3つ以上になったので、
   //   「REMAKE 以外なら0th拡張」のような**裏返しの条件では足りない**（1st EDITION を
   //   選んだ時に0th拡張が並んでしまう）。⇒ セットごとに**何を出すかを直接書く**。
+  // 🔴【#739・続き802】ユーザー要望「**カード一覧は設定中の山札ではなく、すべてのカードが
+  //   表示されていて欲しい**」。⇒ 対局が始まっていない時（図鑑から開いた時）は**全部出す**。
+  //   ⚠ 対局中は今までどおり **その対局の山の中身だけ**（上の `枚数を出す` の枝＝#740）。
+  //     「一覧に無い札が出てくる」のが困るのは対局中の話で、図鑑は読み物なので逆。
+  //   ⚠ **未公開のものまで並べるわけではない**:
+  //     ・旧0th は**管理者だけ**のセットなので、管理者の時だけ足す
+  //     ・志炎者（限定報酬）は**持っていなければ札ごと「？」で伏せる**仕掛けが
+  //       既に1枚ずつに入っている（#738・続き793）ので、並べても中身は割れない
+  const 全部出す = !!opts.showAll;
   const セット = getCardSet();
-  const 混ぜる = セット === CARD_SETS.MIXED;
+  const 混ぜる = セット === CARD_SETS.MIXED || 全部出す;
   if (セット === CARD_SETS.EX0 || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.ex0"), 色でそろえる(EX0_NORMAL_CARDS)));
   }
@@ -394,15 +409,16 @@ export function buildDeckSections(opts = {}) {
   }
   // ⚠ 旧0th は「まぜる」には入れていない（mixed-deck.js は3セットで組んでいる）。
   //   選んでいる時だけ出す。
-  if (セット === CARD_SETS.OLD_0TH) {
+  //   ⚠ 旧0th は**管理者だけ**。全部出す時でもそこは変えない。
+  if (セット === CARD_SETS.OLD_0TH || (全部出す && isAdminUser())) {
     wrap.appendChild(buildSection(t("deckviewer.old0th"), 色でそろえる(OLD0TH_NORMAL_CARDS)));
   }
   // 🔴【続き782】リメイク＋志炎者。リメイクの19種と志炎者7種の**両方**を出す。
   //   ⚠ 片方だけ出すと「一覧に無い札が出てくる」になる（この関数の上のコメントの通り）。
-  if (セット === CARD_SETS.REMAKE_CF) {
+  if (セット === CARD_SETS.REMAKE_CF || 全部出す) {
     wrap.appendChild(buildSection(t("deckviewer.cf"), 色でそろえる(CF_NORMAL_CARDS)));
   }
-  if (セット === CARD_SETS.REMAKE || セット === CARD_SETS.REMAKE_CF || 混ぜる) {
+  if (セット === CARD_SETS.REMAKE || セット === CARD_SETS.REMAKE_CF || 混ぜる || 全部出す) {
     wrap.appendChild(buildSection(t("deckviewer.normal"), 色でそろえる(NORMAL_CARDS)));
   }
   // エターナル。🔴 1st EDITION を選んでいる時は**その対局で実際に出てくるのは1st のEカード**
@@ -412,7 +428,7 @@ export function buildDeckSections(opts = {}) {
   // 1st EDITION の Fカード7種。⚠ **まだどの山にも入れていない**（ファーストカードを1st の
   //   ものに差し替えるかは別途相談）ので、「ここにあるよ」と見せるだけ。
   //   見せるのは 1st を選んでいる人だけ＝遊んでいる人に未公開のカードは並ばない。
-  if (セット === CARD_SETS.FIRST_ED) {
+  if (セット === CARD_SETS.FIRST_ED || 全部出す) {
     wrap.appendChild(buildSection(t("deckviewer.firstEd1st"), FIRST_ED_FIRST_CARDS));
   }
   return wrap;
@@ -444,7 +460,9 @@ export function initDeckViewer() {
     const 中 = panel.querySelector("#deck-viewer-body");
     if (中) {
       中.innerHTML = "";
-      中.appendChild(buildDeckSections({ showCount: 枚数 }));
+      // 🔴【#739 #740・続き802】対局中は**その対局の山の中身**（枚数入り）、
+      //   対局が始まっていない時は**すべてのカード**（図鑑は読み物なので）。
+      中.appendChild(buildDeckSections({ showCount: 枚数, showAll: !枚数 }));
     }
     panel.style.display = "block";
     backdrop.style.display = "block";
