@@ -16589,26 +16589,93 @@ function isHomeScreenApp() {
   }
 }
 let 高さを補った = false;
+// 🔴🔴【#731・続き802】**#531 の直し（「standalone なら outerHeight を信じる」）は、直っていなかった。**
+//   報告 #731「やっぱり下に余白ができちゃいます。一回縦向きにして、また横にすると直ります」の
+//   **実機のスクリーンショット（932x430 ＝ 画面の全面）**を見て決着した:
+//
+//   | | |
+//   |---|---|
+//   | ブラウザが言う大きさ | inner も visualViewport も clientHeight も **932x371** |
+//   | 本当の画面 | outerHeight **430**（撮った画像の縦横比が 2.168 ＝ 932/430） |
+//   | 撮った画像 | **下の 59px が真っ黒**＝そこには1ピクセルも描かれていない |
+//   | その時のステージ倍率 | **0.478** ＝ #531 の補正は**効いていた**（h=430 を採っていた） |
+//
+//   🔴 **59 の正体は「縦持ちの時の上下の帯」**（縦持ちの inner は 430x873 ＝ 932-59。
+//     #204 の覚え書きに実測が残っている）。iOS が縦持ちで決めた差し引きを、横にしても
+//     引き続けている＝**レイアウトの大きさが古いまま**。
+//   🔴 だから **outerHeight を採っても意味が無い**——寸法だけ 430 になり、ブラウザは 371 までしか
+//     描かないので、**下 13.7% ぶんの中身が切れる**（画面の下のボタンが押せない）。
+//     「余白が埋まらない」どころか**悪くしていた**。
+//   ⇒ **やることを入れ替えた**:
+//     ① 置き場所の計算には**本当に描ける高さ（inner / visualViewport）**を使う＝何も切れない。
+//     ② そのうえで **ブラウザに「測り直して」と頼む**（下の `ビューポートに高さを伝える`）。
+//        ユーザーが「一回縦にして横に戻すと直る」と言っているのは、向きの変更が測り直しを
+//        起こすから。同じことを meta の viewport で起こす。
+//   ⚠ **iPhone/iPad のホーム画面アプリだけ**（`navigator.standalone`）。PC のアプリ版や
+//     Safari のタブでは outer が大きいのが**正しい**ので、1行も走らない（#591 の教訓）。
+const VIEWPORT_NUDGE_MAX = 3;
+let 測り直しを頼んだ回数 = 0;
+let 伝えた高さ = 0;
+let 元のビューポート指定 = null;
+// 🔴 外した直後に言い直さないための間。外して**すぐ**言い直すと、ブラウザは
+//   「変わっていない」と見なして測り直さない（＝向きを変えても直らないまま）。
+let 控える時刻 = 0;
+function viewportMetaEl() {
+  return document.querySelector('meta[name="viewport"]');
+}
+// ブラウザに「画面の高さはこれ」と伝えて、レイアウトの大きさを測り直させる。
+// ⚠ `height=` は WebKit の古い指定で、まさにレイアウトの高さを決めるためのもの。
+//   content が変わると viewport が評価し直されるので、これが測り直しの引き金になる。
+function ビューポートに高さを伝える(outer, inner) {
+  const meta = viewportMetaEl();
+  if (!meta) return;
+  if (元のビューポート指定 === null) 元のビューポート指定 = meta.getAttribute("content") || "";
+  if (!元のビューポート指定) return;
+  if (伝えた高さ === outer) return; // 同じ値を何度も言わない
+  伝えた高さ = outer;
+  測り直しを頼んだ回数++;
+  try { logAction("diag-viewport-nudge", { inner, outer, 回: 測り直しを頼んだ回数 }); } catch (err) {}
+  meta.setAttribute("content", 元のビューポート指定 + ", height=" + outer);
+  // 効いたかどうかを次の報告で1行で読めるように、少し後の値も残す。
+  setTimeout(() => {
+    try { logAction("diag-viewport-nudge-after", { inner: Math.round(window.innerHeight), outer: Math.round(window.outerHeight) }); } catch (err) {}
+    ensureViewportStageFresh();
+  }, 150);
+}
+// 向きが変わる時は、こちらの指定をいったん外す（新しい向きの高さはブラウザに出させる）。
+function ビューポートの高さの指定を外す() {
+  const meta = viewportMetaEl();
+  if (!meta || 元のビューポート指定 === null || 伝えた高さ === 0) return;
+  伝えた高さ = 0;
+  測り直しを頼んだ回数 = 0;
+  // ⚠ 新しい向きの高さをブラウザが出すまで、1秒は言い直さない。
+  //   それでも食い違ったままなら、そのあと改めて頼む（あきらめない）。
+  控える時刻 = Date.now() + 1000;
+  meta.setAttribute("content", 元のビューポート指定);
+}
 function viewportSize() {
   let w = window.innerWidth;
   let h = window.innerHeight;
   const vv = window.visualViewport;
+  const ae = document.activeElement;
+  const typing = !!ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable === true);
   if (vv && vv.width > 0 && vv.height > 0 && !(vv.scale > 1.01)) {
-    const ae = document.activeElement;
-    const typing = !!ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable === true);
     if (!typing) {
       w = Math.round(vv.width);
       h = Math.round(vv.height);
     }
   }
   const oh = Math.round(window.outerHeight || 0);
-  if (isHomeScreenApp() && oh > h && oh <= h * 1.35) {
+  // ⚠ 16px 以上ずれている時だけ見る（1〜2px の丸めで頼み続けないため）。
+  // ⚠ 1.35倍まで（iPad の分割表示のように**本当に小さい**時に頼むと、かえって崩れる）。
+  // ⚠ 文字入力中は見ない（キーボードで visualViewport が縮むのは正しい変化）。
+  if (!typing && isHomeScreenApp() && oh > h + 15 && oh <= h * 1.35) {
     if (!高さを補った) {
       高さを補った = true;
-      // 当たったことを1回だけ残す（次の報告で「効いたのか」が1行で分かる）。
       try { logAction("diag-standalone-height", { inner: h, outer: oh, w }); } catch (err) {}
     }
-    h = oh;
+    // 🔴 ここで h = oh とはしない（上の覚え書き）。描けない所へ中身を置くと切れるだけ。
+    if (測り直しを頼んだ回数 < VIEWPORT_NUDGE_MAX && Date.now() >= 控える時刻) ビューポートに高さを伝える(oh, h);
   }
   return { w, h };
 }
@@ -16675,6 +16742,9 @@ function ensureViewportStageFresh() {
 window.addEventListener("resize", refitViewportStage);
 // iOSは向きの変更直後だとまだ古いサイズを返すことがあるので、直後と少し後の2回見る。
 window.addEventListener("orientationchange", () => {
+  // 🔴【#731・続き802】新しい向きの高さは**まずブラウザに出させる**ので、こちらの指定を外す。
+  //   外さないと、縦持ちに戻った時まで横持ちの高さを押しつけてしまう。
+  ビューポートの高さの指定を外す();
   ensureViewportStageFresh();
   setTimeout(ensureViewportStageFresh, 300);
   setTimeout(ensureViewportStageFresh, 900);
@@ -22650,10 +22720,67 @@ function runHandEffectBusyWatchdog() {
     render();
 }
 
+// 🔴🔴【#753・続き802】**取り残された候補選択（activeEffectPicker）が、フェイズを永久に止める。**
+//   報告「私のムーブふぇいずのようですが、マス選択のハイライトが出てません」。行動ログで決着した:
+//   到達の連鎖が閉じた直後（`diag-arrival-processing {phase:"end", depth:0}`）の
+//   `diag-anytime-checkpoint` が **`pickerActive:true`**、その2秒後の
+//   `diag-phase-deferred {phase:"move", via:"reconcile"}` が**その対局の最後の1行**
+//   ＝そこから27秒、何も起きないまま優先権だけが延長へ流れていった。
+//   報告の画面の記録も `effectCells:0 / pickTargets:0 / moveCells:0`＝**押せる物が1つも無い**。
+//
+//   🔴 **既にある見張り（runHandEffectBusyWatchdog）は `if (activeEffectPicker) return;` で降りる。**
+//     「誰かが選んでいる最中なら手を出さない」という配慮が正しいからこそ、
+//     **詰まっている当のものだけが見逃される**形になっていた。
+//   ⇒ 「**選べるものが1つも無い候補選択**」だけを掃除する見張りを別に置く。
+//
+//   ⚠ 人が長考しているだけの時に消してはいけない。次が**全部**そろった時だけ動く:
+//     ① 同じ候補選択が25秒以上そのまま ② 返事待ちのモーダルが1つも出ていない
+//     ③ **光っているマス・アバターが1つも無い** ④ 委任も CPU の選択も走っていない
+//   🔴 ③は「候補の配列が空か」では**見ない**。報告の `effectCells:0` は
+//     **DOM に光っている物の数**で、候補が在っても貼り直しに失敗していれば 0 になるし、
+//     モーダルで選ぶ種類（option / colors / opponentHand）は配列が空にならない。
+//     **押せる物が画面に在るか**で見れば、どの種類でも同じ1つの物差しで足りる
+//     ——人が選んでいる最中なら、光っているマスかモーダルのどちらかが必ず在る。
+//   ⚠ 掃除の仕方は「選ぶのをやめた」（resolve(null)）＝**スキップと同じ道**なので、
+//     効果の側は既にこの結末を扱える（新しい結末を増やさない＝#477 の家族を作らない）。
+//   ⚠ #717 の時と同じ判断で、**出す所・消す所を1つずつ直す形は採っていない**
+//     （activeEffectPicker を触る所は20か所以上あり、1つ直しても次が残る）。
+let 置き去りの候補選択 = null;
+let 置き去りを見た時刻 = 0;
+const PICKER_LEAK_MS = 25000;
+// 画面に「この候補選択のために押せる物」が在るか。
+function 押せる物が在るか() {
+  if (isAnyBlockingModalOpen()) return true; // モーダルで選ぶ種類はこれで拾える
+  return !!document.querySelector(".card-effect-target-cell, .card-effect-target-avatar");
+}
+function runEffectPickerLeakWatchdog() {
+  const picker = activeEffectPicker;
+  if (!picker) { 置き去りの候補選択 = null; return; }
+  if (picker !== 置き去りの候補選択) {
+    // 別の候補選択に替わった＝進んでいる。時計を戻す。
+    置き去りの候補選択 = picker;
+    置き去りを見た時刻 = Date.now();
+    return;
+  }
+  const stuckMs = Date.now() - 置き去りを見た時刻;
+  if (stuckMs < PICKER_LEAK_MS) return;
+  if (isCpuSelectingNow()) return;
+  if (getEffectDelegationTarget()) return;
+  // 🔴 ここが肝。押せる物が1つでも在るなら、人が考えているだけかもしれないので触らない。
+  if (押せる物が在るか()) return;
+  logAction("diag-picker-leak", { type: picker.type ?? null, owner: picker.owner ?? null, stuckMs });
+  activeEffectPicker = null;
+  try { picker.resolve(null); } catch (err) { /* 閉じられなくても進行は続ける */ }
+  render();
+}
+
 setInterval(() => {
   try {
     runHandEffectBusyWatchdog();
   } catch { /* noop: ウォッチドッグ自身で例外を投げても進行を止めない */ }
+  try {
+    runEffectPickerLeakWatchdog();
+  } catch { /* noop: 同上 */ }
   try {
     checkFinalLockApprovalTimeout();
     checkContactApprovalTimeout();

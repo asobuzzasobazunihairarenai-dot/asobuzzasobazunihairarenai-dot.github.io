@@ -53,6 +53,33 @@ import { markChangelogRead } from "./changelog-signature.js";
 export const CHANGELOG = [
   {
     date: "2026-11-22",
+    fixes: [
+      "ホーム画面に追加したiPhoneで、画面の下に余白ができて下のボタンが押せなくなることがあったのを直しました",
+      "カードの効果で何かを選ぶ場面のあと、選ぶものが画面に出ないまま対局が進まなくなることがあったのを直しました",
+    ],
+    fixesEn: [
+      "On an iPhone app added to the Home Screen, a blank band could appear at the bottom and cut off the buttons there.",
+      "After a card effect asked you to choose something, the game could stop with nothing left to click.",
+    ],
+    devItems: [
+      "🔴🔴 **#731（下に余白）の正体が分かった。#531 の直しは効いていたが、直っていなかった。** 実機のスクリーンショット（932x430＝画面の全面）で決着: `inner` も `visualViewport` も `clientHeight` も **371**、`outerHeight` だけ 430、そして**画像の下 59px が真っ黒**＝そこには1ピクセルも描かれていない。ステージ倍率は 0.478 ＝ #531 の「standalone なら outerHeight を信じる」は**当たっていた**。🔴 **59 の正体は縦持ちの時の上下の帯**（縦持ちの inner は 430x873 ＝ 932-59）。iOS が縦持ちで決めた差し引きを、横にしても引き続けている＝**レイアウトの大きさが古いまま**。だから outerHeight を採っても**寸法だけ 430 になり、ブラウザは 371 までしか描かない**＝下 13.7% の中身が切れる。余白が埋まらないどころか**悪くしていた**。",
+      "⇒ **やることを入れ替えた**: ①置き場所の計算には**本当に描ける高さ**（inner / visualViewport）を使う＝何も切れない。②そのうえで**ブラウザに「測り直して」と頼む**——meta の viewport に `height=<outerHeight>` を足して、WebKit にレイアウトの大きさを評価し直させる（ユーザーが「一回縦にして横に戻すと直る」と言っているのと同じことを、向きを変えずに起こす）。⚠ **iPhone/iPad のホーム画面アプリだけ**（`navigator.standalone`）＝PC のアプリ版や Safari のタブでは1行も走らない（#591 の教訓）。⚠ 16px 以上ずれている時だけ・1.35倍まで・文字入力中は見ない。⚠ 向きが変わったら指定をいったん外し、**1秒は言い直さない**（すぐ言い直すとブラウザが「変わっていない」と見なして測り直さない）。効いたかどうかは `diag-viewport-nudge` / `-after` の2行で次の報告から読める。",
+      "🔴🔴 **#753（ムーブフェイズなのにハイライトが出ない）は、取り残された候補選択だった。** 行動ログで決着: 到達の連鎖が閉じた直後（`diag-arrival-processing {phase:\"end\", depth:0}`）の `diag-anytime-checkpoint` が **`pickerActive:true`**、その2秒後の `diag-phase-deferred {phase:\"move\", via:\"reconcile\"}` が**その対局の最後の1行**＝そこから27秒、何も起きないまま優先権だけが延長へ流れた。画面の記録も `effectCells:0 / pickTargets:0 / moveCells:0`＝**押せる物が1つも無い**。🔴 しかも**既にある見張り（runHandEffectBusyWatchdog）は `if (activeEffectPicker) return;` で降りる**——「誰かが選んでいる最中なら手を出さない」という正しい配慮が、**詰まっている当のものだけを見逃す**形になっていた。",
+      "⇒ **「選べるものが1つも無い候補選択」だけを掃除する見張り**を足した（#717 と同じ判断で、出す所・消す所を1つずつ直す形は採らない＝触る所が20か所以上あり1つ直しても次が残る）。⚠ 次が**全部**そろった時だけ動く: ①同じ候補選択が25秒以上そのまま ②返事待ちのモーダルが1つも出ていない ③**光っているマス・アバターが1つも無い** ④委任も CPU の選択も走っていない。🔴 ③は「候補の配列が空か」では見ない——報告の `effectCells` は**DOM に光っている物の数**で、配列が在っても貼り直しに失敗すれば 0 になるし、モーダルで選ぶ種類は配列が空にならない。**押せる物が画面に在るか**なら、どの種類でも同じ1つの物差しで足りる。⚠ 掃除の仕方は「選ぶのをやめた」（resolve(null)）＝**スキップと同じ道**なので、効果の側は既にこの結末を扱える。",
+      "🔴🔴 **続き790〜801 で直した24件を、1件も `handled-bug-reports.js` に登録していなかった**（取りこぼしは続き672・678・691・786 に続いて**5回目**）。管理者ダッシュボードの「未対処」が実際より24件多く出ていた。⇒ 登録した（#724 #725 #726 #727 #728 #729 #730 #732 #734 #738 #744 #747 #748 #749 #752 #755 #756 #763 #765 #766 #767 #768 #769 #772）。**直したらその場で足す。**",
+      "⚠ #768 の補足（ユーザーから）: 「**通常の移動**」は用語集どおり「**ムーブフェイズでの移動**」。続き800 の直しはそのとおりになっている（印を立てるのは tap/drag/auto の移動だけで、接触では立たない）。**同じ罠に次に当たらないよう `normal-move-mark.js` に書き残した**——`requiresNormalMoveThisTurn` は**自分のハンドフェイズでは原理的に真にならない**（lock→hand→move の順）ので、手札効果の条件には使えない。",
+    ],
+    devItemsEn: [
+      "#731 (blank band at the bottom): the real cause. The device screenshot (932x430, the whole screen) settled it: innerHeight, visualViewport and clientHeight all read 371 while outerHeight read 430, and the bottom 59px of the image is pure black — nothing is painted there. The 59px is the top/bottom chrome iOS computes for portrait (portrait inner is 430x873 = 932-59) and keeps subtracting in landscape: the layout viewport is stale. So trusting outerHeight (the #531 fix) only made the stage 430 tall while the browser still painted 371, cutting off the bottom 13.7% of the content.",
+      "The fix swaps the two jobs: lay out against the height that can actually be painted, and separately ask the browser to re-measure by adding height=<outerHeight> to the viewport meta (the same re-measure a rotation causes). iPhone/iPad home-screen apps only (navigator.standalone), only when the gap is over 16px and under 1.35x, never while typing, and the override is dropped on orientationchange with a one-second pause before asking again.",
+      "#753 (move phase with no highlights): a leaked effect picker. The log shows pickerActive:true right after the arrival chain closed, then one diag-phase-deferred and nothing for 27 seconds. The existing watchdog bails out on `if (activeEffectPicker) return;`, so the one thing that was stuck was the one thing it never touched.",
+      "A second watchdog now clears a picker that has nothing to click: the same picker stuck for 25 seconds, no blocking modal, no highlighted cell or avatar, and no delegation or CPU choice in progress. It resolves the picker as a skip, which the effects already handle.",
+      "24 reports fixed in sessions 790-801 had never been added to handled-bug-reports.js, so the admin dashboard showed 24 more open reports than there were. They are registered now.",
+      "Note from the user on #768: \"normal movement\" means movement in the move phase, as the glossary says. The session-800 fix already matches that, and the reason the old condition could never fire from your own hand phase (lock comes before hand, which comes before move) is now written down in normal-move-mark.js.",
+    ],
+  },
+  {
+    date: "2026-11-22",
     summary: [
       "マスを１つずつ選ぶ場面に「**おまかせ**」のボタンが出るようになりました",
       "「増殖する木々」の到達効果でも、**置く順番**を選べるようになりました",
