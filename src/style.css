@@ -1,4 +1,16 @@
 :root {
+  /* 🔴【#759・続き802】**iPhone の画面の下端は「ホームインジケータのスワイプ帯」。**
+     報告「チュートリアルのモーダルが下すぎてモーダル内のボタン押そうとすると
+     iPhoneだとアプリ切り替えが反応してしまいます」。あそこに置いたボタンは、押すと
+     OS がアプリ切り替えと受け取るので**事実上押せない**。
+     その帯の高さは `env(safe-area-inset-bottom)` が教えてくれる（index.html に
+     `viewport-fit=cover` が在るので値が入る。PC・Android の多くは 0＝何も変わらない）。
+     🔴 ⚠ **このアプリは body ごと `--stage-scale` で縮む**ので、env の値をそのまま使うと
+       縮んで足りなくなる。**倍率で割って**実画面のピクセルに直す（#721・#731・#760 と同じ手）。
+     ⚠ `--so7-safe-inset` を1段挟んであるのは、実測から値を差し替えて確かめられるように
+       （`env()` は上書きできないため）。ふだんは env の値がそのまま入る。 */
+  --so7-safe-inset: env(safe-area-inset-bottom, 0px);
+  --so7-safe-bottom: calc(var(--so7-safe-inset) / var(--stage-scale, 1));
   /* 🔴【続き741】このアプリの差し色（空色 #38bdf8）。style.css の 162 か所がこれを使う。
      v2 では画面の装いの中だけ金に差し替える（src/ui-v2.css）。**既定の値は変えない。** */
   --so7-accent: 56, 189, 248;
@@ -19042,7 +19054,14 @@ body.is-phone-device #options-menu-panel {
 /* 下段: 現在のデッキ */
 #mdb-deck-panel {
   flex: 0 0 auto;
-  height: 30vh;
+  /* 🔴【#760・続き802】**ステージの中で vh をそのまま使わない。**
+     このアプリは body ごと `--stage-scale` で縮むので、`30vh` は「実画面の30%」ではなく
+     **さらに倍率ぶん小さく**なる（#721・#731 と同じ家族）。実測（932x430・倍率0.478）で
+     この帯は **69px** しかなく、中の「箱絵：カードをここへドラッグ」が **29px はみ出して
+     画面の外**へ出ていた＝報告「箱絵カードをここにドラッグが横帯からはみ出てます」。
+     ⇒ 倍率で割って打ち消す（ミニロック・図鑑の札と同じ手）。
+     ⚠ PC（倍率1）では `calc(30vh / 1)` ＝ **今までと1pxも変わらない**。 */
+  height: calc(30vh / var(--stage-scale, 1));
   min-height: 9rem;
   display: flex;
   flex-direction: column;
@@ -21980,6 +21999,12 @@ body.is-phone-device {
 #mdb-deck-case {
   flex: 0 0 auto;
   align-self: flex-start;
+  /* 🔴【#760・続き802】**帯より高くならない。** 上の vh の直しで足りるはずだが、
+     とても縦の狭い画面では `min-height: 9rem` の方が効いて帯が短くなり得る。
+     その時に中身がはみ出すのではなく**切り取られる**ようにしておく（画面の外へ出るより良い）。 */
+  max-height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
   width: 9rem;
   display: flex;
   flex-direction: column;
@@ -22845,7 +22870,9 @@ body.theme-light .my-page-fav-title:hover {
 #mdb-tutorial {
   position: fixed;
   left: 50%;
-  bottom: 1.2rem;
+  /* 🔴【#759・続き802】iPhone のホームインジケータの帯を避ける（:root の覚え書き）。
+     ⚠ その帯が無い端末では 0 ＝**今までと1pxも変わらない**。 */
+  bottom: calc(1.2rem + var(--so7-safe-bottom, 0px));
   transform: translateX(-50%);
   z-index: 2450; /* #my-deck-page(1500) より前面、オプションエリアの帯(2700)よりは後ろ */
   width: min(34rem, 92vw);
