@@ -52,6 +52,9 @@ import { createModalCloseX, createBackdrop, setTextWithCoin, CURRENCY_ICON, show
 //   ⚠ 画面を**作り直したのではない**——引いた7枚をそのまま渡すだけで、
 //     パックの画面（持ち物・コレクション）は今までどおりその後ろに残る。
 import { openPackCeremony } from "./pack-opening.js";
+// 🔴【続き828】主役の袋。**pack-bag.js が唯一の持ち主**（開封の演出と同じ袋）。
+//   ⚠ ここではなぞらせない（封を切るのは演出の中）＝ `封を切る: false` で道しるべを出さない。
+import { buildPackBag } from "./pack-bag.js";
 import { t } from "./ui-text.js";
 
 // パックに入り得る札＝**まだアプリで公開していない**0th拡張と 1st EDITION の通常カード。
@@ -216,47 +219,59 @@ function 文言にする(err) {
   return t("packs.failed");
 }
 
-// ── ① 持ち物の行 ───────────────────────────────────────────────────────────
-function 持ち物の行() {
+// ── ① 持ち物の数字（主役の行の中） ───────────────────────────────────────
+// 🔴【続き828】画面案Bへ（ユーザー判断「案Bのがスキかも！！！」）。
+//   それまでは**4つの札**（セヴル／パック／ノーマルワイルド／ONLYワイルド）を横に並べ、
+//   その下に小さな袋を置いていた。実寸で撮って分かった問題が2つ:
+//     ①袋が 324x452 の絵なのに **81x113 まで縮めて**置いてあり、銀蒸着の虹色も
+//       「7」のロゴもバーコードも**1つも見えない**（画面の下半分は空いていた）。
+//     ②4つの札と診断の行が、**いちばん押したいボタンより目立っていた**。
+//   ⇒ 袋を主役にし、数字は**左の列にまとめる**。
+//   ⚠ **数字は1つも落としていない**——パックとセヴルは大きい数字、ワイルド2つと欠片の
+//     進みは下の小さい行（下記 持ちワイルドの行）。
+//   ⚠ 4つの札の作り（.card-pack-stat*）は CSS に残してある（戻したくなった時のため）。
+function 持ち物の数字() {
   const c = getCollection();
   const wrap = document.createElement("div");
-  wrap.className = "card-pack-stat";
-  // 🔴【続き737】ユーザー要望「もっとスタイリッシュに。今はただ必要なものが並べられて
-  //   いるだけな印象」⇒ **4つの札**にする（大きな数字＋小さな見出し）。
-  //   ⚠ セヴルは**言葉ではなく通貨アイコン**（オプションエリアの所持金と同じ絵）。
+  wrap.className = "card-pack-hero-nums";
+  // ⚠ 「のこり1パック」のような文にしない——語順が言語で変わる。
+  //   **大きい数字＋下に単位**なら、どちらの言語でも同じ形で読める（既にある鍵を使う）。
   const 組 = [
-    { 絵: true, 値: c.balance, 名: t("packs.coins") },
-    { 名: t("packs.packs"), 値: c.packs },
-    { 名: t("packs.wildNormal"), 値: c.wildCards, 下: c.wildShards + " / " + WILD_PER },
-    { 名: t("packs.wildOnly"), 値: c.onlyCards, 下: c.onlyShards + " / " + WILD_PER },
+    { 値: String(c.packs), 名: t("packs.packs") },
+    { 値: String(c.balance), 名: t("packs.coins"), 絵: true },
   ];
   for (const x of 組) {
     const cell = document.createElement("div");
-    cell.className = "card-pack-stat-cell";
-    const k = document.createElement("div");
-    k.className = "card-pack-stat-key";
+    cell.className = "card-pack-hero-num";
+    const v = document.createElement("b");
     if (x.絵) {
       const img = document.createElement("img");
       img.className = "so7-coin-icon";
       img.src = CURRENCY_ICON;
-      img.alt = x.名 || "";
-      k.appendChild(img);
+      img.alt = "";
+      v.appendChild(img);
     }
-    k.appendChild(document.createTextNode(x.名));
-    cell.appendChild(k);
-    const v = document.createElement("div");
-    v.className = "card-pack-stat-val";
-    v.textContent = String(x.値);
-    cell.appendChild(v);
-    if (x.下) {
-      const sub = document.createElement("div");
-      sub.className = "card-pack-stat-sub";
-      sub.textContent = x.下;
-      cell.appendChild(sub);
-    }
+    v.appendChild(document.createTextNode(x.値));
+    const k = document.createElement("i");
+    k.textContent = x.名;
+    cell.append(v, k);
     wrap.appendChild(cell);
   }
   return wrap;
+}
+
+// ワイルドカードの持ち数と欠片の進み（小さい1行）。
+function 持ちワイルドの行() {
+  const c = getCollection();
+  const el = document.createElement("div");
+  el.className = "card-pack-wilds";
+  el.textContent = t("packs.heroWilds", {
+    a: c.wildCards,
+    b: c.wildShards + " / " + WILD_PER,
+    c: c.onlyCards,
+    d: c.onlyShards + " / " + WILD_PER,
+  });
+  return el;
 }
 
 // ── ③ 開封 ─────────────────────────────────────────────────────────────────
@@ -521,8 +536,6 @@ function 中身を組む(inner) {
     inner.appendChild(n);
   }
 
-  inner.appendChild(持ち物の行());
-
   // 🔴 診断（管理者だけ）。「0 と出るが実際は違う」のような時に、**何が返ってきたか**を見る。
   if (管理者) {
     const c2 = getCollection();
@@ -536,23 +549,21 @@ function 中身を組む(inner) {
     inner.appendChild(d);
   }
 
-  // 🔴【続き737】主役の行。**袋の絵**を置いて、そこに「開ける」と値段を添える。
-  //   ⚠ 新しい画像は1枚も足していない（袋はグラデーションだけで描く）。
+  // 🔴【続き828】主役の行（画面案B）。**本物の袋を大きく右に**置き、左に文字を組む。
+  //   ⚠ 袋は開封の演出と**同じ部品**（pack-bag.js）。それまではここだけのために
+  //     グラデーション4枚の小さな写しを描いていたので、見た目が別物だった。
+  //   ⚠ 新しい画像は1枚も足していない（袋は CSS のグラデーションと既にあるロゴだけ）。
   const hero = document.createElement("div");
   hero.className = "card-pack-hero";
-  const foil = document.createElement("div");
-  foil.className = "card-pack-foil";
-  foil.setAttribute("aria-hidden", "true");
-  const stripe = document.createElement("div");
-  stripe.className = "card-pack-foil-stripe";
-  foil.appendChild(stripe);
-  const ed = document.createElement("div");
-  ed.className = "card-pack-foil-ed";
-  ed.textContent = "0TH EDITION";
-  foil.appendChild(ed);
-  hero.appendChild(foil);
   const heroText = document.createElement("div");
   heroText.className = "card-pack-hero-text";
+  // ⚠ ここに「BOOSTER PACK」の小見出しは置かない——**見出しが既に出している**
+  //   （`#card-pack-title::before`）。撮って気づいた: 置くと画面に二重に並ぶ。
+  heroText.appendChild(持ち物の数字());
+  const lead = document.createElement("div");
+  lead.className = "card-pack-lead";
+  lead.textContent = t("packs.heroLead", { n: PACK_SIZE });
+  heroText.appendChild(lead);
 
   const actions = document.createElement("div");
   actions.className = "card-pack-actions";
@@ -601,7 +612,15 @@ function 中身を組む(inner) {
     setTextWithCoin(w, 理由.join("　/　"));
     heroText.appendChild(w);
   }
+  heroText.appendChild(持ちワイルドの行());
   hero.appendChild(heroText);
+  // 🔴 袋は**文字より後ろ**に足す（DOM順＝重なり順。袋を先に置くと、傾いた角が
+  //   ボタンの上に乗って押せなくなる＝教訓3 の家族）。
+  const bag = document.createElement("div");
+  bag.className = "card-pack-bag";
+  bag.setAttribute("aria-hidden", "true"); // 絵（中身は左の文字が全部言っている）
+  bag.appendChild(buildPackBag({ cards: PACK_SIZE, 封を切る: false }));
+  hero.appendChild(bag);
   inner.appendChild(hero);
 
   if (いまの引き) inner.appendChild(引いた札を組む());

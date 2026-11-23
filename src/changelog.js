@@ -178,6 +178,28 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴 「パックを開ける」画面を**画面案B**に組み替えた（ユーザー判断「案Bのがスキかも！！！」）。" +
+        "それまでは持ち物の4つの札を横に並べ、その下に**小さな袋の写し**（グラデーション4枚）を" +
+        "置いていた。実寸で並べて撮って分かった問題が2つ: ①袋は 324x452 の絵なのに" +
+        "**81x113 まで縮めて**あり、銀蒸着の虹色も「7」のロゴもバーコードも**1つも見えない**" +
+        "（画面の下半分は空いていた）②4つの札と診断の行が、**いちばん押したいボタンより目立って**いた。" +
+        "⇒ **開封の演出と同じ本物の袋**を大きく右に置き（0.8倍・7度）、左に数字と押す所を組んだ。" +
+        "⚠ 数字は1つも落としていない（パックとセヴルは大きい数字、ワイルド2つと欠片の進みは下の小さい行）。",
+      "🔴 袋を **pack-bag.js** に切り出した（層が13枚あるので、2か所に書くと必ず食い違う" +
+        "＝続き762・769 と同じ形）。画面の主役は `封を切る: false` で、なぞる道しるべと裂け目を出さない。",
+      "🔴🔴 封を切る所を**本当に裂けるように**した（ユーザー要望「持って封がリアルに" +
+        "切り取られるといいな」）。指でなぞると**なぞった所まで**上端が左から右へ裂け、" +
+        "ちぎれたギザギザの帯が通り過ぎた順に1つずつめくれ上がる。途中で離せば**戻る**（封は切れない）。" +
+        "⚠ **タップは置き換えていない**——なぞらずに押せば今までどおり一気に裂けて進む（#277 の家族）。",
+      "🔴 その作りで分かったこと: それまでの「封を切る」は、熱圧着の帯を `translateY(-2.2rem)` で" +
+        "持ち上げていたが、`.pkc-foil` は `overflow: hidden` なので**持ち上げた帯は切り落とされて**" +
+        "いた＝「切れた」のではなく**ただ消えていた**。⇒ 裂け目は foil の**外**（兄弟）に置く。" +
+        "進みは CSS 変数 `--tear` 1つで表し、閉じている所・裂けた中身・めくれた帯の3つが同じ値を見る" +
+        "（1フレームずつ JS が座標を書く形にすると、戻り・途中で離した時まで全部 JS で持つことになる）。",
+      "⚠ 撮って直した所が3つ（数字では分からない）: ①めくれた帯を -76度まで倒して不透明度 0.45 まで" +
+        "落としたら**ほぼ消えて**「封が薄れて無くなる」にしか見えなかった ②めくれた帯を出しっぱなしに" +
+        "したら、**封がされたままの袋にも薄いギザギザ**が重なっていた ③「BOOSTER PACK」が**二重に**" +
+        "出ていた（見出しが元から出している）。",
       "🔴🔴 #808 / #805（報告が届かない）の**本当の原因が分かった。絵文字の片割れだった。**" +
         "報告の中に対になっていないサロゲートが1文字でも混ざると、サーバーの JSON 読み取りが" +
         "**本文ごと**弾く（PGRST102 Empty or invalid json）⇒ 墜落の記録が2回まるごと失われた。" +
@@ -296,6 +318,11 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "The pack screen was rebuilt to layout B (the user picked it from three mock-ups): the bag is shown large and tilted on the right, with the counts and buttons on the left. Previously four stat cards sat above a small copy of the bag scaled down to 81x113, where none of its printed detail was visible, and the stats outweighed the button people actually came to press. No number was dropped: packs and coins are the large figures, the two wildcards and their shard progress sit on the small line below.",
+      "The bag itself moved to pack-bag.js, so the pack screen and the opening ceremony share one component. It has thirteen layers, so a second copy was guaranteed to drift. The hero passes a flag that omits the tear guides.",
+      "Tearing the seal is now real: dragging across the top rips it open left to right, the torn strip curling up segment by segment, and it springs back if you let go early. Tapping still opens it in one go, so no moment becomes unpressable.",
+      "Building that uncovered why the old tear never looked like one: it lifted the heat-seal band inside an overflow:hidden box, so the band was clipped away rather than torn off. The rip now lives outside that box, and a single custom property drives the sealed part, the opening and the curling strip.",
+      "Three things only screenshots caught: the curled strip faded almost to nothing, the strip overlay showed faint teeth even on a sealed bag, and BOOSTER PACK was printed twice.",
       "Why it happens: the screen snapshot collects DOM text with .slice(0, N), and the app buttons are full of emoji, so the cut lands in the middle of one.",
       "The detector was initially wrong: JSON.stringify escapes a lone surrogate into six ordinary characters, so scanning the stringified form never finds one. It now walks the value and tests raw strings.",
       "#808/#805: bug reports were rejected whole (PGRST102) because a lone surrogate — half an emoji produced by slicing DOM text — made the body invalid for the server's strict JSON reader. Proven against production without inserting rows. The context object is now sanitised recursively, and again after truncation; a new check pins the invariant, including that the detector itself works.",

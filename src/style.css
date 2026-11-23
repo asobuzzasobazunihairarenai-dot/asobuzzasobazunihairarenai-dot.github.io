@@ -27854,10 +27854,20 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
 }
 
 /* ── ① 封を切る：実物のブースターパックの袋 ─────────────────────────────── */
+/* 🔴【続き828】`--tear`（0〜1）1つで、袋の上端が**左から右へ裂けていく**
+   （ユーザー要望「持って封がリアルに切り取られるといいな」）。
+   ⚠ `@property` を付けるのは、**JS が書く値を数として扱わせる**ため
+     （付けないと calc の中で文字列のまま残り、clamp が効かないブラウザがある）。 */
+@property --tear {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
 .pkc-pack {
   position: relative;
   width: 20.25rem;
   height: 28.25rem;
+  --tear: 0;
 }
 .pkc-foil {
   position: absolute;
@@ -27906,11 +27916,74 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
     linear-gradient(180deg, rgba(240, 233, 219, 0.17), rgba(240, 233, 219, 0.03));
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   transform-origin: left center;
-  transition: transform 0.5s ease, opacity 0.5s ease;
+  /* 🔴【続き828】**閉じている所だけ**残す（なぞった所から左は消える）。
+     それまでは is-tearing で帯を丸ごと持ち上げていたが、`.pkc-foil` は
+     `overflow: hidden` なので**持ち上げた帯は切り落とされて**見えなかった
+     ＝「封を切った」はずなのに、ただ消えるだけだった。 */
+  clip-path: inset(0 0 0 calc(var(--tear) * 100%));
 }
-.pkc-stage.is-tearing .pkc-seal {
-  transform: translateY(-2.2rem) rotate(-3deg);
-  opacity: 0;
+/* ⚠ 保険: JS が `--tear` を動かせなかった時でも、段が tearing になれば開く
+   （インラインの style が勝つので、ふだんは JS の値がそのまま使われる）。 */
+.pkc-stage.is-tearing .pkc-pack {
+  --tear: 1;
+}
+/* 裂けた中身と、めくれ上がる帯。**foil の外**（兄弟）に置くので切り落とされない。 */
+.pkc-rip-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1.625rem;
+  pointer-events: none;
+}
+/* 袋の内側の暗がり＋中のカードの天。左から現れる。 */
+.pkc-rip {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, #0a0906 0%, #14120d 62%, rgba(214, 199, 168, 0.55) 86%, rgba(240, 233, 219, 0.3) 100%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0 5px, transparent 5px 11px);
+  border-bottom: 1px solid rgba(199, 154, 71, 0.45);
+  clip-path: inset(0 calc((1 - var(--tear)) * 100%) 0 0);
+}
+.pkc-strip {
+  position: absolute;
+  inset: 0;
+  /* 🔴 **裂けた所にだけ**めくれた帯を出す。出しっぱなしにすると、封がされたまま（--tear:0）の
+     袋にも薄いギザギザが重なって、**閉じている袋の見た目が変わってしまう**（撮って気づいた）。
+     ⚠ 上下は -200% に広げる——めくれた帯は band の外（上）へ出るので、
+       そこを切ると持ち上がった部分が消える。 */
+  clip-path: inset(-200% calc((1 - var(--tear)) * 100%) -200% 0);
+}
+/* 8つに割った帯。**通り過ぎた順に1つずつ**起き上がる（CSS の clamp が札ごとに判断する）。
+   ⚠ 札ごとに少し違う傾き（--skew）を持たせる。そろえると、ちぎれ目ではなく
+     きれいな折り目に見える。 */
+.pkc-strip-seg {
+  --okiru: clamp(0, var(--tear) * 8 - var(--i), 1);
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background:
+    repeating-linear-gradient(90deg, rgba(240, 233, 219, 0.22) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, rgba(240, 233, 219, 0.3), rgba(240, 233, 219, 0.06));
+  /* ちぎれたギザギザ（下端）。周期は帯1つの幅とだいたい合わせてある。 */
+  clip-path: polygon(0 0, 100% 0, 100% 74%, 87% 100%, 74% 70%, 61% 97%, 50% 68%, 38% 99%, 25% 72%, 12% 100%, 0 71%);
+  transform-origin: bottom center;
+  /* 🔴 拡大して見て決めた（数字では「ちぎれて見えるか」は分からない＝続き762 の教訓）。
+     最初は -76度まで倒して不透明度 0.45 まで落としたが、**めくれた帯がほぼ消えて**
+     「封が薄れて無くなる」ようにしか見えなかった。⇒ 倒す角を浅く・持ち上げを高く・
+     不透明度を残して、**ちぎり取った帯がまだそこに在る**ように見せる。 */
+  transform:
+    translateY(calc(var(--okiru) * -0.75rem))
+    rotate(calc(var(--okiru) * var(--skew, 1) * 4deg))
+    rotateX(calc(var(--okiru) * -58deg));
+  opacity: calc(1 - var(--okiru) * 0.25);
+  box-shadow: 0 0.12rem 0.3rem rgba(0, 0, 0, 0.55);
+}
+/* ⚠ なぞっている間、ブラウザに縦スクロールへ取られると**途中で裂けが止まる**。 */
+.pkc-stage.is-seal .pkc-pack {
+  touch-action: none;
+  cursor: grab;
 }
 .pkc-notch {
   position: absolute;
@@ -28410,6 +28483,12 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
 }
 #pack-ceremony.is-flat .pkc-lid { transform: perspective(56rem) rotateX(58deg); }
 #pack-ceremony.is-flat .pkc-film { mix-blend-mode: normal; opacity: 0.18; }
+/* ⚠【続き828】主役の袋は `#pack-ceremony` の外に居るので、上の規則では止まらない。
+   2D表示（古いタブレットの保険）と「動きを控える」設定では、ここでも光を止める。 */
+body.diagnostic-flatten-3d .card-pack-bag .pkc-sheen { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .card-pack-bag .pkc-sheen { animation: none; }
+}
 
 /* 🔴 スマホ・タブレット（ステージ倍率 0.478）。既定のままだと説明文 1rem＝**実画面7.6px**、
    点の数え 0.82rem＝**6.3px** で読めない（#453・#569 と同じ罠）。 */
@@ -28557,7 +28636,9 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
   opacity: 0.6;
 }
 
-/* ② 主役の行（袋の絵＋ボタン） */
+/* ② 主役の行（画面案B・続き828）。**袋を大きく右に**置き、左に文字を組む。
+   ⚠ 袋は開封の演出と同じ部品（.pkc-pack）。実寸は 20.25x28.25rem あるので、
+     ここでは 0.8 倍にして少し傾ける（置いてある物ではなく、手に取る物に見える）。 */
 .card-pack-hero {
   display: flex;
   align-items: center;
@@ -28569,7 +28650,67 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
   padding: 1.1rem 1.2rem;
   border: 1px solid rgba(176, 141, 63, 0.45);
 }
-/* 袋のミニチュア。実物のブースターパックと同じ作り（銀蒸着の虹色・七色の筋・版の帯）を、
+/* 🔴 傾けた袋の角がはみ出すので、置き場は**傾いた分も含む大きさ**を持つ。
+   持たないと、はみ出した角で画面に横スクロールが出る（#760 の家族）。 */
+.card-pack-bag {
+  flex: 0 0 auto;
+  position: relative;
+  /* 傾けた角のぶん。16.2*cos7 + 22.6*sin7 = 18.83rem（実測で 18.6 では 3px 足りなかった） */
+  width: 19rem;
+  height: 24.6rem;
+}
+.card-pack-bag .pkc-pack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* ⚠ scale3d ではなく scale で足りる（この袋に translateZ は無い＝教訓6 の対象外）。 */
+  transform: translate(-50%, -50%) rotate(7deg) scale(0.8);
+}
+/* 左の文字。大きい数字 → 一言 → ボタン → ワイルドの行。
+   🔴 撮って分かった: 左の列の基準幅が 24rem のままだと、袋（19rem）と足して
+     枠（46rem）に入らず**縦に折り返す**＝案Bにならない（文字の上に袋が乗る形になった）。
+     46 - 2.4(余白) - 1.4(あいだ) - 19(袋) = 23.2rem までしか置けないので、
+     基準を 17rem にして**余った分だけ伸びる**ようにする。 */
+.card-pack-hero > .card-pack-hero-text {
+  flex: 1 1 17rem;
+}
+.card-pack-hero-nums {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.card-pack-hero-num {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.card-pack-hero-num b {
+  display: flex;
+  align-items: center;
+  gap: 0.12em;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+.card-pack-hero-num i {
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
+}
+.card-pack-lead {
+  font-size: 0.8rem;
+  opacity: 0.72;
+}
+.card-pack-wilds {
+  font-size: 0.74rem;
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+}
+/* ⚠【続き828】**もう使っていない**（主役は本物の袋＝.pkc-pack に替えた）。
+   消さずに残してあるのは、小さい袋の絵がまた要るかもしれないため。
+   袋のミニチュア。実物のブースターパックと同じ作り（銀蒸着の虹色・七色の筋・版の帯）を、
    グラデーションだけで小さく描く。 */
 .card-pack-foil {
   position: relative;
@@ -28702,6 +28843,15 @@ body.is-phone-device #card-pack-title::before,
 body.is-tablet-device #card-pack-title::before { font-size: 1.1rem; }
 body.is-phone-device .card-pack-foil,
 body.is-tablet-device .card-pack-foil { width: 9rem; height: 12.5rem; }
+/* 🔴【続き828】案Bの左の列。既定のままだと一言 0.8rem＝**実画面 6.1px** で読めない。 */
+body.is-phone-device .card-pack-hero-num b,
+body.is-tablet-device .card-pack-hero-num b { font-size: 3.4rem; }
+body.is-phone-device .card-pack-hero-num i,
+body.is-tablet-device .card-pack-hero-num i { font-size: 1.1rem; }
+body.is-phone-device .card-pack-lead,
+body.is-tablet-device .card-pack-lead { font-size: 1.2rem; }
+body.is-phone-device .card-pack-wilds,
+body.is-tablet-device .card-pack-wilds { font-size: 1.1rem; }
 body.is-phone-device .card-pack-foil-ed,
 body.is-tablet-device .card-pack-foil-ed { font-size: 0.8rem; height: 1.6rem; }
 

@@ -29,11 +29,11 @@ import { attachCardHoverPreview } from "./card-hover-preview.js";
 import { getCardName } from "./card-text.js";
 // 【続き769】ONLY の印（色の名前＋ONLY の2段）。色→欧字の表もあちらが唯一の持ち主。
 import { buildOnlyMark, COLOR_WORD } from "./only-mark.js";
+// 🔴【続き828】袋は **pack-bag.js が唯一の持ち主**（「パックを開ける」画面の主役にも
+//   同じ袋を出すため切り出した）。層が13枚あるので、写しを作ると必ず食い違う。
+import { buildPackBag, setTear } from "./pack-bag.js";
 import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js";
-
-// 袋の商品名。**続き706 で取り込んだ既存の素材**（新しい画像は足さない）。
-const LOGO = "assets/ui-v2/logo.webp";
 
 // 札の上に出す飾りの帯。試作と同じ Oswald の欧字なので、言語で切り替えない
 // （「0TH EDITION」「BOOSTER PACK」と同じ扱いの意匠）。
@@ -48,6 +48,50 @@ let 段 = "seal"; // seal → tearing → wrap → cards → done
 let 何枚目 = 0;
 let タイマー = [];
 let keyHandler = null;
+// 🔴【続き828】封を切る所（ユーザー要望「**持って封がリアルに切り取られる**といいな」）。
+//   ⚠ 指でなぞった進みは **CSS 変数 `--tear` 1つ**で表す。1フレームずつ JS が座標を書く形に
+//     すると、戻り・バネ・途中で指を離した時まで全部 JS で持つことになる。
+let 袋の要素 = null; // いまの段に出ている袋（--tear を書く相手）
+let 裂き = 0; // 0〜1。0＝封がされたまま
+let つかんだ = null; // { x, 幅, 元 }
+let 裂いた = false; // このひと続きの操作でなぞったか（タップと区別する）
+let 裂きの時計 = null;
+
+// 動きを控える設定（OS の指定）。⚠ 2D表示（古いタブレットの保険）とは別物なので両方見る。
+function 動きを控えるか() {
+  try {
+    return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  } catch {
+    return false;
+  }
+}
+
+function 裂きを書く(v) {
+  裂き = Math.max(0, Math.min(1, Number(v) || 0));
+  if (袋の要素 && 袋の要素.isConnected) setTear(袋の要素, 裂き);
+}
+
+// いまの進みから 到達 まで滑らかに運ぶ（指を離した後の「最後まで裂ける／戻る」に使う）。
+function 裂きを運ぶ(到達, ms, 済み) {
+  if (裂きの時計) cancelAnimationFrame(裂きの時計);
+  裂きの時計 = null;
+  const 元 = 裂き;
+  const 幅 = 到達 - 元;
+  if (Math.abs(幅) < 0.002 || !(ms > 0) || 動きを控えるか()) {
+    裂きを書く(到達);
+    済み?.();
+    return;
+  }
+  const t0 = performance.now();
+  const 歩 = () => {
+    裂きの時計 = null;
+    const p = Math.min(1, (performance.now() - t0) / ms);
+    裂きを書く(元 + 幅 * (1 - Math.pow(1 - p, 3))); // 終わりで減速
+    if (p < 1) 裂きの時計 = requestAnimationFrame(歩);
+    else 済み?.();
+  };
+  裂きの時計 = requestAnimationFrame(歩);
+}
 
 function 札の名(cardId) {
   return getCardName(cardId) || getCardDefinition(cardId)?.name || cardId;
@@ -62,6 +106,8 @@ function 後で(fn, ms) {
   return id;
 }
 function タイマーを全部止める() {
+  if (裂きの時計) cancelAnimationFrame(裂きの時計);
+  裂きの時計 = null;
   for (const id of タイマー) clearTimeout(id);
   タイマー = [];
 }
@@ -121,139 +167,62 @@ function 表面(cardId) {
   return el;
 }
 
-// 実物のブースターパックの袋。試作の作りをそのまま写した。
-function 袋() {
-  const pack = document.createElement("div");
-  pack.className = "pkc-pack";
-
-  const foil = document.createElement("div");
-  foil.className = "pkc-foil";
-
-  const film = document.createElement("div"); // 銀蒸着フィルムの虹色
-  film.className = "pkc-film";
-  film.setAttribute("aria-hidden", "true");
-  foil.appendChild(film);
-
-  const sheen = document.createElement("div"); // 角度で動く光
-  sheen.className = "pkc-sheen";
-  sheen.setAttribute("aria-hidden", "true");
-  foil.appendChild(sheen);
-
-  const seal = document.createElement("div"); // 上端の熱圧着（ギザギザ）
-  seal.className = "pkc-seal";
-  seal.setAttribute("aria-hidden", "true");
-  foil.appendChild(seal);
-
-  const notch = document.createElement("div"); // 開封口の切り欠き
-  notch.className = "pkc-notch";
-  notch.setAttribute("aria-hidden", "true");
-  foil.appendChild(notch);
-
-  const tear = document.createElement("div");
-  tear.className = "pkc-tearhere";
-  tear.textContent = "TEAR HERE ▶";
-  foil.appendChild(tear);
-
-  const frame = document.createElement("div"); // 内枠
-  frame.className = "pkc-innerframe";
-  frame.setAttribute("aria-hidden", "true");
-  foil.appendChild(frame);
-
-  const stripe = document.createElement("div"); // 七色の筋（この商品の記号）
-  stripe.className = "pkc-stripe";
-  stripe.setAttribute("aria-hidden", "true");
-  foil.appendChild(stripe);
-
-  const logo = document.createElement("img");
-  logo.className = "pkc-logo";
-  logo.src = LOGO;
-  logo.alt = "7 SHADES OF S:EVEN";
-  foil.appendChild(logo);
-
-  const ed = document.createElement("div");
-  ed.className = "pkc-edition";
-  ed.textContent = "0TH EDITION";
-  foil.appendChild(ed);
-
-  const bp = document.createElement("div");
-  bp.className = "pkc-booster";
-  bp.textContent = "BOOSTER PACK";
-  foil.appendChild(bp);
-
-  // 下の情報帯（入り数・会社名・著作権・バーコード）
-  const info = document.createElement("div");
-  info.className = "pkc-info";
-  const left = document.createElement("div");
-  const n = document.createElement("div");
-  n.className = "pkc-info-n";
-  const nb = document.createElement("b");
-  nb.textContent = String(引き.length || 7);
-  const ns = document.createElement("span");
-  ns.textContent = "CARDS";
-  n.append(nb, ns);
-  const sub = document.createElement("div");
-  sub.className = "pkc-info-sub";
-  sub.textContent = t("packs.cer.packNote", { n: 引き.length || 7 });
-  left.append(n, sub);
-  const right = document.createElement("div");
-  right.className = "pkc-info-right";
-  const brand = document.createElement("div");
-  brand.className = "pkc-brand";
-  brand.textContent = "AsobuzZ";
-  const cp = document.createElement("div");
-  cp.className = "pkc-copy";
-  cp.textContent = "©2026 AsobuzZ";
-  right.append(brand, cp);
-  const bar = document.createElement("div");
-  bar.className = "pkc-barcode";
-  bar.setAttribute("aria-hidden", "true");
-  const row = document.createElement("div");
-  row.className = "pkc-info-row";
-  row.append(left, right);
-  info.append(row, bar);
-  foil.appendChild(info);
-
-  pack.appendChild(foil);
-
-  // 封を切る光（呼吸する帯＋なぞる道しるべの矢印）
-  const glow = document.createElement("div");
-  glow.className = "pkc-tearglow";
-  glow.setAttribute("aria-hidden", "true");
-  pack.appendChild(glow);
-
-  const NS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("viewBox", "0 0 440 120");
-  svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("pkc-tearpath");
-  const path = document.createElementNS(NS, "path");
-  path.setAttribute("d", "M20 70 C 140 18, 300 18, 420 70");
-  path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "#c79a47");
-  path.setAttribute("stroke-width", "2.2");
-  path.setAttribute("stroke-dasharray", "6 9");
-  svg.appendChild(path);
-  const tri = document.createElementNS(NS, "polygon");
-  tri.setAttribute("points", "420,54 430,70 420,86 410,70");
-  tri.setAttribute("fill", "#c79a47");
-  svg.appendChild(tri);
-  pack.appendChild(svg);
-
-  // 封を切る時に左から右へ走る金の光（段が tearing になった時だけ出す）。
-  const run = document.createElement("div");
-  run.className = "pkc-tearrun";
-  run.setAttribute("aria-hidden", "true");
-  pack.appendChild(run);
-
-  return pack;
-}
-
 // ── 段ごとの絵 ─────────────────────────────────────────────────────────────
 
 function 段1を組む(stage) {
   stage.classList.add("is-seal");
-  stage.appendChild(袋());
+  袋の要素 = buildPackBag({ cards: 引き.length || 7 });
+  setTear(袋の要素, 裂き); // 描き直しても、なぞった途中の進みを引き継ぐ
+  なぞれるようにする(袋の要素);
+  stage.appendChild(袋の要素);
   見出し(stage, t("packs.cer.tearTitle"), t("packs.cer.tearHint"));
+}
+
+// 🔴【続き828】指でなぞると、**なぞった所まで**封が裂ける。
+//   ⚠ **タップを置き換えない**（#277 の家族。「押しても進まない」の報告が過去に4回）。
+//     なぞらずに押したら今までどおり一気に裂けて進む。
+//   ⚠ 途中で離したら**戻る**（封は切れていない）。その時だけ、そのひと続きの
+//     click を止める——止めないと「戻したのに進む」になる。
+function なぞれるようにする(pack) {
+  pack.addEventListener("pointerdown", (e) => {
+    if (段 !== "seal") return;
+    // 🔴 root の「スワイプで進む」を**この袋の上では使わせない**（なぞりと喧嘩する）。
+    //   pointerdown を止めれば root は起点を控えないので、スワイプの判定が立たない。
+    e.stopPropagation();
+    つかんだ = { x: e.clientX, 幅: Math.max(1, pack.getBoundingClientRect().width), 元: 裂き };
+    裂いた = false;
+    try {
+      pack.setPointerCapture(e.pointerId);
+    } catch {
+      /* 掴めなくても、指が袋の上に在る限り move は届く */
+    }
+  });
+  pack.addEventListener("pointermove", (e) => {
+    if (!つかんだ || 段 !== "seal") return;
+    const dx = e.clientX - つかんだ.x;
+    if (Math.abs(dx) > 6) 裂いた = true;
+    // 🔴 幅の 72% なぞれば端まで裂ける。端から端までを求めると、**持った所によって届かない**
+    //   （右半分を掴んだ人は絶対に開けられない）。
+    裂きを書く(つかんだ.元 + dx / (つかんだ.幅 * 0.72));
+  });
+  const 離す = () => {
+    if (!つかんだ) return;
+    つかんだ = null;
+    if (段 !== "seal") return;
+    if (裂き >= 0.55) {
+      裂いた = true; // 進むので、続く click は止める（二重に進めない）
+      すすむ();
+    } else if (裂いた) {
+      裂きを運ぶ(0, 240);
+    }
+  };
+  pack.addEventListener("pointerup", 離す);
+  pack.addEventListener("pointercancel", 離す);
+  pack.addEventListener("click", (e) => {
+    if (!裂いた) return; // ただのタップ＝今までどおり root へ届いて進む
+    裂いた = false;
+    e.stopPropagation();
+  });
 }
 
 function 段2を組む(stage) {
@@ -482,10 +451,16 @@ function 描く() {
 function すすむ() {
   if (段 === "seal") {
     段 = "tearing";
-    描く();
+    // 🔴【続き828】**描き直さない。** 袋を作り直すと、指でなぞった途中の進みが0に戻る
+    //   （作り直す代わりに、段の印を足して裂き目を最後まで運ぶ）。
+    root?.querySelector(".pkc-stage")?.classList.add("is-tearing");
+    const 急ぐ = isFlatten2dMode() || 動きを控えるか();
+    裂きを運ぶ(1, 急ぐ ? 0 : Math.max(170, (1 - 裂き) * 520));
     // 金の光が左から右へ走り終わってから包みをめくる。2D表示では待たない。
     後で(() => {
       段 = "wrap";
+      袋の要素 = null;
+      裂き = 0;
       描く();
       // 「ここで一拍おく」（試作の指定）。押せば待たずに進める。
       後で(() => {
@@ -495,7 +470,7 @@ function すすむ() {
           描く();
         }
       }, 1400);
-    }, isFlatten2dMode() ? 0 : 900);
+    }, 急ぐ ? 0 : 900);
     return;
   }
   if (段 === "tearing") return; // 走っている間の連打は無視（すぐ wrap になる）
@@ -547,6 +522,10 @@ export function openPackCeremony(draw, options = {}) {
   closePackCeremony();
   引き = 札;
   段 = "seal";
+  袋の要素 = null;
+  裂き = 0;
+  つかんだ = null;
+  裂いた = false;
   何枚目 = 0;
   onDoneFn = typeof options.onDone === "function" ? options.onDone : null;
 
