@@ -22,6 +22,34 @@
 //   ⚠ 上げたい時はこの数字だけを変える。canvas の作り方は触らない。
 export const EFFECT_CANVAS_MAX_DPR = 1.5;
 
+// 🔴🔴【続き826・墜落11件】**スマホだけ、さらに 1.0 まで下げる。**
+//   報告 #797 の内訳を算術で突き合わせた（932x430・dpr 3・ステージ倍率 0.478）:
+//     canvas 24MB ＝ 盤面の WebGL（2293x1290x4 = 11.8MB）＋ 吸い込みの canvas（2400x1350x4 = 13.0MB）。
+//   **どちらも同じ瞬間（GATHER）に要る**——あの段では盤面がまだ見えているので WebGL は
+//   畳めない（畳むのは FLASH の白が覆い切ってから＝設計どおり）。
+//   ⇒ 残る確実な手はこの解像度。1.0 なら 1600x900 ＝ **5.8MB**（7.2MB 減）。
+//   ⚠ **PC は1ミリも変えない。** 墜落11件は全部 dpr 3 のスマホで、PC では1件も起きていない。
+//   ⚠ 粒子・霧の演出なので輪郭の甘さは見分けにくい（1.5 へ下げた時も同じ判断をしている）。
+//     気になるならこの数字だけを戻す。canvas の作り方は触らない。
+export const EFFECT_CANVAS_MAX_DPR_PHONE = 1.0;
+
+// 演出 canvas の解像度を決める、唯一の入口。**呼ぶ側で端末を見分けない**
+//   （2か所に書くと必ずズレる＝このプロジェクトで何度も踏んだ形）。
+export function effectCanvasDpr() {
+  let スマホ = false;
+  try {
+    スマホ = !!document.body?.classList?.contains("is-phone-device");
+  } catch {
+    /* 画面が無い所から呼ばれても落とさない */
+  }
+  const 上限 = スマホ ? EFFECT_CANVAS_MAX_DPR_PHONE : EFFECT_CANVAS_MAX_DPR;
+  let dpr = 1;
+  try {
+    dpr = window.devicePixelRatio || 1;
+  } catch {}
+  return Math.min(dpr, 上限);
+}
+
 const KEY = "so7-blackbox-v1";
 const HEARTBEAT_MS = 5000;
 // 「さっきまで動いていた」とみなす猶予。これより前の記録なら、単に前回きちんと閉じて時間が

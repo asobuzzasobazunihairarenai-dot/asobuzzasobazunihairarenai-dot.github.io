@@ -13,7 +13,7 @@ import { isArrivalEffectDisabled } from "./motion-prefs.js";
 import { isTouchPrimaryDevice } from "./device-detect.js";
 import { playPulseThump } from "./sound.js";
 // 【続き643】#441 で落ちた全画面 canvas（1枚約23MB）を張った瞬間を控える。葉モジュール。
-import { noteBlackboxWeight, EFFECT_CANVAS_MAX_DPR } from "./crash-blackbox.js";
+import { noteBlackboxWeight, effectCanvasDpr } from "./crash-blackbox.js";
 
 const STAGE_W = 1600;
 const STAGE_H = 900;
@@ -232,7 +232,8 @@ export async function playCardDissolve(usedCardId, opts = {}) {
   dissolvePlayingCount++; // 続き223: 再生中フラグON（finishでOFF）
   const ctx = canvas.getContext("2d");
   // 【A-1・2026-11-10】上限は crash-blackbox.js に1つだけ置いてある（既定値を2か所に書かない）。
-  const dpr = Math.min(window.devicePixelRatio || 1, EFFECT_CANVAS_MAX_DPR);
+  // 【続き826】解像度の決め方は crash-blackbox.js に1つだけ（スマホはさらに低い）。
+  const dpr = effectCanvasDpr();
   // clientWidth/Height はステージ座標(1600×900、変形前のレイアウトサイズ)。
   const W = canvas.clientWidth || STAGE_W;
   const H = canvas.clientHeight || STAGE_H;

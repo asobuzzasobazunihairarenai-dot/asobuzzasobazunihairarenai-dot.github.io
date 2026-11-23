@@ -114,6 +114,7 @@ export const CHANGELOG = [
       "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
+      "スマホで、勝利演出とカードが消える演出が使うメモリをさらに減らしました（落ちにくくするための手当てです）",
       "パックを開ける画面が丸ごと虹色に光ってしまうことがあったのを直しました",
       "ホームのランク戦で「通知をON」の案内が見切れていたのを直しました",
       "ウィークリーの報酬でパックを受け取った時に、パックが飛んでいかなかったのを直しました",
@@ -144,6 +145,7 @@ export const CHANGELOG = [
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
+      "On phones, the victory and card-dissolve effects now use less memory (another step towards fewer crashes).",
       "The whole pack-opening screen could light up in rainbow colours.",
       "The \"Turn on notifications\" prompt was cut off on the ranked tile on Home.",
       "Packs claimed from the weekly reward did not fly to the pack opener.",
@@ -174,6 +176,18 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴🔴 墜落11件（#797 ほか）: 報告 #797 の内訳を**算術で突き合わせた**" +
+        "（932x430・dpr 3・ステージ倍率 0.478）——`canvas 24MB` の正体は" +
+        "**盤面の WebGL（2293x1290x4 = 11.8MB）＋ 吸い込みの canvas（2400x1350x4 = 13.0MB）**。" +
+        "🔴 **どちらも同じ瞬間（GATHER）に要る**。あの段では盤面がまだ見えているので WebGL は" +
+        "畳めない（畳むのは FLASH の白が覆い切ってから＝設計どおり）。" +
+        "⇒ 残る確実な手は**演出 canvas の解像度**。スマホだけ上限 1.5 → 1.0 にした。" +
+        "**実測: 2400x1350（12.4MB）→ 1600x900（5.5MB）＝ピークの瞬間に 6.9MB 減る。** " +
+        "⚠ PC は1ミリも変えない（墜落11件は全部 dpr 3 のスマホで、PC では1件も起きていない）。" +
+        "⚠ 決め方は crash-blackbox.js の `effectCanvasDpr()` **1か所だけ**（勝利演出と霧散の" +
+        "2か所で同じ値が要るので、2か所に書くと必ずズレる）。" +
+        "🔴 **これで落ちなくなったとは言えない**——山をもう一段下げただけ。" +
+        "次の報告の `prevAllMB` / `prevTagPeaks` が下がっているかを見る。",
       "🔴🔴 #804（パックを開ける画面全体が虹色でキラーン）: なないろの欠片のキラ加工は" +
         "`[style*=\"rainbow-shard.webp\"]::after`（position:absolute + inset:0）で描いている。" +
         "**持ち主が static だと、いちばん近い positioned 祖先いっぱいに広がる**（CSS の" +
@@ -264,6 +278,7 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "Crash family: the reported 24MB of canvas at the peak is the board's WebGL canvas plus the victory gather canvas, both of which are needed during GATHER. The remaining lever was the effect canvas resolution, now capped lower on phones only (12.4MB to 5.5MB measured). This lowers the peak; it is not a confirmed fix.",
       "#804: the rainbow-shard foil effect is drawn with an absolutely positioned ::after, so when its host is statically positioned it expands to the nearest positioned ancestor. The collection tile had no position, so one such card filled 90% of the screen with the sweep. The tile is now positioned, and the rule itself documents the requirement.",
       "#806: the opponent countdown setting existed but defaulted to off. It now defaults to on, and whose time it is is stated in words (the caption shows the player's name) with the opponent's number drawn smaller, so colour is not the only cue.",
       "#801: the three self-declaration buttons moved behind an admin toggle (off by default), since effects are auto-processed for all 125 cards.",

@@ -65,7 +65,7 @@ import { applyAvatarContent } from "./avatar-render.js";
 import { t } from "./ui-text.js";
 import { logAction } from "./action-log.js";
 // 【続き643】全画面 canvas（約23MB）を張った瞬間を墜落の控えに残す。葉モジュールなので循環しない。
-import { noteBlackboxWeight, EFFECT_CANVAS_MAX_DPR } from "./crash-blackbox.js";
+import { noteBlackboxWeight, effectCanvasDpr } from "./crash-blackbox.js";
 // 🔴【A-1・2026-11-10】盤面が白で覆われている間は WebGL描画ごと畳んで、GPU側の持ち物を返す。
 //   ⚠ board-3d.js から victory-celebration.js へは辿れないので循環しない（機械で確認済み）。
 import { setBoard3dSuspended } from "./board-3d.js";
@@ -1052,7 +1052,8 @@ function spawnLockedCards(root, player, slots, mid) {
 function runGatherCanvas(root, origins, cube, s, durMs) {
   const canvas = root.querySelector(".vic-canvas");
   // 【A-1・2026-11-10】上限は crash-blackbox.js に1つだけ置いてある（既定値を2か所に書かない）。
-  const dpr = Math.min(window.devicePixelRatio || 1, EFFECT_CANVAS_MAX_DPR);
+  // 【続き826】解像度の決め方は crash-blackbox.js に1つだけ（スマホはさらに低い）。
+  const dpr = effectCanvasDpr();
   const W = canvas.clientWidth || viewW();
   const H = canvas.clientHeight || viewH();
   canvas.width = Math.round(W * dpr);
