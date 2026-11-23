@@ -18352,8 +18352,6 @@ function initDragHandlers() {
 
     // ユーザー要望「ハンドフェイズで手札を掴んだら『場にドロップで手札効果が発動します』的な
     // モーダルを中央に出して」。掴んだのが手札効果を持つ自分の手札カードなら、中央にヒントを出す
-    // （ドロップ／キャンセルで消える。maybeShowHandDropHint参照）。
-    maybeShowHandDropHint(hit);
 
     // タッチ/ペンでは「マウスホバーで拡大プレビュー」に相当する操作が無く、指で押さえても
     // 即座にドラッグ（つまむ）が始まってしまうため、中身を確認する手段が無かった
@@ -18371,35 +18369,11 @@ function initDragHandlers() {
   });
 }
 
-// ハンドフェイズで手札効果を持つ自分の手札カードを掴んだ時、「場にドロップすると手札効果が
-// 発動します」と中央に案内する（ユーザー要望）。自動処理モードON・ハンドフェイズ中のみ
-// （＝場にドロップで実際に手札効果が起動する状況のみ）。ドラッグの邪魔をしないよう
-// pointer-events:none、ドロップ/キャンセル/一定時間で消す。
-let handDropHintEl = null;
-let handDropHintTimer = null;
-function maybeShowHandDropHint(hit) {
-  if (!hit || hit.kind !== "card") return;
-  if (!isAutoProcessingEnabled() || !isHandPhaseActive()) return;
-  const token = getState().tokens.find((t) => t.id === hit.tokenId);
-  if (!token || token.location.zone !== "hand" || token.location.player !== getSelfSeat()) return;
-  if (!hasHandEffectData(token.cardId)) return;
-  showHandDropHint();
-}
-function showHandDropHint() {
-  if (!handDropHintEl) {
-    handDropHintEl = document.createElement("div");
-    handDropHintEl.id = "hand-drop-hint";
-    handDropHintEl.textContent = t("game.handEffect.dropToUse");
-    document.body.appendChild(handDropHintEl);
-  }
-  handDropHintEl.classList.add("show");
-  clearTimeout(handDropHintTimer);
-  handDropHintTimer = setTimeout(hideHandDropHint, 4000);
-}
-function hideHandDropHint() {
-  clearTimeout(handDropHintTimer);
-  if (handDropHintEl) handDropHintEl.classList.remove("show");
-}
+// 🔴【#809・続き829】「そのカードを場にドロップすると、手札効果が発動します。」の案内は
+//   **やめた**（ユーザー判断「その場にカードをドロップすると〜の表示はもうなくていいよね？？」）。
+//   ⚠ 効果が全部自動で処理されるようになり、掴めば光る所も出るので、もう要らない。
+//   ⚠ 戻したくなったら git（続き829 の1つ前）から。文言の鍵 `game.handEffect.dropToUse` と
+//     CSS の `#hand-drop-hint` も一緒に消してある。
 
 const TOUCH_HOLD_MS = 450; // これ以上動かさずに押さえ続けたら「長押し」＝プレビュー表示
 const TOUCH_HOLD_MOVE_CANCEL_PX = 10; // これ以上動いたら長押しをやめて通常のドラッグに切り替える
@@ -18593,8 +18567,16 @@ function createGhost(kind, tokenId) {
   // 対応するクラスが無くて判定を誤るため、必ずstateの実データ(faceUp)を見て決める。
   const faceClass = token && token.faceUp ? "is-self" : "is-facedown";
   ghost.className = `hand-card ${faceClass} drag-ghost`;
-  const imagePath = token.faceUp ? getCardImagePath(token.cardId) : cardBackImageForToken(token);
-  ghost.style.backgroundImage = `url("${imagePath}")`;
+  if (token && token.faceUp) {
+    // 🔴【#810・続き829】**手札とまったく同じ描き方**にする（showCardFace）。
+    //   それまでは生のURLを敷いていたので、文字が焼かれていないセット
+    //   （0th拡張・1st・旧0th・志炎者＝73種）を掴むと**効果欄が真っ白**になっていた
+    //   ＝報告「この時効果欄にテキストがない」。#660 で山札・捨て場のゴーストは直したのに、
+    //   **手札を掴む道だけ残っていた**（同じ穴を2つ掘っていた）。
+    showCardFace(ghost, token.cardId, getCardImagePath(token.cardId));
+  } else {
+    ghost.style.backgroundImage = `url("${cardBackImageForToken(token)}")`;
+  }
   document.body.appendChild(ghost);
   return ghost;
 }
@@ -18629,6 +18611,13 @@ function startTokenDrag(e, tokenId, kind, sourceEl) {
   document.body.style.userSelect = "none";
   window.addEventListener("pointermove", onDragMove);
   window.addEventListener("pointerup", onDragEnd);
+  // 🔴【#810・続き829】**pointercancel も受ける。** これが無いと、ブラウザが指の操作を
+  //   取り上げた時（システムのジェスチャー・画面の外で離した・別の窓へ移った）に
+  //   `pointerup` が永久に来ず、**掴んだ札が浮いたまま残る**（報告「ずっと浮いている」）。
+  //   しかも dragSession も残るので、その後のドラッグも効かなくなる。
+  //   ⚠ 続き790 で長押しに pointercancel を足した時と**まったく同じ形**（あの時も
+  //     「他の5か所は受けているのに、ここだけ受けていなかった」）。
+  window.addEventListener("pointercancel", onDragCancel);
   updateDropHighlight(e.clientX, e.clientY);
 }
 
@@ -18661,6 +18650,7 @@ function startPileDrag(e, pileKey) {
   document.body.style.userSelect = "none";
   window.addEventListener("pointermove", onDragMove);
   window.addEventListener("pointerup", onDragEnd);
+  window.addEventListener("pointercancel", onDragCancel); // 【#810・続き829】上と同じ理由
   updateDropHighlight(e.clientX, e.clientY);
 }
 
@@ -18673,11 +18663,18 @@ function onDragMove(e) {
 // ピンチズーム開始等、ドラッグを「ドロップ」ではなく「無かったことにして」打ち切りたい時に
 // 呼ぶ。onDragEnd()と違い、どこにも移動させず（stateは一切変更せず）ゴースト・ハイライトの
 // 後始末だけ行い、render()で元の状態に戻す。
+// 🔴【#810・続き829】ブラウザに指の操作を取り上げられた時の入口。
+//   ⚠ **何も動かさずに**片付けるだけ（cancelDragSession が state を一切触らない作り）。
+function onDragCancel() {
+  logAction("diag-drag-cancelled", { kind: dragSession?.kind ?? null, pile: dragSession?.pileSource ?? null });
+  cancelDragSession();
+}
+
 function cancelDragSession() {
-  hideHandDropHint();
   if (!dragSession) return;
   window.removeEventListener("pointermove", onDragMove);
   window.removeEventListener("pointerup", onDragEnd);
+  window.removeEventListener("pointercancel", onDragCancel);
   if (dragSession.highlightEl) dragSession.highlightEl.classList.remove("drop-target-active");
   dragSession.ghost.remove();
   document.body.style.userSelect = "";
@@ -19485,13 +19482,13 @@ async function tryUsePublicDrawCardByTap(tokenId, player) {
 }
 
 async function onDragEnd(e) {
-  hideHandDropHint(); // 掴んだ時に出した「場にドロップで発動」ヒントを消す
   if (!dragSession) return;
   const { tokenId, kind, ghost, pileSource, highlightEl } = dragSession;
   ghost.remove();
   if (highlightEl) highlightEl.classList.remove("drop-target-active");
   window.removeEventListener("pointermove", onDragMove);
   window.removeEventListener("pointerup", onDragEnd);
+  window.removeEventListener("pointercancel", onDragCancel);
   document.body.style.userSelect = "";
 
   const dropResult = findDropTarget(e.clientX, e.clientY, kind);
@@ -23068,6 +23065,20 @@ setInterval(() => {
   try {
     溜めた到達を流せるなら流す("watchdog");
   } catch { /* noop */ }
+  // 🔴【#810・続き829】**空中に残った「掴んでいる札」を掃除する。**
+  //   上の pointercancel で普通は残らないが、**原因が1つとは限らない**ので保険を置く
+  //   （#794 のめくりのゴーストと同じ考え方）。
+  //   ⚠ 掴んでいる最中は消さない（dragSession が在る間は触らない）。
+  //   ⚠ 掃除した時は `diag-drag-ghost-leak` を残す——次の報告で本当の原因が名指しになる。
+  try {
+    if (!dragSession) {
+      const 残り = document.querySelectorAll(".drag-ghost");
+      if (残り.length) {
+        logAction("diag-drag-ghost-leak", { n: 残り.length });
+        for (const el of 残り) el.remove();
+      }
+    }
+  } catch { /* 掃除のために対局を壊さない */ }
 }, 5000);
 
 initDeckViewer();

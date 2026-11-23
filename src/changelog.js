@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "カードを掴んだ時の案内を減らしました",
       "相手の持ち時間が見えるようになりました",
       "「ログイン中」からアカウントを切り替えられます",
       "新しい見た目が既定になりました",
@@ -69,6 +70,7 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "Fewer notices when you pick up a card",
       "You can now see your opponent's remaining time",
       "Switch accounts from \"Signed in\"",
       "The new look is now the default",
@@ -84,6 +86,7 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "カードを掴んだ時に出していた「そのカードを場にドロップすると、手札効果が発動します。」の案内をやめました。効果が自動で処理されるようになり、掴めば置ける所が光るので、もう要らなくなったためです。",
       "**相手の持ち時間のカウントダウンが、はじめから見えるようになりました。**誰の持ち時間かは**その人の名前**が下に出るので、色だけで見分けなくて済みます。相手の分は**数字が少し小さく**出るので、ひと目で「自分のではない」と分かります。⚠ 見たくない方は、⚙オプションの「相手の持ち時間も表示する」を外してください。",
       "**画面の上の「ログイン中」を押すと、アカウントの札が出るようになりました。**そこから**別のアカウントに切り替え**られます（いまのアカウントからログアウトして、ログインの画面に戻ります）。⚠ 対局中・部屋に入っている間は、今までどおり部屋のパネルが開きます。",
       "**新しい見た目が既定になりました。** これまで ?ui=v2 を付けた人だけが見ていたものが、何もしなくても出ます。前の見た目に戻したい時は、⚙オプション →「動きが重い・カクつくとき」→「新しい見た目を使う」のチェックを外してください（**この端末だけ**の設定です）。⚠ 以前「前の見た目」を選んでいた方は、一度だけ新しい見た目に戻ります。そこで外していただくと、次からは覚えます。",
@@ -99,6 +102,7 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "The notice \"Drop that card onto the board to trigger its Hand Effect\" no longer appears when you pick up a card: effects resolve on their own now, and the places you can drop it light up.",
       "**Your opponent's countdown is now shown by default.** The caption underneath names whose time it is, so you no longer have to tell by colour alone, and an opponent's number is drawn slightly smaller. You can turn it off again under Options.",
       "**Tapping \"Signed in\" at the top now opens an account card**, where you can switch to another account (you are signed out and returned to the login screen). While you are in a room, it still opens the room panel as before.",
       "The new look is now the default. To go back to the old one, open Options and uncheck \"Use the new look\" (this device only).",
@@ -114,6 +118,8 @@ export const CHANGELOG = [
       "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
+      "掴んだカードが浮いたまま残ることがあったのを直しました",
+      "掴んでいる間のカードの効果欄が空になることがあったのを直しました",
       "不具合報告がサーバーに届かず、コメントだけになってしまうことがあったのを直しました",
       "スマホで、勝利演出とカードが消える演出が使うメモリをさらに減らしました（落ちにくくするための手当てです）",
       "パックを開ける画面が丸ごと虹色に光ってしまうことがあったのを直しました",
@@ -146,6 +152,8 @@ export const CHANGELOG = [
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
+      "A card you picked up could stay floating on screen.",
+      "The effect box could be empty on the card you were holding.",
       "A bug report could fail to reach the server, arriving with only your comment.",
       "On phones, the victory and card-dissolve effects now use less memory (another step towards fewer crashes).",
       "The whole pack-opening screen could light up in rainbow colours.",
@@ -178,6 +186,29 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴🔴 #810「手札のところにずっと貧民の行進が浮いている。あとこの時効果欄にテキストがない」は、" +
+        "**2つの不具合が1つの要素に出ていた。** 報告の画面の記録で一発だった——手札の札は6枚なのに" +
+        "`.hand-card.is-self` が**7個**あり、7個目だけ `bg: \"image\"`（絵をそのまま敷いている）・" +
+        "`face: -1`（カード面が組まれていない）・他より 100px 上に浮いていた＝**掴んでいる間の札**。",
+      "🔴 ① 効果欄が空だったのは、掴んでいる間の札だけ `getCardImagePath` の絵を**そのまま敷いて**" +
+        "いたため。文字が焼かれていないセット（0th拡張・1st・旧0th・志炎者＝73種）では効果欄が真っ白になる" +
+        "（#686 の家族）。**山札・捨て場から掴む道は #660 で直してあったのに、手札を掴む道だけ残っていた**" +
+        "＝同じ穴を2つ掘っていた。⇒ 手札とまったく同じ `showCardFace` にそろえた。",
+      "🔴 ② 浮いたまま残るのは、**`pointercancel` を受けていなかった**ため。ブラウザが指の操作を" +
+        "取り上げた時（画面の外で離した・システムのジェスチャーが割り込んだ）は `pointerup` が永久に" +
+        "来ないので、ゴーストも dragSession も残る（＝その後のドラッグも効かなくなる）。" +
+        "⚠ 続き790 で長押しに pointercancel を足した時と**まったく同じ形**。" +
+        "⇒ 取り上げられた時も必ず片付け（`diag-drag-cancelled` を残す）、" +
+        "**それでも残った時のために掃除も置いた**（`diag-drag-ghost-leak`。原因が1つとは限らない）。",
+      "🔴 検査（check-freeze-guards）が落ちて1つ学んだ: 「見張りでも流す」は " +
+        "`rescuePhaseIfNeverStarted()` から **900文字以内**に `溜めた到達を流せるなら流す(\"watchdog\")` " +
+        "が在ることを見ている。こちらが間に 700文字入れたので届かなくなった。**検査をゆるめず、" +
+        "こちらの掃除を後ろへ動かした**——いちばん危ない守りを近くに保つ、という検査の意図の方が正しい。",
+      "パーティーの3つ目の選択肢から「その相手は」を外した（ユーザー提案）。" +
+        "1つ目の選択肢と**同じ言い回し**（「移動先の到達効果は得ない。」）にそろう。挙動は1ミリも変わらない。" +
+        "⚠ 出す所は**4つ**（カードの文 ja/en ＋ 選択肢のボタン ja/en）＋カードの補足。" +
+        "ⓘ 同じ「その相手は」を使う札は他に4枚あるが、どれも**新しい文の主語**なので外せない" +
+        "（外せるのはパーティーだけ）。",
       "🔴 「パックを開ける」画面を**画面案B**に組み替えた（ユーザー判断「案Bのがスキかも！！！」）。" +
         "それまでは持ち物の4つの札を横に並べ、その下に**小さな袋の写し**（グラデーション4枚）を" +
         "置いていた。実寸で並べて撮って分かった問題が2つ: ①袋は 324x452 の絵なのに" +
@@ -318,6 +349,11 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "#810 was two bugs showing through one element. The screen snapshot settled it in one read: six cards in hand but seven .hand-card.is-self elements, and only the seventh had a raw background image, no card-face mount, and sat 100px above the row — the card being held.",
+      "The empty effect box: the drag ghost painted the raw card image, which is blank for the 73 cards whose text the app draws itself. The pile-drag path was fixed back in #660; only the hand path was left, so the same hole had been dug twice. It now uses the same showCardFace call as a card in hand.",
+      "The stuck ghost: pointercancel was never handled, so when the browser took the gesture away (released outside the window, a system gesture) pointerup never arrived and neither the ghost nor the drag session was cleaned up. Exactly the shape fixed for long-press in an earlier pass. Cancelled gestures now clean up and log, and a sweeper removes anything left behind, since the cause may not be the only one.",
+      "A failing guard check taught one thing: it requires the watchdog flush to sit within 900 characters of rescuePhaseIfNeverStarted, and 700 characters inserted between them broke that. The new sweep moved after it rather than the check being loosened.",
+      "Party lost the redundant subject in its third option, matching the wording of the first. Behaviour is unchanged; the text lives in four places plus the card note.",
       "The pack screen was rebuilt to layout B (the user picked it from three mock-ups): the bag is shown large and tilted on the right, with the counts and buttons on the left. Previously four stat cards sat above a small copy of the bag scaled down to 81x113, where none of its printed detail was visible, and the stats outweighed the button people actually came to press. No number was dropped: packs and coins are the large figures, the two wildcards and their shard progress sit on the small line below.",
       "The bag itself moved to pack-bag.js, so the pack screen and the opening ceremony share one component. It has thirteen layers, so a second copy was guaranteed to drift. The hero passes a flag that omits the tear guides.",
       "Tearing the seal is now real: dragging across the top rips it open left to right, the torn strip curling up segment by segment, and it springs back if you let go early. Tapping still opens it in one go, so no moment becomes unpressable.",

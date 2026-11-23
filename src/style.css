@@ -3261,34 +3261,8 @@ body.is-tablet-device #stack-modal.is-order-picker .stack-modal-card {
 
 /* 接触の結果（何を奪った/奪われたか）モーダル（ユーザー要望）。#contact-confirm-modalと
    同じ見た目のパターンに、奪ったカードの画像プレビューを追加した。 */
-/* ハンドフェイズで手札効果を持つカードを掴んだ時の中央ヒント（ユーザー要望）。ドラッグの
-   邪魔をしないpointer-events:none。掴んでいる間だけ.showで表示。 */
-#hand-drop-hint {
-  position: fixed;
-  top: 38%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.96);
-  width: max-content;
-  max-width: min(26rem, 90vw);
-  background: rgba(30, 41, 59, 0.96);
-  border: 1px solid rgba(251, 191, 36, 0.7);
-  border-radius: 0.6rem;
-  padding: 0.8rem 1.2rem;
-  z-index: 10600;
-  pointer-events: none;
-  font-family: sans-serif;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #fde68a;
-  text-align: center;
-  box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.55);
-  opacity: 0;
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-#hand-drop-hint.show {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
+/* ⚠【#809・続き829】「場にドロップすると手札効果が発動します」の中央の案内は**やめた**
+   （ユーザー判断）。JS 側（main.js の maybeShowHandDropHint）と文言の鍵も一緒に外してある。 */
 #contact-result-modal {
   position: fixed;
   top: 50%;
@@ -23111,7 +23085,6 @@ body.theme-light #final-lock-approval-banner,
 body.theme-light #first-login-profile-modal,
 body.theme-light #generic-confirm-modal,
 body.theme-light #player-pick-modal,
-body.theme-light #hand-drop-hint,
 body.theme-light #home-screen-toast,
 body.theme-light #icon-action-detail-modal,
 body.theme-light #mdb-note-menu,

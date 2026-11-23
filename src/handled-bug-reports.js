@@ -79,6 +79,9 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   774, // ちょっと待った！で戻らずに2マス進んでしまう（戻る移動はループの見張りに掛けない）
   782, // 欲しがりの吊り橋で戻った時、オープンして到達効果を得てしまう
   789, // 予言者の技で、手札が1枚も無いのに置くマスを聞かれる
+  // 2026-11-23（続き829）。
+  809, // 「場にドロップすると手札効果が発動します」の案内をやめた
+  810, // 掴んだ札が浮いたまま残る／その時に効果欄の文字が無い（2つの不具合が1つの要素に出ていた）
   // 2026-11-12（続き694・695）で直した分。🔴 直したらその場で足す（続き672・678・691 で3回
   //   取りこぼして、管理者ダッシュボードの「未対処」が実際より多く出ていた）。
   582, // フェニックスが撃てなくなっていた（続き694）
@@ -582,6 +585,15 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  // ── 2026-11-23（続き829）────────────────────────────────────────────
+  809: {
+    ja: "やめました。カードを掴んだ時に出していた「そのカードを場にドロップすると、手札効果が発動します。」の案内を外しました。",
+    en: "Removed. The notice \"Drop that card onto the board to trigger its Hand Effect\" no longer appears when you pick up a card.",
+  },
+  810: {
+    ja: "2つとも直しました。①掴んだ札が浮いたまま残ることがあったのは、**ブラウザが指の操作を取り上げた時**（画面の外で離した・システムのジェスチャーが割り込んだ）に「離した」の合図が届かず、掴んだままになっていたためです。取り上げられた時も必ず片付けるようにし、それでも残った時のために掃除も入れました。②その時に効果欄の文字が無かったのは、掴んでいる間の札だけ**絵をそのまま敷いていた**ためです（文字をアプリが描くセットでは効果欄が空になります）。手札とまったく同じ描き方にそろえました。",
+    en: "Both fixed. (1) A picked-up card could stay floating because when the browser took the gesture away (released outside the window, a system gesture interrupted), the \"released\" signal never arrived and the drag was never cleaned up. Cancelled gestures now always clean up, and a sweeper removes anything left behind. (2) The empty effect box was because the card being held was painted with the raw image instead of the card face, which is blank for the sets whose text the app draws itself. It is now drawn exactly like a card in your hand.",
+  },
   // ── 2026-11-21（続き790）────────────────────────────────────────────
   724: {
     ja: "直しました。偉大なる大号令で山札から置く時、**どのマスから置くかを1マスずつ選べる**ようにしました。置く場所は中央のまわりの8マスに決まっていますが、山札は上から順に出るので、**どの順で置くか**で「どのカードがどのマスに行くか」が変わります。残り何マスかも「2/8」のように出ます。",
