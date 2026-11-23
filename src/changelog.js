@@ -123,6 +123,9 @@ export const CHANGELOG = [
       "HUERISEの画面でタップした時、燃える演出の前に次の画面が一瞬見えることがあったのを直しました（スマホで残っていた分も）",
       "カードを拡大したまま確認の画面が出ると、拡大が重なって見えなかったのを直しました",
       "マイページの「マイデッキ編集」「マイ山札を作る」の文字を外しました（絵を押せば同じ所へ行けます）",
+      "長押しでカードを見る時、「↑補足」の案内が拡大したカードに隠れていたのを直しました",
+      "「選択に戻る」のボタンが小さすぎて押しにくかったのを、指で押せる大きさにしました",
+      "カードを続けてめくった時、絵が空中に残ることがあったのを片付けるようにしました",
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
@@ -143,6 +146,9 @@ export const CHANGELOG = [
       "Tapping on the HUERISE screen could flash the next screen before the burn started.",
       "An enlarged card could cover the confirmation dialog that opened behind it.",
       "My Page no longer repeats the deck and stack editor links as text; the artwork opens them.",
+      "The long-press hint was hidden behind the enlarged card.",
+      "The “back to choosing” button was too small to tap.",
+      "Card art could be left floating after several cards were flipped in a row.",
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [

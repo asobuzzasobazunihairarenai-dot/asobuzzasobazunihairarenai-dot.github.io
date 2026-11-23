@@ -1629,14 +1629,24 @@ function playCardFlipOpenGhost(rect, item) {
     flipGateClosed = true;
     endBoardAnimation();
   };
+  // 🔴【#794・続き819】**何が起きてもゴーストは消す。**
+  //   報告「おまかせで一気にめくってくとき、カードイラストが空中で置き去りになってきます」。
+  //   この順（実物を出し直す → WebGL → 最後にゴースト）は #301/#302 の通りで正しいが、
+  //   **途中の `render()` が転ぶと `outer.remove()` まで届かない**。しかも
+  //   `endBoardAnimation()` は先に済んでいるので**誰も気づかない**まま空中に残る。
+  //   ⇒ `finally` で必ず消す（順番は変えない）。
+  outer.dataset.flipAt = String(Date.now());
   setTimeout(() => {
     // 【#301/#302】順番が大事: ①実物を出し直す ②その場でWebGLも描き直す ③最後にゴーストを消す。
     // 先にゴーストを消すと、実物が描かれるまでの数フレームだけカードが消えて見える。
-    closeFlipGate();
-    flippingOpenTokenIds.delete(item.tokenId);
-    render(); // 隠していた実物を出し直す
-    flushBoard3d();
-    outer.remove();
+    try {
+      closeFlipGate();
+      flippingOpenTokenIds.delete(item.tokenId);
+      render(); // 隠していた実物を出し直す
+      flushBoard3d();
+    } finally {
+      outer.remove();
+    }
   }, CARD_FLIP_OPEN_MS + 30);
 }
 
@@ -23023,6 +23033,19 @@ setInterval(() => {
   try {
     rescuePhaseIfNeverStarted();
   } catch { /* noop */ }
+  // 🔴【#794・続き819】**空中に残っためくりのゴーストを掃除する。**
+  //   上の `finally` で普通は残らないが、**原因が確定していない**ので保険を置く。
+  //   ⚠ 掃除した時は `diag-flip-ghost-leak` を残す——**次の報告で本当の原因が名指しになる**。
+  //   ⚠ 片付けるのは**十分に古いもの**だけ（演出の最中のものを消さない）。
+  try {
+    const 期限 = Date.now() - (CARD_FLIP_OPEN_MS + 2000);
+    for (const el of document.querySelectorAll(".card-flip-ghost")) {
+      const t = Number(el.dataset.flipAt || 0);
+      if (!t || t > 期限) continue;
+      logAction("diag-flip-ghost-leak", { ageMs: Date.now() - t });
+      el.remove();
+    }
+  } catch { /* 掃除のために対局を壊さない */ }
   // 🔴【続き811】**溜めた到達を取りこぼさないための保険。**
   //   効果の最中に積んだ到達は、ふつうは到達処理が終わった時に流れるが、
   //   手札効果のように**到達処理を一度も通らない**経路で積まれた分は流す所が無い。

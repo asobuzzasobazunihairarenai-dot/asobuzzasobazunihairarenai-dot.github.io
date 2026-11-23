@@ -25263,11 +25263,18 @@ body.theme-light-ingame .ranking-choice-item {
   pointer-events: none;
 }
 /* 戻るボタンはモーダル（z-index:10002）より手前に出す。 */
+/* 🔴【#796・続き819】「選択に戻る」が**実測 50x15px**で、指には小さすぎた。
+   このアプリは body ごと `--stage-scale` で縮めて描くので、`rem` で書いた固定の物は
+   端末でそのぶん小さくなる（#453・#569・#721・#760・続き801 と同じ家族）。
+   ⇒ **倍率で割って打ち消す**（おまかせ・スキップと同じ手）。
+   ⚠ `max(1, …)` なので、倍率1の画面（PC）では**今までと1pxも変わらない**。
+   ⚠ 上限 2.4（窓がとても小さい時に巨大化しないように）。 */
 .modal-peek-return {
   position: fixed;
   left: 50%;
-  bottom: 1.2rem;
-  transform: translateX(-50%);
+  bottom: calc(1.2rem * min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
+  transform: translateX(-50%) scale(min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
+  transform-origin: bottom center;
   z-index: 10003;
   padding: 0.4rem 1.2rem;
   border: 1px solid rgba(250, 204, 21, 0.7);
@@ -26039,7 +26046,10 @@ body.is-tablet-device #player-pick-modal .player-pick-avatar { width: 4.6rem; he
    ⚠ 当たり判定は持たない（pointer-events: none）——指の下に出るので、拾うと操作を食う。 */
 .card-peek-note-hint {
   position: fixed;
-  z-index: 10050;
+  /* 🔴【#795・続き819】**拡大カード（#card-preview, z-index:10700）より前に出す。**
+     報告「長タップ時の補足ボタンが隠れてます」＝案内が 10050 で、カードに覆われていた
+     （撮った絵で確認）。⚠ `pointer-events: none` なので、前に出しても操作は奪わない。 */
+  z-index: 10750;
   display: flex;
   flex-direction: column;
   align-items: center;
