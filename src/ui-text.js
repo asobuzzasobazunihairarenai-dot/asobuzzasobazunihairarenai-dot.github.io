@@ -248,7 +248,8 @@ const UI = {
     "opt.chk.fixedHand": "自分の手札をいつも画面の下に置く（盤面を拡大しても見切れない）",
     "opt.chk.board3d": "盤面を新しい方式で描く（画面のちらつき対策・通常はONのまま）",
     "opt.chk.flatten2d": "盤面を平らな2D表示にする（タブレットで画面がちらつく時に）",
-    "opt.chk.uiV2": "新しい見た目を試す（この端末だけ）",
+    // 🔴【続き817】既定が新しい見た目になったので「試す」ではなくなった。
+    "opt.chk.uiV2": "新しい見た目を使う（この端末だけ・外すと前の見た目）",
     "opt.chk.fullscreen": "全画面で遊ぶ（ブラウザのタブやURL欄を隠す）",
     "opt.chk.opponentBaseTimer": "相手の持ち時間も表示する",
     "opt.chk.actionConfirm": "ロックやカードを使う前に確認する（うっかり操作を防ぐ）",
@@ -2818,7 +2819,7 @@ const UI = {
     "opt.chk.fixedHand": "Always keep my hand at the bottom of the screen (stays visible when you zoom the board)",
     "opt.chk.board3d": "Draw the board with the new method (helps with flickering; normally leave this on)",
     "opt.chk.flatten2d": "Show the board flat in 2D (use this if the screen flickers on a tablet)",
-    "opt.chk.uiV2": "Try the new look (this device only)",
+    "opt.chk.uiV2": "Use the new look (this device only; uncheck for the old one)",
     "opt.chk.fullscreen": "Play in fullscreen (hides browser tabs and address bar)",
     "opt.chk.opponentBaseTimer": "Also show opponents' remaining time",
     "opt.chk.actionConfirm": "Ask before locking or using a card (prevents mis-taps)",

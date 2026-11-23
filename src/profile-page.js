@@ -160,6 +160,27 @@ function alignProfileSideColumn() {
     overlayEl.style.setProperty("--profile-side-scale", String(Math.round(倍 * 1000) / 1000));
     overlayEl.style.setProperty("--profile-deck-h", Math.round((箱.offsetHeight || 0) * 倍) + 間 + "px");
   }
+  // 🔴【#757・続き816】**3列目のぶんの空きを、決め打ちではなく測って詰める。**
+  //   報告「マイデッキ マイ山札の列とその他の項目との間の広いスペース列が気になります」。
+  //   空けていたのは `padding-right: 21rem`（決め打ち）だが、列そのものは**画面の右端から**
+  //   置かれる（`right: 4rem`）。中身のカードが画面より狭いと**二重にずれて**
+  //   大きな空白の帯になる（実測 101px）。⇒ カードの右端と列の左端の**実際の差**だけ空ける。
+  //   ⚠ 倍率を入れた直後は配置がまだ動いていないので、**次のコマで測る**。
+  //   ⚠ 測れなければ何もしない（CSS の既定 21rem のまま＝今までどおり）。
+  requestAnimationFrame(() => {
+    try {
+      if (!overlayEl || !document.body.classList.contains("ui-v2")) return;
+      const card = document.getElementById("profile-page-card");
+      const 列 = overlayEl.querySelector("#profile-maindeck");
+      if (!card || !列) return;
+      const cr = card.getBoundingClientRect();
+      const dr = 列.getBoundingClientRect();
+      if (dr.width <= 0 || cr.width <= 0) return;
+      const すきま = 18; // 列と中身がくっつかないぶん（ステージpx）
+      const 要る = Math.max(0, ステージpx(cr.right - dr.left)) + すきま;
+      overlayEl.style.setProperty("--profile-card-pad-right", Math.round(要る) + "px");
+    } catch { /* 空きの調整のためにマイページを壊さない */ }
+  });
 }
 
 function fitProfilePageContent() {

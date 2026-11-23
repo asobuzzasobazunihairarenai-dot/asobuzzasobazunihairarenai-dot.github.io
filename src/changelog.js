@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "新しい見た目が既定になりました",
+      "マイページの右の列の空きを詰めました",
       "パックを受け取ると、パックが飛んでいくようにしました",
       "相手の駒を選ぶ時は、盤面の駒を直接タップするようにしました",
       "「なないろのあめ」の列の選び方を2段階にしました",
@@ -65,6 +67,8 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "The new look is now the default",
+      "My Page: the wide gap before the right column is gone",
       "Claimed packs now fly to the pack button",
       "Pick an opponent by tapping their piece on the board",
       "Rainbow Rain now asks for the line in two steps",
@@ -76,6 +80,8 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "**新しい見た目が既定になりました。** これまで ?ui=v2 を付けた人だけが見ていたものが、何もしなくても出ます。前の見た目に戻したい時は、⚙オプション →「動きが重い・カクつくとき」→「新しい見た目を使う」のチェックを外してください（**この端末だけ**の設定です）。⚠ 以前「前の見た目」を選んでいた方は、一度だけ新しい見た目に戻ります。そこで外していただくと、次からは覚えます。",
+      "マイページで、右の列（メインデッキ／メイン山札）の手前にあった**広い空き**を詰めました。画面の大きさに合わせて測って詰めるので、どの端末でも間が空きすぎません。",
       "パックを受け取ると、**押したボタンから小さいパックが飛び出して「パックを開ける」の所へ入る**ようにしました。さらに、**開けていないパックがあれば枚数がバッジで出ます**。受け取った物がどこへ行ったのか、目で追えます。⚠ 動きを減らす設定の端末では飛びません（バッジは出ます）。",
       "**相手の駒（や、その駒を起点にしたマス）が的になる効果**では、相手を選ぶ画面を出さずに**盤面の駒を直接タップ**して選ぶようにしました。フォース・誰かの好きな花（手札効果）・誰かの落とし物・貴族の特権が対象です。盤面を見ながら決められます。⚠ 相手の手札など**盤面では分からないもの**が的の効果は、今までどおり名前が並ぶ画面から選びます。⚠ 盤面に出ていない人が候補に入っている時は、その人を選べなくならないよう今までどおり画面を出します。",
       "「なないろのあめ」の手札効果で置く列の選び方を**2段階**にしました。まず「横の列／縦の列」を選び、次に**盤面でその列のマスをどこかタップ**します（どのマスでも構いません）。これまでは14個の選択肢が並んでいました。",
@@ -87,6 +93,8 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "The new look is now the default. To go back to the old one, open Options and uncheck \"Use the new look\" (this device only).",
+      "My Page: the wide empty strip before the right column is measured and closed, at any window size.",
       "Claiming packs now sends a small pack flying from the button you pressed to the open-pack tile, which shows a badge with how many packs are waiting.",
       "When an effect targets an opponent's piece (or a square based on it), you now pick them by tapping their piece on the board instead of through a dialog. Effects that target something you cannot see on the board, such as an opponent's hand, still use the dialog.",
       "Rainbow Rain now asks for the line in two steps: first across or down, then tap any square in the line you want. It used to list fourteen options.",

@@ -2277,7 +2277,9 @@ body.ui-v2 .options-v2-body > details.options-menu-details {
      v2 の時だけ上書きしているので、?ui=0 では今までどおりの位置に戻る。 */
 /* 中身は縦の真ん中へ（上に寄せると下半分が空いて、作りかけに見える）。 */
 body.ui-v2 #profile-page-card {
-  padding-right: 21rem;
+  /* 🔴【#757・続き816】既定は今までどおり 21rem。描いた後に profile-page.js が
+     **実際の列の位置を測って**詰める（決め打ちだと中身のカードが狭い時に大きく空く）。 */
+  padding-right: var(--profile-card-pad-right, 21rem);
   box-sizing: border-box;
   flex: 1 1 auto;
   display: flex;

@@ -37,19 +37,27 @@ function readWanted() {
   } catch (err) {
     /* 住所が読めない端末でも落とさない */
   }
+  // 🔴【続き817】**新しい見た目が既定になった**（ユーザー判断）。
+  //   そのため覚え方を変えた: これまでは「"1" なら新／無ければ前」だったが、
+  //   既定が新になると**「まだ触っていない」と「わざと前に戻した」が見分けられない**。
+  //   ⇒ 前に戻した人は **"0"** を覚える（"1"=新／"0"=前／無し=既定＝新）。
+  //   ⚠ これまで前の見た目を選んでいた人は鍵が**消されていた**ので見分けられない。
+  //     一度だけ新しい見た目に戻る（そこで切れば今度は "0" が残る）。
   if (fromUrl !== null) {
     try {
-      if (fromUrl) localStorage.setItem(STORE_KEY, "1");
-      else localStorage.removeItem(STORE_KEY);
+      localStorage.setItem(STORE_KEY, fromUrl ? "1" : "0");
     } catch (err) {
       /* 保存できなくても、その場の表示には効かせる */
     }
     return fromUrl;
   }
   try {
-    return localStorage.getItem(STORE_KEY) === "1";
+    const v = localStorage.getItem(STORE_KEY);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return true; // 既定＝新しい見た目
   } catch (err) {
-    return false;
+    return true; // 読めない端末でも既定どおり
   }
 }
 
@@ -91,8 +99,8 @@ export function isUiV2() {
 export function setUiV2(next) {
   enabled = !!next;
   try {
-    if (enabled) localStorage.setItem(STORE_KEY, "1");
-    else localStorage.removeItem(STORE_KEY);
+    // 🔴【続き817】切った時も**消さずに "0" を覚える**（消すと既定＝新に戻ってしまう）。
+    localStorage.setItem(STORE_KEY, enabled ? "1" : "0");
   } catch (err) {
     /* 保存できなくてもその場では効かせる */
   }
