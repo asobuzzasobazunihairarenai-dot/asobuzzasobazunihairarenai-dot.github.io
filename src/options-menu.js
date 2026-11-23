@@ -1511,7 +1511,7 @@ export function initOptionsMenu() {
             setBoardIllustOnly(false);
             setLockAreaBarVisible(true);
             setLockColorVisible(true);
-            setOpponentBaseTimerVisible(false);
+            setOpponentBaseTimerVisible(true); // 【#806・続き825】既定は「出す」
             document.documentElement.style.setProperty("--gate-invasion-modal-step-duration", "3.5");
             document.documentElement.style.setProperty("--card-arrival-modal-duration", "5");
             document.documentElement.style.setProperty("--hand-pickup-toast-duration", "5");

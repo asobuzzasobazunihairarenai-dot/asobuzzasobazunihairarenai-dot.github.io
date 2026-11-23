@@ -1773,6 +1773,17 @@ let selfBoardAvatarVisible = false;
 // ユーザー要望2026-09-01「効果自動処理モードの時は自分の手札公開エリアは非表示で。
 // 管理者モードで切り替えれるように」。既定は非表示(false)。自動処理モード中の**自分**だけが対象で、
 // 相手席・自動処理OFFの時は常に従来どおり表示される（main.js の buildPlayerZone 参照）。
+// 🔴【#801・続き825】自己申告用の3つのボタン（1枚ドロー・公開ドロー・手札シャッフル）。
+//   ユーザー判断 2026-11-23「もうほぼいらないので、管理者モードの中に入れておこう！
+//   普通のユーザーに見えるところになくていい」。効果は125種とも自動で処理されるので、
+//   手で引く・手で公開する・手で混ぜる口は、ふだん出す理由が無くなった。
+//   ⚠ 既定 OFF＝**誰にも出ない**。必要な時はここで出す。
+//   ⚠ 自動処理を切って遊ぶ時も出ない（その時だけ出す形にはしていない＝上の判断どおり）。
+let selfReportButtonsVisible = false;
+export function isSelfReportButtonsVisible() {
+  return selfReportButtonsVisible;
+}
+
 let selfHandRevealAreaVisible = false;
 export function isSelfHandRevealAreaVisible() {
   return selfHandRevealAreaVisible;
@@ -2362,6 +2373,29 @@ const TOGGLE_SECTIONS = [
       content.appendChild(resetBtn);
       content.appendChild(out);
       void showValues();
+    },
+  },
+  {
+    // 🔴【#801・続き825】自己申告用の3つのボタンを出すかどうか。既定OFF。
+    title: "🖐 自己申告用のボタン（1枚ドロー・公開ドロー・手札シャッフル）",
+    category: "effect",
+    buildContent: (content) => {
+      const row = document.createElement("label");
+      row.style.cssText = "display: flex; align-items: center; gap: 0.4rem; cursor: pointer;";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selfReportButtonsVisible;
+      cb.addEventListener("change", () => {
+        selfReportButtonsVisible = cb.checked;
+        window.dispatchEvent(new CustomEvent("admin:change"));
+        updateExportRef.current();
+      });
+      const label = document.createElement("span");
+      label.textContent =
+        "1枚ドロー・公開ドロー・手札シャッフルのボタンを出す（デフォルトOFF＝出さない。効果は自動で処理されるので、ふだんは要らない）";
+      row.appendChild(cb);
+      row.appendChild(label);
+      content.appendChild(row);
     },
   },
   {
@@ -3489,6 +3523,7 @@ function buildPanel(rebuildSlidersRef) {
       `gatePedestalVisible: ${gatePedestalVisible}`,
       `selfBoardAvatarVisible: ${selfBoardAvatarVisible}`,
       `phoneDressupIconsVisible: ${phoneDressupIconsVisible}`,
+      `selfReportButtonsVisible: ${selfReportButtonsVisible}`,
       `selfHandRevealAreaVisible: ${selfHandRevealAreaVisible}`,
       `selfNameLabelVisible: ${selfNameLabelVisible}`,
       `spotlightMode: ${spotlightMode}`,

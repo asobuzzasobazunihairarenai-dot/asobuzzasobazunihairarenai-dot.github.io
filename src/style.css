@@ -338,6 +338,9 @@ body.is-tablet-device .opening-setup-never {
      **作ったのに見た目を書いていない＝「出した」と「見えている」は別**（何度目か）。
    ⚠ id が `-modal` で終わるので、v2 の装丁（角0・金の細枠）は自動で当たる。
    ⚠ 明暗2テーマなので、地と文字色は下の theme-light で出し分ける（教訓15）。 */
+/* 🔴【#802・続き825】アカウントの札は、お知らせ／確認の札と**同じ装い**にする
+   （地・枠・明暗2テーマ・スマホの大きさを全部そろえる＝別々に書くと必ずズレる）。 */
+#account-menu-modal,
 #so7-notice-modal,
 #so7-confirm-modal {
   position: fixed;
@@ -394,6 +397,7 @@ body.is-tablet-device .opening-setup-never {
   justify-content: center;
   flex-wrap: wrap;
 }
+body.theme-light #account-menu-modal,
 body.theme-light #so7-notice-modal,
 body.theme-light #so7-confirm-modal {
   background: #fdfbf5;
@@ -406,6 +410,8 @@ body.theme-light .so7-notice-modal-ok {
 }
 /* スマホ・タブレットはステージを縮めて描くので、既定のままでは実画面で半分以下になる
    （#453 と同じ罠）。PC の値は一字も変えない。 */
+body.is-phone-device #account-menu-modal,
+body.is-tablet-device #account-menu-modal,
 body.is-phone-device #so7-notice-modal,
 body.is-tablet-device #so7-notice-modal,
 body.is-phone-device #so7-confirm-modal,
@@ -422,6 +428,43 @@ body.is-phone-device .so7-notice-modal-ok,
 body.is-tablet-device .so7-notice-modal-ok,
 body.is-phone-device .so7-confirm-modal-yes,
 body.is-tablet-device .so7-confirm-modal-yes { font-size: 1.7rem; padding: 0.8rem 2rem; }
+
+/* 【#802・続き825】アカウントの札の中身。 */
+.account-menu-title {
+  font-size: 1.05rem;
+  font-weight: bold;
+  margin-bottom: 0.9rem;
+}
+.account-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.account-menu-btn {
+  padding: 0.55rem 1rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  /* ⚠ 色は決め打ちしない（明暗2テーマ＝教訓15）。地は薄く敷くだけ。 */
+  background: rgba(148, 163, 184, 0.14);
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.account-menu-btn:hover {
+  background: rgba(148, 163, 184, 0.24);
+}
+.account-menu-note {
+  margin-top: 0.9rem;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+/* スマホ・タブレットは実画面で半分以下になるので、字を大きくする（#453 と同じ罠）。 */
+body.is-phone-device .account-menu-title,
+body.is-tablet-device .account-menu-title { font-size: 2.2rem; }
+body.is-phone-device .account-menu-btn,
+body.is-tablet-device .account-menu-btn { font-size: 1.7rem; padding: 0.8rem 1.6rem; }
+body.is-phone-device .account-menu-note,
+body.is-tablet-device .account-menu-note { font-size: 1.3rem; }
 
 /* 初回起動時のBGM設定モーダル（first-run-bgm.js）。 */
 #first-run-bgm-modal {
@@ -1779,7 +1822,15 @@ body.diagnostic-flatten-3d .hand-card.has-mystic-aura::after {
    表現する。ほとんどの表示箇所は元々position:absolute/fixedなので、position自体は
    変更せず（position:relativeを強制すると、position:absolute等に依存した既存の
    配置が壊れる恐れがあるため）、::after疑似要素はそれぞれの既存のpositioned
-   ancestorにそのまま乗せる。 */
+   ancestorにそのまま乗せる。
+
+   🔴🔴【#804・続き825】**この絵を敷く要素は、必ず positioned にすること。**
+     上の「それぞれの既存の positioned ancestor にそのまま乗せる」は、敷く先が
+     position:absolute/fixed である限り正しい。ところが **static の要素に敷くと、
+     ::after がいちばん近い positioned 祖先いっぱいに広がる**——パックの
+     コレクション（`.card-pack-face`）がまさにそれで、札が1枚並んだだけで
+     **画面全体が虹色になった**（#804。実測で画面の 90%）。
+     ⇒ 新しい画面でこの絵を敷くなら、その要素に position を付ける。 */
 [style*="rainbow-shard.webp"] {
   overflow: hidden;
 }
@@ -27213,7 +27264,25 @@ body.is-tablet-device .card-pack-new {
   font-variant-numeric: tabular-nums;
 }
 /* 札の絵（めくる7枚は .card-pack-card-front が位置と大きさを持つので、ここは地だけ）。 */
+/* 🔴【#806・続き825】**相手の持ち時間だと、色以外でも分かるようにする。**
+   報告「相手のタイマーの進みが見えない」→ 既定で出すようにしたが、出しただけだと
+   **自分の分が減っているように見える**（以前その誤解の報告が出ている）。
+   ⇒ 下の見出しをその人の**名前**にし（turn-timer.js が書き換える）、
+     数字は**小さく・少し控えめに**する（ユーザー案「数字を小さくする？」）。
+   ⚠ 自分の分は1pxも変わらない（この規則は相手の分にしか当たらない）。 */
+.turn-timer-base-clock.is-opponent-time .turn-timer-base-clock-value {
+  font-size: 0.72em;
+  opacity: 0.82;
+}
 .card-pack-face {
+  /* 🔴【#804・続き825】**position を持たせる。**
+     報告「パックを開ける画面**全体**が虹色でキラーンってなっちゃってる」の正体はここ。
+     なないろの欠片のキラ加工は `[style*="rainbow-shard.webp"]::after`（position:absolute
+     + inset:0）で描いているので、**持ち主が static だと、いちばん近い positioned 祖先**
+     （＝パックの画面そのもの）**いっぱいに広がる**。コレクションにその札が1枚並んだだけで
+     画面が丸ごと虹色になっていた（実測: 画面の 90%）。
+     ⚠ 中身の置き方は変わらない（この札は背景画像だけで、位置で並べている子は無い）。 */
+  position: relative;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;

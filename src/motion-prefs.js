@@ -39,7 +39,13 @@ export function setContinuousGlowDisabled(v) {
 // カウントダウンは常に表示するので対象外——これは「相手の分」だけを見るかどうかの
 // 設定。画面中央の砂時計ロープ（延長時間、turn-timer.jsのupdateRope）は元々誰の分でも
 // 常時表示のままで、この設定の対象外。
-let opponentBaseTimerVisible = false;
+// 🔴【#806・続き825】**既定を「出す」に変えた**（ユーザー判断 2026-11-23。
+//   報告「相手のタイマーの進みが見えない」）。上の「デフォルトは非表示で」は
+//   2026-09 の指示で、**今回それが更新された**——消さずに残してあるのは、
+//   次に読む人が「昔はこうだった」と分かるようにするため。
+//   ⚠ 出し分けの設定（⚙オプション「相手の持ち時間も表示する」）はそのまま残る。
+//   ⚠ 色だけで見分けさせない。誰の分かは turn-timer.js が**名前**でも出す。
+let opponentBaseTimerVisible = true;
 export function isOpponentBaseTimerVisible() {
   return opponentBaseTimerVisible;
 }

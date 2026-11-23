@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "相手の持ち時間が見えるようになりました",
+      "「ログイン中」からアカウントを切り替えられます",
       "新しい見た目が既定になりました",
       "マイページの右の列の空きを詰めました",
       "パックを受け取ると、パックが飛んでいくようにしました",
@@ -67,6 +69,8 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "You can now see your opponent's remaining time",
+      "Switch accounts from \"Signed in\"",
       "The new look is now the default",
       "My Page: the wide gap before the right column is gone",
       "Claimed packs now fly to the pack button",
@@ -80,6 +84,8 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "**相手の持ち時間のカウントダウンが、はじめから見えるようになりました。**誰の持ち時間かは**その人の名前**が下に出るので、色だけで見分けなくて済みます。相手の分は**数字が少し小さく**出るので、ひと目で「自分のではない」と分かります。⚠ 見たくない方は、⚙オプションの「相手の持ち時間も表示する」を外してください。",
+      "**画面の上の「ログイン中」を押すと、アカウントの札が出るようになりました。**そこから**別のアカウントに切り替え**られます（いまのアカウントからログアウトして、ログインの画面に戻ります）。⚠ 対局中・部屋に入っている間は、今までどおり部屋のパネルが開きます。",
       "**新しい見た目が既定になりました。** これまで ?ui=v2 を付けた人だけが見ていたものが、何もしなくても出ます。前の見た目に戻したい時は、⚙オプション →「動きが重い・カクつくとき」→「新しい見た目を使う」のチェックを外してください（**この端末だけ**の設定です）。⚠ 以前「前の見た目」を選んでいた方は、一度だけ新しい見た目に戻ります。そこで外していただくと、次からは覚えます。",
       "マイページで、右の列（メインデッキ／メイン山札）の手前にあった**広い空き**を詰めました。画面の大きさに合わせて測って詰めるので、どの端末でも間が空きすぎません。",
       "パックを受け取ると、**押したボタンから小さいパックが飛び出して「パックを開ける」の所へ入る**ようにしました。さらに、**開けていないパックがあれば枚数がバッジで出ます**。受け取った物がどこへ行ったのか、目で追えます。⚠ 動きを減らす設定の端末では飛びません（バッジは出ます）。",
@@ -93,6 +99,8 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "**Your opponent's countdown is now shown by default.** The caption underneath names whose time it is, so you no longer have to tell by colour alone, and an opponent's number is drawn slightly smaller. You can turn it off again under Options.",
+      "**Tapping \"Signed in\" at the top now opens an account card**, where you can switch to another account (you are signed out and returned to the login screen). While you are in a room, it still opens the room panel as before.",
       "The new look is now the default. To go back to the old one, open Options and uncheck \"Use the new look\" (this device only).",
       "My Page: the wide empty strip before the right column is measured and closed, at any window size.",
       "Claiming packs now sends a small pack flying from the button you pressed to the open-pack tile, which shows a badge with how many packs are waiting.",
@@ -106,6 +114,7 @@ export const CHANGELOG = [
       "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
+      "パックを開ける画面が丸ごと虹色に光ってしまうことがあったのを直しました",
       "ホームのランク戦で「通知をON」の案内が見切れていたのを直しました",
       "ウィークリーの報酬でパックを受け取った時に、パックが飛んでいかなかったのを直しました",
       "相手が降参して勝った時に、結果が出ないまま盤面に取り残されることがあったのを直しました",
@@ -135,6 +144,7 @@ export const CHANGELOG = [
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
+      "The whole pack-opening screen could light up in rainbow colours.",
       "The \"Turn on notifications\" prompt was cut off on the ranked tile on Home.",
       "Packs claimed from the weekly reward did not fly to the pack opener.",
       "Winning by your opponent's resignation could leave you on the board with no result screen.",
@@ -164,6 +174,29 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴🔴 #804（パックを開ける画面全体が虹色でキラーン）: なないろの欠片のキラ加工は" +
+        "`[style*=\"rainbow-shard.webp\"]::after`（position:absolute + inset:0）で描いている。" +
+        "**持ち主が static だと、いちばん近い positioned 祖先いっぱいに広がる**（CSS の" +
+        "コメント自身が「それぞれの既存の positioned ancestor にそのまま乗せる」と書いていた）。" +
+        "コレクションの札 `.card-pack-face` に position が無く、その札が1枚並んだだけで" +
+        "**画面の 90% が虹色になっていた**（実測）。⇒ 札に position を持たせ、" +
+        "規則の側にも「この絵を敷く要素は必ず positioned にすること」と書いた。" +
+        "A/B: position を外すと 0% → 90% に戻る。",
+      "#806（相手のタイマーの進みが見えない）: 設定自体は在ったが**既定オフ**だった" +
+        "（2026-09 の『デフォルトは非表示で』という指示どおり）。ユーザー判断で**既定を出す側へ**。" +
+        "🔴 ただし出しただけだと**自分の分が減っているように見える**（過去にその誤解の報告がある）ので、" +
+        "**色の違いだけに頼らない**: 下の見出しをその人の**名前**にし、相手の分は**数字を小さく**した" +
+        "（ユーザー案）。実測で、CPUが優先権を持った瞬間に見出しが「CPU」になることを捕まえた。",
+      "#801（効果自動処理で不要なボタンは非表示に）: 1枚ドロー・公開ドロー・手札シャッフルを" +
+        "**管理者モードのつまみの中へ**（既定 OFF＝誰にも出ない）。以前は「自動処理が入って" +
+        "いなければ出す」だったが、効果は125種とも自動で処理されるようになったので、ふだん出す" +
+        "理由が無い（ユーザー判断）。⚠ **自動処理を切って遊ぶ時も出ない**——手で引く口が" +
+        "要るなら、管理者モードで出す。",
+      "#802（ログイン中を押してアカウント切り替え）: `src/account-menu.js` を足した。" +
+        "⚠ **部屋に入っている間は今までどおり**部屋のパネル（アカウントの話は対局中に出す物ではないし、" +
+        "切り替えれば対局から抜ける）。⚠ ログアウトは人が押し、こちらは合言葉を一切さわらない。" +
+        "⚠ 部屋のパネルから「ログアウト」を撤去した過去の判断は生きている（あそこは部屋の話をする場所）。" +
+        "見た目はお知らせ／確認の札と**同じ規則を共有**させた（別々に書くと必ずズレる）。",
       "#799（ランク戦の「通知をオン」が見切れている）: 既定の見た目では札の下に少し" +
         "はみ出させて置いている（`bottom: -0.5rem`）が、**v2 のヒーロー（ランク戦の大きな札）は" +
         "絵を切り抜くために `overflow: hidden`** が付いているので、はみ出した分がそのまま" +
@@ -231,6 +264,10 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "#804: the rainbow-shard foil effect is drawn with an absolutely positioned ::after, so when its host is statically positioned it expands to the nearest positioned ancestor. The collection tile had no position, so one such card filled 90% of the screen with the sweep. The tile is now positioned, and the rule itself documents the requirement.",
+      "#806: the opponent countdown setting existed but defaulted to off. It now defaults to on, and whose time it is is stated in words (the caption shows the player's name) with the opponent's number drawn smaller, so colour is not the only cue.",
+      "#801: the three self-declaration buttons moved behind an admin toggle (off by default), since effects are auto-processed for all 125 cards.",
+      "#802: new account card opened from the \"Signed in\" chip when not in a room; it offers switching accounts by signing out and reloading.",
       "#799: the notify badge hangs below the tile by design, but the v2 hero tile clips its contents, so the badge was cut off. It now sits inside the tile in v2 only; the default look is unchanged.",
       "pack-fly was wired only into card-pack-ui, although its own header named daily-ring as a caller too. The weekly pack claim now flies as well (this call site itself is not measured headlessly).",
       "#807 root cause: a win that is not seven colours (resignation, AFK forfeit) was forgotten whenever victory tracking was rebuilt, because the rebuild only restores players with all seven locked. hasAnyoneWon() went false, the turn timer and phase automation resumed, and the AFK watcher reported a forfeit on an already-decided ranked match. The conclusion is now remembered together with its game id and restored for the same game; local games (which have no game id) still always forget.",

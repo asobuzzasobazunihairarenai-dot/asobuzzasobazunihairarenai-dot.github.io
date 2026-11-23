@@ -16,6 +16,7 @@ import {
   registerAdminAuthHelpers,
   refreshAdminOnlySection,
   isSelfHandRevealAreaVisible,
+  isSelfReportButtonsVisible, // 🔴【#801・続き825】自己申告用の3ボタンは管理者モードの中へ
   getMyDeckHandMarkStyle,
   isMyDeckHandSortEnabled,
 } from "./admin.js";
@@ -507,6 +508,8 @@ import { invalidateBoard3d, flushBoard3d, noteBoard3dTransform, trackBoard3dAnim
 // 書くのはこちら（画角・手動ズーム・2D表示と1か所で合流させるため）。
 import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuning, isCinematicCameraHome, setCinematicApplier, cameraTo, cameraHome } from "./cinematic-camera.js";
 import { showCardFace } from "./card-face-display.js";
+// 🔴【#802・続き825】画面の上の「ログイン中」から、アカウントを切り替えられるようにする。
+import { openAccountMenu } from "./account-menu.js";
 import { onLangChange } from "./i18n.js";
 // 【2026-11-13・続き699】新しい見た目（UI v2）の切り替え。読み込んだ時点で body へ
 //   クラスを付けるだけ（admin.js の applyThemeMode と同じ作法）。既定は今までの見た目。
@@ -20544,7 +20547,14 @@ function buildSelfStatusOnlineWidget() {
       t("game.online.help1"),
       t("game.online.help2"),
     ],
-    onAction: openOnlinePanel,
+    // 🔴【#802・続き825】ユーザー要望「画面上部のログイン中を押すとアカウント切り替えなど
+    //   できるといいかも」。**部屋に入っている間は今までどおり**（部屋のパネル）——
+    //   アカウントの話は対局の最中に出す物ではないし、切り替えれば対局から抜けることになる。
+    //   ⚠ ログインしていない時も今までどおり（切り替える物が無い）。
+    onAction: () => {
+      if (getCurrentGameId() || !getCachedUser()) return void openOnlinePanel();
+      openAccountMenu({ onOpenRoom: openOnlinePanel });
+    },
   });
   selfStatusOnlineEl = btn;
   return btn;
@@ -21591,7 +21601,10 @@ async function animateHandShuffle(seat) {
 // 別途新設する（この関数はあくまで通常のターン終了ボタン自体を隠すだけ）。
 function updateHandShuffleButton() {
   if (!handShuffleButtonEl) return;
-  handShuffleButtonEl.style.display = isAutoProcessingEnabled() ? "none" : "flex";
+  // 🔴【#801・続き825】自己申告用のボタンは**管理者モードで出した時だけ**。
+  //   （以前は「自動処理が入っていなければ出す」だった。効果は125種とも自動で
+  //   処理されるようになったので、ふだんは要らない＝ユーザー判断 2026-11-23）
+  handShuffleButtonEl.style.display = isSelfReportButtonsVisible() ? "flex" : "none";
   if (isAutoProcessingEnabled()) return;
   const selfSeat = getSelfSeat();
   const handCount = getState().tokens.filter(
@@ -21734,7 +21747,8 @@ function buildDrawButton() {
 
 function updateDrawButton() {
   if (!drawButtonEl) return;
-  drawButtonEl.style.display = getState().turnPlayer && !isAutoProcessingEnabled() ? "flex" : "none";
+  // 🔴【#801・続き825】同上（管理者モードで出した時だけ）。
+  drawButtonEl.style.display = getState().turnPlayer && isSelfReportButtonsVisible() ? "flex" : "none";
 }
 
 let publicDrawButtonEl = null;
@@ -21819,7 +21833,8 @@ function buildPublicDrawButton() {
 
 function updatePublicDrawButton() {
   if (!publicDrawButtonEl) return;
-  publicDrawButtonEl.style.display = getState().turnPlayer && !isAutoProcessingEnabled() ? "flex" : "none";
+  // 🔴【#801・続き825】同上（管理者モードで出した時だけ）。
+  publicDrawButtonEl.style.display = getState().turnPlayer && isSelfReportButtonsVisible() ? "flex" : "none";
 }
 
 // --- 自分専用ステータス（手札枚数・名前・アバター） --------------------------------

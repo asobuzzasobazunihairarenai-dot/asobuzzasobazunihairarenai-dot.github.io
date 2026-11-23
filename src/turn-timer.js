@@ -157,6 +157,7 @@ const ACTION_RECOVERY_SECONDS = 20;
 let baseClockEl = null; // フェイズ案内板の中に出す、基本時間の残り秒数表示（常時表示、カウント中でない時は自分の砂時計残数の表示に切り替わる）
 let baseClockLabelEl = null;
 let baseClockHourglassIconEl = null;
+let baseClockCaptionEl = null; // 【#806・続き825】誰の持ち時間かを言葉で出す見出し
 let baseClockHourglassCountEl = null;
 let ropeEl = null; // 画面中央のロープ本体（延長中だけ表示）
 let ropeStrandEl = null;
@@ -589,6 +590,8 @@ function buildBaseClock() {
   caption.className = "icon-action-button-caption";
   caption.textContent = t("turntimer.L501");
   baseClockEl.appendChild(caption);
+  // 【#806・続き825】誰の持ち時間かを、この見出しで言葉にする（updateBaseClock が書き換える）。
+  baseClockCaptionEl = caption;
   // ユーザー要望（続き68）「タイマーをオフにするボタンは基本時間アイコンを押すと
   // ひょこっと出てくる仕様にしたい」。timer-toggle.js側にポップオーバーの開閉状態を
   // 持たせ、ここではクリックをそのまま中継するだけにする。
@@ -652,6 +655,18 @@ function updateBaseClock(state) {
     // ロープと同じ「優先権保持者の駒の色で縁取りする」方式で誰の分か色分けし、詳細は
     // ホバー説明（title）に譲る。
     baseClockEl.title = t("tt.baseTimeOf", { name: getPlayerName(state.priorityPlayer) });
+    // 🔴【#806・続き825】**色の違いだけに頼らない。**
+    //   報告「相手のタイマーの進みが見えない」を受けて既定で出すようにしたが、
+    //   出しただけだと**自分の分が減っているように見える**（以前その誤解の報告が出ている）。
+    //   ⇒ ①下の見出しを**その人の名前**にする（言葉で言う）
+    //     ②相手の分は**数字を小さく**する（ユーザー案。ひと目で「自分のではない」と分かる）
+    //   ⚠ 自分の分は今までどおり（見出しは「基本時間」・大きさもそのまま）。
+    baseClockEl.classList.toggle("is-opponent-time", !isSelfCounting);
+    if (baseClockCaptionEl) {
+      baseClockCaptionEl.textContent = isSelfCounting
+        ? t("turntimer.L501")
+        : getPlayerName(state.priorityPlayer);
+    }
     const color = getPieceColor(state.priorityPlayer);
     baseClockEl.style.setProperty("--turn-timer-base-clock-color", color ? `var(--color-${color})` : "#38bdf8");
     const hourglassIconPath = getHourglassIconPath(color);
@@ -683,6 +698,9 @@ function updateBaseClock(state) {
   const selfSeat = getSelfSeat();
   baseClockLabelEl.textContent = "";
   baseClockEl.title = t("turntimer.L567");
+  // 【#806・続き825】カウントしていない間は、見出しも大きさも元に戻す。
+  baseClockEl.classList.remove("is-opponent-time");
+  if (baseClockCaptionEl) baseClockCaptionEl.textContent = t("turntimer.L501");
   const selfColor = getPieceColor(selfSeat);
   baseClockEl.style.setProperty("--turn-timer-base-clock-color", selfColor ? `var(--color-${selfColor})` : "rgba(226, 232, 240, 0.5)");
   const selfHourglassIconPath = getHourglassIconPath(selfColor);
