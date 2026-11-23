@@ -203,6 +203,27 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#789・続き809】報告「予言者の技で**手札がないのに置くマスを選択させれます**」。
+    //   置く札が1枚も無いなら、置き先を**聞かずに**終わる（押せない約束を残さない＝#729）。
+    //   ⚠ 上の「手札1枚を置く」と**対**で見る（片方だけだと「いつでも0回」でも通る）。
+    name: "旧0th 予言者の技(到達): 手札が1枚も無いなら、置くマスを聞かない",
+    kind: "arrival",
+    cardId: "0th-purple-apocalypse",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-apocalypse", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-purple-apocalypse", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "called", name: "pickLocation", n: 0 },
+    ],
+  },
+  {
     name: "旧0th にじいろの呪い(到達): 自分の空いているロックエリアへ表向きで置く",
     kind: "arrival",
     cardId: "0th-black-rainbow-curse",

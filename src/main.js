@@ -22752,47 +22752,113 @@ function runHandEffectBusyWatchdog() {
 //     （activeEffectPicker を触る所は20か所以上あり、1つ直しても次が残る）。
 let 置き去りの候補選択 = null;
 let 置き去りを見た時刻 = 0;
-let 置き去りの理由を書いたか = false;
+// 🔴【続き809】**同じ理由は1回しか書かない**（5秒ごとに同じ行を並べない）が、
+//   理由が変わったら書き直す（どの門で止まっているかが移り変わるため）。
+let 置き去りの理由を書いたか = "";
+function 書き残す(picker, stuckMs, 中身) {
+  const 鍵 = 中身.理由 + "|" + (中身.要素 ?? "");
+  if (置き去りの理由を書いたか === 鍵) return;
+  置き去りの理由を書いたか = 鍵;
+  logAction("diag-picker-leak-blocked", {
+    type: picker.type ?? null,
+    owner: picker.owner ?? null,
+    stuckMs,
+    ...中身,
+  });
+}
+// 要素を短い名前にする（div#card-note-modal.foo）。次の報告で名指しできるように。
+function 要素の名(el) {
+  if (!el) return null;
+  const cls = (el.className && typeof el.className === "string") ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".") : "";
+  return el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") + cls;
+}
 const PICKER_LEAK_MS = 25000;
 // 🔴【#786〜#788・続き806】**最後の手段**の待ち時間。上の 25 秒で片付かなかった時だけ効く。
 //   報告（#776 #786 #787 #788）では `diag-picker-leak` が**1行も無かった**＝25秒の掃除役が
 //   一度も動いていない。降りた理由を書いていなかったので、どの門で止まったのか分からない。
 //   ⇒ 理由を書き（`diag-picker-leak-blocked`）、60秒たったら**旗の方を時間切れにする**。
 const PICKER_LEAK_FORCE_MS = 60000;
-// 画面に「この候補選択のために押せる物」が在るか。
-function 押せる物が在るか() {
-  if (isAnyBlockingModalOpen()) return true; // モーダルで選ぶ種類はこれで拾える
-  return !!document.querySelector(".card-effect-target-cell, .card-effect-target-avatar");
+// 画面に「この候補選択のために **人が本当に押せる物**」が在るか。
+// 在ればその物の名前を返す（ログに残して、次の報告で名指しできるように）。無ければ null。
+//
+// 🔴🔴【#776 #786 #787 #788 #791 #792・続き809】**ここが「固まる」6件の正体だった。**
+//   続き806 では「モーダルが出ている／光っているマスが在る」なら**何も書かずに降りる**作りにした
+//   （長考中の人から選択を取り上げないため＝これ自体は正しい）。ところが降り口の判定が
+//   `id が -modal / -picker / -confirm で終わる要素が1つでも「見えて」いれば true`
+//   という広すぎるもの（isAnyBlockingModalOpen）で、**大きさ0・pointer-events:none・
+//   押せる子が1つも無い残骸**まで「押せる物」に数えていた。
+//   ⇒ 報告 #792 の記録は `effectCells:0 / pickTargets:0 / covered:[]`＝**画面に押せる物は
+//     1つも無い**のに、`pickerActive:true` のまま1分半止まり、`diag-picker-leak-blocked` も
+//     `diag-picker-leak` も**1行も出ていない**＝この門で黙って降り続けていた。
+//   ⚠ そして `document.addEventListener("pointerdown")` の先頭は `if (activeEffectPicker) return;`
+//     なので、取り残された候補選択は**盤面も手札もタップを全部飲む**。DOM のボタン
+//     （フェイズバー・盤面拡大）は別経路なので効く＝報告「フェイズの説明は出るのに
+//     移動先をタップしても反応しない」（#792）と完全に一致する。
+//
+//   直しは2つ: ①**押せる形**だけを数える ②**降りた理由を必ず書く**
+//   （続き806 で旗の門にだけ入れた物を、こちらの門にも入れる）。
+//   🔴 教訓: **黙って降りる門を作らない。** 続き806 で「降りた理由を書く」と決めたのに、
+//     絶対の門だけ書かないままにした——そして実際に降りたのはその門だった。
+function 押せる物を探す() {
+  // ① 光っているマス・アバター（候補選択そのものの当たり判定）。
+  for (const el of document.querySelectorAll(".card-effect-target-cell, .card-effect-target-avatar")) {
+    if (押せる形か(el)) return { 理由: "cell", 名: 要素の名(el) };
+  }
+  // ② 返事待ちのモーダル。**出ているだけでは足りない**（上のコメント）。
+  for (const el of document.querySelectorAll('[id$="-modal"], [id$="-picker"], [id$="-confirm"]')) {
+    if (!押せる形か(el)) continue;
+    // 本物の選択モーダルには**必ず押せる子が1つ以上ある**（はい／いいえ・選択肢・閉じる）。
+    // 飾りの帯や残骸には1つも無い＝それは人が答えられる合図ではない。
+    if (!el.querySelector('button, [role="button"], input, select, textarea, a[href]')) continue;
+    return { 理由: "modal", 名: 要素の名(el) };
+  }
+  return null;
+}
+// 「人が本当に押せる形」か（画面の中に在る／8px以上／透けていない／pointer-events が効く）。
+function 押せる形か(el) {
+  if (!el || !el.isConnected) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) return false;
+  if (r.right <= 0 || r.bottom <= 0 || r.left >= window.innerWidth || r.top >= window.innerHeight) return false;
+  const st = getComputedStyle(el);
+  if (st.display === "none" || st.visibility === "hidden") return false;
+  if (st.pointerEvents === "none") return false;
+  if (Number(st.opacity) < 0.05) return false;
+  return true;
 }
 function runEffectPickerLeakWatchdog() {
   const picker = activeEffectPicker;
-  if (!picker) { 置き去りの候補選択 = null; 置き去りの理由を書いたか = false; return; }
+  if (!picker) { 置き去りの候補選択 = null; 置き去りの理由を書いたか = ""; return; }
   if (picker !== 置き去りの候補選択) {
     // 別の候補選択に替わった＝進んでいる。時計を戻す。
     置き去りの候補選択 = picker;
     置き去りを見た時刻 = Date.now();
-    置き去りの理由を書いたか = false;
+    置き去りの理由を書いたか = "";
     return;
   }
   const stuckMs = Date.now() - 置き去りを見た時刻;
   if (stuckMs < PICKER_LEAK_MS) return;
 
-  // 🔴【続き806】**人がまだ答えられる合図**（絶対に無視しない門）。
-  //   モーダルが出ている／押せる物が在るなら、長考かもしれないので何分でも待つ。
-  if (押せる物が在るか()) return;
-
-  // 🔴【続き806】**旗の門**（60秒で時間切れにする門）。
-  //   報告では掃除役が一度も動かなかったのに、**降りた理由が1行も残っていなかった**。
-  //   ⇒ まず書く。書くのは候補選択1つにつき1回だけ（5秒ごとに同じ行を並べない）。
   const 旗 = { cpu: !!isCpuSelectingNow(), delegation: !!getEffectDelegationTarget() };
   const 旗が立っている = 旗.cpu || 旗.delegation;
-  if (旗が立っている && !置き去りの理由を書いたか) {
-    置き去りの理由を書いたか = true;
-    logAction("diag-picker-leak-blocked", {
-      type: picker.type ?? null,
-      owner: picker.owner ?? null,
-      stuckMs,
+
+  // 🔴【続き806→809】**人がまだ答えられる合図**（絶対に無視しない門）。
+  //   押せる物が本当に在るなら、長考かもしれないので何分でも待つ。
+  //   ⚠【続き809】ただし**降りた理由は必ず書く**。続き806 ではここだけ黙って降りる作りにして、
+  //     そして実際に降りたのがこの門だった（6件の報告で1行も残らなかった）。
+  const 押せる物 = 押せる物を探す();
+  if (押せる物) {
+    書き残す(picker, stuckMs, { ...旗, 理由: 押せる物.理由, 要素: 押せる物.名, 時間切れ: false });
+    return;
+  }
+
+  // 🔴【続き806】**旗の門**（60秒で時間切れにする門）。
+  if (旗が立っている) {
+    書き残す(picker, stuckMs, {
       ...旗,
+      理由: 旗.cpu ? "cpu" : "delegation",
+      要素: null,
+      時間切れ: true,
       forceInMs: Math.max(0, PICKER_LEAK_FORCE_MS - stuckMs),
     });
   }
@@ -22809,7 +22875,7 @@ function runEffectPickerLeakWatchdog() {
   activeEffectPicker = null;
   try { picker.resolve(null); } catch (err) { /* 閉じられなくても進行は続ける */ }
   置き去りの候補選択 = null;
-  置き去りの理由を書いたか = false;
+  置き去りの理由を書いたか = "";
   render();
 }
 

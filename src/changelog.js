@@ -92,6 +92,8 @@ export const CHANGELOG = [
       "全員が同時に手札を捨てる時、人数ぶんお知らせが出ていたのを1回にまとめました",
       "承認の画面で「はい」が左にあったのを、ほかの画面と同じく右にそろえました",
       "マイデッキの「ショップで枠を増やせます」が押せなかったのを、押すとショップへ行くようにしました",
+      "盤面も手札もタップできなくなり、そのまま戻らないことがあったのを直しました",
+      "「予言者の技」で、手札が1枚も無いのに置くマスを選ばされることがあったのを直しました",
     ],
     fixesEn: [
       "The floor behind the board looked stretched vertically.",
@@ -104,8 +106,12 @@ export const CHANGELOG = [
       "Everyone discarding at once no longer pops one notice per player.",
       "Approval dialogs now put the affirmative button on the right, like every other dialog.",
       "The locked \u201cdeck slots\u201d box in My Deck can now be pressed to reach the shop.",
+      "Taps on the board and on your hand could stop working, with no way back.",
+      "Prophet's Art asked you to pick a square even when your hand was empty.",
     ],
     devItems: [
+      "🔴🔴 **固まる系（#776 #786 #787 #788 #791 #792）の正体が決まった。** 報告 #792 のログで、手札効果（誰かの落とし物■）が終わった直後の `diag-anytime-checkpoint` が **`pickerActive: true`**、以後1分半は盤面の描画だけ。そして `document.addEventListener の pointerdown` の先頭は **`if (activeEffectPicker) return;`** ——取り残された候補選択は**盤面も手札もタップを全部飲む**。DOM のボタン（フェイズバー・盤面拡大）は別経路なので効く＝報告「**フェイズの説明は出るのに移動先をタップしても反応しない**」と完全に一致する。🔴 では続き806 で入れた掃除役はなぜ動かなかったか——**降り口の判定が広すぎた**。`isAnyBlockingModalOpen()` は「id が `-modal` / `-picker` / `-confirm` で終わる要素が1つでも見えていれば true」で、**大きさ0・`pointer-events:none`・押せる子が1つも無い残骸**まで「人が選んでいる最中」と数えていた。⇒ **押せる形だけを数える**（画面の中に在る／8px以上／透けていない／pointer-events が効く／**押せる子を1つ以上持つ**）。",
+      "🔴 **そしてこの門は、降りた理由を1行も書いていなかった。** 続き806 で「降りた理由を書く」と決めたのに、**絶対の門（人がまだ答えられる合図）だけ黙って降りる**ままにした——そして6件の報告で実際に降りたのは、まさにその門だった。⇒ こちらにも `diag-picker-leak-blocked` を書き、**何を『押せる』と見なしたかを要素の名前で残す**（`div#…`）。実測で本物を1つ名指しさせてもいる（実測側の取りこぼしだったが、仕組みは1回で当てた）。**教訓: 黙って降りる門を作らない。** A/B（実測7項目）: 押せる子の無い残骸では**25秒で片付いて `diag-picker-leak` が残る**／同じ札に**ボタンを1つ入れると**今度は片付けず、理由と要素名が残る（人の選択は取り上げない）。",
       "🔴🔴 **#750「プレイマットの後ろの背景が縦な向きな気がする」の正体は、WebGL が `background-size: contain` を見ていなかったこと。** 床の絵は 1672x941（16:9）だが `.table-background-bg` の箱は**正方形**で、CSS は contain で収めている。ところが WebGL 側は**箱いっぱいに板を張る**ので、絵が**縦に 1.78 倍**に伸びていた。報告の「最初の頃は横だったと思うけど」もそのとおりで、**2026-09-05（第3段）でキャンバスを盤面DOMの奥へ置いた時に床とプレイマットを WebGL 側へ移した**のが変わり目。⇒ `containBox()` を足して contain を尊重するようにした（絵が読めていない間は今までどおり箱いっぱい。読み終わった時に `needsRebuild` を立てて置き直す）。⚠ **cover は扱わない**——あちらは箱からはみ出した分を CSS が切り落とすが、板は切り落とせない（テクスチャを他の要素と使い回すので repeat/offset も触れない）。",
       "🔴 **その取り違えを生んだのは、古いまま残っていた覚え書きだった。** board-3d.js の `PAINT_SELECTOR` の上には「床とプレイマットはここに入れない。**background-size:contain なので箱と絵の縦横比が違い、板にそのまま貼ると伸びてしまう**」と**起きることまで書いてあった**のに、第3段で2つとも入れた時に**覚え書きだけ直し忘れていた**。⇒ 書き直した。**覚え書きが古いまま残ると、同じ取り違えがまた起きる。**",
       "🔴🔴 **#745「なんか止まってしまいました！」の正体は、`cpu-brain.js` の `ReferenceError: Can't find variable: t`。** 志炎者の分岐で `cf志炎の値(t, …)` と書いていたが、`t` はその関数に存在しない（引数は card / seat / state / handCount）。CPU が手札効果を値踏みするたびに例外が飛び、**CPU が一歩も動けず対局が丸ごと止まっていた**——報告の console_log に 200ms おきの同じ行が並んでいた。続き782 で入れた書き間違い。⇒ 引数そのものを無くした（中身は札を一度も見ていなかった）。",
@@ -132,6 +138,8 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "The freeze cluster (#776 #786 #787 #788 #791 #792) is identified: a leaked effect picker. The document-level pointerdown handler starts with `if (activeEffectPicker) return;`, so a leaked picker swallows every tap on the board and the hand, while plain DOM buttons keep working — exactly what the report described. The watchdog added earlier never fired because its bail-out test counted any element whose id ends in -modal/-picker/-confirm as the human still choosing, including zero-size, pointer-events:none leftovers with no buttons. It now only counts things a person can actually press.",
+      "That gate also wrote no reason at all. It now logs which element it considered pressable, by name, so the next report names the blocker instead of leaving it to guesswork. Verified both ways: a leftover with no pressable child is cleaned up after 25 seconds, while the same element with a single button is left alone.",
       "#750: the WebGL painter ignored background-size: contain. The floor art is 1672x941 but its box is square, so the quad stretched the image vertically by 1.78x. A containBox() helper now honours contain (falling back to the full box until the texture has loaded, then flagging a rebuild). cover is deliberately left alone, since a quad cannot be clipped the way CSS clips a background.",
       "The note above PAINT_SELECTOR still said the floor and playmat were excluded, and even predicted this exact stretch - but both were added back in September when the canvas moved behind the board DOM, and only the note was left stale. It has been rewritten.",
       "#745: cpu-brain.js threw ReferenceError: Can't find variable: t every time the CPU valued a hand effect, because the Shien-sha branch passed an argument that does not exist in that function. The CPU could not take a single step, so the match froze; the report's console log held the same line every 200ms.",

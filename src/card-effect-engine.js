@@ -2971,6 +2971,14 @@ async function runAction(action, ctx, helpers) {
       return true;
     }
     case VERBS.PLACE_CARD: {
+      // 🔴【#789・続き809】報告「予言者の技で**手札がないのに置くマスを選択させれます**」。
+      //   置き先を聞く前に、**置く札が本当に在るか**を見る。無いのに聞くと、選んでも何も
+      //   起きない＝押せない約束を残すことになる（#729 の家族）。善処の原則どおり、
+      //   置く物が1枚も無ければ**何も聞かずに**終わる。
+      //   ⚠ source:"self"（カード自身を置く）は必ず在るので見ない。
+      //   ⚠ source:"deck" は山札が尽きても捨て場から積み直す道があるので、ここでは見ない
+      //     （置く所で1枚も出なければ、そちらが何もしない）。
+      if (action.source === "hand" && getHandTokens(ctx.player).length === 0) return false;
       // destination.selection: SAME_AS（収穫と種まき・終わりなき化学ゲンテクニーク等、
       // 同じ効果内の別アクションで既に選んだマスへ置き直す）／CHOOSE（月下の漂流船
       // プリドゥエン等、その場でN個のマスを選ばせる。action.countがマス数）。
