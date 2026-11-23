@@ -319,6 +319,10 @@ function buildHueriseBurn(色, 時間ms) {
       //   書き換えの回数を 1/10 以下に落とす。見た目の差は撮っても分からない。
       const うねり = Math.round((10 + 34 * p) / 8) * 8;
       if (うねり !== 前のうねり) { 前のうねり = うねり; disp.setAttribute("scale", String(うねり)); }
+      // 🔴【#773・続き811】**紙を1回描けた印**。ゲートの白を手放してよいかの合図に使う。
+      //   時間（300ms）で待っていたら、重い端末では**保険の方が先に勝って**
+      //   紙が出る前にゲートが透明になり、下のタイトルが丸見えになっていた。
+      svg.__描けた = true;
       if (t < 1) requestAnimationFrame(進む);
     };
     requestAnimationFrame(進む);
@@ -1245,8 +1249,17 @@ export function initOpeningScreen() {
         渡した = true;
         startGate.classList.add("is-burning");
       };
-      requestAnimationFrame(() => requestAnimationFrame(渡す));
-      setTimeout(渡す, 300);
+      // 🔴【#773・続き811】**紙が本当に描けるまで待つ**（コマ数でも時間でもなく、印で待つ）。
+      //   印が立った次のコマで手放す＝そのコマではもう紙が画面に出ている。
+      //   ⚠ 保険は 1200ms（演出 BURN_TRANSITION_MS より十分短い）。rAF が来ない端末でも
+      //     演出が止まらないように残すが、**競走にならない長さ**にしてある。
+      const 紙を待つ = () => {
+        if (渡した) return;
+        if (燃えぎわ && 燃えぎわ.__描けた) { requestAnimationFrame(渡す); return; }
+        requestAnimationFrame(紙を待つ);
+      };
+      requestAnimationFrame(紙を待つ);
+      setTimeout(渡す, 1200);
     } else {
       startGate.classList.add("is-closing");
     }

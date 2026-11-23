@@ -131,7 +131,9 @@ const handEffectDisabledUntilTurn = new Map(); // tokenId -> turnNumber
 function disableHandEffectForTurn(tokenId) {
   handEffectDisabledUntilTurn.set(tokenId, getState().turnNumber);
 }
-function isHandEffectDisabledThisTurn(tokenId) {
+// 🔴【#785・続き811】phase-automation の「公開ドロー直後は自動スキップしない」からも見る
+//   （封じられた札しか無いなら、待っても使える札は増えない）ので export する。
+export function isHandEffectDisabledThisTurn(tokenId) {
   return handEffectDisabledUntilTurn.get(tokenId) === getState().turnNumber;
 }
 

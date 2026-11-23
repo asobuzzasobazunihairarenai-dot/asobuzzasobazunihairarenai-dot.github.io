@@ -27,6 +27,7 @@ import {
   isHandEffectReactiveOnly,
   hasHandEffectData,
   canUseHandEffect,
+  isHandEffectDisabledThisTurn, // 🔴【#785・続き811】封じられた公開札しか無いなら抑止しない
 } from "./card-effect-engine.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 import { onLangChange } from "./i18n.js"; // 【B-2】上端の1行を言語切替で貼り直す
@@ -457,8 +458,14 @@ function isHandAutoSkipSuppressedByPublicDraw(player) {
   // 【#347】抑止の理由は「引いた札を見る/使う間を残す」こと。引いた札が公開エリアに1枚も
   // 残っていない（マルメゴで橙が出て、引いた札ごと手札をすべて捨てた等）なら、見るものも
   // 使うものも無い。それでも抑止し続けると、することの無いハンドフェイズで止まったままになる。
+  //
+  // 🔴【#785・続き811】**封じられた札は数えない。** 情報開示■・禁断の果実は引いた札の
+  //   手札効果を**そのターン封じる**ので、待っても使える札は増えない
+  //   （報告「このターン使えないカードしか持ってないのに自動でスキップされない」）。
+  //   ⚠ 「見る間を残す」目的は損なわない——公開エリアはムーブフェイズでもそのまま見える。
   return getState().tokens.some(
-    (t) => t.kind === "card" && t.location.zone === "publicDraw" && t.location.player === player
+    (t) => t.kind === "card" && t.location.zone === "publicDraw" && t.location.player === player &&
+      !isHandEffectDisabledThisTurn(t.id)
   );
 }
 

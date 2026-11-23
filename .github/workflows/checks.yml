@@ -42,6 +42,8 @@ jobs:
         run: node tools/check-undeclared.mjs
       - name: エンジンの中でどこにも無い名前を呼んでいないか
         run: node tools/check-engine-names.mjs
+      - name: 対局が固まるのを防ぐ歯止めが外れていないか
+        run: node tools/check-freeze-guards.mjs
       - name: カードの持ち物検査
         run: node tools/check-cards.mjs
       - name: SQL の全文再実行が安全か

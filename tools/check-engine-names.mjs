@@ -25,7 +25,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { stripJs } from "./js-strip.mjs";
 
-const 対象 = ["src/card-effect-engine.js"];
+// 🔴【続き811】**main.js も見る。** この回、main.js に `getHandTokens(...)` と書いて
+//   （あれは card-effect-engine.js のローカル関数＝export されていない）
+//   `npm run check` を素通りした。実行していれば ReferenceError で効果が丸ごと落ちる所だった。
+//   ⚠ 広げるにあたり誤検知を2つ潰した（`import(` と メソッド定義 `name() {`）。実測0件。
+const 対象 = ["src/card-effect-engine.js", "src/main.js"];
 const srcDir = "src";
 
 // src 全体の export 名（よそから来ている名前は import 漏れの検査の担当なので、ここでは見逃す）
@@ -50,7 +54,9 @@ const GLOBALS = new Set(
     "Intl Notification ServiceWorker WebSocket Worker OffscreenCanvas Path2D DOMParser XMLHttpRequest CSS " +
     "Uint8Array Uint8ClampedArray Uint16Array Uint32Array Int8Array Int16Array Int32Array Float32Array Float64Array ArrayBuffer DataView " +
     "TextEncoder TextDecoder createImageBitmap DOMMatrix DOMMatrixReadOnly requestIdleCallback matchMedia getComputedStyle atob btoa " +
-    "if for while switch catch return typeof instanceof new delete void in of do else try finally throw yield await async function class const let var"
+    "if for while switch catch return typeof instanceof new delete void in of do else try finally throw yield await async function class const let var " +
+    // 🔴【続き811】`import("./x.js")` は関数呼び出しに見えるが構文。入れないと嘘の指摘になる。
+    "import super this"
   ).split(/\s+/)
 );
 
@@ -64,6 +70,9 @@ for (const f of 対象) {
   // そのファイルで「在る」名前を**多めに**拾う（拾いすぎても見逃すだけで、嘘はつかない）。
   const ある = new Set();
   for (const m of 素.matchAll(/(?:function\s*\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)/g)) ある.add(m[1]);
+  // 🔴【続き811】object/class のメソッド定義（`name() {`）。定義そのものを
+  //   「呼び出し」と読み違えると嘘の指摘になる（main.js の `remove() {` で実際に出た）。
+  for (const m of 素.matchAll(/^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^()]*\)\s*\{/gm)) ある.add(m[1]);
   for (const m of 素.matchAll(/import\s*\{([^}]*)\}\s*from/g)) {
     for (const p of m[1].split(",")) {
       const n = p.trim().split(/\s+as\s+/).pop().trim();

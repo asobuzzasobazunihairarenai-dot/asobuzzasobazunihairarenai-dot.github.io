@@ -9593,7 +9593,21 @@ async function cameraHomeForPicking({ respectHold = true } = {}) {
   cancelScheduledCameraHome(); // 予約されていた戻りは要らなくなる
   await cameraHome(260);
 }
+// 🔴🔴【続き811】**候補が0個の選択は開かない。** 新しいカードが増えても同じ罠を踏まないための歯止め。
+//   候補が0個のモーダルは**誰にも答えられない**のに `activeEffectPicker` には登録されるので、
+//   `pointerdown` の先頭の `if (activeEffectPicker) return;` によって**盤面も手札もタップが死ぬ**
+//   （報告 #775 #776 #786 #787 #788 #791 #792 の家族）。
+//   ⚠ カード側に「善処の原則」（候補が無いなら聞かない）を書くのが本筋だが、
+//     **1枚でも書き忘れると対局が丸ごと止まる**ので、入口でも止める。
+//     ここで止まった時は `diag-empty-pick` が残るので、**どのカードが書き忘れているか**が分かる。
+//   ⚠ 1個の時は**今までどおり聞く**（#639「候補が1人でも必ず選ばせる」）。0個の時だけ。
+function 空の選択を断る(種類, 件数) {
+  if (件数 > 0) return false;
+  logAction("diag-empty-pick", { 種類, 件数 });
+  return true;
+}
 async function requestCellChoiceForEffect(...args) {
+  if (空の選択を断る("cell", Array.isArray(args[0]) ? args[0].length : 0)) return null;
   await cameraHomeForPicking();
   return requestCellChoiceForEffect__inner(...args);
 }
@@ -9806,6 +9820,17 @@ function pickDiscardCostForEffect(player, candidates, hint, idOf) {
 }
 
 async function requestHandCardChoiceForEffect(...args) {
+  // ⚠ 手札は2通りで空になり得る: ①絞り込みが空 ②その席の手札が0枚。
+  //   絞り込みが渡されていない時は「その席の手札ぜんぶ」なので state を見る。
+  const 絞り = args[2];
+  //   ⚠ 公開エリア（publicDraw）もルール上は手札（続き55）なので両方数える。
+  const 件数 = 絞り ? (絞り instanceof Set ? 絞り.size : (Array.isArray(絞り) ? 絞り.length : 1))
+    : getState().tokens.filter(
+        (t) => t.kind === "card" &&
+          (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
+          t.location.player === args[0]
+      ).length;
+  if (空の選択を断る("hand", 件数)) return null;
   await cameraHomeForPicking();
   return requestHandCardChoiceForEffect__inner(...args);
 }
@@ -9926,6 +9951,7 @@ function buildPlayerPickModal(entries, hint, onPick) {
 }
 
 function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
+  if (空の選択を断る("player", Array.isArray(candidates) ? candidates.length : 0)) return Promise.resolve(null);
   return new Promise((resolve) => {
     // 🔴【#720・2026-11-18】**盤面に要素が無い席を、候補から外さない。**
     //   ここは以前 `.filter((e) => e.el)` と書いてあり、「盤面にアバターの要素が在る席」
@@ -11941,6 +11967,39 @@ let pendingDiffArrivalTriggers = [];
 // depth が 0 に戻り flush も済んだ時点でクリアするので、後のターンで同じマスに再到達しても
 // 正しく発動する。
 let chainProcessedArrivalKeys = new Set();
+// 🔴🔴【#775 #776 #786 #787 #788 #791 #792・続き811】**いま新しい到達を始めてよいか。**
+//   始めてはいけない理由があればその名前を返す。無ければ null。
+//
+//   なぜ要るか: **選択モーダルの持ち主（`activeEffectPicker`）は1つしかない。**
+//   誰かが選んでいる最中に新しい到達が始まり、その到達が自分の選択を登録すると、
+//   **外側の登録が上書きで消える**。消された側は誰も答えないので永久に待ち続け、
+//   `pointerdown` の先頭の `if (activeEffectPicker) return;` で**盤面も手札もタップが
+//   全部死ぬ**（報告「フェイズの説明は出るのに移動先をタップしても反応しない」）。
+//
+//   🔴 続き786 では**委任中だけ**塞いだ（CPU が代わりに選ぶ場面）。ところが報告
+//   #775 #792 はどちらも**自分の手札効果の最中**（誰かの落とし物■）で、委任ではないので
+//   素通りしていた。**塞ぐ条件を『誰かが選んでいる最中』そのものに広げる。**
+//
+//   ⚠ 到達が消えるのではなく、**順番が後になるだけ**（`pendingDiffArrivalTriggers` に積み、
+//     効果が終わってから流す）。
+function 到達を今は始められない理由() {
+  if (getEffectDelegationTarget()) return "delegation";
+  if (activeEffectPicker) return "picker";
+  if (isHandEffectBusy()) return "hand-effect";
+  return null;
+}
+// 溜めておいた到達を、始めてよくなったら流す。
+//   🔴 **流す前にもう一度確かめる**——depth 0 になった瞬間にも、まだ誰かが選んでいることがある。
+//   ⚠ ここで流せなくても落ちない（下の見張りが5秒ごとに戻ってくる）。
+function 溜めた到達を流せるなら流す(きっかけ) {
+  if (pendingDiffArrivalTriggers.length === 0) return;
+  const 理由 = 到達を今は始められない理由();
+  if (理由) {
+    logAction("diag-arrival-flush-wait", { きっかけ, 理由, 件数: pendingDiffArrivalTriggers.length });
+    return;
+  }
+  flushPendingDiffArrivalTriggers();
+}
 function flushPendingDiffArrivalTriggers() {
   const processed = chainProcessedArrivalKeys;
   chainProcessedArrivalKeys = new Set();
@@ -12253,7 +12312,8 @@ function triggerCardArrival(cardId, location, onFullyResolved, opts = {}) {
         // あわせて、処理中に溜めておいた差分検知由来の到達トリガもここでflushする（二重発火防止）。
         if (arrivalEffectProcessingDepth === 0) {
           flushPendingGateInvasionEvents();
-          flushPendingDiffArrivalTriggers();
+          // 🔴【続き811】**流す前に確かめる**（depth 0 でもまだ誰かが選んでいることがある）。
+          溜めた到達を流せるなら流す("depth0");
         }
       }
     })();
@@ -12571,6 +12631,16 @@ function maybeTriggerCardArrivalForCard(dropTarget, cardId, faceUp, fromDiff = f
     logAction("diag-diff-arrival-defer", { kind: "card", cardId, location: dropTarget, depth: arrivalEffectProcessingDepth });
     return Promise.resolve();
   }
+  // 🔴【続き811】こちら（カードが駒の下に入る側）にも**同じ門**を付ける。
+  //   露出の側だけ塞いでも、もう一方から同じ事故が起きる（#477 の家族）。
+  {
+    const 待つ理由 = 到達を今は始められない理由();
+    if (待つ理由) {
+      pendingDiffArrivalTriggers.push({ kind: "card", dropTarget, cardId, faceUp, respectPieceSuppression });
+      logAction("diag-arrival-defer", { kind: "card", cardId, location: dropTarget, 理由: 待つ理由, depth: arrivalEffectProcessingDepth });
+      return Promise.resolve();
+    }
+  }
   if (!dropTarget || !faceUp) return Promise.resolve();
   // 安全弁（不具合#76）: cardIdが未確定(null/undefined)のまま到達判定に入ると、
   // triggerCardArrival配下のgetCardDefinition(cardId).name等で落ちる。呼び出し側で
@@ -12639,12 +12709,15 @@ function maybeTriggerCardArrivalForExposedCard(location, fromDiff = false, prevT
   //   ⚠ 委任していない時は今までどおり**その場で**起きる（ふつうの到達の連鎖は変えない）。
   //   ⚠ ここは `await` されることがある（#85）。すぐ解決する約束を返すので、
   //     呼んだ側は待たずに自分の効果を続けられる＝これが狙い。
-  if (getEffectDelegationTarget()) {
+  // 🔴【続き811】委任だけでなく**誰かが選んでいる最中は全部**あとで流す（上の判定を参照）。
+  const 待つ理由 = 到達を今は始められない理由();
+  if (待つ理由) {
     pendingDiffArrivalTriggers.push({ kind: "exposed", location, prevTopTokenId });
-    logAction("diag-arrival-defer-delegation", {
+    logAction("diag-arrival-defer", {
       kind: "exposed",
       location,
-      delegateTo: getEffectDelegationTarget(),
+      理由: 待つ理由,
+      delegateTo: getEffectDelegationTarget() || null,
       depth: arrivalEffectProcessingDepth,
     });
     return Promise.resolve();
@@ -22894,6 +22967,13 @@ setInterval(() => {
   } catch { /* noop */ }
   try {
     rescuePhaseIfNeverStarted();
+  } catch { /* noop */ }
+  // 🔴【続き811】**溜めた到達を取りこぼさないための保険。**
+  //   効果の最中に積んだ到達は、ふつうは到達処理が終わった時に流れるが、
+  //   手札効果のように**到達処理を一度も通らない**経路で積まれた分は流す所が無い。
+  //   ⇒ 5秒ごとに「始めてよくなっていたら流す」。**溜めたまま消えるのが一番怖い。**
+  try {
+    溜めた到達を流せるなら流す("watchdog");
   } catch { /* noop */ }
 }, 5000);
 
