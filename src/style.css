@@ -29361,6 +29361,96 @@ body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
 .deck-chooser-item.is-small .deck-chooser-name { font-size: 0.72rem; opacity: 0.85; }
 
 /* ---- みんなのマイ山札 ---- */
+/* 🔴【続き833】エディションの**回転台**（ユーザー案「置く方向に円形に並んでて、左右の矢印を
+   押すと後ろにある箱が前面に出てくる」）。
+   ⚠ **本物の 3D の入れ子にしていない。** 箱そのものが preserve-3d の塊なので、台も 3D に
+     すると祖先チェーン全部を preserve-3d に保つ必要があり（教訓2）、指で箱を回す操作とも
+     喧嘩する。⇒ 角度から x と奥行きを JS が出して、translateX + scale で並べている。 */
+.edition-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+.edition-carousel-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.edition-carousel-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  /* ⚠ 回っている間だけ滑らせる。箱の中の回転（deck-box-3d）には一切触らない。 */
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.32s ease;
+}
+/* 後ろの箱は押したら「前へ出す」だけ（選ばない）。前に出ている1枚だけが箱そのものに触れる。 */
+.edition-carousel-hit {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+.edition-carousel-item.is-front .deck-chooser-name {
+  font-weight: bold;
+}
+/* 奥の札の名前は出さない（6つ並ぶと盤面の上まで散らばる＝撮って気づいた）。
+   前に出ている物の名前は、回転台の下に大きく出ている。 */
+.edition-carousel-item.is-far .deck-chooser-name { visibility: hidden; }
+/* 長い名前（「リメイク+志炎者（各1枚・テスト用）」）で横に広がらないようにする。 */
+.edition-carousel-item .deck-chooser-name {
+  max-width: 11rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* いま使うことになっている物に金の縁（.deck-chooser-item.is-selected と同じ考え方）。 */
+.edition-carousel-item.is-selected .deck-chooser-stage {
+  outline: 2px solid rgba(216, 178, 76, 0.9);
+  outline-offset: 6px;
+}
+.edition-carousel-arrow {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(216, 178, 76, 0.55);
+  background: rgba(15, 23, 32, 0.75);
+  color: #f6eddc;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.edition-carousel-arrow:hover { background: rgba(216, 178, 76, 0.22); }
+.edition-carousel-title {
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+.deck-chooser-pick {
+  padding: 0.45rem 1.6rem;
+  border-radius: 0;
+  border: 1px solid rgba(216, 178, 76, 0.75);
+  background: linear-gradient(180deg, #e8cf8a, #b08d3f);
+  color: #19160f;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.deck-chooser-pick:disabled {
+  background: rgba(216, 178, 76, 0.18);
+  color: #f6eddc;
+  cursor: default;
+}
+/* 🔴 スマホ・タブレットはステージが縮むので、矢印と名前を大きく（#453・#569 の家族）。 */
+body.is-phone-device .edition-carousel-arrow,
+body.is-tablet-device .edition-carousel-arrow { width: 3.6rem; height: 3.6rem; font-size: 1.5rem; }
+body.is-phone-device .edition-carousel-title,
+body.is-tablet-device .edition-carousel-title { font-size: 1.5rem; }
+body.is-phone-device .deck-chooser-pick,
+body.is-tablet-device .deck-chooser-pick { font-size: 1.2rem; padding: 0.6rem 2rem; }
 .deck-chooser-stacks {
   display: flex;
   flex-direction: column;

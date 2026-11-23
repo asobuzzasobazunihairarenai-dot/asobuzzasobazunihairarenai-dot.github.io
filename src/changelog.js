@@ -190,6 +190,20 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴 エディション選択を**回転台（カルーセル）**にした（ユーザー案「**置く方向に円形に並んでてて左右に矢印があって、それ押すと後ろにある箱が前面に出てくる**感じはどう」）。" +
+        "左右の矢印・矢印キー・奥の箱を押す、のどれでも回る。前に出ている1つが大きく・濃く出て、" +
+        "下に名前と「これにする」。**回しただけでは選ばれない**（押して初めて決まる）。",
+      "⚠ **本物の 3D の入れ子にしていない。** 箱そのものが preserve-3d の塊（6面）なので、" +
+        "台も 3D にすると祖先チェーン全部を preserve-3d に保つ必要があり（教訓2）、" +
+        "**指で箱を回す操作とも喧嘩する**。⇒ 角度から x と奥行きを JS が出して、" +
+        "`translateX + scale` で並べた。見た目は回転台そのもので、箱の中の 3D には触らない。",
+      "⚠ 気をつけた所: ①**前に出ている1枚だけ**が箱そのものに触れる（奥の箱を触れるままにすると、" +
+        "回そうとした指で奥の箱を掴む）②選んでも**組み立て直さない**（箱を作り直すと回した向きが戻る）" +
+        "③枚数が少ない時に真円で並べると**真後ろに隠れて消えたように見える**ので、1つあたりの角度に" +
+        "上限（60度）を置いた。",
+      "⚠ 撮って直した所: 6つ並べると**奥の札の名前が盤面の上まで散らばっていた**" +
+        "（とくに「リメイク+志炎者（各1枚・テスト用）」が長い）。2つ以上奥の名前は出さない" +
+        "——前に出ている物の名前は、回転台の下に大きく出ている。",
       "🔴 **エディション（使うカード）を選ぶ画面**を作った（ユーザー指示。いまは管理者だけ）。" +
         "それまではホームの「CPU戦」の設定の中に**横1列の小さなボタンが6つ**並んでいて、" +
         "報告 #741「この選択モーダルが細々している」はまさにこの列だった（続き806 で幅は直したが、" +
@@ -373,6 +387,10 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "The edition picker became a turntable, as the user sketched it: boxes arranged in a circle, arrows on both sides, and the one behind comes to the front. Arrow buttons, arrow keys and tapping a box at the back all rotate it; only the box in front can be spun with a finger, and rotating alone does not change the setting — a Choose button does.",
+      "It is not a real 3D nesting: the box itself is a preserve-3d stack of six faces, so a 3D turntable around it would force the whole ancestor chain to stay preserve-3d and would fight the finger-spin. The positions are computed from the angle in JS and applied as translateX plus scale.",
+      "Three things worth keeping: only the front item accepts touches on the box, selecting does not rebuild the carousel (rebuilding would reset every box rotation), and the per-item angle is capped so that with few boxes none hides directly behind the front one.",
+      "A screenshot caught the names of the far boxes scattering across the board, so names are hidden from two steps back; the front one is already named below the carousel.",
       "An edition picker screen replaced the row of six cramped buttons in the CPU-match settings — the subject of an earlier \"this picker is tiny\" report. The app owns box art, yet none of it was visible there.",
       "It reuses the look and the CSS classes of the room's deck chooser: the screen is covered, the boxes are large and can be spun. The home panel is now one line saying what is selected, plus a Change button.",
       "It is a separate module even so: the room chooser writes a room setting to the server, while this one only sets this device's default and talks to nothing. Folding both into one function would scatter a \"not in a room\" branch through all of it.",

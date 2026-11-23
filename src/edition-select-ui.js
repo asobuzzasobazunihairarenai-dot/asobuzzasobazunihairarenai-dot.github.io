@@ -89,49 +89,123 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
   const 選ぶ = (set) => {
     if (!生きている) return;
     setCardSet(set);
-    組み立てる(); // 選んだ印を付け直す（箱は作り直しになるが、ここは数個なので軽い）
+    // ⚠ **組み立て直さない。** 箱を作り直すと回転台が初期化され、せっかく回した向きが戻る
+    //   （deck-choice-ui.js の「中身が本当に変わった時だけ組み直す」と同じ考え方）。
+    置き直す();
     try { onChanged?.(set); } catch (err) { console.error("edition onChanged failed", err); }
   };
 
-  // ── 箱1つぶんの札（deck-choice-ui.js の 箱の札 と同じ作り）──────────────
-  // ⚠ 試験用（小さい: true）は**箱を出さない**。理由が2つある:
-  //   ① 0th拡張は**ブースターパックで売られた拡張**なので、そもそも箱が無い
-  //      （ユーザー判断・続き744）。deck-box-3d はリメイクの箱の絵を流用しているので、
-  //      ここで出すと**リメイクと見分けが付かない**（撮って気づいた）。
-  //   ② 試験用は脇役。公式と同じ大きさの箱が並ぶと、どちらが本筋か分からなくなる。
-  const 札 = (set, 名, { 小さい = false } = {}) => {
-    const item = document.createElement("div");
-    item.className =
-      "deck-chooser-item is-pickable" + (小さい ? " is-small" : "") + (getCardSet() === set ? " is-selected" : "");
-    item.dataset.set = set;
+  // ── 回転台（カルーセル）─────────────────────────────────────────
+  // 🔴 ユーザー案「**置く方向に円形に並んでてて左右に矢印があって、それ押すと後ろにある箱が
+  //   前面に出てくる**感じはどう」。⇒ そのとおりに作った。
+  //
+  // ⚠ **本物の 3D の入れ子にはしない。** 箱そのものが preserve-3d の塊（6面）なので、
+  //   それを回す台も preserve-3d にすると、祖先チェーン全部を preserve-3d に保つ必要があり
+  //   （教訓2）、箱を指で回す操作とも喧嘩する。
+  //   ⇒ **角度から x と奥行きを自分で計算して、translateX + scale で並べる**。
+  //     見た目は回転台そのもので、箱の中の 3D には一切触らない。
+  const 並び = [...公式, ...(試験も ? 試験 : [])];
+  let 位置 = Math.max(0, 並び.findIndex((o) => o.set === getCardSet()));
+  const 札たち = [];
+
+  const 箱の大きさ = () =>
+    Math.max(120, Math.min(250, Math.round(Math.min(window.innerWidth, window.innerHeight) / 3.2)));
+
+  // 角度 → 置き場所。奥（z が小さい）ほど小さく・薄く・後ろに。
+  const 置き直す = () => {
+    const n = 札たち.length;
+    if (!n) return;
+    const R = Math.min(window.innerWidth * 0.3, 箱の大きさ() * 1.25);
+    // ⚠ 枚数が少ない時に真円で並べると**真後ろ**に1枚隠れて「消えた」ように見える。
+    //   1周を枚数で割るのではなく、1つあたりの角度に上限（60度）を置く。
+    const 刻み = Math.min((Math.PI * 2) / n, Math.PI / 3);
+    for (let k = 0; k < n; k++) {
+      const 札 = 札たち[k];
+      // いちばん近い向きで数える（端から端へ回る時に大回りしない）。
+      let d = k - 位置;
+      if (d > n / 2) d -= n;
+      if (d < -n / 2) d += n;
+      const a = d * 刻み;
+      const x = Math.sin(a) * R;
+      const z = Math.cos(a); // 1 = 手前、-1 = 真後ろ
+      const 倍 = 0.56 + 0.44 * ((z + 1) / 2);
+      const 前 = k === 位置;
+      札.el.style.transform = `translate(-50%, -50%) translateX(${Math.round(x)}px) scale(${倍.toFixed(3)})`;
+      札.el.style.opacity = (0.35 + 0.65 * ((z + 1) / 2)).toFixed(3);
+      札.el.style.zIndex = String(100 + Math.round(z * 100));
+      札.el.classList.toggle("is-front", 前);
+      // 🔴 撮って分かった: 6つ並べると**奥の札の名前が盤面の上まで散らばる**
+      //   （とくに「リメイク+志炎者（各1枚・テスト用）」が長い）。2つ以上奥の名前は出さない
+      //   ——前に出ている物の名前は、下に大きく出ている。
+      札.el.classList.toggle("is-far", Math.abs(d) >= 2);
+      札.el.classList.toggle("is-selected", getCardSet() === 札.set);
+      // 🔴 前の1枚だけが「箱そのもの」を触れる（指で回す・押して選ぶ）。
+      //   後ろの箱を触れるままにすると、回そうとした指で**奥の箱**を掴んでしまう。
+      if (札.覆い) 札.覆い.style.display = 前 ? "none" : "block";
+    }
+    const いま = 並び[位置];
+    if (名前の行) 名前の行.textContent = いま ? t(いま.key) : "";
+    if (決めるボタン) {
+      const 選択中 = いま && getCardSet() === いま.set;
+      決めるボタン.textContent = 選択中 ? t("deckChoice.picked") : t("deckChoice.pick");
+      決めるボタン.disabled = !!選択中;
+    }
+    if (いまの行) いまの行.textContent = t("edition.current", { name: セットの名(getCardSet()) });
+  };
+
+  const 回す = (向き) => {
+    const n = 札たち.length;
+    if (n < 2) return;
+    位置 = (位置 + 向き + n) % n;
+    置き直す();
+  };
+
+  let 名前の行 = null;
+  let 決めるボタン = null;
+  let いまの行 = null;
+
+  // 札1つ（箱＋名前）。位置は 置き直す() が決めるので、ここでは作るだけ。
+  const 札を作る = (o, k) => {
+    const el = document.createElement("div");
+    el.className = "edition-carousel-item";
+    el.dataset.set = o.set;
 
     const stage = document.createElement("div");
     stage.className = "deck-chooser-stage";
-    if (!小さい && hasDeckBoxArt(set)) {
-      // 画面全体なので大きく出せる（ここが「回して裏を読む」の値打ち）。
-      const size = Math.max(120, Math.min(220, Math.round(Math.min(window.innerWidth / 3.4, window.innerHeight / 3.4))));
-      const box = buildDeckBox3d(set, { size, flat: 平面, onTap: () => 選ぶ(set) });
+    // ⚠ 箱の絵が無いセット（旧0th・まぜる・リメイク＋志炎者）は札の絵で代える。
+    //   ⚠ 0th拡張は deck-box-3d がリメイクの箱の絵を流用しているので、ここでは出さない
+    //     （リメイクと見分けが付かない＝続き832 で撮って気づいた）。
+    const 箱を出す = hasDeckBoxArt(o.set) && o.set !== CARD_SETS.EX0;
+    if (箱を出す) {
+      const box = buildDeckBox3d(o.set, { size: 箱の大きさ(), flat: 平面, onTap: () => 選ぶ(o.set) });
       if (box) { stage.appendChild(box); 箱たち.push(box); }
     } else {
-      // 箱の絵が無いセット（旧0th・まぜる・リメイク＋志炎者）。
       const ph = document.createElement("div");
       ph.className = "deck-chooser-dice is-plain";
       ph.textContent = "🎴";
-      ph.addEventListener("click", () => 選ぶ(set));
+      ph.addEventListener("click", () => 選ぶ(o.set));
       stage.appendChild(ph);
     }
-    item.appendChild(stage);
+    el.appendChild(stage);
 
     const nm = document.createElement("div");
     nm.className = "deck-chooser-name";
-    nm.textContent = 名;
-    nm.addEventListener("click", () => 選ぶ(set));
-    item.appendChild(nm);
-    return item;
+    nm.textContent = t(o.key);
+    el.appendChild(nm);
+
+    // 後ろの箱を押したら「前へ出す」だけ（選ばない）。前に出ている時は箱そのものに触らせる。
+    const 覆い = document.createElement("div");
+    覆い.className = "edition-carousel-hit";
+    覆い.addEventListener("click", () => { 位置 = k; 置き直す(); });
+    el.appendChild(覆い);
+
+    札たち.push({ el, set: o.set, 覆い });
+    return el;
   };
 
   function 組み立てる() {
     箱を片付ける();
+    札たち.length = 0;
     root.innerHTML = "";
 
     root.appendChild(createModalCloseX(とじる));
@@ -141,15 +215,49 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     title.textContent = t("edition.title");
     root.appendChild(title);
 
-    const now = document.createElement("div");
-    now.className = "deck-chooser-current";
-    now.textContent = t("edition.current", { name: セットの名(getCardSet()) });
-    root.appendChild(now);
+    いまの行 = document.createElement("div");
+    いまの行.className = "deck-chooser-current";
+    root.appendChild(いまの行);
 
-    const row = document.createElement("div");
-    row.className = "deck-chooser-row";
-    for (const o of 公式) row.appendChild(札(o.set, t(o.key)));
-    root.appendChild(row);
+    // ── 回転台 ───────────────────────────────────────────────────
+    const wrap = document.createElement("div");
+    wrap.className = "edition-carousel";
+
+    const 左 = document.createElement("button");
+    左.type = "button";
+    左.className = "edition-carousel-arrow is-left";
+    左.setAttribute("aria-label", t("edition.prev"));
+    左.textContent = "◀";
+    左.addEventListener("click", () => 回す(-1));
+
+    const 右 = document.createElement("button");
+    右.type = "button";
+    右.className = "edition-carousel-arrow is-right";
+    右.setAttribute("aria-label", t("edition.next"));
+    右.textContent = "▶";
+    右.addEventListener("click", () => 回す(1));
+
+    const 台 = document.createElement("div");
+    台.className = "edition-carousel-stage";
+    台.style.height = Math.round(箱の大きさ() * 1.5) + "px";
+    並び.forEach((o, k) => 台.appendChild(札を作る(o, k)));
+
+    wrap.append(左, 台, 右);
+    root.appendChild(wrap);
+
+    // 前に出ている物の名前と「これにする」。
+    名前の行 = document.createElement("div");
+    名前の行.className = "edition-carousel-title";
+    root.appendChild(名前の行);
+
+    決めるボタン = document.createElement("button");
+    決めるボタン.type = "button";
+    決めるボタン.className = "deck-chooser-pick";
+    決めるボタン.addEventListener("click", () => {
+      const いま = 並び[位置];
+      if (いま) 選ぶ(いま.set);
+    });
+    root.appendChild(決めるボタン);
 
     if (!平面) {
       const hint = document.createElement("div");
@@ -158,25 +266,13 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
       root.appendChild(hint);
     }
 
-    // ⚠ 試験用は**管理者にだけ**並べる（呼ぶ側が決める）。
-    if (試験も) {
-      const sub = document.createElement("div");
-      sub.className = "deck-chooser-sub is-test";
-      sub.textContent = t("deckChoice.testOnly");
-      root.appendChild(sub);
-
-      const row2 = document.createElement("div");
-      row2.className = "deck-chooser-row";
-      for (const o of 試験) row2.appendChild(札(o.set, t(o.key), { 小さい: true }));
-      root.appendChild(row2);
-    }
-
     const note = document.createElement("div");
     note.className = "deck-chooser-note";
     note.textContent = t("edition.note");
     root.appendChild(note);
-  }
 
+    置き直す();
+  }
   組み立てる();
 
   // 出口は2つ（✕ と Esc）。開いたまま固まらないようにする（pack-opening.js と同じ作法）。
@@ -184,6 +280,12 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     if (e.key === "Escape") {
       e.preventDefault();
       とじる();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      回す(-1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      回す(1);
     }
   };
   window.addEventListener("keydown", onKey);
