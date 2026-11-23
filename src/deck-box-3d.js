@@ -51,6 +51,16 @@ const 箱の絵 = {
     side: "assets/boxes/1st-side.webp",
     edge: "#5ebcc2",
   },
+  // 🔴【続き834】旧0th EDITION の箱。入稿の .ai（2024-03-02「パッケージ蓋/身展開図(31作成版)
+  //   深さ修正」）から焼いた。ユーザーが在りかを教えてくれた。
+  //   ⚠ 天面は**型抜き線の内側**（蓋の面）、側面は左の帯、裏は**身の印刷面**から切り出している。
+  //     型抜き線が面に写り込まないよう、少し内側で切った（続き742 と同じ作法）。
+  "0th": {
+    top: "assets/boxes/old0th-top.webp",
+    back: "assets/boxes/old0th-back.webp",
+    side: "assets/boxes/old0th-side.webp",
+    edge: "#d8d2c2",
+  },
 };
 
 export function hasDeckBoxArt(cardSet) {

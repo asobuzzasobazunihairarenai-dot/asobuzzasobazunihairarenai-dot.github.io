@@ -190,6 +190,14 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴 **旧0th EDITION の箱**を焼いて、エディションの回転台に並べた（ユーザーが在りかを" +
+        "教えてくれた: 2024-03-02 の「パッケージ蓋/身展開図(31作成版)深さ修正.ai」）。" +
+        "天面＝蓋の型抜き線の内側（虹の輪とロゴ）、側面＝左の帯、裏＝身の印刷面（商品説明・" +
+        "バーコード・0th EDITION）。**型抜き線が面に写り込まないよう少し内側で切った**。",
+      "⚠ 読む道具は続き742 のものがそのまま使えた（pdf.js で .ai を描く → 目盛りを重ねて位置を読む" +
+        "→ 切って縮めて webp）。3面で 105KB。⚠ 元は 2600px 角＝そのまま貼ると巨大なので必ず焼く（#223）。",
+      "⚠ 旧0th は**まだ試験の側に置いたまま**（管理者だけ。続き758 のユーザー判断）。箱の絵が出る" +
+        "ようになっただけで、誰が選べるかは変えていない。",
       "🔴 エディション選択を**回転台（カルーセル）**にした（ユーザー案「**置く方向に円形に並んでてて左右に矢印があって、それ押すと後ろにある箱が前面に出てくる**感じはどう」）。" +
         "左右の矢印・矢印キー・奥の箱を押す、のどれでも回る。前に出ている1つが大きく・濃く出て、" +
         "下に名前と「これにする」。**回しただけでは選ばれない**（押して初めて決まる）。",
@@ -387,6 +395,9 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "The old 0th EDITION box was baked from the 2024 print files the user pointed at, and now appears in the edition turntable: the lid face with its rainbow ring, the side band, and the tray print for the back. The dieline was trimmed off each face. The tooling from the earlier box bake worked unchanged.",
+      "Three faces came to 105KB; the source renders are 2600px square, which would be enormous if pasted straight in, so they are always baked down first.",
+      "Old 0th stays on the admin-only side of the picker; only its artwork changed, not who may choose it.",
       "The edition picker became a turntable, as the user sketched it: boxes arranged in a circle, arrows on both sides, and the one behind comes to the front. Arrow buttons, arrow keys and tapping a box at the back all rotate it; only the box in front can be spun with a finger, and rotating alone does not change the setting — a Choose button does.",
       "It is not a real 3D nesting: the box itself is a preserve-3d stack of six faces, so a 3D turntable around it would force the whole ancestor chain to stay preserve-3d and would fight the finger-spin. The positions are computed from the angle in JS and applied as translateX plus scale.",
       "Three things worth keeping: only the front item accepts touches on the box, selecting does not rebuild the carousel (rebuilding would reset every box rotation), and the per-item angle is capped so that with few boxes none hides directly behind the front one.",
