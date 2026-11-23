@@ -7,7 +7,7 @@ import { t } from "./ui-text.js"; // UI英語化フェーズ10
 import { getCardImagePath, getCardIllustPath } from "./cards-data.js";
 import { getAllDecks, createDeck, deleteDeck, duplicateDeck, validateDeck, deckTotal, maxDeckSlots, getSelectedDeckId, setSelectedDeckId, saveDeck } from "./my-deck.js";
 import { openMyDeckBuilder } from "./my-deck-builder.js";
-import { isItemUnlocked } from "./online.js";
+import { isItemUnlocked, openShop } from "./online.js";
 
 // 作成できるマイデッキ数の上限（基本2、ショップで「マイデッキ枠 ＋2」を購入で4）。未ログイン/
 // オフラインでは isItemUnlocked が常にtrueを返す＝上限4（ローカルプレイを制限しない既存方針）。
@@ -313,9 +313,20 @@ function buildNewBox() {
 }
 
 // 作成上限に達した時に「＋新規作成」の代わりに出す案内箱（ショップで増やせる旨）。
+// 🔴【#762・続き808】**押せるようにした。**「ショップで枠を増やせます」と書いてあるのに
+//   `<div>` だったので押せなかった＝**押せない約束が画面に出ている**状態（#729 の家族）。
+//   ⚠ 飛ぶ先は**商品の一覧**（`openShop("mydeck")`）。押しただけでは買えないので、
+//     途中に確認は挟まない（ユーザー判断「おすすめで」＝確認なしのA案）。
+//   ⚠ マイデッキ一覧は全画面のページなので、**先に閉じてから**ショップを開く
+//     （重ねると戻り先が分からなくなる）。
 function buildLimitReachedBox(limit) {
-  const box = document.createElement("div");
+  const box = document.createElement("button");
+  box.type = "button";
   box.className = "mdl-deck mdl-deck-new mdl-deck-limit";
+  box.addEventListener("click", () => {
+    closeMyDeckList();
+    openShop("mydeck");
+  });
   const icon = document.createElement("div");
   icon.className = "mdl-deck-new-plus";
   icon.textContent = "🔒";

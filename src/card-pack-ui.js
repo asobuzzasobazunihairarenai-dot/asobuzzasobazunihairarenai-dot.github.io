@@ -27,6 +27,7 @@ import { getCardImagePath, getCardBackImagePath, hasNoPrintedFace, getCardDefini
 import { showCardFace, paintCardFace } from "./card-face-display.js";
 // 【続き737】カードにホバー（スマホは長押し）で拡大（ユーザー要望・総点検）。
 import { attachCardHoverPreview } from "./card-hover-preview.js";
+import { openCardNoteModal } from "./card-note-modal.js"; // 🔴【#743・続き808】タップで詳細
 import { getCardName } from "./card-text.js";
 import {
   PACK_SIZE,
@@ -448,6 +449,19 @@ function コレクションの区画() {
       const face = 小さい札(def.id, "3.4rem");
       // 【続き737】小さすぎて読めないので、**ホバー（スマホは長押し）で拡大**できるように。
       attachCardHoverPreview(face, def.id);
+      // 🔴【#743・続き808】要望「カードをタップするとカードの詳細がわかるといいかも！」
+      //   ⇒ **タップで詳細の札**（大きい絵＋名前＋補足＋持っている枚数）。
+      //   ⚠ ホバー（長押し）の拡大は**そのまま**。指では「軽く触る＝詳細／長押し＝拡大」になる。
+      //   ⚠ **伏せ札には付けない**（ここは else の枝なので、伏せ札は通らない＝続き780・793 の
+      //     「割れる道を全部塞ぐ」を守る）。
+      //   ⚠ 札そのものに付ける（セル全体ではない）——セルにはワイルドカードのボタンが
+      //     入ることがあり、そちらを押した時に詳細まで開くと手が止まる。
+      face.style.cursor = "pointer";
+      face.setAttribute("role", "button");
+      face.setAttribute("tabindex", "0");
+      face.addEventListener("click", () => {
+        openCardNoteModal(def.id, { 持っている: n, 上限: capOf(def), 名前: cardDisplayName(def.id) });
+      });
       cell.appendChild(face);
     }
     const name = document.createElement("div");

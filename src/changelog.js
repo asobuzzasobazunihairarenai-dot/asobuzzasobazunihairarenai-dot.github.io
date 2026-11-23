@@ -57,21 +57,29 @@ export const CHANGELOG = [
       "マイデッキに、**パックで手に入れたカード**を入れられるようになりました",
       "ONLYカードをマイデッキに入れるには、**ふつうのカードが3枚ずつ必要**になりました",
       "他のプレイヤーの名札を読みやすくしました",
+      "コレクションのカードをタップすると詳細が見られます",
+      "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
       "Cards from packs can now go into My Deck",
       "Each ONLY card in My Deck now needs 3 ordinary cards",
       "Other players\u2019 name tags are easier to read",
+      "Collection cards open their details when tapped",
+      "Rule videos now show thumbnails",
     ],
     items: [
       "マイデッキの候補に、**パックや報酬で手に入れたカードも並ぶ**ようになりました（0th EDITION 拡張・1st EDITION・限定報酬）。並ぶのは**持っているカードだけ**で、入れられる枚数も**持っている枚数まで**です。同じ名前は7枚まで、ONLYカード（絵の左下に ONLY と印字）は1種類1枚まで——**マイ山札と同じ決まり**にそろえました。⚠ これまで上限が「実物に刷られている枚数」だったカード（色落ちキャット1枚・白黒2枚）も**7枚まで**になりました。緩くなる方向なので、いま保存してあるマイデッキはそのまま使えます。",
       "**ONLYカード**（絵の左下に ONLY と刷ってあるカード）が、マイデッキでは**スペシャルカード**の扱いになりました。無色のカードや「なないろの欠片」と同じで、**1枚入れるごとに、スペシャルでない通常カードを3枚**入れる必要があります。マイデッキ戦の決まりとして前から決まっていたもので、ONLYカードがマイデッキの候補に並ぶようになったので、ここで効くようになりました。ⓘ ONLYカードは**1種類につき1枚まで**（こちらは今までどおり）。⚠ すでに保存してあるマイデッキにONLYカードが入っている場合、編集画面で「スペシャルカードに必要な枚数が足りません」と出ることがあります。その時はふつうのカードを足してください。",
       "盤面の**他のプレイヤーの名札**を読みやすくしました（白い字＋影にして、少し濃く表示）。手番の人の名札は今までどおり金色で点滅するので、**誰の番かはすぐ分かります**。ⓘ 名札そのものは元から出ていましたが、薄くて背景に溶けていました。",
+      "**コレクションのカードをタップすると、詳細が開く**ようになりました（大きな札・名前・補足・持っている枚数）。⚠ 長押しでの拡大は今までどおりです。ⓘ まだ手に入れていない「？」の札は、今までどおり中身が見えません。",
+      "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
       "Cards you have obtained from packs or rewards (0th Edition Expansion, 1st Edition and limited rewards) now appear as My Deck candidates. Only cards you actually own are listed, and you can add up to as many copies as you own: at most 7 of the same name, and 1 for an ONLY card - the same rules as My Stack. Cards that were previously capped at their printed count (Faded Cat 1, white and black 2) can now go up to 7 as well, so every deck you have saved stays valid.",
       "**ONLY cards** (the ones with ONLY printed at the lower left of the art) now count as **special cards** in My Deck, just like colorless cards and Shard of Seven Colors: each one requires **3 non-special normal cards** in the same deck. This was always part of the My Deck rules; it takes effect now that ONLY cards appear as My Deck candidates. You can still include at most one copy of each ONLY card. If a deck you already saved contains an ONLY card, the editor may now tell you that you need more non-special cards: just add ordinary cards until it clears.",
       "Other players\u2019 name tags on the board are now brighter and easier to read at a glance: white text with a shadow instead of dim inherited colour, at a higher opacity. The current player\u2019s tag still stands out in gold and pulses as before.",
+      "In the card collection, tapping a card opens its details: the full card, its name, its notes and how many you own. Long-press still enlarges it as before, and cards you have not obtained yet stay hidden.",
+      "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
       "盤面の後ろの床の絵が、縦に伸びて見えていたのを直しました",
@@ -81,6 +89,9 @@ export const CHANGELOG = [
       "「なないろの欠片」で、すでにロックした色にもロックできてしまうのを直しました",
       "操作できなくなったまま戻らないことがあったのを、1分で自動的に立て直すようにしました",
       "スマホで「CPU戦」の設定が狭く、選択肢の文字が途中で折り返していたのを直しました",
+      "全員が同時に手札を捨てる時、人数ぶんお知らせが出ていたのを1回にまとめました",
+      "承認の画面で「はい」が左にあったのを、ほかの画面と同じく右にそろえました",
+      "マイデッキの「ショップで枠を増やせます」が押せなかったのを、押すとショップへ行くようにしました",
     ],
     fixesEn: [
       "The floor behind the board looked stretched vertically.",
@@ -90,6 +101,9 @@ export const CHANGELOG = [
       "Rainbow Shard could lock onto a colour you had already locked.",
       "If the game became unresponsive, it now recovers by itself after a minute.",
       "The CPU match setup dialog was cramped on phones, wrapping option labels mid-word.",
+      "Everyone discarding at once no longer pops one notice per player.",
+      "Approval dialogs now put the affirmative button on the right, like every other dialog.",
+      "The locked \u201cdeck slots\u201d box in My Deck can now be pressed to reach the shop.",
     ],
     devItems: [
       "🔴🔴 **#750「プレイマットの後ろの背景が縦な向きな気がする」の正体は、WebGL が `background-size: contain` を見ていなかったこと。** 床の絵は 1672x941（16:9）だが `.table-background-bg` の箱は**正方形**で、CSS は contain で収めている。ところが WebGL 側は**箱いっぱいに板を張る**ので、絵が**縦に 1.78 倍**に伸びていた。報告の「最初の頃は横だったと思うけど」もそのとおりで、**2026-09-05（第3段）でキャンバスを盤面DOMの奥へ置いた時に床とプレイマットを WebGL 側へ移した**のが変わり目。⇒ `containBox()` を足して contain を尊重するようにした（絵が読めていない間は今までどおり箱いっぱい。読み終わった時に `needsRebuild` を立てて置き直す）。⚠ **cover は扱わない**——あちらは箱からはみ出した分を CSS が切り落とすが、板は切り落とせない（テクスチャを他の要素と使い回すので repeat/offset も触れない）。",
@@ -114,6 +128,8 @@ export const CHANGELOG = [
       "🔴 **#783「なないろの欠片の手札効果で、ロック済みのロックエリアにロックできてしまう」。** ユーザー裁定「例えば『このカードはすでにロックされたロックエリアにもロックできる。』などの効果でない限り、**原則ロックは空いているロックエリアにしかできません**」。⇒ 置き先を**全スロット返していた道は1か所だけ**（LOCK_PAIR）で、他の lock する動詞は**もう空きだけ**を使っていた。あのコメントの「通常の1色1枚の占有チェックは対象外」は「**2枚を1スロットに置く**」という意味で、**既にあるロックを上書きできる**という意味ではなかった（カードの文にもその例外は書かれていない）。⚠ 実行だけでなく**使えるかの判定にも空きを要求**した（7色とも埋まっていたら選べない＝善処の原則）。🔴 全スロットを返す関数は**名前を「ロックの置き先に使わない」に変えた**——無害な名前だと次に足す人が同じ穴を掘る（コードでできる一番強い予防）。A/B で2本とも名指しで落ちることを確かめた。",
       "🔴🔴 **固まる系（#776 #786 #787 #788）で、私は原因を3回取り違えた。** ①「取り残された移動候補が光っているので掃除役が降りる」→ 違う（掃除役が見るのは効果の候補だけで、ムーブの候補は見ていない）②「到達処理が閉じていない（start 20 / end 19）」→ 違う（閉じていない start は**別のセッション**の 02:05 の行。ログは何セッションも跨る巻き取り式）③「state.turnPhase が null なのに currentPhase は hand で食い違っている」→ 違う（`shouldPersistPhase` は**オンラインの時だけ**書くので、**CPU戦では常に null が正常**）。**教訓: ログから読み取った筋書きは、1つずつ裏を取るまで原因と呼ばない。**",
       "🔴 **固まる系について確かに言えること**: 手札効果（誰かの落とし物■）が終わった直後の `diag-anytime-checkpoint` が **`pickerActive: true`**（`handEffectBusy` は false）／その 4.8 秒後の `diag-phase-deferred {phase:\"hand\"}` が**フェイズ関係の最後の行**で、以後65秒は盤面の描画と優先権の延長だけ／画面の記録は `effectCells: 0 / pickTargets: 0`＝**押せる物が1つも無い**／そして **`diag-picker-leak` が1行も無い**＝続き802 の掃除役が**一度も動いていない**。🔴 **なぜ降りたのかはログに残っていなかった**（降りる時に何も書かない作りだった）ので、CPU選択中の旗なのか・委任の旗なのか・候補選択の object が毎回入れ替わって時計が戻り続けているのか、区別がつかない。⇒ **①降りた理由を書く**（`diag-picker-leak-blocked`。次の報告で原因が名指しになる）**②旗の門は60秒で時間切れ**にする（`diag-picker-leak-forced`）。⚠ **「人がまだ答えられる」合図**（モーダルが出ている・押せる物が在る）は**60秒でも絶対に無視しない**——人の選択を取り上げてはいけない。時間切れにするのは**旗だけ**。実測10項目で3方向（絶対の門・旗の門・時間切れ）とも通し、続き802 の実測7項目も回帰で通した。⚠ **原因が分かったわけではない**ので、#776 #786 #787 #788 は**対処済みにしていない**。",
+      "🔴 **承諾いただいた見た目の6件のうち5件。** ①#736 動画のサムネは **id から URL が決まる**ので、動画を足せば自動で付く（読めなければ絵だけ消えて文字のリンクに戻る）②#762 上限の箱は **`<div>` で押せなかった**のに文には「ショップで枠を増やせます」と書いてあった（#729 の家族）⇒ button にして、一覧を閉じてから飛ぶ ③#743 コレクションのタップで詳細。**同じモーダルが既に2か所に在った**ので、3つ目を書かずに `src/card-note-modal.js` へ切り出して共有（⚠ 伏せ札には付けない＝続き780・793 の「割れる道を全部塞ぐ」を守る。**対照で確かめた**）④#746 肯定を右へ。🔴 調べたら**アプリの中で既に2通り**あった（ふつうの確認は「やめる」が左・承認は「承認」が左）⇒ **CSS の order 1か所**でそろえた（appendChild を3ファイルで直すと、条件で出ないボタンで取りこぼす）⑤#742 全員が捨てる時のお知らせを**人数ぶん→1回**に（A/B で 2回→1回 を確かめた）。",
+      "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
       "#750: the WebGL painter ignored background-size: contain. The floor art is 1672x941 but its box is square, so the quad stretched the image vertically by 1.78x. A containBox() helper now honours contain (falling back to the full box until the texture has loaded, then flagging a rebuild). cover is deliberately left alone, since a quad cannot be clipped the way CSS clips a background.",
@@ -138,6 +154,8 @@ export const CHANGELOG = [
       "Rainbow Shard could lock its pair into an already-occupied lock area. Per the ruling, locking only ever targets an empty lock area unless a card says otherwise. Only one code path returned all seven slots; everything else already filtered to empty ones. The option is now also unusable when every slot is taken, so it cannot be declared and then do nothing.",
       "On the freeze reports I was wrong three times before getting anywhere: the stale move highlights are not what the stuck-picker watchdog looks at; the unbalanced arrival-processing counts came from two different sessions in one rolling log; and a null turnPhase is normal in a CPU match because that field is only written online. What the log does show is a picker still active after a hand effect, no phase progress for 65 seconds, nothing clickable on screen, and not one line from the watchdog that exists for exactly this. The watchdog never recorded why it stood down, so the cause is still unknown. It now logs the reason, and after 60 seconds it overrides the two flag checks while still never overriding the signs that a human could answer.",
       "The watchdog now records why it stood down, once per picker, with which flag was raised and how long until it overrides. After sixty seconds it clears the picker anyway and the waiting effect receives a null choice, which is the same path as skipping. A visible modal or any clickable target still blocks it at any duration. Verified in all three directions against a real picker, and the earlier 25-second behaviour still passes unchanged.",
+      "Six approved look-and-feel items: video thumbnails from the YouTube id (so new videos get one automatically, with a text fallback on error), the shop link on the locked deck-slot box (it was a div, so the promise in its own text could not be acted on), collection cards opening a detail modal (extracted from my-deck-builder rather than written a third time; sealed cards stay sealed), the affirmative button moved to the right for approvals (the generic confirm already did this, so the app was inconsistent with itself), and one notice instead of one per player when everyone discards. The sixth is still open because the screen it refers to turned out not to be the home screen.",
+      "The sixth approved item is still open: the text links it refers to are not on the home screen, where I expected them, but inside the profile page, together with the spacing complaint filed next to it. Changing a layout on the wrong screen would mean fixing something that was never broken, so it waits for confirmation.",
     ],
   },
   {

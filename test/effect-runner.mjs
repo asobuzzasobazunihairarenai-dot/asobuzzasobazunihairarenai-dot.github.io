@@ -113,6 +113,12 @@ export async function runOneCase(spec) {
       if (skipExposedArrival) callLog.push(["moveAndSyncSkipExposed", tokenId]);
       st.moveToken(tokenId, location, suppressArrival);
     },
+    // 🔴【#742・続き808】捨て札の見せ方。本物は中央で光らせて右下へ飛ばすミニモーダル。
+    //   ここでは**何回呼ばれたか**と**まとめて渡されたか**だけ記録する
+    //   （人数ぶん出していたのを1回にまとめた＝その回数が検査の対象）。
+    revealDiscardedCards: (player, cardIds, opts) => {
+      callLog.push(["revealDiscarded", player, (cardIds || []).length, opts && opts.全員 ? "全員" : ""]);
+    },
     // 第2引数は本物（main.js の discardFromHandReveal）ではオプション（{silent}/{noBurn}）。
     // 昔ここを「捨て先の山」として受けていた名残があったので、文字列の時だけ山名として扱う。
     discardAndSync: async (tokenId, opts) => {

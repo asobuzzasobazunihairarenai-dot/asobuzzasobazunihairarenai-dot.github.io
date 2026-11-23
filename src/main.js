@@ -10881,14 +10881,19 @@ function triggerAnytimeInterruptCheckpoint(afterPlayer) {
 //     受け側は mode で振り分ける。
 //   ⚠ 効果を走らせるのは**その席の本人のクライアントだけ**なので、送らないと
 //     他の人の画面には何も出ない（#592 の「勝手に効くので追えない」と同じ形）。
-function revealDiscardedCardsForEffect(player, cardIds) {
+// 🔴【#742・続き808】第3引数 opts を足した（`{ 全員: true }` で題を「全員が」にする）。
+//   既定（opts 無し）の振る舞いは1ミリも変わらない。
+function revealDiscardedCardsForEffect(player, cardIds, opts = {}) {
   const ids = (Array.isArray(cardIds) ? cardIds : []).filter(Boolean);
   if (ids.length === 0) return;
   try {
     // 🔴 **中央のミニモーダル**（一瞬フラッシュ → 右下のストックへ飛び、
     //   「このターンの出来事／前のターンの出来事」として残る）。
     //   `ordered: true` で**捨てた順の番号**を1枚ずつに付ける。
-    announceCardsDiscarded(player, ids, currentEffectReasonLabel(), { ordered: true });
+    announceCardsDiscarded(player, ids, currentEffectReasonLabel(), {
+      ordered: true,
+      名前: opts.全員 ? t("game.everyone") : undefined,
+    });
   } catch (err) {
     console.error("announceCardsDiscarded failed", err);
   }

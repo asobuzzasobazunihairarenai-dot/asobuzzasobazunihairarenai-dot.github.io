@@ -100,13 +100,36 @@ const HELP_VIDEOS = [
 
 // 索引の項目と同じ見た目で、押すとYouTubeを別タブで開くリンク。既にある CAMPFIRE のリンクと
 // 同じ作法（target=_blank + rel=noopener noreferrer）。
+// 🔴【#736・続き808】要望「動画のサムネが並んでたほうがいいかも！」
+//   ⇒ YouTube のサムネは **id から URL が決まる**ので、動画を足せば自動で付く
+//     （`rule-videos.js` に id を足すだけ。絵を焼く手間が続かない＝ユーザー判断のA案）。
+//   ⚠ **読めなかったら絵だけ消す**（`onerror`）。壊れた絵の枠を残さない＝文字のリンクに戻る。
+//   ⚠ 大きさは **rem**（字と一緒に大きくなる端末がある＝#453・#569 の家族）。
+//   ⚠ `loading=lazy` + `decoding=async`。ヘルプを開いた瞬間に通信で待たせない。
+//   ⓘ 外から絵を読むこと自体は、このアプリでは既にしている（Tailwind と Google Fonts）。
+function videoThumbUrl(id) {
+  return "https://img.youtube.com/vi/" + id + "/mqdefault.jpg"; // 320x180
+}
 function buildVideoLink(video) {
   const a = document.createElement("a");
   a.className = "help-index-item help-index-video";
   a.href = ruleVideoUrl(video.id);
   a.target = "_blank";
   a.rel = "noopener noreferrer";
-  a.textContent = t(video.key);
+
+  const thumb = document.createElement("img");
+  thumb.className = "help-video-thumb";
+  thumb.src = videoThumbUrl(video.id);
+  thumb.alt = "";
+  thumb.loading = "lazy";
+  thumb.decoding = "async";
+  thumb.addEventListener("error", () => thumb.remove());
+  a.appendChild(thumb);
+
+  const text = document.createElement("span");
+  text.className = "help-video-text";
+  text.textContent = t(video.key);
+  a.appendChild(text);
   return a;
 }
 

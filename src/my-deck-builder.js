@@ -13,6 +13,7 @@ function cardDisplayName(cardId) {
 }
 import { t } from "./ui-text.js"; // UI英語化フェーズ9
 import { showCardFace } from "./card-face-display.js";
+import { openCardNoteModal } from "./card-note-modal.js"; // 🔴【#743・続き808】写しをここへ移した
 import { syncFullScreenPageActive } from "./option-area.js";
 import { startDeckBuilderTutorial, maybeAutoStartDeckBuilderTutorial, closeDeckBuilderTutorial } from "./deck-builder-tutorial.js";
 import {
@@ -195,41 +196,10 @@ function showNoteMenu(cardId, x, y) {
 }
 // 右クリックで補足メニュー→カード補足モーダル（ゲーム画面の showCardNoteModal と同じ見た目。
 // #card-note-modal* のCSSを流用）。
+// 🔴【#743・続き808】**中身は src/card-note-modal.js へ移した**——パックの画面からも
+//   同じ札を出すことになったので、3つ目の写しを作らないため（2か所に書くとズレる）。
 function showCardNoteModal(cardId) {
-  const def = getCardDefinition(cardId);
-  if (!def) return;
-  const backdrop = document.createElement("div");
-  backdrop.id = "card-note-modal-backdrop";
-  const modal = document.createElement("div");
-  modal.id = "card-note-modal";
-  const content = document.createElement("div");
-  content.className = "card-note-content";
-  const img = document.createElement("div");
-  img.className = "card-note-image";
-  showCardFace(img, cardId, getCardImagePath(cardId));
-  img.setAttribute("aria-label", def.name);
-  const textCol = document.createElement("div");
-  textCol.className = "card-note-text-col";
-  const title = document.createElement("div");
-  title.className = "card-note-title";
-  title.textContent = def.name;
-  const body = document.createElement("div");
-  body.className = "card-note-body";
-  body.textContent = getCardNote(def.id) || def.note || t("mydeckbuilder.L205");
-  textCol.append(title, body);
-  content.append(img, textCol);
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "card-note-close";
-  closeBtn.type = "button";
-  closeBtn.textContent = t("mydeckbuilder.L211");
-  const close = () => {
-    backdrop.remove();
-    modal.remove();
-  };
-  closeBtn.addEventListener("click", close);
-  backdrop.addEventListener("click", close);
-  modal.append(content, closeBtn);
-  document.body.append(backdrop, modal);
+  openCardNoteModal(cardId);
 }
 
 // ── コレクション（上段） ─────────────────────────────────────────────────

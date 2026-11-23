@@ -11130,6 +11130,21 @@ body.reduce-glow #final-lock-approval-banner.is-visible {
   gap: 0.6rem;
   justify-content: center;
 }
+/* 🔴【#746・続き808】ユーザー指摘「はい・いいえの順番について今、左がはいで、右がいいえだと
+   思うけど接触の承認とかは右側が承認な気がする」。
+   🔴 調べたら**アプリの中で既に2通りあった**:
+     ・ふつうの確認（`so7-confirm-modal`・ui-helpers.js）＝**やめるが左／はいが右**
+       （「⚠『やめる』を先に置く（押し間違えても危ない方へ行かない）」とコメントまで付いている）
+     ・承認・接触（ここ）＝**承認が左／拒否が右**（逆）
+   ⇒ **後者を前者にそろえる。** 物によって左右が入れ替わるのが一番危ない（押し間違い）。
+   ⚠ 並べ替えは**この1か所**で決める。appendChild の順を3つのファイルで直すと、
+     条件で出たり出なかったりするボタン（割り込みの札・拒否が無い時）で必ず取りこぼす。
+   ⚠ 色は**もう分かれている**（承認＝緑・拒否＝暗い赤）ので触っていない。
+   ⚠ 同じ順位の要素は DOM の順を保つので、**割り込みの札が複数並ぶ時の順番は変わらない**。
+   ⓘ キーボードの Tab の順だけは DOM のまま（承認→拒否）。このアプリは指で押す前提なので
+     そのままにした。 */
+.contact-approval-buttons .contact-approval-reject { order: 1; }
+.contact-approval-buttons .contact-approval-approve { order: 2; }
 .contact-approval-approve,
 .contact-approval-reject {
   font-size: 0.85rem;
@@ -29275,4 +29290,27 @@ body.theme-light #deck-viewer-card-modal {
 }
 body.theme-light .deck-viewer-note {
   background: rgba(176, 141, 63, 0.1);
+}
+
+/* 🔴【#736・続き808】ヘルプの「🎬 動画で見る」にサムネを並べる。
+   絵は YouTube から（id で URL が決まるので、動画を足せば自動で付く）。
+   ⚠ 大きさは rem（字を大きくする端末で絵だけ取り残されない＝#453・#569）。
+   ⚠ 絵が読めなければ JS 側が img を外すので、その時は**文字だけ**の今までの見た目に戻る。 */
+.help-index-item.help-index-video {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+.help-video-thumb {
+  flex: 0 0 auto;
+  width: 7.5rem;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  background: rgba(0, 0, 0, 0.25); /* 読み込み中の座り */
+}
+.help-video-text {
+  flex: 1 1 auto;
+  min-width: 0;
 }

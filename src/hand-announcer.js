@@ -323,8 +323,12 @@ export function announceCardLocked(player, cardId) {
 export function announceCardsDiscarded(player, cardIds, reason, options = {}) {
   const ids = (cardIds || []).filter((id) => id && getCardDefinition(id));
   if (ids.length === 0) return;
-  if (ids.length === 1) return announceCardDiscarded(player, ids[0], reason);
-  const name = getPlayerNameOrYou(player);
+  // 🔴【#742・続き808】`options.名前` が入っていれば題の名前をそれにする。
+  //   「全員が手札を捨てる」効果を**1つのモーダルにまとめる**ため
+  //   （人数ぶん出すと、4人戦で中央が4回光って4回飛ぶ＝報告「鬱陶しい」）。
+  //   ⚠ 1枚だけの時は今までどおり1枚用の見た目へ落とすが、まとめた時は**必ず複数**になる。
+  if (ids.length === 1 && !options.名前) return announceCardDiscarded(player, ids[0], reason);
+  const name = options.名前 ?? getPlayerNameOrYou(player);
   showToast(
     `
     <div class="hand-pickup-toast-title">${t("game.toast.discardedMany", { name, n: ids.length })}</div>

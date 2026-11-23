@@ -529,6 +529,9 @@ export const CASES = [
     picks: { player: ["C"] },
     expect: [
       { kind: "handCount", player: "A", n: 0 },
+      // 🔴【#742・続き808】捨て札の見せ方を**1回にまとめた**（人数ぶん出していた）。
+      //   ⚠ ここは2人戦なので「2回 → 1回」。4人戦なら 4回 → 1回。
+      { kind: "called", name: "revealDiscarded", n: 1 },
       // ⚠ C は1枚（**渡されたこの札だけ**）。最初に持っていた1枚は捨てている。
       //   0枚と書いて落ちた＝私の数え方の間違い。
       { kind: "handCount", player: "C", n: 1 },

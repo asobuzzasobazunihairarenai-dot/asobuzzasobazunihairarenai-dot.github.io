@@ -119,6 +119,8 @@ const UI = {
     "common.back": "← 戻る",
     "common.ok": "閉じる",
     "common.yes": "はい",
+    // 🔴【#742・続き808】「全員が手札を捨てました」の題に使う。
+    "game.everyone": "全員",
     "common.no": "やめる",
     "packs.noticeTitle": "パック",
     // 【#651・続き741】マス選択の確認を切る時の警告（オプション画面／モーダルの「今後表示しない」）。
@@ -934,6 +936,8 @@ const UI = {
     "mypage.L708": "自分のアバター・戦績（対戦数・勝率・順位等）を確認できます。",
     "mydeckbuilder.L166": "📄 カード補足を見る",
     "mydeckbuilder.L205": "（補足なし）",
+    // 🔴【#743・続き808】コレクションから詳細を開いた時だけ出る1行。
+    "cardNote.owned": "持っている枚数: {n} / {max}",
     "mydeckbuilder.L211": "閉じる",
     "mydeckbuilder.L243": "スペシャルカード（1枚につき非スペシャルの通常カードが3枚必要）",
     "mydeckbuilder.L307": "上のカードをクリックしてデッキに追加してください。",
@@ -2687,6 +2691,7 @@ const UI = {
     "common.back": "← Back",
     "common.ok": "Close",
     "common.yes": "Yes",
+    "game.everyone": "Everyone",
     "common.no": "Cancel",
     "packs.noticeTitle": "Packs",
     "cellConfirm.offWarnTitle": "Turn the check off?",
@@ -3489,6 +3494,7 @@ const UI = {
     "mypage.L708": "Check your avatar and record (matches, win rate, ranking and so on).",
     "mydeckbuilder.L166": "📄 View card notes",
     "mydeckbuilder.L205": "(no notes)",
+    "cardNote.owned": "You own {n} of {max}",
     "mydeckbuilder.L211": "Close",
     "mydeckbuilder.L243": "Special card (each one needs 3 non-special cards)",
     "mydeckbuilder.L307": "Click the cards above to add them to your deck.",

@@ -3394,6 +3394,11 @@ async function runAction(action, ctx, helpers) {
     case VERBS.ALL_PLAYERS_DISCARD_HAND_AND_DRAW: {
       // 色落ちキャット専用: 参加者全員が手札を全て捨ててから指定枚数ドローする
       // （処理順の原則に沿い、効果の使用者から時計回りに1人ずつ処理する）。
+      // 🔴【#742・続き808】捨てた札を**ためて、最後に1回だけ**見せる。
+      //   人数ぶん出していたので、4人戦では中央が4回光って4回右下へ飛んでいた
+      //   （報告「皆モーダルが何度も出て鬱陶しい」）。
+      //   ⚠ 誰の札だったかは**行動ログに残る**ので、情報は減らない。
+      const まとめて捨てた = [];
       for (const p of rotatedActivePlayersFrom(ctx.player)) {
         // 【#357・2026-09-28】捨てる順番はその人自身に選んでもらう。**使用者の画面では聞けない**——
         // オンラインでは相手の手札は cardId がマスクされていて中身が見えないため（意図的な仕様）。
@@ -3407,9 +3412,11 @@ async function runAction(action, ctx, helpers) {
           捨てた.push(token.cardId);
           await helpers.discardAndSync(token.id, { batchNotice: true });
         }
-        if (捨てた.length > 0) helpers.revealDiscardedCards?.(p, 捨てた);
+        if (捨てた.length > 0) まとめて捨てた.push(...捨てた);
         await helpers.drawCards(p, Number(action.count) || 0);
       }
+      // 🔴【#742・続き808】ここで**1回だけ**見せる（上でためたもの）。
+      if (まとめて捨てた.length > 0) helpers.revealDiscardedCards?.(ctx.player, まとめて捨てた, { 全員: true });
       // お知らせ（ユーザー要望）: 全員の手札が変わったこと。
       // 🔴【続き804】**0枚の時は引く話をしない。** 旧0th いろ落ちガエル● は「全員は手札を
       //   すべて捨てる。」だけで、ドローは1文字も書かれていない（`count: 0` で使っている）。
