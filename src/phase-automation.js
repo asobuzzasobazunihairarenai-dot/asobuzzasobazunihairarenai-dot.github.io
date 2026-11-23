@@ -32,7 +32,7 @@ import {
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 import { onLangChange } from "./i18n.js"; // 【B-2】上端の1行を言語切替で貼り直す
 import { runGateInvasionsIfNeeded } from "./gate-invasion.js";
-import { getEffectDelegationTarget, onEffectDelegationChange, getWaitingOnPlayer } from "./effect-delegation.js"; // 続き626・830
+import { onEffectDelegationChange, getWaitingOnPlayer } from "./effect-delegation.js"; // 続き626・830・831
 import { isGateInvasionQueueActive } from "./gate-invasion-modal.js";
 import { playSound } from "./sound.js";
 import { announceHandPickups } from "./hand-announcer.js";
@@ -1008,6 +1008,14 @@ function ensureTurnStatus() {
   }
   turnStatusEl = document.createElement("div");
   turnStatusEl.id = "phase-automation-turn-status";
+  // 🔴【続き831】**2行にする。** 上＝「◯◯ が選んでいます…」（待っている時だけ）、
+  //   下＝今までのターン表示。ユーザー提案で、上端の1行からここへ移した。
+  //   ⚠ 子を持たせたので、以後 textContent で丸ごと書き換えないこと（子が消える）。
+  const 待ち行 = document.createElement("div");
+  待ち行.className = "pa-turn-waiting";
+  const 本行 = document.createElement("div");
+  本行.className = "pa-turn-main";
+  turnStatusEl.append(待ち行, 本行);
   attachToPhaseGuideBar(turnStatusEl);
   return turnStatusEl;
 }
@@ -1159,7 +1167,14 @@ export function updateSkipButtonVisibility() {
     // 優先権がturnPlayerと一時的に食い違っている間（接触の強制移動解決中・
     // スリカエ等の割り込み処理中等）だけ、ここに一言添える。一致している間（通常の
     // ほとんどの時間）は「自分のターンです」だけで十分なため表示しない。
-    if (isAutoProcessingEnabled() && state.priorityPlayer && state.priorityPlayer !== state.turnPlayer) {
+    // 🔴【続き831】**待ちの行が同じ人を指しているなら、この添え書きは出さない**
+    //   （「CPU が選んでいます…／自分のターンです（優先権はCPUにあります）」と2回言わない）。
+    const 待つ相手 = state.turnPlayer ? getWaitingOnPlayer() : null;
+    const 待ちを出す = !!待つ相手 && 待つ相手 !== getSelfSeat();
+    if (
+      isAutoProcessingEnabled() && state.priorityPlayer && state.priorityPlayer !== state.turnPlayer &&
+      !(待ちを出す && state.priorityPlayer === 待つ相手)
+    ) {
       // 同じ一文の中なので、こちらも名指しにする（片方だけ「相手」だと誰のことか分からない）。
       const prioName = state.priorityPlayer === getSelfSeat() ? null : (getPlayerName(state.priorityPlayer) || "").trim();
       text +=
@@ -1169,19 +1184,22 @@ export function updateSkipButtonVisibility() {
             ? t("pa.priorityNamed", { name: prioName })
             : t("phaseautomation.L748_2");
     }
-    // 【続き626】**全員効果で誰かに処理を委ねている間は、その人を名指しで添える。**
-    // ユーザー報告「スラム上がりの役人の到達効果で相手に捨てさせてる時に、右下の
-    // 『自分のターンです』が優先権は○○です的な表示になってなかった」。
-    // 文言は上の優先権の一言と同じものを使う——プレイヤーから見れば「いまその人が動いている」
-    // という同じ意味で、見慣れた言い方の方が伝わる（ユーザーも「優先権は○○です的な表示」と
-    // 言っている）。⚠ 上の優先権の一言が既に出ている時は**重ねない**（同じ文が2回出る）。
-    const delegateTo = getEffectDelegationTarget();
-    const priorityShown = isAutoProcessingEnabled() && state.priorityPlayer && state.priorityPlayer !== state.turnPlayer;
-    if (delegateTo && delegateTo !== getSelfSeat() && !priorityShown) {
-      const delName = (getPlayerName(delegateTo) || "").trim();
-      text += delName ? t("pa.priorityNamed", { name: delName }) : t("phaseautomation.L748_2");
+    // 🔴【続き831】**「◯◯ が選んでいます…」を、ターン表示の上の行に出す。**
+    //   続き626 ではここに「（優先権は◯◯にあります）」と**添え書き**していたが、
+    //   ユーザー報告「え？今何の時間？？」のとおり、かっこ書きでは弱かった。
+    //   ⇒ **独立した1行**にして、言い方も「優先権」ではなく「選んでいます」にする
+    //     （待っている人が知りたいのは、権利の所在ではなく**何待ちか**）。
+    //   ⚠ 自分が選ぶ番の時は出さない（選ぶ画面がもう出ているので重ねて言わない）。
+    //   ⚠ 自分の番かどうかに関わらず出す（カードを使った本人も「待っている側」になる）。
+    const 待ち行 = statusEl.querySelector(".pa-turn-waiting");
+    const 本行 = statusEl.querySelector(".pa-turn-main");
+    if (待ち行) {
+      const 名 = 待ちを出す ? (getPlayerName(待つ相手) || "").trim() : "";
+      待ち行.textContent = !待ちを出す ? "" : 名 ? t("game.turnHint.waitingFor", { name: 名 }) : t("game.turnHint.waitingForOther");
+      待ち行.style.display = 待ちを出す ? "block" : "none";
     }
-    statusEl.textContent = text;
+    if (本行) 本行.textContent = text;
+    else statusEl.textContent = text; // 念のため（古い形の箱が残っていた時）
   }
   updateTurnHint();
 }
@@ -1210,17 +1228,10 @@ function updateTurnHint() {
   try { el = ensureTurnHintEl(); } catch (err) { return; }
   const state = getState();
   let 文 = "";
-  // 🔴【続き830】**誰かの選択を待っている間は、それを最優先で出す。**
-  //   「全員」を対象にした効果（合同建設・パーティー・役人…）は、1人ずつ順番に選ぶので、
-  //   待っている人の画面は**何も起きていないように見える**（ユーザー報告「え？今何の時間？？」）。
-  //   ⚠ 自分が選ぶ番の時は出さない——その人には選択の画面が出ているので、重ねて言わない。
-  //   ⚠ 自分の番かどうかに関わらず出す（カードを使った本人も待っている側になる）。
-  const 待つ相手 = state.turnPlayer ? getWaitingOnPlayer() : null;
-  if (待つ相手 && 待つ相手 !== getSelfSeat()) {
-    const 名 = (getPlayerName(待つ相手) || "").trim();
-    文 = 名 ? t("game.turnHint.waitingFor", { name: 名 }) : t("game.turnHint.waitingForOther");
-  } else if (state.turnPlayer && state.turnPlayer === getSelfSeat()) {
-    // 対局中で、自分の番の時だけ出す。
+  // ⚠【続き831】待ちの一言は**右下のターン表示の上の行**へ移した（ユーザー提案）。
+  //   ここ（上端）は元どおり**自分の番の時だけ**にする——冒頭の決まりどおり、
+  //   「今は誰の時間か」の答えを2か所で言わない。
+  if (state.turnPlayer && state.turnPlayer === getSelfSeat()) {
     const shown = getDisplayedPhase();
     文 = shown ? t("game.turnHint." + shown) : t("game.turnHint.myTurn");
   }

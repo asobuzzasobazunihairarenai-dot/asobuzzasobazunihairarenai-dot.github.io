@@ -88,7 +88,7 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
-      "「全員」を対象にした効果（合同建設・パーティーなど）は、1人ずつ順番に選びます。その間、**画面の上に「◯◯ が選んでいます…」**と出るようになりました。誰かの選択を待っているだけの時間が、見て分かるようになります。⚠ 自分が選ぶ番の時は出ません（選ぶ画面がもう出ているため）。",
+      "「全員」を対象にした効果（合同建設・パーティーなど）は、1人ずつ順番に選びます。その間、**ターン表示（「◯◯のターンです」）のすぐ上に「◯◯ が選んでいます…」**と出るようになりました。誰かの選択を待っているだけの時間が、見て分かるようになります。⚠ 自分が選ぶ番の時は出ません（選ぶ画面がもう出ているため）。",
       "カードを掴んだ時に出していた「そのカードを場にドロップすると、手札効果が発動します。」の案内をやめました。効果が自動で処理されるようになり、掴めば置ける所が光るので、もう要らなくなったためです。",
       "**相手の持ち時間のカウントダウンが、はじめから見えるようになりました。**誰の持ち時間かは**その人の名前**が下に出るので、色だけで見分けなくて済みます。相手の分は**数字が少し小さく**出るので、ひと目で「自分のではない」と分かります。⚠ 見たくない方は、⚙オプションの「相手の持ち時間も表示する」を外してください。",
       "**画面の上の「ログイン中」を押すと、アカウントの札が出るようになりました。**そこから**別のアカウントに切り替え**られます（いまのアカウントからログアウトして、ログインの画面に戻ります）。⚠ 対局中・部屋に入っている間は、今までどおり部屋のパネルが開きます。",
@@ -105,7 +105,7 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
-      "Effects that target every player (Joint Construction, Party and so on) are resolved one player at a time. While that happens, the top of the screen now says who is choosing, so a wait no longer looks like nothing happening. It does not appear on your own turn to choose, since the picker is already on screen.",
+      "Effects that target every player (Joint Construction, Party and so on) are resolved one player at a time. While that happens, a line just above the turn display says who is choosing, so a wait no longer looks like nothing happening. It does not appear on your own turn to choose, since the picker is already on screen.",
       "The notice \"Drop that card onto the board to trigger its Hand Effect\" no longer appears when you pick up a card: effects resolve on their own now, and the places you can drop it light up.",
       "**Your opponent's countdown is now shown by default.** The caption underneath names whose time it is, so you no longer have to tell by colour alone, and an opponent's number is drawn slightly smaller. You can turn it off again under Options.",
       "**Tapping \"Signed in\" at the top now opens an account card**, where you can switch to another account (you are signed out and returned to the login screen). While you are in a room, it still opens the room panel as before.",
