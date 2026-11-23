@@ -114,6 +114,7 @@ export const CHANGELOG = [
       "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
+      "不具合報告がサーバーに届かず、コメントだけになってしまうことがあったのを直しました",
       "スマホで、勝利演出とカードが消える演出が使うメモリをさらに減らしました（落ちにくくするための手当てです）",
       "パックを開ける画面が丸ごと虹色に光ってしまうことがあったのを直しました",
       "ホームのランク戦で「通知をON」の案内が見切れていたのを直しました",
@@ -145,6 +146,7 @@ export const CHANGELOG = [
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
+      "A bug report could fail to reach the server, arriving with only your comment.",
       "On phones, the victory and card-dissolve effects now use less memory (another step towards fewer crashes).",
       "The whole pack-opening screen could light up in rainbow colours.",
       "The \"Turn on notifications\" prompt was cut off on the ranked tile on Home.",
@@ -176,6 +178,22 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴🔴 #808 / #805（報告が届かない）の**本当の原因が分かった。絵文字の片割れだった。**" +
+        "報告の中に対になっていないサロゲートが1文字でも混ざると、サーバーの JSON 読み取りが" +
+        "**本文ごと**弾く（PGRST102 Empty or invalid json）⇒ 墜落の記録が2回まるごと失われた。" +
+        "🔴 **本番で実証した**（行は1件も作らず、存在しない列へ送って読み取りだけ通す手）: " +
+        "`\"📋サマリー\".slice(0,1)` → PGRST102 ／ 掃除した同じ中身 → PGRST204（本文は読めた）。" +
+        "⚠ **大きさは原因ではなかった**——5MB でも読めた。続き822 でバイト単位に直したのは" +
+        "それはそれで正しいが、**この件には効いていなかった**。",
+      "🔴 なぜ混ざるか: 画面の記録は DOM の文字を `.slice(0, N)` で切って集める。アプリの" +
+        "ボタンは 📋 ⏭ 🔔 🪙 🃏 だらけなので、**切る位置が絵文字の真ん中に当たる**。" +
+        "⇒ ①context を**中まで**掃除する（素通ししていた）②**切ったあとに**もう一度掃除する" +
+        "（切る処理は文字の単位なので片割れが生まれ直す）。",
+      "🔴 **検出器そのものが嘘をついていた。** 最初 `JSON.stringify` してから探す形で書いたが、" +
+        "あれは片割れを `\\ud83d` という**6文字のふつうのテキスト**に逃がすので、" +
+        "**永久に見つからない**＝0しか出ない検査になっていた（自分で置いた「前提」と「対照」の" +
+        "行が落ちて気づけた）。⇒ 中を歩いて**生の文字列**を1本ずつ見る形へ。" +
+        "検査を1本足した（27本目・`tools/check-bug-payload.mjs`。検出器が働くことも毎回見る）。",
       "🔴🔴 墜落11件（#797 ほか）: 報告 #797 の内訳を**算術で突き合わせた**" +
         "（932x430・dpr 3・ステージ倍率 0.478）——`canvas 24MB` の正体は" +
         "**盤面の WebGL（2293x1290x4 = 11.8MB）＋ 吸い込みの canvas（2400x1350x4 = 13.0MB）**。" +
@@ -278,6 +296,9 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "Why it happens: the screen snapshot collects DOM text with .slice(0, N), and the app buttons are full of emoji, so the cut lands in the middle of one.",
+      "The detector was initially wrong: JSON.stringify escapes a lone surrogate into six ordinary characters, so scanning the stringified form never finds one. It now walks the value and tests raw strings.",
+      "#808/#805: bug reports were rejected whole (PGRST102) because a lone surrogate — half an emoji produced by slicing DOM text — made the body invalid for the server's strict JSON reader. Proven against production without inserting rows. The context object is now sanitised recursively, and again after truncation; a new check pins the invariant, including that the detector itself works.",
       "Crash family: the reported 24MB of canvas at the peak is the board's WebGL canvas plus the victory gather canvas, both of which are needed during GATHER. The remaining lever was the effect canvas resolution, now capped lower on phones only (12.4MB to 5.5MB measured). This lowers the peak; it is not a confirmed fix.",
       "#804: the rainbow-shard foil effect is drawn with an absolutely positioned ::after, so when its host is statically positioned it expands to the nearest positioned ancestor. The collection tile had no position, so one such card filled 90% of the screen with the sweep. The tile is now positioned, and the rule itself documents the requirement.",
       "#806: the opponent countdown setting existed but defaulted to off. It now defaults to on, and whose time it is is stated in words (the caption shows the player's name) with the opponent's number drawn smaller, so colour is not the only cue.",

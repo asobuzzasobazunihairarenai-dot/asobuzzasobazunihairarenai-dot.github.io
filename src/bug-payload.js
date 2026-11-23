@@ -69,11 +69,57 @@ export function 後ろを残して切る(s, 上限バイト) {
 // 送る中身を、合計のバイト上限に収まる形へ整える。
 //   戻り値: { comment, action_log, console_log, context, 内訳 }
 //   ⚠ `内訳` は実測用（どれが何バイトになったか）。送らない。
+// 🔴🔴【#808・続き827】**中まで掃除する。**
+//   `壊れた文字を落とす` は文字列1本にしか効かない。ところが画面の記録（context）は
+//   **object の中に何十本も文字列を持っている**し、それらは DOM の文字を `.slice(0, N)` で
+//   切って集めたもの＝**絵文字の途中で切れている**ことがある（ボタンは 📋 ⏭ 🔔 🪙 だらけ）。
+//   片割れが1文字でも混ざると、サーバーは**本文ごと**弾く（PGRST102。本番で実証）。
+//   ⚠ 深さと件数に歯止めを置く（壊れた入れ子で固まらないように）。
+export function 中まで掃除する(値, 深さ = 0) {
+  if (深さ > 12) return null;
+  if (typeof 値 === "string") return 壊れた文字を落とす(値);
+  if (値 == null || typeof 値 === "number" || typeof 値 === "boolean") return 値;
+  if (Array.isArray(値)) return 値.slice(0, 2000).map((v) => 中まで掃除する(v, 深さ + 1));
+  if (typeof 値 === "object") {
+    const 出 = {};
+    let n = 0;
+    for (const k of Object.keys(値)) {
+      if (n++ > 2000) break;
+      // 鍵も文字列なので、ここも掃除する（鍵に絵文字を使うことは今のところ無いが、
+      // 「無いはず」で素通しにすると、足した人が踏む）。
+      出[壊れた文字を落とす(k)] = 中まで掃除する(値[k], 深さ + 1);
+    }
+    return 出;
+  }
+  return null; // 関数・Symbol 等は送らない
+}
+
+// 🔴【#808・続き827】**最後の総点検。** 片割れが1文字でも残っていたら、そこで気づけるように。
+//   （切る処理は文字の単位で切るので、**掃除したあとに切ると片割れが生まれ直す**。
+//     だから掃除は「いちばん最後」にもう一度かける。）
+const 片割れ = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+export function 片割れが残っているか(値, 深さ = 0) {
+  // 🔴 **文字列化してから探してはいけない。** `JSON.stringify` は片割れを
+  //   `\\ud83d` という**6文字のふつうのテキスト**に逃がすので、文字列化した後では
+  //   永久に見つからない（最初そう書いて、0しか出ない検査になっていた）。
+  //   ⇒ 中を歩いて、**生の文字列**を1本ずつ見る。
+  if (深さ > 12) return false;
+  if (typeof 値 === "string") return 片割れ.test(値);
+  if (値 == null || typeof 値 !== "object") return false;
+  if (Array.isArray(値)) return 値.some((v) => 片割れが残っているか(v, 深さ + 1));
+  for (const k of Object.keys(値)) {
+    if (片割れ.test(k)) return true;
+    if (片割れが残っているか(値[k], 深さ + 1)) return true;
+  }
+  return false;
+}
+
 export function 送れる形に整える({ comment, actionLog, consoleLog, context } = {}) {
   const 本文 = 後ろを残して切る(comment ?? "", BUG_COMMENT_BYTES_MAX) ?? "";
 
   // ① context を先に確保する（小さくて、いちばん値打ちがある）。
-  let ctx = context ?? null;
+  // 🔴【#808・続き827】**ここで中まで掃除する。** 素通ししていたのが届かない原因だった。
+  let ctx = context == null ? null : 中まで掃除する(context);
   let ctxバイト = 0;
   if (ctx) {
     try {
@@ -102,11 +148,17 @@ export function 送れる形に整える({ comment, actionLog, consoleLog, conte
   if (cバイト < c上限) { a上限 += c上限 - cバイト; c上限 = cバイト; }
   else if (aバイト < a上限) { c上限 += a上限 - aバイト; a上限 = aバイト; }
 
-  return {
-    comment: 本文,
-    action_log: actionLog == null ? null : 後ろを残して切る(a0, a上限),
-    console_log: consoleLog == null ? null : 後ろを残して切る(c0, c上限),
+  // 🔴【#808・続き827】**切ったあとに、もう一度掃除する。**
+  //   切る処理は文字の単位で切るので、**掃除したあとに切ると片割れが生まれ直す**
+  //   （絵文字はちょうど2文字ぶんなので、境目に当たると半分だけ残る）。
+  const 出 = {
+    comment: 壊れた文字を落とす(本文) ?? "",
+    action_log: actionLog == null ? null : 壊れた文字を落とす(後ろを残して切る(a0, a上限)),
+    console_log: consoleLog == null ? null : 壊れた文字を落とす(後ろを残して切る(c0, c上限)),
     context: ctx,
     内訳: { comment: バイト数(本文), context: ctxバイト, a上限, c上限 },
   };
+  // それでも残っていたら、**送る前に**気づけるように印を付ける（黙って弾かれるより良い）。
+  if (片割れが残っているか(出)) 出.内訳.壊れた文字が残った = true;
+  return 出;
 }
