@@ -56,18 +56,22 @@ export const CHANGELOG = [
     summary: [
       "マイデッキに、**パックで手に入れたカード**を入れられるようになりました",
       "ONLYカードをマイデッキに入れるには、**ふつうのカードが3枚ずつ必要**になりました",
+      "他のプレイヤーの名札を読みやすくしました",
     ],
     summaryEn: [
       "Cards from packs can now go into My Deck",
       "Each ONLY card in My Deck now needs 3 ordinary cards",
+      "Other players\u2019 name tags are easier to read",
     ],
     items: [
       "マイデッキの候補に、**パックや報酬で手に入れたカードも並ぶ**ようになりました（0th EDITION 拡張・1st EDITION・限定報酬）。並ぶのは**持っているカードだけ**で、入れられる枚数も**持っている枚数まで**です。同じ名前は7枚まで、ONLYカード（絵の左下に ONLY と印字）は1種類1枚まで——**マイ山札と同じ決まり**にそろえました。⚠ これまで上限が「実物に刷られている枚数」だったカード（色落ちキャット1枚・白黒2枚）も**7枚まで**になりました。緩くなる方向なので、いま保存してあるマイデッキはそのまま使えます。",
       "**ONLYカード**（絵の左下に ONLY と刷ってあるカード）が、マイデッキでは**スペシャルカード**の扱いになりました。無色のカードや「なないろの欠片」と同じで、**1枚入れるごとに、スペシャルでない通常カードを3枚**入れる必要があります。マイデッキ戦の決まりとして前から決まっていたもので、ONLYカードがマイデッキの候補に並ぶようになったので、ここで効くようになりました。ⓘ ONLYカードは**1種類につき1枚まで**（こちらは今までどおり）。⚠ すでに保存してあるマイデッキにONLYカードが入っている場合、編集画面で「スペシャルカードに必要な枚数が足りません」と出ることがあります。その時はふつうのカードを足してください。",
+      "盤面の**他のプレイヤーの名札**を読みやすくしました（白い字＋影にして、少し濃く表示）。手番の人の名札は今までどおり金色で点滅するので、**誰の番かはすぐ分かります**。ⓘ 名札そのものは元から出ていましたが、薄くて背景に溶けていました。",
     ],
     itemsEn: [
       "Cards you have obtained from packs or rewards (0th Edition Expansion, 1st Edition and limited rewards) now appear as My Deck candidates. Only cards you actually own are listed, and you can add up to as many copies as you own: at most 7 of the same name, and 1 for an ONLY card - the same rules as My Stack. Cards that were previously capped at their printed count (Faded Cat 1, white and black 2) can now go up to 7 as well, so every deck you have saved stays valid.",
       "**ONLY cards** (the ones with ONLY printed at the lower left of the art) now count as **special cards** in My Deck, just like colorless cards and Shard of Seven Colors: each one requires **3 non-special normal cards** in the same deck. This was always part of the My Deck rules; it takes effect now that ONLY cards appear as My Deck candidates. You can still include at most one copy of each ONLY card. If a deck you already saved contains an ONLY card, the editor may now tell you that you need more non-special cards: just add ordinary cards until it clears.",
+      "Other players\u2019 name tags on the board are now brighter and easier to read at a glance: white text with a shadow instead of dim inherited colour, at a higher opacity. The current player\u2019s tag still stands out in gold and pulses as before.",
     ],
     fixes: [
       "盤面の後ろの床の絵が、縦に伸びて見えていたのを直しました",
@@ -76,6 +80,7 @@ export const CHANGELOG = [
       "一部のカードの絵が出ないことがあったのを直しました",
       "「なないろの欠片」で、すでにロックした色にもロックできてしまうのを直しました",
       "操作できなくなったまま戻らないことがあったのを、1分で自動的に立て直すようにしました",
+      "スマホで「CPU戦」の設定が狭く、選択肢の文字が途中で折り返していたのを直しました",
     ],
     fixesEn: [
       "The floor behind the board looked stretched vertically.",
@@ -84,6 +89,7 @@ export const CHANGELOG = [
       "Some card art did not appear.",
       "Rainbow Shard could lock onto a colour you had already locked.",
       "If the game became unresponsive, it now recovers by itself after a minute.",
+      "The CPU match setup dialog was cramped on phones, wrapping option labels mid-word.",
     ],
     devItems: [
       "🔴🔴 **#750「プレイマットの後ろの背景が縦な向きな気がする」の正体は、WebGL が `background-size: contain` を見ていなかったこと。** 床の絵は 1672x941（16:9）だが `.table-background-bg` の箱は**正方形**で、CSS は contain で収めている。ところが WebGL 側は**箱いっぱいに板を張る**ので、絵が**縦に 1.78 倍**に伸びていた。報告の「最初の頃は横だったと思うけど」もそのとおりで、**2026-09-05（第3段）でキャンバスを盤面DOMの奥へ置いた時に床とプレイマットを WebGL 側へ移した**のが変わり目。⇒ `containBox()` を足して contain を尊重するようにした（絵が読めていない間は今までどおり箱いっぱい。読み終わった時に `needsRebuild` を立てて置き直す）。⚠ **cover は扱わない**——あちらは箱からはみ出した分を CSS が切り落とすが、板は切り落とせない（テクスチャを他の要素と使い回すので repeat/offset も触れない）。",
