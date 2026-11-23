@@ -488,6 +488,26 @@ export async function runSituationEffect(cardId, player, helpers) {
 // （getHandTokensの定義、続き55）。以前は zone === "hand" だけを見ていたため、公開ドロー中の
 // 同色カードを追色コストに使えず、マスチェンジ等の手札効果が「コストを払えない」扱いで
 // 使えなかった。getHandTokensと同じ範囲（hand + publicDraw）に揃える。
+// 🔴【#584・2026-11-24】**コストで捨てる札が、唯一ロックできる札**のことがある。
+//   セレナーデ（【追色１】＋「手札を１枚ロックする、ただし最後のロックはできない」）で
+//   実際に起きた（報告 #584 の行動ログ）: 追色で1枚捨てた**直後**に
+//   `lock_one_hand_card_except_final result:false` ＝ **コストだけ払って何も起きない**。
+//   ⇒ 「いまロックできる札が在るか」だけでは足りない。**コストを払った後に残るか**で見る。
+//   ⚠ どちらの札を捨てるかは本人が選べるので、「ロックする1枚を除けても、なおコストぶん
+//     払える組み合わせが1つでもあるか」で判定する（1枚でも在れば宣言してよい）。
+//   ⚠ いまコストに使われる動詞は DISCARD_SAME_COLOR（追色）だけ。**別の「捨てる」コストを
+//     足す時はここにも足すこと**（同じ断り書きが `コストで捨てる` の所にもある）。
+function hasLockableHandCardAfterCost(cardId, cardTokenId, player, option) {
+  const { tokens } = getLockableHandTokensExceptFinal(player);
+  if (tokens.length === 0) return false;
+  if (option?.cost?.verb !== VERBS.DISCARD_SAME_COLOR) return true;
+  const need = option.cost.count || 0;
+  if (need <= 0) return true;
+  const color = getCardDefinition(cardId)?.color;
+  const コスト候補 = findSameColorDiscardCandidates(cardTokenId, color, player);
+  return tokens.some((tk) => コスト候補.filter((c) => c.id !== tk.id).length >= need);
+}
+
 export function findSameColorDiscardCandidates(cardTokenId, color, player) {
   return getState().tokens.filter((t) => {
     if (t.kind !== "card" || t.location.player !== player || t.id === cardTokenId) return false;
@@ -686,8 +706,7 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   // 適用される——条件を満たせないと分かっているなら、コストを払う前の発動宣言
   // 自体ができない（コストだけ払わせて実際には何も起きない、という状態を避ける）。
   if (option.requiresLockableCardAvailable) {
-    const { tokens } = getLockableHandTokensExceptFinal(player);
-    if (tokens.length === 0) return false;
+    if (!hasLockableHandCardAfterCost(cardId, cardTokenId, player, option)) return false;
   }
   // スラム上がりの役人専用（続き59）。ユーザー指摘: セレナーデと同じ「善処の原則」の
   // 理屈で、DRAW_IF_HAND_AT_MOST（「あなたの手札が１枚以下なら２枚ドロー」）は、
@@ -864,9 +883,7 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
     if (getOwnEmptyLockSlotCandidates(player).length === 0) return t("ce.needEmptyLockSlot");
   }
   if (option.requiresLockableCardAvailable) {
-    const { tokens } = getLockableHandTokensExceptFinal(player);
-    if (tokens.length === 0)
-      return t("ce.L307");
+    if (!hasLockableHandCardAfterCost(cardId, cardTokenId, player, option)) return t("ce.L307");
   }
   const drawIfAtMost = option.actions?.find((a) => a.verb === VERBS.DRAW_IF_HAND_AT_MOST);
   if (drawIfAtMost) {

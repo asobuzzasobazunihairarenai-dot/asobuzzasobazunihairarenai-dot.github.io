@@ -2231,6 +2231,64 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#584・2026-11-24】報告「5ターン目にCPUはセレナーデ使ったみたいだけど、ろっくした？」。
+    //   答えは**ロックしていない**。行動ログでは追色で1枚捨てた直後に
+    //   `lock_one_hand_card_except_final result:false` ＝ **コストだけ払って何も起きなかった**。
+    //   正体: 手札の桃が1枚しか無く、その1枚が「追色で捨てる札」と「唯一ロックできる札」を
+    //   兼ねていた（もう1枚のなないろの欠片は、ロックすると7色目＝最後のロックになるので除外）。
+    //   善処の原則は**コストを払う前**に効くので、ここでは発動宣言そのものができない。
+    name: "桃のキューブ セレナーデ/first-pink(手札): 追色で捨てる札が唯一ロックできる札なら使えない",
+    kind: "hand",
+    cardId: "first-pink",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-pink", faceUp: true, location: { zone: "hand", player: "A" } },
+        // 桃のロック枠は埋まっている＝セレナーデ自身（桃）はロックできない。
+        { id: "lockedPink", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "lock", side: "bottom", index: 5 } },
+        // 🔴 手札はなないろの欠片1枚だけ。これは**追色のコストにもなれる**ので、
+        //   コストで捨てるとロックする札が1枚も残らない（＝報告の場面）。
+        { id: "shard", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-pink", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "handUsable", value: false },
+      { kind: "optionUsable", cardId: "first-pink", tokenId: "self", player: "A", optionId: "default", usable: false },
+      { kind: "tokenZone", id: "shard", zone: "hand", player: "A" }, // コストを払わせない
+    ],
+  },
+  {
+    // 🔴 対照: **上とまったく同じ盤面に、ロックできる札を1枚足すだけ**で使える。
+    //   欠片をコストに回して、足した札の方をロックできるため。
+    //   これが無いと、上の「使えない」は0しか出ない検査になる。
+    name: "桃のキューブ セレナーデ/first-pink(手札): 対照 — ロックできる札がもう1枚あれば使える",
+    kind: "hand",
+    cardId: "first-pink",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "first-pink", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "lockedPink", kind: "card", cardId: "pink-present", faceUp: true, location: { zone: "lock", side: "bottom", index: 5 } },
+        { id: "shard", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "lk", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "first-pink", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { discardCost: ["shard"], handCard: ["lk"] },
+    expect: [
+      { kind: "handUsable", value: true },
+      { kind: "optionUsable", cardId: "first-pink", tokenId: "self", player: "A", optionId: "default", usable: true },
+      { kind: "tokenGone", id: "shard" },
+      { kind: "tokenZone", id: "lk", zone: "lock" },
+    ],
+  },
+  {
     name: "結ばれの一本桜/eternal-pink(手札): 追色1→相手を自分の隣へ移動",
     kind: "hand",
     cardId: "eternal-pink",

@@ -65,8 +65,18 @@ export const CHANGELOG = [
     itemsEn: [
       "The box art you give a deck now shows for everyone in the room: open a friendly match's deck chooser and every offered deck wears the lid its owner picked, not just yours. Until now the art lived only on your own device, so other players saw a plain box with a nameplate. If you change the art of a deck you have already offered, it catches up the next time you open that screen.",
     ],
+    fixes: [
+      "セレナーデで、コストだけ取られてロックされないことがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Serenade could take its cost and then lock nothing. Fixed.",
+    ],
     devItems: [
       "🔴 ユーザー判断「**やろう！**」（続き835 の申し送り「箱の絵を部屋の全員に見せますか」への答え）。⇒ `so7_game_stack_offers` に **`skin` を1列**足し、出す時に運んで、読む時に返す。",
+      "🔴🔴 **#584 は質問ではなく不具合だった。**「5ターン目にCPUはセレナーデ使ったみたいだけど、ろっくした？」を行動ログで追うと、追色で1枚捨てた**直後**に `lock_one_hand_card_except_final result:false` ＝ **コストだけ払って何も起きていない**。正体は、手札がなないろの欠片1枚だけで、**欠片が追色のコストにもなれる**こと——捨てるとロックする札が残らない。",
+      "⚠ 善処の原則の検めが「**いま**ロックできる札が在るか」しか見ておらず、**コストで消える分を数えていなかった**。⇒「ロックする1枚を除けても、なおコストぶん払える組み合わせが1つでもあるか」で見る形に。どちらの札を捨てるかは本人が選べるので、1つでも在れば宣言してよい。",
+      "⚠ 回帰テストは**報告の場面そのまま**（桃の枠は埋まっていて手札は欠片1枚）＋対照（ロックできる札をもう1枚足すだけで使える）。**最初に書いた筋書きは間違っていた**——セレナーデ自身を手札に置いたので、それ自体がロックできる札に数えられて通ってしまった。A/B で、直しを戻すと報告どおり「コストを払って空振り」になることを確かめた。",
+      "🔴 **debug の棚卸しで、自分の数え方を2回間違えた。** ①名簿の1行に複数の番号がある行を1つしか拾っていなかった ②「対処済み」は `HANDLED_BUG_REPORT_IDS` だけでなく**`BUG_REPORT_FIX_NOTES` の鍵も足される**（ファイル末尾の for）。文字で数えるのをやめて**`isBugReportHandledInCode()` に聞く**のが正。⇒ 未対処は 39件ではなく **13件**だった。",
       "🔴 **引数が増えたので、古い署名を落としてから作る。** `create or replace` は引数が違えば**別の関数として増える**ので、落とさないと PostgREST の名前付き引数が**どちらを呼ぶか決められずに落ちる**（`so7_award_match_currency` が同じ事情で2行の drop を持っている＝この家の作法）。",
       "🔴 **砦は2枚。** ①SQL 側で `^[A-Za-z0-9_-]{1,120}$` だけ通す（外れたら拒まずに null＝無地の箱。例外にすると「山札を出せない」という重い失敗に化ける）②画面側は `buildStackBoxArt` が**カードの表に在る id だけ**を絵にする。**他の人が書いた文字列から絵の道を作らない。** 実測で「../../evil.png」も「無い id」も無地になることを見た。",
       "⚠ **SQL をまだ流していないサーバーでは PGRST202**（その引数の関数が無い）。箱の絵のために「山札を出せない」になっては本末転倒なので、**絵抜きでもう一度送る**退避を入れた。",
@@ -75,6 +85,10 @@ export const CHANGELOG = [
     ],
     devItemsEn: [
       "The deck-offer table gained a skin column, so the lid art travels with the offer instead of living only on the owner's device.",
+      "#584 turned out to be a bug, not a question: the log shows the Add-Colour cost being paid and the lock doing nothing, because the only card in hand was the Rainbow Shard, which can also pay that cost.",
+      "The declaration check only asked what was lockable right then, never what would survive the cost. It now asks whether some lockable card remains once the cost is paid.",
+      "The regression test mirrors the reported hand exactly, with a control that differs by one extra card; the first version of the test was wrong because it left Serenade itself in hand, where it counted as lockable.",
+      "Two counting mistakes while triaging the reports: lines holding several ids were read as one, and handled status is the union of the id set and the fix-note keys. Asking the module instead of parsing the text turned 39 open reports into 13.",
       "The offer function gained a parameter, so the old signature is dropped first: create or replace would otherwise leave two functions and PostgREST could not tell which one the named arguments mean.",
       "Two guards: SQL accepts only a card-id shaped string (anything else becomes null, a plain box, rather than an error that would block offering the deck), and the page only paints ids that exist in the card table, so a string written by someone else never becomes an image path.",
       "On a server where the SQL has not been run yet the call fails with PGRST202, so it is sent again without the art: box art must never cost someone the ability to offer a deck.",

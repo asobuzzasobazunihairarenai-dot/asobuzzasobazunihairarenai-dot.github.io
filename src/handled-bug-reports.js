@@ -585,6 +585,25 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
 // ユーザーが管理画面の「📨 お礼を書く」で DB に書いた文がある場合は、**そちらが優先**される
 // （言い回しを変えたくなった時に、コードを触らずに上書きできるように）。
 export const BUG_REPORT_FIX_NOTES = {
+  // ── 2026-11-24（続き837）──────────────────────────────────────
+  584: {
+    ja:
+      "ロックしていません（効果が不発でした）。行動ログを読むと、セレナーデの【追色１】で1枚捨てた**直後**に「手札を１枚ロックする」が空振りしています。原因は、その時の手札が**なないろの欠片1枚だけ**だったこと——欠片はどの色としても使えるので**追色のコストにもなれ**、それを捨ててしまうとロックする札が1枚も残りません。使う前の検めが「いまロックできる札が在るか」しか見ておらず、**コストで消える分を数えていません**でした。直したので、このような時はセレナーデの発動そのものができなくなります（コストだけ取られません）。",
+    en:
+      "It did not lock - the effect fizzled. The log shows the Add-Colour cost being paid and then the lock doing nothing. The hand held only the Rainbow Shard, which can stand in for any colour and so could pay the cost itself; once it was discarded there was nothing left to lock. The check that decides whether Serenade can be declared only looked at what was lockable right then, not at what would remain after the cost. Fixed: in that situation Serenade can no longer be declared at all, so the cost is never wasted.",
+  },
+  803: {
+    ja:
+      "もう入っています。デイリーチャレンジやウィークリーで**セヴル（お金）を受け取ると、受け取ったボタンからコインが飛んで、画面上の残高に吸い込まれます**（パックが飛ぶのと同じ作りです）。もし出ていない場面があれば、その画面を教えてください。",
+    en:
+      "This is already in. When you claim Sevres from a daily or weekly reward, coins fly from the button you pressed into your balance at the top, the same way packs do. If you have seen a screen where it does not happen, tell us which one.",
+  },
+  554: {
+    ja:
+      "直したつもりです（#731 と同じ現象でした）。記録では、端末が「画面の高さは371」と答えていて、本当の画面（430）との差の59ぶんが下に残っていました。iPhone のホーム画面から開いた時に起きるもので、**画面の大きさを測り直すよう端末に頼む**手当てを入れてあります（縦にしてから横に戻すと直る、のと同じことを、その場で起こします）。⚠ 実機ではまだ確かめられていないので、また出たら教えてください。",
+    en:
+      "Should be fixed - this was the same as #731. The record shows the device reporting a 371-tall viewport while the real screen is 430, leaving the 59-pixel difference as a band at the bottom. It happens in the iPhone home-screen app, and the fix asks the device to re-measure the viewport - the same thing that turning the phone and back does, without turning it. We have not been able to confirm it on a real device, so please tell us if it comes back.",
+  },
   // ── 2026-11-23（続き829）────────────────────────────────────────────
   809: {
     ja: "やめました。カードを掴んだ時に出していた「そのカードを場にドロップすると、手札効果が発動します。」の案内を外しました。",
