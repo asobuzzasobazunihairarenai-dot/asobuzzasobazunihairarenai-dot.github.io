@@ -4246,8 +4246,11 @@ ONLY1＋ふつう6 は通る／**回帰: 虹2＋ふつう5 も今までどおり
 #### ⚠ この端末では `npm test` が完走できない（続き803 と同じ）
 
 `page.evaluate: Target crashed`（空きメモリ **1.79GB**／16GB。私のプロセスは1つも無い）。
-⇒ **一部だけ走らせる道具を作った**（`scratchpad/_p804t.mjs`。本物と**同じ土台**
-＝`effect-runner.mjs` / `checkExpect` を使い、絞り込み以外は1行も変えない）。
+⇒ **一部だけ走らせる道具を作った**: `node tools/test-some.mjs "絞り込み"`
+（`npm run test:some -- "…"` でも同じ）。本物と**同じ土台**
+＝`effect-runner.mjs` / `checkExpect` を使い、絞り込み以外は1行も変えない。
+🔴 **`tools/` に置いた**——最初 scratchpad に書いたが、あそこは git 管理外で掃除で消えるので、
+記憶（`npm-test-crashes-locally`）から指す先が無くなる。**記憶が指すものは、消えない所に置く。**
 今回触った **14本を実測**（PASS 12 → 期待値を直して **PASS 14**）。
 🔴 **全部は GitHub Actions で見る**（あちらで同じテストが走る）。
 
