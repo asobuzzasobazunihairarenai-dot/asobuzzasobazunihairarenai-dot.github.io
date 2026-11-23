@@ -349,6 +349,7 @@ import { maybeShowFirstRunBgmModal } from "./first-run-bgm.js";
 import { maybeShowOpeningSetupModal } from "./opening-setup-modal.js";
 import { isTrialEntry } from "./trial-entry.js";
 import { applyStoredCardPreviewSize, applyStoredCardArrivalSize, getCardPreviewSide } from "./card-preview-size.js";
+import { onBlockingBackdropOpen } from "./ui-helpers.js"; // 🔴【#784・続き812】モーダルが開いたら拡大を消す
 import { isFixedHandEnabled, applyStoredFixedHand } from "./fixed-hand.js";
 import {
   isCpuBattleActive,
@@ -17247,6 +17248,14 @@ function hideCardPreview() {
   if (previewEl) previewEl.style.display = "none";
   markPreviewSquare(null);
 }
+// 🔴【#784・続き812】**画面を覆うモーダルが開いたら、拡大表示を必ず消す。**
+//   報告「手札をタップするとこうなってモーダルが見えない」＝長押しの拡大が
+//   モーダルの札と「はい／いいえ」を覆っていた。覆いの側（ui-helpers）から呼ばれるので、
+//   **これから足すモーダルも自動で守られる**（1か所ずつ消して回らない）。
+onBlockingBackdropOpen(() => {
+  hideCardPreview();
+  previewCardId = null;
+});
 
 // 🔴【#645・続き740】ユーザー要望「**場のカードの表面を見てる間、どのマスのカードを
 //   見ているのか場のマスがハイライトされているといい**」。
@@ -22878,7 +22887,22 @@ function 押せる物を探す() {
     if (押せる形か(el)) return { 理由: "cell", 名: 要素の名(el) };
   }
   // ② 返事待ちのモーダル。**出ているだけでは足りない**（上のコメント）。
-  for (const el of document.querySelectorAll('[id$="-modal"], [id$="-picker"], [id$="-confirm"]')) {
+  //
+  // 🔴🔴【#778・続き812】**id だけで探さない。** 報告「なないろのあめの選択モーダルを
+  //   選択せずにいたら発動せずにムーブフェイズにいっちゃった」の正体がこれだった——
+  //   選択モーダルは **class** で作られている（`.hand-effect-option-picker`）のに、
+  //   ここは **id が -modal / -picker / -confirm で終わる要素**しか見ていなかった。
+  //   ＝**画面にちゃんと出ているのに見えておらず、掃除役が人の選択を消した**（2分28秒後）。
+  //
+  //   ⚠ **この門は多めに見る方が安全**: 多すぎる＝掃除が遅れるだけ（60秒の時間切れが受ける）／
+  //     少なすぎる＝**人の選択を取り上げる**。だから class も見る。
+  //   ⚠ それでも「押せる子を1つ以上持つ」は外さない（大きさ0の残骸を数えないため）。
+  const 返事待ちの印 = [
+    '[id$="-modal"]', '[id$="-picker"]', '[id$="-confirm"]',
+    '.so7-modal-backdrop',            // createBackdrop({dim:true}) が必ず付ける印
+    '[class*="-modal"]', '[class*="-picker"]', '[class*="-confirm"]', '[class*="-approval"]',
+  ].join(", ");
+  for (const el of document.querySelectorAll(返事待ちの印)) {
     if (!押せる形か(el)) continue;
     // 本物の選択モーダルには**必ず押せる子が1つ以上ある**（はい／いいえ・選択肢・閉じる）。
     // 飾りの帯や残骸には1つも無い＝それは人が答えられる合図ではない。

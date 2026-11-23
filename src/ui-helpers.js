@@ -18,6 +18,18 @@ export function createModalCloseX(onClose) {
 // パネルの外側をクリックした時にも閉じられるようにする、全画面の透明なクリック受け皿。
 // dim:trueにすると背景を薄暗くする（一覧・情報モーダル向け）。省略時は透明のまま
 // （常駐ツールパネル向け。盤面を見ながら調整したいので背景を暗くしたくないケース）。
+// 🔴【#784・続き812】**画面を覆うモーダルが開いたら、知らせる。**
+//   報告「手札をタップするとこうなってモーダルが見えない」の正体は、
+//   **長押しの拡大表示がモーダルの上に残っていた**こと（札と「はい／いいえ」を覆っていた）。
+//   ⇒ 1か所ずつ消して回るのではなく、**覆いが開いた時に必ず消す**形にする。
+//     これから足すモーダルも自動で守られる。
+//   ⚠ このファイルは**葉**（main.js を import できない）ので、向こうから登録してもらう。
+//   ⚠ 暗くしない覆い（管理者モード等の常駐パネル）では呼ばない——あれは盤面を
+//     覆わないので、拡大を消す理由が無い。
+const 覆いが開いた時 = [];
+export function onBlockingBackdropOpen(fn) {
+  if (typeof fn === "function") 覆いが開いた時.push(fn);
+}
 export function createBackdrop(onClose, { dim = false, zIndex = 2000, blocksGame = true } = {}) {
   const backdrop = document.createElement("div");
   backdrop.style.cssText = `position: fixed; inset: 0; z-index: ${zIndex};${dim ? " background: rgba(0, 0, 0, 0.6);" : ""}`;
@@ -27,6 +39,9 @@ export function createBackdrop(onClose, { dim = false, zIndex = 2000, blocksGame
   // タップ→そのカードの手札効果が発動、等）。この目印があれば一律に無視できる。
   // dim:false（管理者モード・セットアップ等の常駐パネル）は盤面操作を妨げたくないので付けない。
   if (dim) backdrop.classList.add("so7-modal-backdrop");
+  // 🔴【#784・続き812】覆いが画面をふさぐなら、拡大表示などを片付けてもらう。
+  //   ⚠ 1つが転んでも残りを呼ぶ（モーダルが開かなくなる方がずっと悪い）。
+  if (dim) for (const fn of 覆いが開いた時) { try { fn(); } catch { /* noop */ } }
   // 【続き455】上の目印（盤面のタップを透かさない）とは**別に**、「画面の中央がふさがっている
   // 間はゲームを進めない」（#266）という仕組みがある。ところがそちらは同じ目印を見ていたため、
   // **対局とは無関係のお知らせ**（初回の音量設定・デイリーボーナス等、アプリが勝手に出すもの）が

@@ -97,6 +97,8 @@ export const CHANGELOG = [
       "対局の途中で盤面も手札もタップできなくなる不具合を直しました",
       "情報開示などで引いた「このターン使えない」カードしか無い時、ハンドフェイズが自動で飛ぶようにしました",
       "HUERISEの画面でタップした時、燃える演出の前に次の画面が一瞬見えることがあったのを直しました",
+      "カードを拡大したまま確認の画面が出ると、拡大が重なって見えなかったのを直しました",
+      "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
       "The floor behind the board looked stretched vertically.",
@@ -114,8 +116,12 @@ export const CHANGELOG = [
       "Taps on the board and on your hand could stop working partway through a match.",
       "The hand phase now skips itself when every card you hold cannot be used this turn.",
       "Tapping on the HUERISE screen could flash the next screen before the burn started.",
+      "An enlarged card could cover the confirmation dialog that opened behind it.",
+      "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴🔴 **#778「なないろのあめの手札効果の選択モーダルを選択せずにいたら発動せずにムーブフェイズにいっちゃった」の正体は、掃除役が人の選択を取り上げていたこと。** ログに `diag-picker-leak` が出ていた（2分28秒後）。なぜ「押せる物が無い」と判断したか——**選択モーダルは class で作られている**（`.hand-effect-option-picker`）のに、判定は **id が -modal / -picker / -confirm で終わる要素**しか見ていなかった。＝**画面にちゃんと出ているのに見えていなかった。** ⇒ class でも探すようにした（`.so7-modal-backdrop` と `-modal` / `-picker` / `-confirm` / `-approval` を含む class）。🔴 **この門は多めに見る方が安全**: 多すぎる＝掃除が遅れるだけ（60秒の時間切れが受ける）／少なすぎる＝**人の選択を取り上げる**。実測11項目・対照つき（ボタンの無い残骸と、選択と関係ない箱は今までどおり数えない）。",
+      "🔴 **#784「手札をタップするとこうなってモーダルが見えない」は、報告のスクリーンショットで一発だった**——**長押しの拡大表示が確認モーダルの上に残り**、札と「はい／いいえ」を覆っていた。⇒ 直す所を1か所にせず、**画面を覆う覆い（dim の backdrop）が開いたら必ず拡大を消す**形にした（`onBlockingBackdropOpen`）。**これから足すモーダルも自動で守られる。** ⚠ 暗くしない覆い（管理者モード等の常駐パネル）では消さない——盤面を覆わないので消す理由が無い。実測4項目・対照つき。",
       "🔴🔴 **「固まる」7件（#775 #776 #786 #787 #788 #791 #792）は、すべて同じ原因だった。** 行動ログで確定: どれも最後の `diag-anytime-checkpoint` が **`pickerActive: true`**。**選択モーダルの持ち主（`activeEffectPicker`）は1つしかない**ので、誰かが選んでいる最中に**別の到達が始まって自分の選択を登録すると、外側の登録が上書きで消える**。消された側は誰も答えないまま残り、`pointerdown` の先頭の `if (activeEffectPicker) return;` によって**盤面も手札もタップが全部死ぬ**（DOM のボタンだけ効く＝報告「フェイズの説明は出るのに移動先をタップしても反応しない」「タップ全部が効かないわけじゃない」と完全に一致）。🔴 続き786 では**委任中（CPUが代わりに選ぶ場面）だけ**塞いでいたが、報告はどれも**自分の手札効果の最中**（誰かの落とし物■・盗賊の技■・フォース■）なので素通りしていた。⇒ **塞ぐ条件を『誰かが選んでいる最中』そのものに広げた**（委任／候補選択／手札効果の3つ）。到達は消えず**順番が後になるだけ**で、効果が終われば流れる。⚠ 流す所も増やした——手札効果の経路は**到達処理を一度も通らない**ので、5秒ごとの見張りからも流す（**溜めたまま消えるのが一番怖い**）。",
       "🔴 **あわせて「新しいカードが増えても同じ罠を踏まない」歯止めを入れた**（ユーザー要望）。**候補が0個の選択は開かない**ようにした——0個のモーダルは**誰にも答えられない**のに持ち主としては登録されるので、**それ自体が固まりの素**。カード側に「候補が無いなら聞かない」（善処の原則）を書くのが本筋だが、**1枚でも書き忘れると対局が丸ごと止まる**ので入口でも止める。止まった時は `diag-empty-pick` が残るので、**どのカードが書き忘れているか**が次の報告で分かる。⚠ 候補が1つの時は**今までどおり必ず聞く**（#639）。",
       "🔴 **これらの歯止めが将来外れないよう、検査を1本足した**（26本目・`tools/check-freeze-guards.mjs`）。到達の門・流す保険・空の選択の歯止め・掃除役の18点を見る。わざと3通りに崩して3通りとも名指しで落ちることを確かめてある。⚠ あわせて**「どこにも無い名前」の検査を main.js にも広げた**——この回、私は main.js に `getHandTokens(...)`（別ファイルのローカル関数で export されていない）と書き、`npm run check` を**素通り**した。実行していれば ReferenceError で効果が丸ごと落ちる所だった。誤検知は2つ（`import(` とメソッド定義）で、どちらも潰して実測0件。",
@@ -149,6 +155,8 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "#778 turned out to be the cleanup watchdog cancelling a live choice: the option dialog is built with a class, while the check only looked for ids ending in -modal/-picker/-confirm, so it was invisible to it. It now matches classes too. Being generous here is the safe direction: too generous only delays cleanup, too strict takes a choice away from the player.",
+      "#784: an enlarged card stayed on top of the confirmation dialog. Rather than patching one dialog, any dimming backdrop now dismisses the enlargement, so future dialogs are covered too.",
       "All seven freeze reports turned out to be one bug: a leaked effect picker. There is only one picker slot, so when a nested arrival started while someone was still choosing, it overwrote the outer choice, which then nobody could answer. The document-level pointerdown handler bails out while a picker is active, so the board and the hand both went dead while plain buttons kept working. The earlier fix only covered delegated choices; it now covers any choice in progress.",
       "A general guard was added so new cards cannot repeat this: a picker with zero candidates is never opened, since nobody could answer it. A diagnostic line names the card whenever that happens.",
       "A new check pins these guards in place, and the no-such-name check now covers main.js as well.",
