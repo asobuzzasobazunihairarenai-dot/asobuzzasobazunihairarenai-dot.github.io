@@ -7570,6 +7570,12 @@ body.is-phone-device #admin-panel {
   left: 0;
   right: 0;
   bottom: 0;
+  /* 🔴【#800・続き822】**画面の下端を避ける。** iPhone の下端はホームインジケータの
+     スワイプ帯で、そこに置いたボタンは押すと OS が先に受け取る＝事実上押せない
+     （報告「選択肢が画面下すぎて iPhone のタブ切り替えに反応してしまいます」。#759 と同じ形）。
+     ⚠ 地は画面の端まで届かせたいので、位置はずらさず **padding** で避ける。
+     ⚠ 帯の無い端末では 0 ＝今までと1pxも変わらない。 */
+  padding-bottom: var(--so7-safe-bottom, 0px);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;

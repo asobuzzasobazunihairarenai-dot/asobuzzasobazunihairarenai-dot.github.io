@@ -28,6 +28,7 @@ import {
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 import { SEAT_ORDER } from "./board-layout.js";
 import { markSelfHandled } from "./self-handled-tokens.js";
+import { 送れる形に整える } from "./bug-payload.js"; // 🔴【#805・続き822】バイトで整える
 import { stageGateInvasionRender } from "./gate-invasion-stage.js";
 // マイデッキ戦: ログイン時にアカウント保存のデッキを復元する（my-deck.jsはcards-data.jsのみ
 // 依存の葉モジュールなので、online.jsから直接importしても循環参照にならない）。
@@ -1523,21 +1524,18 @@ function 送れる形に(s, 上限) {
 
 export async function submitBugReport({ comment, actionLog, consoleLog, context } = {}) {
   if (!client) throw new Error(t("on.err.noOnlineBug"));
-  let ctx = context ?? null;
-  if (ctx) {
-    try {
-      const s = JSON.stringify(ctx);
-      if (s.length > BUG_CONTEXT_MAX) ctx = { tooBig: true, bytes: s.length, head: s.slice(0, BUG_CONTEXT_MAX) };
-    } catch (err) {
-      ctx = { contextStringifyError: String(err).slice(0, 200) };
-    }
-  }
+  // 🔴【#805・続き822】**バイトで整える。** 上の BUG_LOG_MAX は**文字数**だったが、
+  //   日本語は UTF-8 で1文字3バイトなので、30万字＝約900KB。2本＋context で合計2MB近くになり、
+  //   受け口で切られて壊れた JSON として弾かれていた（報告 #805 がまさにこれで、
+  //   **墜落の記録がまるごと失われた**）。
+  //   ⚠ 整え方は葉のモジュール（bug-payload.js）に置いてある——node から直に測れるように。
+  const 中身 = 送れる形に整える({ comment, actionLog, consoleLog, context });
   const { error } = await client.from("so7_bug_reports").insert({
     user_id: cachedUser?.id ?? null,
-    comment: 送れる形に(comment ?? "", 4000) ?? "",
-    action_log: 送れる形に(actionLog, BUG_LOG_MAX),
-    console_log: 送れる形に(consoleLog, BUG_LOG_MAX),
-    context: ctx,
+    comment: 中身.comment,
+    action_log: 中身.action_log,
+    console_log: 中身.console_log,
+    context: 中身.context,
   });
   if (error) throw error;
 }

@@ -1,0 +1,112 @@
+// 不具合報告をサーバーへ出す時の「大きさの整え方」。
+//
+// 🔴🔴【#805・続き822】**上限が文字数だったが、本当の制限はバイト数だった。**
+//   報告 #805（パックを開けている時に落ちた）は、報告そのものが
+//   `PGRST102 "Empty or invalid json"` で弾かれ、最小限の形で送り直されていた
+//   ＝**墜落の記録がまるごと失われた**。いちばん要る時に、記録が届かなかった。
+//
+//   続き701 で「1本30万字」に切る手当ては入っていたが、
+//   **日本語は UTF-8 で1文字3バイト**なので、30万字＝約900KB。
+//   2本＋ context で**合計2MB近く**になり、受け口で切られて壊れた JSON として届く。
+//   ⇒ **バイトで測って、全体の合計に上限を置く。**
+//
+// 🔴 **値打ちの順に残す。** 墜落の調べ物でいちばん効くのは `context`（計器の記録）で、
+//   しかも小さい。長いのは行動ログとコンソール。だから:
+//     ① context を先に確保する（小さいので、ほぼ必ず全部入る）
+//     ② 残りをログ2本で分け合う（**後ろ＝直近を残す**。原因に近いのは終わりの方）
+//
+// ⚠ このファイルは**葉**（何も import しない）。online.js から使い、node からも直に測れる。
+
+// 送る本文ぜんぶの合計（UTF-8 のバイト）。受け口の制限より十分に小さく取る。
+export const BUG_TOTAL_BYTES_MAX = 700000;
+// context は小さいが、万一巨大でもここで止める。
+export const BUG_CONTEXT_BYTES_MAX = 150000;
+export const BUG_COMMENT_BYTES_MAX = 12000;
+
+const エンコーダ = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+
+// UTF-8 のバイト数。測れない端末では「1文字3バイト」で多めに見積もる（切りすぎる方が安全）。
+export function バイト数(s) {
+  if (s == null) return 0;
+  const t = String(s);
+  if (エンコーダ) {
+    try { return エンコーダ.encode(t).length; } catch (err) { /* 下の見積もりへ */ }
+  }
+  return t.length * 3;
+}
+
+// 壊れた文字（単独サロゲート＝絵文字の片割れ）を落とす。
+// ⚠ これが残ると UTF-8 にできず、やはり壊れた JSON として届く（続き701）。
+export function 壊れた文字を落とす(s) {
+  if (s == null) return null;
+  return String(s).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+}
+
+// 後ろ（直近）を残してバイトで切る。切った時は頭に断りを書く（黙って短くしない）。
+export function 後ろを残して切る(s, 上限バイト) {
+  if (s == null) return null;
+  let t = 壊れた文字を落とす(s);
+  if (上限バイト <= 0) return "";
+  if (バイト数(t) <= 上限バイト) return t;
+  // 1文字3バイトと見て当たりを付け、入るまで少しずつ縮める（日本語でも数回で収まる）。
+  let 文字数 = Math.max(1, Math.floor(上限バイト / 3));
+  let 候補 = t.slice(-文字数);
+  for (let i = 0; i < 24 && バイト数(候補) > 上限バイト; i++) {
+    文字数 = Math.max(1, Math.floor(文字数 * 0.85));
+    候補 = t.slice(-文字数);
+  }
+  // 切った拍子にサロゲートの片割れが先頭に残ることがある。
+  候補 = 壊れた文字を落とす(候補);
+  const 省いた = t.length - 候補.length;
+  const 断り = "（長すぎたので古い方を " + 省いた + " 文字ぶん省きました）\n";
+  // 断りを足してもう一度はみ出すなら、そのぶんさらに縮める。
+  if (バイト数(断り + 候補) > 上限バイト) {
+    候補 = 壊れた文字を落とす(候補.slice(Math.ceil(バイト数(断り) / 3)));
+  }
+  return 断り + 候補;
+}
+
+// 送る中身を、合計のバイト上限に収まる形へ整える。
+//   戻り値: { comment, action_log, console_log, context, 内訳 }
+//   ⚠ `内訳` は実測用（どれが何バイトになったか）。送らない。
+export function 送れる形に整える({ comment, actionLog, consoleLog, context } = {}) {
+  const 本文 = 後ろを残して切る(comment ?? "", BUG_COMMENT_BYTES_MAX) ?? "";
+
+  // ① context を先に確保する（小さくて、いちばん値打ちがある）。
+  let ctx = context ?? null;
+  let ctxバイト = 0;
+  if (ctx) {
+    try {
+      const s = JSON.stringify(ctx);
+      ctxバイト = バイト数(s);
+      if (ctxバイト > BUG_CONTEXT_BYTES_MAX) {
+        const 頭 = 後ろを残して切る(s, BUG_CONTEXT_BYTES_MAX);
+        ctx = { tooBig: true, bytes: ctxバイト, head: 頭 };
+        ctxバイト = バイト数(JSON.stringify(ctx));
+      }
+    } catch (err) {
+      ctx = { contextStringifyError: String(err).slice(0, 200) };
+      ctxバイト = バイト数(JSON.stringify(ctx));
+    }
+  }
+
+  // ② 残りをログ2本で分け合う。
+  const 残り = Math.max(0, BUG_TOTAL_BYTES_MAX - バイト数(本文) - ctxバイト);
+  const a0 = 壊れた文字を落とす(actionLog) ?? "";
+  const c0 = 壊れた文字を落とす(consoleLog) ?? "";
+  const aバイト = バイト数(a0);
+  const cバイト = バイト数(c0);
+  let a上限 = Math.floor(残り / 2);
+  let c上限 = 残り - a上限;
+  // 片方が小さければ、余りをもう片方へ回す（半分ずつで切り捨てない）。
+  if (cバイト < c上限) { a上限 += c上限 - cバイト; c上限 = cバイト; }
+  else if (aバイト < a上限) { c上限 += a上限 - aバイト; a上限 = aバイト; }
+
+  return {
+    comment: 本文,
+    action_log: actionLog == null ? null : 後ろを残して切る(a0, a上限),
+    console_log: consoleLog == null ? null : 後ろを残して切る(c0, c上限),
+    context: ctx,
+    内訳: { comment: バイト数(本文), context: ctxバイト, a上限, c上限 },
+  };
+}

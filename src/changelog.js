@@ -127,6 +127,8 @@ export const CHANGELOG = [
       "「選択に戻る」のボタンが小さすぎて押しにくかったのを、指で押せる大きさにしました",
       "カードを続けてめくった時、絵が空中に残ることがあったのを片付けるようにしました",
       "勝利演出で、脈動の波がキューブとずれた所から広がっていたのを直しました",
+      "物語の会話で、選択肢が画面のいちばん下にあって押しにくかったのを直しました",
+      "不具合報告が送れずに中身が失われることがあったのを直しました",
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
@@ -151,6 +153,8 @@ export const CHANGELOG = [
       "The “back to choosing” button was too small to tap.",
       "Card art could be left floating after several cards were flipped in a row.",
       "In the victory sequence the pulse rings spread from the wrong place, not from the cube.",
+      "Story dialogue choices sat right at the bottom edge of the screen, where they were hard to tap.",
+      "A bug report could fail to send and lose its contents.",
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
