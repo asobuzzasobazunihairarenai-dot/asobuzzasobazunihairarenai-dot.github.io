@@ -6407,7 +6407,7 @@ document.addEventListener(
           }
           return;
         }
-        // なないろの欠片のLOCK_PAIR等、候補がロックスロットの場合（getOwnLockSlotCandidates
+        // なないろの欠片のLOCK_PAIR等、候補がロックスロットの場合（getOwnEmptyLockSlotCandidates
         // 参照）。以前はここに無く、ロックスロットをクリックしても何も起きないバグだった。
         const lockSlotEl = el.closest(".lock-slot");
         if (lockSlotEl) {
@@ -22747,7 +22747,13 @@ function runHandEffectBusyWatchdog() {
 //     （activeEffectPicker を触る所は20か所以上あり、1つ直しても次が残る）。
 let 置き去りの候補選択 = null;
 let 置き去りを見た時刻 = 0;
+let 置き去りの理由を書いたか = false;
 const PICKER_LEAK_MS = 25000;
+// 🔴【#786〜#788・続き806】**最後の手段**の待ち時間。上の 25 秒で片付かなかった時だけ効く。
+//   報告（#776 #786 #787 #788）では `diag-picker-leak` が**1行も無かった**＝25秒の掃除役が
+//   一度も動いていない。降りた理由を書いていなかったので、どの門で止まったのか分からない。
+//   ⇒ 理由を書き（`diag-picker-leak-blocked`）、60秒たったら**旗の方を時間切れにする**。
+const PICKER_LEAK_FORCE_MS = 60000;
 // 画面に「この候補選択のために押せる物」が在るか。
 function 押せる物が在るか() {
   if (isAnyBlockingModalOpen()) return true; // モーダルで選ぶ種類はこれで拾える
@@ -22755,22 +22761,50 @@ function 押せる物が在るか() {
 }
 function runEffectPickerLeakWatchdog() {
   const picker = activeEffectPicker;
-  if (!picker) { 置き去りの候補選択 = null; return; }
+  if (!picker) { 置き去りの候補選択 = null; 置き去りの理由を書いたか = false; return; }
   if (picker !== 置き去りの候補選択) {
     // 別の候補選択に替わった＝進んでいる。時計を戻す。
     置き去りの候補選択 = picker;
     置き去りを見た時刻 = Date.now();
+    置き去りの理由を書いたか = false;
     return;
   }
   const stuckMs = Date.now() - 置き去りを見た時刻;
   if (stuckMs < PICKER_LEAK_MS) return;
-  if (isCpuSelectingNow()) return;
-  if (getEffectDelegationTarget()) return;
-  // 🔴 ここが肝。押せる物が1つでも在るなら、人が考えているだけかもしれないので触らない。
+
+  // 🔴【続き806】**人がまだ答えられる合図**（絶対に無視しない門）。
+  //   モーダルが出ている／押せる物が在るなら、長考かもしれないので何分でも待つ。
   if (押せる物が在るか()) return;
-  logAction("diag-picker-leak", { type: picker.type ?? null, owner: picker.owner ?? null, stuckMs });
+
+  // 🔴【続き806】**旗の門**（60秒で時間切れにする門）。
+  //   報告では掃除役が一度も動かなかったのに、**降りた理由が1行も残っていなかった**。
+  //   ⇒ まず書く。書くのは候補選択1つにつき1回だけ（5秒ごとに同じ行を並べない）。
+  const 旗 = { cpu: !!isCpuSelectingNow(), delegation: !!getEffectDelegationTarget() };
+  const 旗が立っている = 旗.cpu || 旗.delegation;
+  if (旗が立っている && !置き去りの理由を書いたか) {
+    置き去りの理由を書いたか = true;
+    logAction("diag-picker-leak-blocked", {
+      type: picker.type ?? null,
+      owner: picker.owner ?? null,
+      stuckMs,
+      ...旗,
+      forceInMs: Math.max(0, PICKER_LEAK_FORCE_MS - stuckMs),
+    });
+  }
+  // ⚠ 旗が立っていても **60秒で押し通す**。旗そのものが取り残されている可能性があり
+  //   （どの旗なのかは上の行が次の報告で教えてくれる）、待ち続けると対局が戻らない。
+  if (旗が立っている && stuckMs < PICKER_LEAK_FORCE_MS) return;
+
+  logAction(旗が立っている ? "diag-picker-leak-forced" : "diag-picker-leak", {
+    type: picker.type ?? null,
+    owner: picker.owner ?? null,
+    stuckMs,
+    ...旗,
+  });
   activeEffectPicker = null;
   try { picker.resolve(null); } catch (err) { /* 閉じられなくても進行は続ける */ }
+  置き去りの候補選択 = null;
+  置き去りの理由を書いたか = false;
   render();
 }
 

@@ -673,6 +673,13 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
     const count = getHandTokens(player).filter((t) => t.cardId === cardId).length;
     if (count < 2) return false;
   }
+  // 🔴【#783・続き806】ロックの置き先が要る動詞は、**空きが1つも無ければ使えない**
+  //   （善処の原則＝コストを払わせてから「何も起きない」にしない）。
+  //   ⚠ **データの印ではなく動詞そのもので見る**——印は書き忘れ・読み忘れで静かに
+  //     効かなくなる（続き804 の `drawCount` がまさにそれ）。動詞なら黙って外れない。
+  if (option.actions?.some((a) => a.verb === VERBS.LOCK_PAIR)) {
+    if (getOwnEmptyLockSlotCandidates(player).length === 0) return false;
+  }
   // 桃のキューブ セレナーデ専用。ユーザー指摘: 「善処の原則」は発動宣言の時点で
   // 適用される——条件を満たせないと分かっているなら、コストを払う前の発動宣言
   // 自体ができない（コストだけ払わせて実際には何も起きない、という状態を避ける）。
@@ -848,6 +855,11 @@ function explainHandEffectOptionUnusable(cardId, cardTokenId, player, option) {
     // publicDrawの同名カードも手札としてカウントする（isHandEffectOptionUsableと同じ）。
     const count = getHandTokens(player).filter((t) => t.cardId === cardId).length;
     if (count < 2) return t("ce.L302");
+  }
+  // 🔴【#783・続き806】上と対（こちらは**理由を画面に出す**側）。片方だけ直すと
+  //   「押せないのに理由が出ない」になる。
+  if (option.actions?.some((a) => a.verb === VERBS.LOCK_PAIR)) {
+    if (getOwnEmptyLockSlotCandidates(player).length === 0) return t("ce.needEmptyLockSlot");
   }
   if (option.requiresLockableCardAvailable) {
     const { tokens } = getLockableHandTokensExceptFinal(player);
@@ -1624,16 +1636,26 @@ function cardCanLockIntoColorIndex(cardId, index) {
 
 // なないろの欠片のLOCK_PAIR専用: 自分のロックエリアの7色スロット全部（埋まっている
 // スロットも含む——通常の「1色1枚まで」占有チェックの対象外の特殊ロックのため）。
-function getOwnLockSlotCandidates(player) {
+// 🔴🔴【#783・続き806】**ロックの置き先にこれを使わない。**
+//   ユーザー裁定（2026-11-23）: 「例えば『このカードはすでにロックされたロックエリアにも
+//   ロックできる。』などの効果でない限り、**原則ロックは空いているロックエリアにしか
+//   できません**」。⇒ 置き先を聞く時は必ず `getOwnEmptyLockSlotCandidates` を使う。
+//   ⚠ なないろの欠片（LOCK_PAIR）がこれを直に使っていて、**ロック済みの色にも置けた**。
+//     「通常の1色1枚の占有チェックは対象外」と書いてあったが、それは**2枚を1スロットに
+//     置く**という意味で、**既にあるロックを上書きできる**という意味ではなかった。
+//   ⚠ 名前をわざと「使わない」と読める形にしてある——無害な名前だと次に足す人が同じ穴を
+//     掘る。例外を持つカードが本当に出たら、その時に**カードの文を引いて**ここを呼ぶ。
+function 全スロット_ロックの置き先に使わない(player) {
   const side = SEAT_TO_SIDE[player];
   return COLORS.map((_, index) => ({ zone: "lock", side, index }));
 }
 
 // 黒の契約の烙印専用: 自分のロックエリアの「空いている」スロットだけ（通常のロックと
-// 違い色は問わない、getOwnLockSlotCandidatesと違って占有中のスロットは除外する）。
+// 違い色は問わない、全スロットを返す方と違って占有中のスロットは除外する）。
+// 🔴【#783・続き806】**ロックの置き先はこちらを使う**（上の戒めを参照）。
 function getOwnEmptyLockSlotCandidates(player) {
   const side = SEAT_TO_SIDE[player];
-  return getOwnLockSlotCandidates(player).filter(
+  return 全スロット_ロックの置き先に使わない(player).filter(
     (slot) => !getState().tokens.some((t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && t.location.index === slot.index)
   );
 }
@@ -3237,7 +3259,12 @@ async function runAction(action, ctx, helpers) {
         (t) => t.cardId === "rainbow-shard" && t.id !== ctx.cardTokenId
       );
       if (!partner) return false;
-      const candidates = getOwnLockSlotCandidates(ctx.player);
+      // 🔴【#783・続き806】**空いているロックエリアだけ**（ユーザー裁定）。
+      //   以前は全7スロットを候補にしていたので、**ロック済みの色にも置けた**。
+      //   ⚠ 「2枚を1スロットに置く」特殊さは残る（それは占有の例外ではない）。
+      //   ⚠ 候補は**動かす前に**1回だけ求める（1枚目を置くとそのスロットは空きでなくなる）。
+      const candidates = getOwnEmptyLockSlotCandidates(ctx.player);
+      if (candidates.length === 0) return false;
       const dest = await helpers.pickLocation(candidates, t("ce.L1094"));
       if (!dest) return false;
       await helpers.moveAndSync(ctx.cardTokenId, dest);

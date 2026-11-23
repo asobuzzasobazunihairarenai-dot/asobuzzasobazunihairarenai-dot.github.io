@@ -2454,6 +2454,72 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#783・続き806】ユーザー裁定「例えば『このカードはすでにロックされたロックエリアにも
+    //   ロックできる。』などの効果でない限り、**原則ロックは空いているロックエリアにしか
+    //   できません**」。直す前は全7スロットが候補だったので**ロック済みの色にも置けた**。
+    //   ⚠ 土台の pickLocation は台本の座標をそのまま返す（候補の外でも返る）ので、
+    //     **候補の数**で見る。2つ埋まっていれば 7 − 2 = 5。
+    name: "なないろの欠片(手札): ロック済みのロックエリアは置き先の候補に入らない（#783）",
+    kind: "hand",
+    cardId: "rainbow-shard",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "shard2", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "hand", player: "A" } },
+        // 既にロックしてある2色（ここへは置けない）
+        { id: "locked0", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "locked3", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "lock", side: "bottom", index: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad", "blue-choosable-trap"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "rainbow-shard", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["lock-pair"], location: [{ zone: "lock", side: "bottom", index: 1 }] },
+    expect: [
+      // 🔴 ここが本体: 候補は**空いている5色だけ**（直す前は 7）。
+      { kind: "called", name: "pickLocationCandidates", arg: "5" },
+      { kind: "tokenZone", id: "self", zone: "lock" },
+      { kind: "tokenZone", id: "shard2", zone: "lock" },
+      // 既にあったロックは動かない（上書きしていない）＝**動かしたのは2枚だけ**。
+      //   ⚠ 最初 tokenAtCell で見ようとして落ちた（あれは row/col を見る物）＝私の数え方の間違い。
+      { kind: "called", name: "moveAndSync", n: 2 },
+      { kind: "deckLen", n: 0 }, // 2枚ドローはそのまま
+    ],
+  },
+  {
+    // 🔴【#783・続き806】7色とも埋まっていたら**選択肢そのものが使えない**（善処の原則
+    //   ＝コストを払わせてから「何も起きない」にしない）。**上の1本だけでは足りない**——
+    //   候補が0件でも選べてしまえば、押して何も起きないカードになる。
+    name: "なないろの欠片(手札): ロックエリアが7色とも埋まっていたら「2枚をロック」は選べない（#783）",
+    kind: "hand",
+    cardId: "rainbow-shard",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "shard2", kind: "card", cardId: "rainbow-shard", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "full0", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "full1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "full2", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 2 } },
+        { id: "full3", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 3 } },
+        { id: "full4", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 4 } },
+        { id: "full5", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 5 } },
+        { id: "full6", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 6 } },
+      ],
+      piles: { deck: ["red-jump-pad", "blue-choosable-trap"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "rainbow-shard", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "optionUsable", cardId: "rainbow-shard", tokenId: "self", player: "A", optionId: "lock-pair", usable: false },
+      // 🔴 対照: もう1つの選択肢（1枚ドロー）は**使える**ままでなければならない
+      //   ——でないと「ロックが埋まると札が死ぬ」になってしまう。
+      { kind: "optionUsable", cardId: "rainbow-shard", tokenId: "self", player: "A", optionId: "draw", usable: true },
+    ],
+  },
+  {
     name: "合同建設(到達・委任): 参加者全員に委任される（オーケストレーション）",
     kind: "arrival",
     cardId: "green-joint-construction",

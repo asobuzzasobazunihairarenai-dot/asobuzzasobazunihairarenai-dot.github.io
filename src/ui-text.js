@@ -1263,6 +1263,8 @@ const UI = {
     "ce.0thFrogDiscardLocked": "ロックしているカードから、捨てる１枚を選んでください",
     "ce.0thFlowerPlace": "これを置くマスを選んでください（そのプレイヤーの周囲）",
     "ce.0thCursePickSlot": "これを置くロックエリアを選んでください",
+    // 🔴【#783・続き806】ロックは空いているロックエリアにしかできない（ユーザー裁定）。
+    "ce.needEmptyLockSlot": "空いているロックエリアがありません",
     "ce.0thBridgePickAround": "そのマスの周囲から、これの直下に置くカードを1枚選んでください",
     "ce.0thFlowerGive": "これを渡す相手を選んでください",
     "ce.0thFlowerGiven": "これを{name}の手札に加えました。",
@@ -3805,6 +3807,7 @@ const UI = {
     "ce.0thFrogDiscardLocked": "Choose one of your locked cards to discard",
     "ce.0thFlowerPlace": "Choose a space around that player to place this",
     "ce.0thCursePickSlot": "Choose which lock slot to place this in",
+    "ce.needEmptyLockSlot": "You have no empty lock area.",
     "ce.0thBridgePickAround": "Choose a card around that space to place under this",
     "ce.0thFlowerGive": "Choose who receives this card",
     "ce.0thFlowerGiven": "Gave this card to {name}.",
