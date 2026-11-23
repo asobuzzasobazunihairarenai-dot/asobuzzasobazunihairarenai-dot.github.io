@@ -5148,7 +5148,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.PLACE_SELF_AROUND_MOST_LOCKED: {
       const 候補 = 最多ロックの候補();
       if (候補.length === 0) return false;
-      const target = await helpers.pickPlayer(候補, t("ce.ex0PickMostLocked"));
+      const target = await helpers.pickPlayer(候補, t("ce.ex0PickMostLocked"), { 盤面で選ぶ: true });
       if (!target) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
       if (!piece || piece.location.zone !== "cell") return false;
@@ -5312,13 +5312,25 @@ async function runAction(action, ctx, helpers) {
       return 何かした;
     }
     case VERBS.PLACE_DECK_CARDS_ALONG_CHOSEN_LINE: {
-      const 選択肢 = [];
-      for (let i = 0; i < 7; i++) 選択肢.push({ id: "row" + i, labelKey: null, label: t("ce.0thRainRow", { n: i + 1 }) });
-      for (let i = 0; i < 7; i++) 選択肢.push({ id: "col" + i, labelKey: null, label: t("ce.0thRainCol", { n: i + 1 }) });
-      const 選 = await helpers.pickChoice?.(ctx.cardId, 選択肢, t("ce.0thRainPickLine"));
-      if (!選) return false;
-      const 縦 = String(選).startsWith("col");
-      const n = Number(String(選).slice(3));
+      // 🔴【#777・続き814】**2段階で選ばせる**（ユーザー提案）。
+      //   報告「選択モーダルはなんか選び辛いです。例えば、横一列か縦一列をまずモーダルで
+      //   選ばせて次は盤面でどの列かタップしてもらうとか？」
+      //   ⇒ 14個の選択肢を並べるのをやめ、①向き（2択）②盤面でその列のマスをタップ、にした。
+      //   ⚠ ②は**その列のどのマスでもよい**（49マスぜんぶ候補）。端を狙わせない。
+      //   ⚠ 自動で選ぶ席（CPU・持ち時間切れの代行）も、今までどおりこの2つを順に通る。
+      const 向き = await helpers.pickChoice?.(ctx.cardId, [
+        { id: "row", labelKey: null, label: t("ce.0thRainAxisRow") },
+        { id: "col", labelKey: null, label: t("ce.0thRainAxisCol") },
+      ], t("ce.0thRainPickAxis"));
+      if (!向き) return false;
+      const 縦 = String(向き) === "col";
+      const 行き先 = await helpers.pickLocation(
+        getAllCellCandidates(),
+        縦 ? t("ce.0thRainPickCol") : t("ce.0thRainPickRow"),
+        { purpose: "place" }
+      );
+      if (!行き先) return false;
+      const n = 縦 ? 行き先.col : 行き先.row;
       if (!Number.isFinite(n)) return false;
       let 置いた = 0;
       for (let i = 0; i < 7; i++) {
@@ -5333,7 +5345,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.MOVE_CHOSEN_OPPONENT_TO_ANY_CARD_CELL: {
       const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
       if (相手.length === 0) return false;
-      const target = await helpers.pickPlayer(相手, t("ce.0thForcePickPlayer"));
+      const target = await helpers.pickPlayer(相手, t("ce.0thForcePickPlayer"), { 盤面で選ぶ: true });
       if (!target) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
       if (!piece || piece.location.zone !== "cell") return false;
@@ -5410,7 +5422,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.PLACE_SELF_AT_CHOSEN_OPPONENT_GATE: {
       const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
       if (相手.length === 0) return false;
-      const target = await helpers.pickPlayer(相手, t("ce.0thLostItemPick"));
+      const target = await helpers.pickPlayer(相手, t("ce.0thLostItemPick"), { 盤面で選ぶ: true });
       if (!target) return false;
       const gate = GATE_POSITIONS[SEAT_TO_SIDE[target]];
       if (!gate) return false;
@@ -5628,7 +5640,7 @@ async function runAction(action, ctx, helpers) {
         ? ctx.player
         : 全員.length === 1 && !ctx.forcePrompt
           ? 全員[0]
-          : await helpers.pickPlayer(全員, t("ce.fePickMover"));
+          : await helpers.pickPlayer(全員, t("ce.fePickMover"), { 盤面で選ぶ: true });
       if (!相手) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === 相手);
       // 🔴【#748・続き793】**ジャンプ台と同じ「無意味なループ禁止」を当てる。**

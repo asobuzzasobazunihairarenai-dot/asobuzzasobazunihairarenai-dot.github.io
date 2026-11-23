@@ -54,6 +54,8 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "相手の駒を選ぶ時は、盤面の駒を直接タップするようにしました",
+      "「なないろのあめ」の列の選び方を2段階にしました",
       "相手を選ぶ画面から盤面を見られるようにしました",
       "マイデッキに、**パックで手に入れたカード**を入れられるようになりました",
       "ONLYカードをマイデッキに入れるには、**ふつうのカードが3枚ずつ必要**になりました",
@@ -62,6 +64,8 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "Pick an opponent by tapping their piece on the board",
+      "Rainbow Rain now asks for the line in two steps",
       "See the board from the opponent picker",
       "Cards from packs can now go into My Deck",
       "Each ONLY card in My Deck now needs 3 ordinary cards",
@@ -70,6 +74,8 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "**相手の駒（や、その駒を起点にしたマス）が的になる効果**では、相手を選ぶ画面を出さずに**盤面の駒を直接タップ**して選ぶようにしました。フォース・誰かの好きな花（手札効果）・誰かの落とし物・貴族の特権が対象です。盤面を見ながら決められます。⚠ 相手の手札など**盤面では分からないもの**が的の効果は、今までどおり名前が並ぶ画面から選びます。⚠ 盤面に出ていない人が候補に入っている時は、その人を選べなくならないよう今までどおり画面を出します。",
+      "「なないろのあめ」の手札効果で置く列の選び方を**2段階**にしました。まず「横の列／縦の列」を選び、次に**盤面でその列のマスをどこかタップ**します（どのマスでも構いません）。これまでは14個の選択肢が並んでいました。",
       "相手を選ぶ画面に「盤面を見る」を付けました。押すと画面の中身が消えて盤面が見え、もう一度押すと戻ります。相手を選ぶ時に「どの駒がどこに居るか」を確かめてから決められます。⚠ この画面は元から盤面のアバターを直接押しても選べます（どちらで選んでも同じです）。",
       "マイデッキの候補に、**パックや報酬で手に入れたカードも並ぶ**ようになりました（0th EDITION 拡張・1st EDITION・限定報酬）。並ぶのは**持っているカードだけ**で、入れられる枚数も**持っている枚数まで**です。同じ名前は7枚まで、ONLYカード（絵の左下に ONLY と印字）は1種類1枚まで——**マイ山札と同じ決まり**にそろえました。⚠ これまで上限が「実物に刷られている枚数」だったカード（色落ちキャット1枚・白黒2枚）も**7枚まで**になりました。緩くなる方向なので、いま保存してあるマイデッキはそのまま使えます。",
       "**ONLYカード**（絵の左下に ONLY と刷ってあるカード）が、マイデッキでは**スペシャルカード**の扱いになりました。無色のカードや「なないろの欠片」と同じで、**1枚入れるごとに、スペシャルでない通常カードを3枚**入れる必要があります。マイデッキ戦の決まりとして前から決まっていたもので、ONLYカードがマイデッキの候補に並ぶようになったので、ここで効くようになりました。ⓘ ONLYカードは**1種類につき1枚まで**（こちらは今までどおり）。⚠ すでに保存してあるマイデッキにONLYカードが入っている場合、編集画面で「スペシャルカードに必要な枚数が足りません」と出ることがあります。その時はふつうのカードを足してください。",
@@ -78,6 +84,8 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "When an effect targets an opponent's piece (or a square based on it), you now pick them by tapping their piece on the board instead of through a dialog. Effects that target something you cannot see on the board, such as an opponent's hand, still use the dialog.",
+      "Rainbow Rain now asks for the line in two steps: first across or down, then tap any square in the line you want. It used to list fourteen options.",
       "The opponent picker now has a see-the-board button: press it to hide the dialog and look at the board, press again to bring it back. You can still pick an opponent by tapping their avatar on the board, as before.",
       "Cards you have obtained from packs or rewards (0th Edition Expansion, 1st Edition and limited rewards) now appear as My Deck candidates. Only cards you actually own are listed, and you can add up to as many copies as you own: at most 7 of the same name, and 1 for an ONLY card - the same rules as My Stack. Cards that were previously capped at their printed count (Faded Cat 1, white and black 2) can now go up to 7 as well, so every deck you have saved stays valid.",
       "**ONLY cards** (the ones with ONLY printed at the lower left of the art) now count as **special cards** in My Deck, just like colorless cards and Shard of Seven Colors: each one requires **3 non-special normal cards** in the same deck. This was always part of the My Deck rules; it takes effect now that ONLY cards appear as My Deck candidates. You can still include at most one copy of each ONLY card. If a deck you already saved contains an ONLY card, the editor may now tell you that you need more non-special cards: just add ordinary cards until it clears.",
@@ -102,6 +110,7 @@ export const CHANGELOG = [
       "情報開示などで引いた「このターン使えない」カードしか無い時、ハンドフェイズが自動で飛ぶようにしました",
       "HUERISEの画面でタップした時、燃える演出の前に次の画面が一瞬見えることがあったのを直しました",
       "カードを拡大したまま確認の画面が出ると、拡大が重なって見えなかったのを直しました",
+      "マイページの「マイデッキ編集」「マイ山札を作る」の文字を外しました（絵を押せば同じ所へ行けます）",
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
@@ -121,6 +130,7 @@ export const CHANGELOG = [
       "The hand phase now skips itself when every card you hold cannot be used this turn.",
       "Tapping on the HUERISE screen could flash the next screen before the burn started.",
       "An enlarged card could cover the confirmation dialog that opened behind it.",
+      "My Page no longer repeats the deck and stack editor links as text; the artwork opens them.",
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [

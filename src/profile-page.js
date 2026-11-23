@@ -252,14 +252,12 @@ export function openProfilePage(onClose) {
   }
   mydeckWrap.appendChild(cover);
 
-  // 「マイデッキ編集」ボタン（ユーザー要望2026-08-16：ボタン枠は不要＝テキストリンク調）。
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.id = "profile-maindeck-edit";
-  // ユーザー要望2026-08-16「マイデッキ編集ボタンの絵文字アイコンは不要」。
-    editBtn.innerHTML = `<span>${t("pp.editDeck")}</span>`;
-  editBtn.addEventListener("click", openEditor);
-  mydeckWrap.appendChild(editBtn);
+  // 🔴【#758・続き814】**テキストの「マイデッキ編集」は外した**（ユーザー判断）。
+  //   ユーザー要望「**絵をタップすれば編集ページに行ければいいので、テキストの
+  //   マイデッキ編集とマイ山札を作るはいらないかも！**」。
+  //   上の箱（cover）が既に同じ openEditor を呼ぶので、**同じことを2つ並べていた**。
+  //   ⚠ 箱の座標（管理者が詰めた --profile-maindeck-*）には1行も触っていない。
+  //   ⚠ 押せる所が減ったわけではない——箱そのものが大きな当たり判定。
 
   // 🔴【2026-11-15・続き726】ユーザー要望「**マイ山札作成をマイページにも実装しよう！**」。
   //   マイデッキ編集のすぐ下に、同じテキストリンク調で並べる。
@@ -270,15 +268,8 @@ export function openProfilePage(onClose) {
   //     profile-page → my-stack-editor → cards-data と輪になり得る）。
   //   ⚠ ここはマイページを**閉じない**——編集画面は全画面で上に重なるので、
   //     閉じると戻った時にマイページが消えてしまう。
-  const stackBtn = document.createElement("button");
-  stackBtn.type = "button";
-  stackBtn.id = "profile-mystack-edit";
-  stackBtn.innerHTML = `<span>${t("pp.editStack")}</span>`;
-  stackBtn.addEventListener("click", async () => {
-    const m = await import("./my-stack-editor.js");
-    m.openMyStackEditor();
-  });
-  mydeckWrap.appendChild(stackBtn);
+  // 🔴【#758・続き814】**テキストの「マイ山札を作る」も外した**（ユーザー判断）。
+  //   下の「メイン山札」の箱（sCover）が同じ openMyStackEditor を呼ぶ。
 
   overlayEl.appendChild(mydeckWrap);
 

@@ -8888,9 +8888,13 @@ function isCpuSelectingNow(owner) {
   const seat = owner ?? effectChoiceSeatOverride ?? getState().priorityPlayer;
   return isPseudoCpuTarget(seat);
 }
-function showEffectPickerHint(text) {
+function showEffectPickerHint(text, owner) {
   // CPUが選択中の「○○を選択してください」案内は出さない（結果通知は別途出す）。
-  if (isCpuSelectingNow()) return;
+  // 🔴【続き814】**選ぶ主体を見る。** 引数が無いと「今のターンの席」で見てしまい、
+  //   相手の手番に割り込んで選ぶ場面（ゴメンナサイ等、owner を渡す呼び出し）で
+  //   **ハイライトは出るのに案内だけ出ない**。モーダルを省く効果（#779）では
+  //   案内が唯一の説明なので、ここがずれると「光っているが何をすればいいか分からない」になる。
+  if (isCpuSelectingNow(owner)) return;
   if (!effectPickerHintEl) {
     effectPickerHintEl = document.createElement("div");
     effectPickerHintEl.id = "card-effect-picker-hint";
@@ -9996,16 +10000,27 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
     // owner（選ぶ主体）を渡せる（#33、ゴメンナサイ等の人間リアクション対応）。
     const 人が選ぶ = !isCpuSelectingNow(pickerOwner(options.owner));
     let modal = null;
+    // 🔴【#779 #780・続き814】**駒（＝盤面の場所）が的の効果は、モーダルを出さない。**
+    //   ユーザー判断「盤面の駒または駒を起点にしたマスを選択する場合と、純粋に相手
+    //   （相手の手札など）を対象に選ぶ場合とで分けましょう」。
+    //   ⚠ 盤面で選ぶ効果でモーダルを重ねると、**見たい盤面をそのモーダルが隠す**
+    //     （報告そのもの）。逆に手札が的なら盤面を見ても分からないのでモーダルが要る。
+    //   🔴 **#720 を復活させない条件つき**: **候補全員が盤面で押せる時だけ**省く。
+    //     自分の盤面アバターは既定で出ない設定があり（#720）、その時にモーダルまで
+    //     消すと**自分を選べなくなる**。1人でも押せない候補が居ればモーダルを出す。
+    const 盤面だけで足りる = !!options.盤面で選ぶ && entries.every((e) => !!e.el);
     if (人が選ぶ) {
       for (const entry of entries) entry.el?.classList.add("card-effect-target-avatar");
       // 【#461】アバターのハイライトに加えて、名前を並べたモーダルからも選べるようにする。
-      modal = buildPlayerPickModal(entries, hint, (player) => {
-        // 盤面のアバターを押した時とまったく同じ道を通す（後始末を二重に書かない）。
-        activeEffectPicker?.resolve?.(player);
-      });
-      document.body.appendChild(modal);
+      if (!盤面だけで足りる) {
+        modal = buildPlayerPickModal(entries, hint, (player) => {
+          // 盤面のアバターを押した時とまったく同じ道を通す（後始末を二重に書かない）。
+          activeEffectPicker?.resolve?.(player);
+        });
+        document.body.appendChild(modal);
+      }
     }
-    if (hint) showEffectPickerHint(hint);
+    if (hint) showEffectPickerHint(hint, pickerOwner(options.owner));
     activeEffectPicker = {
       type: "player",
       owner: pickerOwner(options.owner) ?? null,
@@ -10553,8 +10568,9 @@ export function getStallDiagnostics() {
 // 「候補ぜんぶがモーダルに並ぶか・自分の席を選べるか」を確かめられなかった。
 // ⚠ 読むだけの口ではないが、**呼ばれない限り何も起きない**（board-3d.js の
 //   debugImageTextures と同じ「検証用」の棚）。アプリ側のどこからも呼んでいない。
-export function debugOpenPlayerPick(candidates, hint) {
-  return requestPlayerChoiceForEffect(candidates, hint);
+export function debugOpenPlayerPick(candidates, hint, options) {
+  // 【続き814】options も渡す（盤面で選ぶ／モーダルで選ぶの切り分けを実測するため）。
+  return requestPlayerChoiceForEffect(candidates, hint, options);
 }
 
 // 【続き754】同じ棚: マスと手札の選択も実測から呼べるようにする（どちらも main.js の

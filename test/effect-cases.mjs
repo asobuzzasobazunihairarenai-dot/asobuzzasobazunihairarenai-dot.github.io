@@ -224,6 +224,57 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#777・続き814】なないろのあめ■は**2段階**で選ぶ（ユーザー提案）。
+    //   ①向き（横／縦の2択） ②**盤面でその列のマスをどこかタップ**。
+    //   ⚠ 以前は14個の選択肢を並べていた（報告「選び辛い」）。
+    name: "旧0th なないろのあめ(手札): 横の列を選び、盤面のマスで何列目かを決める",
+    kind: "hand",
+    cardId: "0th-white-rainbow-rain",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "0th-white-rainbow-rain", faceUp: false, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-white-rainbow-rain", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    // ①「横」を選び、②4行目のマス（どの列でもよい＝col 5 を押す）
+    picks: { choice: ["row"], location: [{ row: 3, col: 5 }] },
+    expect: [
+      // 聞いたのは2回だけ（14択のモーダルではない）
+      { kind: "called", name: "pickChoice", n: 1 },
+      { kind: "called", name: "pickChoiceOptions", arg: "row,col" },
+      { kind: "called", name: "pickLocation", n: 1 },
+      // 押したのは (3,5) だが、置かれるのは**4行目のぜんぶ**
+      { kind: "cardAtCell", row: 3, col: 0 },
+      { kind: "cardAtCell", row: 3, col: 6 },
+      { kind: "deckLen", n: 0 },
+    ],
+  },
+  {
+    // 🔴 対照: 「縦」を選べば**列**が埋まる（行ではない）。
+    //   片方だけだと「いつでも同じ所に置く」でも通ってしまう。
+    name: "旧0th なないろのあめ(手札): 縦の列を選ぶと、押したマスの列が埋まる",
+    kind: "hand",
+    cardId: "0th-white-rainbow-rain",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "0th-white-rainbow-rain", faceUp: false, location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-white-rainbow-rain", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    picks: { choice: ["col"], location: [{ row: 5, col: 2 }] },
+    expect: [
+      { kind: "cardAtCell", row: 0, col: 2 },
+      { kind: "cardAtCell", row: 6, col: 2 },
+      { kind: "deckLen", n: 0 },
+    ],
+  },
+  {
     name: "旧0th にじいろの呪い(到達): 自分の空いているロックエリアへ表向きで置く",
     kind: "arrival",
     cardId: "0th-black-rainbow-curse",
