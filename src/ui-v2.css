@@ -1361,10 +1361,27 @@ body.ui-v2 .huerise-burn-svg {
 
 /* 燃えている間、本物の紙は**地の色だけ**を手放す（白は SVG が描く）。
    子（HUERISE のボタン・人魂）はそのまま残し、ゆっくり薄れさせる。 */
+/* 🔴【#793・続き818】**ここが「タイトルが一瞬出る」の本体だった。**
+   以前は `background: transparent` ＋ 0.55秒のフェードで、**押した瞬間に地が消えていた**。
+   SVG の紙は feTurbulence のフィルタ付きグループの中に在るので、重い端末では
+   焼き上がるまで出ない——その隙間に下の画面が丸見えになる（報告は「スマホだけ」）。
+   ⇒ **紙は残し、穴で消す。** 穴の半径は opening-screen.js が演出と同じコマで入れる。
+   ⚠ フェードはやめた（穴が画面いっぱいに広がれば、それ自体が消えることになる）。
+   ⚠ 既定（?ui=0）側の同じ規則は style.css に在る（同じ考え方）。 */
 body.ui-v2 .opening-start-gate.is-burning {
-  background: transparent;
+  background: #ffffff;
   pointer-events: none;
-  animation: huerise-gate-fade 0.55s ease forwards;
+  animation: none;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--burn-hole-x, 50%) var(--burn-hole-y, 50%),
+    transparent var(--burn-hole-r, 0%),
+    #000 calc(var(--burn-hole-r, 0%) + 1%)
+  );
+  mask-image: radial-gradient(
+    circle at var(--burn-hole-x, 50%) var(--burn-hole-y, 50%),
+    transparent var(--burn-hole-r, 0%),
+    #000 calc(var(--burn-hole-r, 0%) + 1%)
+  );
 }
 @keyframes huerise-gate-fade {
   0% { opacity: 1; }

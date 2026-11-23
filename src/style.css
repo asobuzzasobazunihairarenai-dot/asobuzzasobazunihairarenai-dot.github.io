@@ -29393,3 +29393,25 @@ body.theme-light #player-pick-modal.is-peeking,
   pointer-events: none;
   box-shadow: 0 0.1rem 0.35rem rgba(0, 0, 0, 0.4);
 }
+
+/* 🔴【#793・続き818】HUERISE の燃える演出:【覆いを、フィルタに頼らない層でも確保する】
+   報告「まだHUERISE画面でタップした直後にタイトル画面が一瞬でます（スマホだけ）」。
+   正体は、SVG の紙が **feTurbulence + feDisplacementMap のフィルタ付きグループの中**に
+   在ること——重い端末ではフィルタが焼き上がるまで**紙ごと出ない**ので、
+   その隙間に下の画面が丸見えになる。
+   ⇒ ゲート自身を「白い紙＋同じ穴」にする。マスクは**合成だけ**で済むので必ず出る。
+   ⚠ 穴の中心と半径は opening-screen.js が**演出と同じコマ**で入れる（%）。
+   ⚠ 半径が入る前（既定 0%）は**穴が無い＝真っ白**＝今までの `is-closing` と同じ。 */
+.opening-start-gate.is-burning {
+  background: #ffffff;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--burn-hole-x, 50%) var(--burn-hole-y, 50%),
+    transparent var(--burn-hole-r, 0%),
+    #000 calc(var(--burn-hole-r, 0%) + 1%)
+  );
+  mask-image: radial-gradient(
+    circle at var(--burn-hole-x, 50%) var(--burn-hole-y, 50%),
+    transparent var(--burn-hole-r, 0%),
+    #000 calc(var(--burn-hole-r, 0%) + 1%)
+  );
+}
