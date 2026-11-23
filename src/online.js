@@ -4348,9 +4348,20 @@ function subscribeToGame(gameId, { announceJoin = false } = {}) {
   // プレイヤーより先に届き得た。個々の送信箇所（30か所以上）を直すより漏れが無いので、
   // チャンネルの送信口1か所で塞ぐ。不具合ログのやりとりだけは対局に影響しないので通す。
   const rawBroadcastSend = broadcastChannel.send.bind(broadcastChannel);
+  // 🔴【#798・続き820】**同じ出来事は1回しか書かない。**
+  //   報告「観戦にはいったらうまく試合が始まりませんでした」を調べようとしたら、
+  //   行動ログの末尾が `diag-spectator-blocked` ばかり **548件**で、
+  //   **全部 `cursor_position`**（マウスの位置＝毎秒何回も送る）だった。
+  //   行動ログは巻き取り式なので、**肝心の「なぜ始まらなかったか」が流れて消えていた**。
+  //   ＝**記録が調査を潰していた。**
+  //   ⇒ 種類ごとに1回だけ書く。2回目からは数えるだけで、次に別の種類を書く時に添える。
+  const 塞いだ数 = new Map();
   broadcastChannel.send = (msg) => {
     if (spectating && !SPECTATOR_ALLOWED_BROADCASTS.has(msg?.event)) {
-      logAction("diag-spectator-blocked", { event: msg?.event ?? null });
+      const 種類 = msg?.event ?? "null";
+      const 前 = 塞いだ数.get(種類) || 0;
+      塞いだ数.set(種類, 前 + 1);
+      if (前 === 0) logAction("diag-spectator-blocked", { event: 種類, 以後は数えるだけ: true });
       return Promise.resolve("ok");
     }
     return rawBroadcastSend(msg);

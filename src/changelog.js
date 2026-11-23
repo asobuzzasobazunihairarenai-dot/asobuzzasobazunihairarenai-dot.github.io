@@ -126,6 +126,7 @@ export const CHANGELOG = [
       "長押しでカードを見る時、「↑補足」の案内が拡大したカードに隠れていたのを直しました",
       "「選択に戻る」のボタンが小さすぎて押しにくかったのを、指で押せる大きさにしました",
       "カードを続けてめくった時、絵が空中に残ることがあったのを片付けるようにしました",
+      "勝利演出で、脈動の波がキューブとずれた所から広がっていたのを直しました",
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
@@ -149,6 +150,7 @@ export const CHANGELOG = [
       "The long-press hint was hidden behind the enlarged card.",
       "The “back to choosing” button was too small to tap.",
       "Card art could be left floating after several cards were flipped in a row.",
+      "In the victory sequence the pulse rings spread from the wrong place, not from the cube.",
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [

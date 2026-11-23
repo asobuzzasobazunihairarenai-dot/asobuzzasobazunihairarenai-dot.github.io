@@ -302,7 +302,21 @@ export async function playVictoryCelebration(player, opts = {}) {
     // 🔴 【2026-10-29】カメラが寄ると**盤面上の駒は画面の中で動く**。衝撃波と白の中心を
     //    最初に測った cube のまま使うと、寄った後にずれる（続き608 で踏んだ「ゴーストが
     //    カメラの外に居る」のと同じ形）。寄りが入り得る段では必ず今の位置を測る。
-    const cubeNow = () => (piece ? centerOf(piece) : cube);
+    // 🔴【#797・続き820】**キューブが実際に見えている所**を返す。
+    //   以前は駒の中心をそのまま返していたが、キューブは translateZ で持ち上がっている
+    //   ぶん位置を補正して置かれている（placeGhostCube）。ここが報告
+    //   「脈動の波動がキューブとは全然違うところで起こってました」の本体——
+    //   衝撃波（spawnPulseRing）と溜まる環（spawnCubeRing）はこの値を使う。
+    //   ⚠ ジュエルの駒は壁を消して天面だけにしてある（#730・続き790）ので、
+    //     見えている中心が大きく動く＝ずれが目に見えるほど大きくなっていた。
+    //   ⚠ まだキューブが出ていない段（WAIT/COLORS）では、今までどおり駒の中心。
+    const cubeNow = () => {
+      if (ghost) {
+        const r = rectOf(ghost);
+        if (r.width > 0) return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+      return piece ? centerOf(piece) : cube;
+    };
 
     // --- WAIT: 操作を止め、BGMを短くフェードダウンして間を作る ---------------------
     stage("WAIT");
@@ -740,6 +754,14 @@ function placeGhostCube(outer, piece, center, sizePx) {
     outer.style.left = `${center.x + (center.x - (cr.left + cr.width / 2))}px`;
     outer.style.top = `${center.y + (center.y - (cr.top + cr.height / 2))}px`;
   }
+  // 🔴【#797・続き820】**補正した後の「見えている中心」を返す。**
+  //   脈動の輪とひびも**同じ所**へ置くため（別々に置くと、補正ぶんだけ離れる＝報告の形）。
+  //   ⚠ 補正できなかった時（複製がまだ測れない）は、元の中心をそのまま返す。
+  const 見えている中心 = rectOf(outer);
+  if (見えている中心.width > 0) {
+    return { x: 見えている中心.left + 見えている中心.width / 2, y: 見えている中心.top + 見えている中心.height / 2 };
+  }
+  return center;
 }
 
 // 【2026-10-29・ユーザー案⑤】吸った七色がキューブの周りに溜まっていく環。
@@ -808,18 +830,23 @@ function trackCubeLayers(getGhost, getRing, getCracks, piece, player) {
     if (key === last) return;
     last = key;
     const center = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    placeGhostCube(getGhost(), piece, center, r.width);
+    // 🔴【#797・続き820】**輪とひびは、キューブが実際に見えている中心へ置く。**
+    //   キューブは translateZ で持ち上がっているぶん位置を補正している（placeGhostCube）。
+    //   輪だけ補正前の駒の中心に置いていたので、**補正ぶんだけ離れて見えた**（報告の形）。
+    //   ⚠ ジュエルの駒は壁を消して天面だけにしてある（#730・続き790）ので、
+    //     見えている中心が大きく動く＝ずれが目に見えるほど大きくなっていた。
+    const 中心 = placeGhostCube(getGhost(), piece, center, r.width) || center;
     const ring = getRing();
     if (ring) {
-      ring.style.left = `${center.x}px`;
-      ring.style.top = `${center.y}px`;
+      ring.style.left = `${中心.x}px`;
+      ring.style.top = `${中心.y}px`;
       ring.style.width = `${r.width * 2.6}px`;
       ring.style.height = `${r.width * 2.6}px`;
     }
     const cracks = getCracks();
     if (cracks) {
-      cracks.style.left = `${center.x}px`;
-      cracks.style.top = `${center.y}px`;
+      cracks.style.left = `${中心.x}px`;
+      cracks.style.top = `${中心.y}px`;
       cracks.style.width = `${r.width * 1.7}px`;
       cracks.style.height = `${r.width * 1.7}px`;
     }
