@@ -125,8 +125,21 @@ const textureCache = new Map();
 //   6MB（背景）まで**30倍**ちがう。枚数で切ると「背景1枚を捨ててカードの絵32枚を残す」
 //   ような取り違えが起きる（実測: 背景 1672x941＝6MB・プレイマット 1080x1080＝4.45MB・
 //   カードの絵 256x256＝0.25MB）。
-const IMAGE_TEX_SPARE_MB = 6; // いま貼っている分への上乗せ（めくり戻しを吸収＝カードの絵24枚ぶん）
-const IMAGE_TEX_HARD_MAX_MB = 32; // 端末のメモリのための絶対上限
+// 🔴【#797 ほか墜落10件・続き821】**スマホだけ、持ち分をさらに絞る。**
+//   墜落の記録を10件とも読んだら、**全部 dpr 3 のスマホ**で、例外ではなく
+//   **OS がタブを捨てていた**（`prevLastError: null`）。いちばん新しい #797 の内訳は
+//   合計 93MB ＝ canvas 24 ＋ **WebGLのテクスチャ 34** ＋ 画像 14 ＋ 合成層 15 ＋ 音 11 で、
+//   **いちばん大きいのがテクスチャ**（115枚）。
+//   ⚠ PC では1件も落ちていないので、**PC は今までどおり**（絵の読み直しを増やさない）。
+//   ⚠ 捨てても絵は消えない（次に要る時に読み直すだけ）。
+//   🔴 **これで落ちなくなったとは言えない。** 山をもう一段下げただけ。
+function スマホか() {
+  try { return document.body.classList.contains("is-phone-device"); } catch { return false; }
+}
+const IMAGE_TEX_SPARE_MB_PC = 6; // いま貼っている分への上乗せ（めくり戻しを吸収＝カードの絵24枚ぶん）
+const IMAGE_TEX_HARD_MAX_MB_PC = 32; // 端末のメモリのための絶対上限
+const IMAGE_TEX_SPARE_MB_PHONE = 3;
+const IMAGE_TEX_HARD_MAX_MB_PHONE = 18;
 let imageTextureEvictions = 0;
 const textureLoader = new THREE.TextureLoader();
 
@@ -411,7 +424,11 @@ function pruneImageTextures() {
     合計MB += m;
     if (使用中.has(t)) 使用中MB += m;
   }
-  const budget = Math.min(IMAGE_TEX_HARD_MAX_MB, 使用中MB + IMAGE_TEX_SPARE_MB);
+  // 【続き821】スマホは絞る（上の注）。**毎回見る**——端末の判定は後から付くことがある。
+  const 絞る = スマホか();
+  const 上限 = 絞る ? IMAGE_TEX_HARD_MAX_MB_PHONE : IMAGE_TEX_HARD_MAX_MB_PC;
+  const 余白 = 絞る ? IMAGE_TEX_SPARE_MB_PHONE : IMAGE_TEX_SPARE_MB_PC;
+  const budget = Math.min(上限, 使用中MB + 余白);
   if (合計MB <= budget) return;
   for (const [key, t] of [...textureCache]) {
     if (合計MB <= budget) break;
@@ -647,11 +664,15 @@ function backgroundImageUrl(el) {
 //     （実測で1238画素要る）ので触らない。ロックの帯も663画素要るので触らない。
 //   ⚠ **元の絵（assets）は1枚も触っていない。** 長押しの拡大・右上に出るカードは
 //     DOMが原寸で出すので、今までどおりくっきり出る。
-const CARD_TEX_MAX_PX = 256;
+// 🔴【続き821】スマホはもう一段小さく。上のコメントのとおり**実測で要るのは約160画素**なので、
+//   192 でも 1.2倍の余裕がある。面積は (192/256)^2 = 56%＝テクスチャの山がほぼ半分になる。
+//   ⚠ PC は 256 のまま（落ちていないので画質を下げる理由が無い）。
+const CARD_TEX_MAX_PX_PC = 256;
+const CARD_TEX_MAX_PX_PHONE = 192;
 function texCapFor(el) {
   if (!el || !el.classList) return 0;
   return el.classList.contains("board-card") || el.classList.contains("stack-top") || el.classList.contains("piece-face")
-    ? CARD_TEX_MAX_PX
+    ? (スマホか() ? CARD_TEX_MAX_PX_PHONE : CARD_TEX_MAX_PX_PC)
     : 0;
 }
 // 読み込んだ絵を小さい canvas へ描き直して、そちらをGPUへ渡す。
