@@ -9,7 +9,7 @@ import { logAction } from "./action-log.js";
 import { getCardDefinition } from "./cards-data.js";
 import { getPlayerName, getPlayerAvatar } from "./player-identity.js";
 import { getAvatarVariant, applyAvatarContent } from "./avatar-render.js";
-import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
+import { createModalCloseX, createBackdrop, showNoticeModal } from "./ui-helpers.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ6
 import { playVictoryBgm, stopVictoryBgm } from "./sound.js";
 import { showPostGamePanel, showCpuBattleEndPanel } from "./post-game-panel.js";
@@ -38,6 +38,14 @@ import { isGateInvasionPending } from "./online.js";
 const VICTORY_MODAL_MIN_DISPLAY_MS = 5000;
 
 let announcedPlayers = new Set();
+// 🔴【#807・続き823】**7色以外の決着（降参・放置敗北）を覚えておく箱。**
+//   announcedPlayers は resetVictoryTracking() で作り直され、その時に戻されるのは
+//   **7色そろっている人だけ**。降参で勝った対局はロックが数色しかないので、
+//   作り直された瞬間に決着が消え、hasAnyoneWon() が false に戻る。すると
+//   持ち時間も自動処理も**再開**し、放置敗北の見張りまで動き出して
+//   **決着済みのランク対局に放置敗北を申告する**（#807 の実機ログがまさにこれ）。
+//   ⚠ 覚えるのは**どの対局か**も一緒に（連戦では忘れてよい＝新しい対局はふつうに始まる）。
+let 決着した = null; // { gameId, winner }
 
 // セットアップウィザードの手順1（盤面リセット）が走った時に呼ぶ。新しい対戦の開始なので、
 // 前回の対戦で誰が勝っていたかの記録をリセットし、同じプレイヤーが再度勝った時にも
@@ -51,6 +59,12 @@ export function resetVictoryTracking() {
   // 従来通り完全なリセットとして働く。
   for (const player of getState().activePlayers ?? []) {
     if (hasAllSevenLocked(player)) announcedPlayers.add(player);
+  }
+  // 🔴【#807・続き823】**同じ対局の、7色以外の決着（降参・放置敗北）は戻す。**
+  //   上の数え直しは7色そろっている人しか戻さないので、ここが無いと
+  //   降参の勝ちだけが消える。⚠ 対局が変わったら戻さない（連戦のため）。
+  if (決着した && 決着した.gameId !== null && 決着した.gameId === getCurrentGameId()) {
+    announcedPlayers.add(決着した.winner);
   }
   // 新しい対戦＝前の対戦の試合ID（戦績システム側）は使い回さない。同じ部屋で連戦しても
   // 試合は別物なので、必ず捨ててから次の勝敗確定で新しいIDを採番する。
@@ -82,7 +96,15 @@ let wasGameStartedForVictoryTracking = false;
 subscribe(() => {
   const started = Boolean(getState().turnPlayer);
   if (started && !wasGameStartedForVictoryTracking) {
-    resetVictoryTracking();
+    // 🔴【#807・続き823】ここは turnPlayer が null→非null になったことで
+    //   「新しい対局が始まった」と**当て推量している**所。オンラインで
+    //   **同じ対局（gameId が同じ）に決着が付いている**なら、それは新しい対局ではない
+    //   （取り込み直しで一瞬 null になっただけ）。作り直すと決着が消えて対局が再開する。
+    //   ⚠ ローカル（CPU戦・物語）は gameId を持たないので、**今までどおり必ず作り直す**
+    //     （あちらの新しい対局は、セットアップと「もう一度遊ぶ」が明示的に呼ぶ）。
+    const 同じ対局で決着済み =
+      isOnlineMode() && !!決着した && 決着した.gameId !== null && 決着した.gameId === getCurrentGameId();
+    if (!同じ対局で決着済み) resetVictoryTracking();
   }
   wasGameStartedForVictoryTracking = started;
 });
@@ -275,6 +297,31 @@ async function waitForGateInvasionToFinish() {
   logAction("diag-victory-wait-gate-invasion", { phase: "end", timedOut: busy() });
 }
 
+// 🔴【#807・続き823】**結果の鎖に、通信で止まる所を作らない。**
+//   下の鎖の各段は try/catch に包んであるが、**解決しない await は catch では捕まらない**。
+//   1つ止まると以降が全部出ないまま、プレイヤーは盤面に取り残される
+//   （#807「ゲームの画面のままになってる」の、もう1つの道）。
+//   ⚠ 当てるのは**通信だけ**。モーダル（人の返事を待つもの）には当てない——
+//     あちらは「遅い」のではなく「待っている」ので、打ち切ると勝手に閉じてしまう。
+//   ⚠ 打ち切ったら**1行残す**（黙って飛ばすと、次に同じことが起きても分からない）。
+const 鎖の制限MS = 20000;
+async function 通信を待つ(名, p) {
+  let 時計 = null;
+  try {
+    return await Promise.race([
+      p,
+      new Promise((_, ng) => {
+        時計 = setTimeout(() => {
+          logAction("diag-victory-step-timeout", { step: 名, ms: 鎖の制限MS });
+          ng(new Error(名 + " timeout"));
+        }, 鎖の制限MS);
+      }),
+    ]);
+  } finally {
+    if (時計) clearTimeout(時計);
+  }
+}
+
 export function checkForVictory() {
   for (const player of getState().activePlayers) {
     if (announcedPlayers.has(player)) continue;
@@ -294,6 +341,8 @@ export function checkForVictory() {
 export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
   if (announcedPlayers.has(player)) return;
   announcedPlayers.add(player);
+  // 🔴【#807・続き823】7色以外の決着（降参・放置敗北）も覚える（上の箱のコメント参照）。
+  決着した = { gameId: getCurrentGameId() ?? null, winner: player };
   logAction("diag-match-concluded", { winner: player, reason });
   // 不具合#36診断: 勝利判定が成立した瞬間の、勝者の7色スロットの中身を記録する
   // （ゴメンナサイでロックを奪ったのに相手が勝ってしまう報告の追跡用。どの色が実際に
@@ -346,7 +395,7 @@ export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
     // **降参で勝った時は7色そろっていない**ので、そのまま出すと集まる色が足りない
     // 嘘の演出になる。降参の時は演出を飛ばし、勝利モーダルの副題も差し替える。
     const celebration = reason === "resign" ? null : await playVictoryCelebration(player);
-    showVictoryModal(player, async () => {
+    const 結果へ進む = async () => {
       // #189の教訓: ここから先は「途中で1つ失敗したら残り全部が出ない」直列の鎖になっている。
       // 実際に post-game-panel.js の変数名衝突で例外が出て、CPU戦の終了パネルが出ず
       // 「勝利モーダルを閉じたら盤面に戻され、その後どうすれば？」という状態になった。
@@ -379,7 +428,7 @@ export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
       if (player === getSelfSeat()) void noteProgress("win");
       if (isCpuBattleActive() && player === getSelfSeat()) {
         try {
-          const amount = await awardCpuWinCurrency();
+          const amount = await 通信を待つ("awardCpuWinCurrency", awardCpuWinCurrency());
           refreshCurrencyDisplay();
           if (amount > 0) await showCurrencyAwardModal(amount);
         } catch (err) {
@@ -398,7 +447,7 @@ export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
       return;
     }
     try {
-      const amount = await awardMatchCurrency(player);
+      const amount = await 通信を待つ("awardMatchCurrency", awardMatchCurrency(player));
       refreshCurrencyDisplay();
       // 0は「他クライアントが先に付与済みだった」場合なので演出は出さない
       // （online.jsのawardMatchCurrencyコメント参照）。
@@ -428,11 +477,13 @@ export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
     try {
       const rankedGameId = getCurrentGameId();
       const placements = computeRankedPlacements(getState().activePlayers, player);
-      const rankedRes = rankedGameId ? await reportRankedResult(rankedGameId, placements) : null;
+      const rankedRes = rankedGameId
+        ? await 通信を待つ("reportRankedResult", reportRankedResult(rankedGameId, placements))
+        : null;
       if (rankedRes && rankedRes.skipped !== "not_ranked") {
         // 復帰時検知（main.js）が二重に結果モーダルを出さないよう、この対局の結果表示済みを記録。
         markRankedResultShown(rankedGameId);
-        const myRank = await getSelfRank();
+        const myRank = await 通信を待つ("getSelfRank", getSelfRank());
         if (myRank) {
           // 昇格演出（docs/ranked-spec.md）: 対局開始時に覚えたランク(getRankedPreMatchRank)と
           // 比べて rank が上がっていれば昇格＝結果モーダルで昇格演出を出す（シーズン中は降格
@@ -462,8 +513,40 @@ export function concludeMatchWithWinner(player, { reason = "seven" } = {}) {
     } catch (err) {
       console.error("showPostGamePanel failed", err);
     }
+    };
     // 【続き456】降参で勝った時は副題を「相手が降参しました」に差し替える
     // （7色そろえて勝ったわけではないので、既定の文言だと嘘になる）。
-    }, { subtitleKey: reason === "resign" ? "game.victory.subResign" : "game.victory.sub" });
+    const subtitleKey = reason === "resign" ? "game.victory.subResign" : "game.victory.sub";
+    // 🔴【#807・続き823】**勝利モーダルが出せなくても、結果まで必ず進む。**
+    //   報告「ランク戦でなんで勝ったかわからない。後、ゲームの画面のままになってる」の正体は
+    //   ここ——上の鎖（通貨→順位→個人結果→ランク→終了パネル）は**ぜんぶ onClose に
+    //   ぶら下がっている**ので、モーダルが1つ開けないだけで onClose が一度も呼ばれず、
+    //   **盤面に取り残される**（実機のログは diag-victory の直後が盤面の描画だけで、
+    //   画面の記録も covered:[] ＝覆いが0個。90秒後も盤面のまま）。
+    //   #189 で鎖の各段は try/catch に包んだが、**鎖の根元（モーダルそのもの）は包んでいなかった。**
+    //   ⚠ 出たかどうかは**DOMに本当に入ったか**で見る（例外を投げずに失敗する道もあるため）。
+    //   ⚠ 出せなかった時は、**勝った理由だけでも**伝えてから進む（黙って終わらせない＝#729 の家族）。
+    let 出せた = false;
+    try {
+      showVictoryModal(player, 結果へ進む, { subtitleKey });
+      出せた = !!document.getElementById("victory-modal");
+    } catch (err) {
+      console.error("showVictoryModal failed", err);
+    }
+    logAction("diag-victory-modal", { opened: 出せた, reason, subtitleKey });
+    if (!出せた) {
+      let 知らせた = false;
+      try {
+        showNoticeModal(t(subtitleKey), {
+          見出し: t("game.victory.title", { name: getPlayerName(player) }),
+          onClose: () => void 結果へ進む(),
+        });
+        知らせた = !!document.getElementById("so7-notice-modal");
+      } catch (err) {
+        console.error("victory notice failed", err);
+      }
+      // お知らせも出せなかったなら、待つものが無いので**そのまま**結果へ進む。
+      if (!知らせた) void 結果へ進む();
+    }
   })();
 }

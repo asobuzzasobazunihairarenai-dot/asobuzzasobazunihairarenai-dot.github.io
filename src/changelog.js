@@ -106,6 +106,7 @@ export const CHANGELOG = [
       "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
+      "相手が降参して勝った時に、結果が出ないまま盤面に取り残されることがあったのを直しました",
       "盤面の後ろの床の絵が、縦に伸びて見えていたのを直しました",
       "CPU戦が途中で止まってしまうことがあったのを直しました",
       "使えるカードが1枚も無いのに、ハンドフェイズが自動で飛ばされないことがあったのを直しました",
@@ -132,6 +133,7 @@ export const CHANGELOG = [
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
+      "Winning by your opponent's resignation could leave you on the board with no result screen.",
       "The floor behind the board looked stretched vertically.",
       "A match against the CPU could stop partway through.",
       "The hand phase was not skipped automatically even when no card could be used.",
@@ -158,6 +160,26 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴🔴 **#807（ランク戦でなんで勝ったかわからない／ゲームの画面のままになってる）の本体は、" +
+        "7色以外の決着が忘れられていたこと。** `resetVictoryTracking()` は**7色そろっている人だけ**を" +
+        "数え直すので、降参の勝ち（数色しかロックしていない）は作り直された瞬間に消え、" +
+        "`hasAnyoneWon()` が false に戻る。すると持ち時間も自動処理も**再開**し、放置敗北の見張りまで" +
+        "動き出して**決着済みのランク対局に放置敗北を申告する**。実機ログで確定した——" +
+        "`diag-match-concluded` の98秒後に `diag-ranked-opponent-afk` が出ているが、" +
+        "turn-timer の tick は `if (hasAnyoneWon()) return;` を**その見張りより先に**通るので、" +
+        "あの行が出た＝その時 false だった。⇒ 決着を**対局IDごと**覚え、同じ対局なら戻す。" +
+        "⚠ ローカル（対局IDなし）は今までどおり必ず忘れる（#210『勝利モーダルが鳴らなくなりました』の再発防止）。",
+      "🔴 #807 のもう一方: 結果への鎖（通貨→順位→個人結果→ランク→終了パネル）が**ぜんぶ" +
+        "勝利モーダルの onClose にぶら下がっていた**ので、モーダルが1つ開けないだけで onClose が" +
+        "一度も呼ばれず、盤面に取り残されていた（#189 で鎖の各段は try/catch に包んだのに、" +
+        "**鎖の根元は包んでいなかった**）。⇒ 根元も包み、出せなかったら**勝った理由だけでも**" +
+        "お知らせで伝えてから結果へ進む。出たかどうかは**DOMに本当に入ったか**で見て、" +
+        "`diag-victory-modal` に1行残す。A/B で、わざと転ばせても終了パネルまで進むことを確かめた。",
+      "🔴 結果の鎖の**通信だけ**に20秒の制限を付けた（通貨・ランクの反映・自分のランク）。各段は" +
+        "try/catch に包んであるが、**解決しない await は catch では捕まらない**ので、1つ止まると" +
+        "以降が全部出ないまま**ログに1行も残らない**。打ち切ったら `diag-victory-step-timeout` を残す。" +
+        "⚠ モーダル（人の返事を待つもの）には当てない——あちらは「遅い」のではなく「待っている」ので、" +
+        "打ち切ると勝手に閉じてしまう。",
       "🔴🔴 **勝利演出後の墜落（#797 ほか10件）の記録を全部読んだ。** どれも `suspectedCrash: true` ／ `prevLastError: null` ＝**例外ではなく OS がタブを捨てている**（メモリ）。そして**10件とも同じ2つの印**が `prevTagPeaks` に出る（card-dissolve-canvas と victory-gather-canvas）＝山は勝利演出で確定。いちばん新しい #797（iPhone・932x430・**dpr 3**・ホーム画面アプリ）の内訳は **合計 93MB ＝ canvas 24（2枚）＋ WebGLのテクスチャ 34 ＋ 画像 14 ＋ 合成層 15 ＋ 音 11**。⇒ **いちばん大きいのは WebGL のテクスチャ**（115枚）。ⓘ これまでの手当て（演出canvasの dpr 上限1.5／FLASH で WebGL を畳む／霧散canvasを0にして返す／棚をMBで切る）でピークは **77MB → 39〜48MB** まで下がっているが、まだ落ちる。⇒ 今回は **スマホだけ**テクスチャの持ち分をさらに絞った（棚 32→18MB・余白 6→3MB・カードの絵 256→192px）。**墜落10件は全部 dpr 3 のスマホで、PC では1件も起きていない**ので PC は今までどおり。**実測（同じ盤面で端末の判定だけ切り替えて作り直す）: 19MB → 16MB。** 🔴 **これで落ちなくなったとは言えない**——山をもう一段下げただけ。次の報告の `prevAllMB` / `prevGlTexMB` が下がっているかを見る。",
       "🔴🔴 **#793「まだHUERISE画面でタップした直後にタイトル画面が一瞬でます（スマホだけ）」の本当の原因がやっと分かった。** SVG の**紙（paper）は feTurbulence + feDisplacementMap のフィルタ付きグループの中に在る**。SVG は1つの層としてまとめて描かれるので、**重い端末ではフィルタが焼き上がるまで紙ごと出ない**。⇒ 続き811 で入れた「紙が描けた合図（`__描けた`）」は**属性を入れた合図**でしかなく、**画面に出た合図ではなかった**。しかも v2 の規則が `background: transparent` ＋ 0.55秒のフェードで**押した瞬間に地を消していた**（v2 が既定になった今はこちらが効く）。⇒ **ゲート自身を「白い紙＋同じ穴」にした**（CSS の radial-gradient マスク。半径は演出と同じコマで入れる）。マスクは**合成だけ**で済むので重い端末でも必ず出る。⚠ 穴は**少し大きめ**（×1.15）にして、ふちは必ず SVG の焦げた方が決まるようにした（真円のふちが内側に見えて二重にならない）。**教訓: 「描いた」と「画面に出た」は別。フィルタの中に在る物は、フィルタが焼けるまで出ない。**",
       "🔴🔴 **#778「なないろのあめの手札効果の選択モーダルを選択せずにいたら発動せずにムーブフェイズにいっちゃった」の正体は、掃除役が人の選択を取り上げていたこと。** ログに `diag-picker-leak` が出ていた（2分28秒後）。なぜ「押せる物が無い」と判断したか——**選択モーダルは class で作られている**（`.hand-effect-option-picker`）のに、判定は **id が -modal / -picker / -confirm で終わる要素**しか見ていなかった。＝**画面にちゃんと出ているのに見えていなかった。** ⇒ class でも探すようにした（`.so7-modal-backdrop` と `-modal` / `-picker` / `-confirm` / `-approval` を含む class）。🔴 **この門は多めに見る方が安全**: 多すぎる＝掃除が遅れるだけ（60秒の時間切れが受ける）／少なすぎる＝**人の選択を取り上げる**。実測11項目・対照つき（ボタンの無い残骸と、選択と関係ない箱は今までどおり数えない）。",
@@ -195,6 +217,9 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "#807 root cause: a win that is not seven colours (resignation, AFK forfeit) was forgotten whenever victory tracking was rebuilt, because the rebuild only restores players with all seven locked. hasAnyoneWon() went false, the turn timer and phase automation resumed, and the AFK watcher reported a forfeit on an already-decided ranked match. The conclusion is now remembered together with its game id and restored for the same game; local games (which have no game id) still always forget.",
+      "#807 also: the whole post-victory chain (currency, rank reveal, personal result, ranked result, end panel) hung off the victory modal's onClose, so a single failure to open the modal meant onClose never fired and the player was stranded on the board. The root of the chain is now guarded, the win reason is shown as a notice when the modal cannot open, and diag-victory-modal records whether it reached the DOM.",
+      "The chain's network calls now time out after 20 seconds and log diag-victory-step-timeout; modals that wait for the player are deliberately left alone.",
       "Read all ten victory-crash reports: every one has suspectedCrash with no JS error, so the OS is dropping the tab for memory, and all ten peak at the same two tagged moments in the victory sequence. The newest breakdown is 93MB total, of which WebGL textures are the largest single item (34MB over 115 textures). Phones now keep a smaller texture budget (18MB instead of 32) and smaller card textures (192px instead of 256); desktops are unchanged, since no desktop crash has ever been reported. Measured 19MB to 16MB on the same board. This lowers the peak; it does not prove the crash is gone.",
       "#793: the burn paper lives inside a filtered SVG group (turbulence + displacement), so on a slow phone nothing of the SVG paints until that filter is rasterised - the earlier fix only waited for attributes to be set. The gate itself is now the paper, with the same hole cut by a CSS radial-gradient mask, so the cover never breaks.",
       "#778 turned out to be the cleanup watchdog cancelling a live choice: the option dialog is built with a class, while the check only looked for ids ending in -modal/-picker/-confirm, so it was invisible to it. It now matches classes too. Being generous here is the safe direction: too generous only delays cleanup, too strict takes a choice away from the player.",
