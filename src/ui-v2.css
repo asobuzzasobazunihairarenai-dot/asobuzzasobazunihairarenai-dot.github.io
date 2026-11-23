@@ -518,6 +518,16 @@ body.ui-v2 .home-screen-tile.is-hero {
   padding: 2rem 2.2rem;
   overflow: hidden;
 }
+/* 🔴【#799・続き823】**「通知をオン」の札が見切れていた。**
+   既定の見た目では、札の下に少しはみ出させて置いている（`bottom: -0.5rem`）。
+   ところが v2 のヒーロー（ランク戦の大きな札）は、絵を切り抜くために
+   **`overflow: hidden`** が付いている ⇒ はみ出した分がそのまま刈り取られ、
+   報告のスクリーンショットでは**上の数ピクセルだけ**が見えていた。
+   ⇒ v2 のヒーローの中だけ、札の**内側**へ入れる。
+   ⚠ 既定の見た目は1pxも変えない（あちらははみ出して正しい）。 */
+body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-notify-badge {
+  bottom: 0.9rem;
+}
 body.ui-v2 .home-screen-tile.is-hero .home-screen-tile-icon {
   position: absolute;
   right: -1.5rem;

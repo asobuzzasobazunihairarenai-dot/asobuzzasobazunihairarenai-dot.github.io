@@ -106,6 +106,8 @@ export const CHANGELOG = [
       "The rule videos in Help now show their thumbnails, so you can tell them apart at a glance. If the images cannot load, the links fall back to text.",
     ],
     fixes: [
+      "ホームのランク戦で「通知をON」の案内が見切れていたのを直しました",
+      "ウィークリーの報酬でパックを受け取った時に、パックが飛んでいかなかったのを直しました",
       "相手が降参して勝った時に、結果が出ないまま盤面に取り残されることがあったのを直しました",
       "盤面の後ろの床の絵が、縦に伸びて見えていたのを直しました",
       "CPU戦が途中で止まってしまうことがあったのを直しました",
@@ -133,6 +135,8 @@ export const CHANGELOG = [
       "選択の画面をそのままにしていると、しばらくして勝手に取り消されることがあったのを直しました",
     ],
     fixesEn: [
+      "The \"Turn on notifications\" prompt was cut off on the ranked tile on Home.",
+      "Packs claimed from the weekly reward did not fly to the pack opener.",
       "Winning by your opponent's resignation could leave you on the board with no result screen.",
       "The floor behind the board looked stretched vertically.",
       "A match against the CPU could stop partway through.",
@@ -160,6 +164,16 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "#799（ランク戦の「通知をオン」が見切れている）: 既定の見た目では札の下に少し" +
+        "はみ出させて置いている（`bottom: -0.5rem`）が、**v2 のヒーロー（ランク戦の大きな札）は" +
+        "絵を切り抜くために `overflow: hidden`** が付いているので、はみ出した分がそのまま" +
+        "刈り取られていた。⇒ v2 のヒーローの中だけ札の**内側**へ。既定の見た目は1pxも変えていない。" +
+        "A/B: 新しい規則を外すと、直す前と同じく6px はみ出す。",
+      "🔴 続き815 の取りこぼし: パックが飛ぶ仕掛け（pack-fly.js）の冒頭に「呼ぶ側は" +
+        "card-pack-ui / **daily-ring**」と書いたのに、実際に繋いだのは card-pack-ui だけだった。" +
+        "⇒ ウィークリーの「パックを受け取る」でも飛ぶようにした。" +
+        "⚠ **この呼び口そのものは実測していない**（claimWeekly が通信を伴うのでヘッドレスでは" +
+        "成功の道に入れない）。飛ばす仕掛け自体は続き815 で測ってある。",
       "🔴🔴 **#807（ランク戦でなんで勝ったかわからない／ゲームの画面のままになってる）の本体は、" +
         "7色以外の決着が忘れられていたこと。** `resetVictoryTracking()` は**7色そろっている人だけ**を" +
         "数え直すので、降参の勝ち（数色しかロックしていない）は作り直された瞬間に消え、" +
@@ -217,6 +231,8 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "#799: the notify badge hangs below the tile by design, but the v2 hero tile clips its contents, so the badge was cut off. It now sits inside the tile in v2 only; the default look is unchanged.",
+      "pack-fly was wired only into card-pack-ui, although its own header named daily-ring as a caller too. The weekly pack claim now flies as well (this call site itself is not measured headlessly).",
       "#807 root cause: a win that is not seven colours (resignation, AFK forfeit) was forgotten whenever victory tracking was rebuilt, because the rebuild only restores players with all seven locked. hasAnyoneWon() went false, the turn timer and phase automation resumed, and the AFK watcher reported a forfeit on an already-decided ranked match. The conclusion is now remembered together with its game id and restored for the same game; local games (which have no game id) still always forget.",
       "#807 also: the whole post-victory chain (currency, rank reveal, personal result, ranked result, end panel) hung off the victory modal's onClose, so a single failure to open the modal meant onClose never fired and the player was stranded on the board. The root of the chain is now guarded, the win reason is shown as a notice when the modal cannot open, and diag-victory-modal records whether it reached the DOM.",
       "The chain's network calls now time out after 20 seconds and log diag-victory-step-timeout; modals that wait for the player are deliberately left alone.",

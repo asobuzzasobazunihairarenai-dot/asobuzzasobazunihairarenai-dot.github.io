@@ -132,6 +132,20 @@ function 題文(kind, 部分, n) {
 //   この部品の約束（online.js を取り込まない＝輪を作らない）を破ってしまう。
 //   押した時だけ動的に取り込む（続き735 で teardownCpuBattle に使ったのと同じ手）。
 // ⚠ 失敗しても受け取り自体は済んでいるので、黙って見送る（演出のために報酬を失わせない）。
+// 🔴【#751・続き823】**受け取ったパックも飛ばす。**（続き815 の取りこぼし）
+//   あの回で飛ばす仕掛け（pack-fly.js）を作った時、呼ぶ側として card-pack-ui と
+//   **この daily-ring を見込んでいた**（pack-fly.js の冒頭にそう書いてある）のに、
+//   実際に繋いだのは card-pack-ui だけだった。ウィークリーの「パックを受け取る」は
+//   **もらった物がどこへ行ったのか分からないまま**になっていた（#751 の訴えそのもの）。
+//   ⚠ pack-fly.js は葉（何も import しない）なので、ここから静かに取ってよい。
+async function パックを飛ばす(fromEl, 枚) {
+  if (!(枚 > 0) || !fromEl) return;
+  try {
+    const m = await import("./pack-fly.js");
+    m.flyPacksToOpener?.(fromEl, 枚);
+  } catch {}
+}
+
 async function セヴルを飛ばす(fromEl, 額) {
   if (!(額 > 0) || !fromEl) return;
   try {
@@ -140,7 +154,7 @@ async function セヴルを飛ばす(fromEl, 額) {
   } catch {}
 }
 
-function ボタン(文, 中身, 無効, 報酬 = 0) {
+function ボタン(文, 中身, 無効, 報酬 = 0, パック = 0) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "daily-ring-btn";
@@ -155,6 +169,7 @@ function ボタン(文, 中身, 無効, 報酬 = 0) {
       // 🔴 **受け取れた時だけ**飛ばす（失敗したのにセヴルが飛ぶと嘘になる）。
       //   描き直す前に出発点を押さえる——描き直すとこのボタンは DOM から消える。
       void セヴルを飛ばす(b, 報酬);
+      void パックを飛ばす(b, パック);
     } catch (err) {
       // 失敗しても画面は壊さない。理由は札の中に出す。
       const n = cardEl?.querySelector(".daily-ring-note");
@@ -221,9 +236,16 @@ function 札を組む() {
     行.textContent = t("packs.weeklyWins", { n: w.wins, next: 次 }) + "　" + steps.join(" / ");
     el.appendChild(行);
     el.appendChild(
-      ボタン(t("packs.claimPacks", { n: Math.max(0, 届いた - (w.claimed || 0)) }), async () => {
-        await claimWeekly();
-      }, 届いた <= (w.claimed || 0))
+      // 【#751・続き823】受け取るパックの枚数を渡す＝「パックを開ける」の所へ飛んでいく。
+      ボタン(
+        t("packs.claimPacks", { n: Math.max(0, 届いた - (w.claimed || 0)) }),
+        async () => {
+          await claimWeekly();
+        },
+        届いた <= (w.claimed || 0),
+        0,
+        Math.max(0, 届いた - (w.claimed || 0))
+      )
     );
   }
 
