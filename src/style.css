@@ -29344,3 +29344,52 @@ body.theme-light #player-pick-modal.is-peeking,
 #player-pick-modal.is-peeking > *:not(.player-pick-peek-btn) {
   visibility: hidden;
 }
+
+/* 🔴【#751・続き815】パックを受け取った時、押したボタンから「パックを開ける」へ飛ぶ小さいパック。
+   ⚠ 絵は読み込まない（紙の色＋既にあるロゴだけ）。1枚のために画像を増やすとメモリを食う（#223）。
+   ⚠ 当たり判定を奪わない（pointer-events: none）。演出の上から操作できなくならないように。 */
+.pack-fly {
+  position: fixed;
+  width: 2.6rem;
+  height: 3.4rem;
+  margin: 0;
+  z-index: 30000;
+  pointer-events: none;
+  border-radius: 0.28rem;
+  background: linear-gradient(150deg, #f6e7bd 0%, #e3c983 42%, #b89243 100%);
+  border: 1px solid rgba(90, 64, 18, 0.55);
+  box-shadow: 0 0.35rem 0.9rem rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pack-fly-logo {
+  width: 78%;
+  height: auto;
+  opacity: 0.85;
+}
+
+/* 🔴【#751・続き815】「パックを開ける」タイルの、開けていないパックの枚数。
+   ⚠ 色は決め打ちしてよい（自分の地を持つ丸）が、明暗どちらでも読めるよう濃い赤に白字。
+   ⚠ 位置は他のバッジ（NEW 等）と重ならない右下。 */
+.home-screen-tile-count-badge {
+  position: absolute;
+  right: 0.3rem;
+  bottom: 0.3rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #b91c1c;
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  box-shadow: 0 0.1rem 0.35rem rgba(0, 0, 0, 0.4);
+}

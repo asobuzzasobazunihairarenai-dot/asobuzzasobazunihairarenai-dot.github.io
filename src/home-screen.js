@@ -29,6 +29,27 @@ import { getSelfRank, fetchRankedWaitingCount, leaveRankedQueue, getCurrentUser,
 // 【#677】キューに残っていたのを自分で外した時だけ1行残す（次の報告で1行で分かるように）。
 import { logAction } from "./action-log.js";
 import { rankName } from "./rank-badge.js";
+import { getCollection, onCardPacksChange } from "./card-packs.js"; // 🔴【#751・続き815】未開封パックの枚数バッジ
+
+// 🔴【#751・続き815】**持ち物（パックの枚数）が変わったらバッジを付け直す。**
+//   ⚠ タイルは作り直しで数え直すので、ここでは**出ている時だけ**描き直せばよい。
+//   ⚠ ホームが出ていない時に描き直すと、閉じている画面を起こしてしまう。
+onCardPacksChange(() => {
+  try {
+    // ⚠ ホーム全体を作り直さない（作り直す関数は無く、openHomeScreen を呼ぶと二重に出る）。
+    //   **バッジだけ差し替える。**
+    const tile = document.querySelector('.home-screen-tile[data-tile="packs"]');
+    if (!tile) return;
+    tile.querySelector(".home-screen-tile-count-badge")?.remove();
+    const n = Math.max(0, Math.floor(Number(getCollection()?.packs) || 0));
+    if (n <= 0) return;
+    const b = document.createElement("div");
+    b.className = "home-screen-tile-count-badge";
+    b.dataset.tile = "packs";
+    b.textContent = String(n);
+    tile.appendChild(b);
+  } catch { /* バッジのためにホームを壊さない */ }
+});
 import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
 // 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
 import { isMyStackEnabled, setMyStackEnabled } from "./my-stack.js";
@@ -240,6 +261,10 @@ const TILES = [
     status: "ready",
     adminOnly: true,
     v2Only: true,
+    // 🔴【#751・続き815】**開けていないパックの枚数**をバッジで出す（ユーザー案）。
+    //   ⚠ 0 の時は出さない（0 のバッジは「何か在る」と誤読させるだけ）。
+    //   ⚠ 持ち物がまだ届いていない間も 0 として扱う＝出ない。届いたら下の購読で付く。
+    showCount: () => Math.max(0, Math.floor(Number(getCollection()?.packs) || 0)),
     onOpen: async () => {
       const m = await import("./card-pack-ui.js");
       m.openCardPackPanel(true);
@@ -994,6 +1019,19 @@ function buildTile(tile) {
     newBadge.className = "home-screen-tile-new-badge";
     newBadge.textContent = t("home.newBadge");
     btn.appendChild(newBadge);
+  }
+
+  // 🔴【#751・続き815】数のバッジ（いまは「開けていないパック」だけ）。
+  //   ⚠ 0 なら作らない。タイルを作り直す時に毎回数え直すので、古い数が残らない。
+  if (tile.showCount) {
+    const n = tile.showCount();
+    if (n > 0) {
+      const countBadge = document.createElement("div");
+      countBadge.className = "home-screen-tile-count-badge";
+      countBadge.dataset.tile = tile.key || "";
+      countBadge.textContent = String(n);
+      btn.appendChild(countBadge);
+    }
   }
 
   // 続き162: ランク戦タイルに「今◯人が対戦相手を募集中」を表示（コールドスタート対策）。

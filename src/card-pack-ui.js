@@ -28,6 +28,7 @@ import { showCardFace, paintCardFace } from "./card-face-display.js";
 // 【続き737】カードにホバー（スマホは長押し）で拡大（ユーザー要望・総点検）。
 import { attachCardHoverPreview } from "./card-hover-preview.js";
 import { openCardNoteModal } from "./card-note-modal.js"; // 🔴【#743・続き808】タップで詳細
+import { flyPacksToOpener } from "./pack-fly.js"; // 🔴【#751・続き815】受け取ったパックが飛んでいく
 import { getCardName } from "./card-text.js";
 import {
   PACK_SIZE,
@@ -172,7 +173,8 @@ function ボタン(文, 中身, { 主役 = false, 無効 = false } = {}) {
     知らせ = null;
     再描画();
     try {
-      await 中身();
+      // 【#751・続き815】押したボタンそのものを渡す（演出の出どころに要る）。
+      await 中身(b);
     } catch (err) {
       知らせ = 文言にする(err);
       生のエラー = 生の文(err);
@@ -394,9 +396,15 @@ function ウィークリーの区画() {
   line.appendChild(text);
   line.appendChild(bar(w.wins, 次 || 1));
   line.appendChild(
-    ボタン(t("packs.claimPacks", { n: Math.max(0, 届いた - w.claimed) }), async () => {
+    ボタン(t("packs.claimPacks", { n: Math.max(0, 届いた - w.claimed) }), async (btn) => {
+      const 枚 = Math.max(0, 届いた - w.claimed);
+      // ⚠ **押した時の位置を控える**——この後 再描画() が走ってボタンは作り直される。
+      const 出どころ = btn?.getBoundingClientRect?.() ?? null;
       await claimWeekly();
       知らせ = t("packs.gotPacks");
+      // 🔴【#751・続き815】**押したボタンから**「パックを開ける」所へ飛ばす
+      //   （数字が増えるだけでは、手に入った物がどこへ行ったのか分からない）。
+      flyPacksToOpener(出どころ, 枚);
     }, { 無効: 届いた <= w.claimed })
   );
   box.appendChild(line);

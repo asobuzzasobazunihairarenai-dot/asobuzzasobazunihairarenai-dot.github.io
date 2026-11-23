@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "パックを受け取ると、パックが飛んでいくようにしました",
       "相手の駒を選ぶ時は、盤面の駒を直接タップするようにしました",
       "「なないろのあめ」の列の選び方を2段階にしました",
       "相手を選ぶ画面から盤面を見られるようにしました",
@@ -64,6 +65,7 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "Claimed packs now fly to the pack button",
       "Pick an opponent by tapping their piece on the board",
       "Rainbow Rain now asks for the line in two steps",
       "See the board from the opponent picker",
@@ -74,6 +76,7 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "パックを受け取ると、**押したボタンから小さいパックが飛び出して「パックを開ける」の所へ入る**ようにしました。さらに、**開けていないパックがあれば枚数がバッジで出ます**。受け取った物がどこへ行ったのか、目で追えます。⚠ 動きを減らす設定の端末では飛びません（バッジは出ます）。",
       "**相手の駒（や、その駒を起点にしたマス）が的になる効果**では、相手を選ぶ画面を出さずに**盤面の駒を直接タップ**して選ぶようにしました。フォース・誰かの好きな花（手札効果）・誰かの落とし物・貴族の特権が対象です。盤面を見ながら決められます。⚠ 相手の手札など**盤面では分からないもの**が的の効果は、今までどおり名前が並ぶ画面から選びます。⚠ 盤面に出ていない人が候補に入っている時は、その人を選べなくならないよう今までどおり画面を出します。",
       "「なないろのあめ」の手札効果で置く列の選び方を**2段階**にしました。まず「横の列／縦の列」を選び、次に**盤面でその列のマスをどこかタップ**します（どのマスでも構いません）。これまでは14個の選択肢が並んでいました。",
       "相手を選ぶ画面に「盤面を見る」を付けました。押すと画面の中身が消えて盤面が見え、もう一度押すと戻ります。相手を選ぶ時に「どの駒がどこに居るか」を確かめてから決められます。⚠ この画面は元から盤面のアバターを直接押しても選べます（どちらで選んでも同じです）。",
@@ -84,6 +87,7 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "Claiming packs now sends a small pack flying from the button you pressed to the open-pack tile, which shows a badge with how many packs are waiting.",
       "When an effect targets an opponent's piece (or a square based on it), you now pick them by tapping their piece on the board instead of through a dialog. Effects that target something you cannot see on the board, such as an opponent's hand, still use the dialog.",
       "Rainbow Rain now asks for the line in two steps: first across or down, then tap any square in the line you want. It used to list fourteen options.",
       "The opponent picker now has a see-the-board button: press it to hide the dialog and look at the board, press again to bring it back. You can still pick an opponent by tapping their avatar on the board, as before.",
