@@ -2378,14 +2378,24 @@ async function 山札選びRPC(名, 引数) {
 }
 
 // 自分のマイ山札を1つ、この部屋に出す。recipe は端末の形（{cardId: 枚数}）。
-export async function offerMyStackToRoom(gameId, stackKey, name, cardSet, recipe) {
-  return 山札選びRPC("so7_offer_my_stack", {
+// 🔴【続き836】skin＝箱の蓋にするカードの id。**これを送らないと他の人の画面では
+//   名前だけの無地の箱になる**（続き835 はスキンが端末にしか無かった）。
+export async function offerMyStackToRoom(gameId, stackKey, name, cardSet, recipe, skin = "") {
+  const 引数 = {
     p_game_id: gameId,
     p_stack_key: String(stackKey),
     p_name: String(name || "").slice(0, 24),
     p_card_set: String(cardSet || "remake"),
     p_recipe: レシピを配列へ(recipe),
-  });
+  };
+  try {
+    return await 山札選びRPC("so7_offer_my_stack", { ...引数, p_skin: String(skin || "") });
+  } catch (err) {
+    // 🔴 続き836 のSQLをまだ流していないサーバーでは、**その引数の関数が無い**（PGRST202）。
+    //   箱の絵のために「山札を出せない」になっては本末転倒なので、絵抜きでもう一度送る。
+    if (err?.code !== "PGRST202") throw err;
+    return 山札選びRPC("so7_offer_my_stack", 引数);
+  }
 }
 // 引っ込める（stackKey を省くと自分のぶん全部）。
 export async function withdrawMyStackFromRoom(gameId, stackKey = null) {
@@ -2396,6 +2406,8 @@ export async function withdrawMyStackFromRoom(gameId, stackKey = null) {
 export async function listStackOffers(gameId) {
   const d = await 山札選びRPC("so7_list_stack_offers", { p_game_id: gameId });
   return {
+    // ⚠ offers の各行は {userId, stackKey, name, cardSet, recipe, skin, ownerName, mine}。
+    //   skin は続き836 より前に出された行では無い（＝無地の箱）。
     offers: Array.isArray(d?.offers) ? d.offers : [],
     choice: d?.choice ?? null,
     hostId: d?.hostId ?? null,

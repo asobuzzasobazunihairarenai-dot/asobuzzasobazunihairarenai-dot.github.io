@@ -52,6 +52,37 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-24",
+    summary: [
+      "マイ山札の箱の絵が、部屋のみんなに見えます",
+    ],
+    summaryEn: [
+      "Your deck box art now shows for everyone in the room",
+    ],
+    items: [
+      "マイ山札に付けた**箱の絵**が、フレンドリーマッチの「この対局の山札」で**部屋にいる全員の画面に出る**ようになりました。相手が出した山札にも、その人が選んだ絵がそのまま並びます（今までは自分の画面にしか出ず、他の人からは名前だけの無地の箱でした）。⚠ すでに部屋に出してある山札の絵を選び直した時は、次にこの画面を開いた時に追いつきます。",
+    ],
+    itemsEn: [
+      "The box art you give a deck now shows for everyone in the room: open a friendly match's deck chooser and every offered deck wears the lid its owner picked, not just yours. Until now the art lived only on your own device, so other players saw a plain box with a nameplate. If you change the art of a deck you have already offered, it catches up the next time you open that screen.",
+    ],
+    devItems: [
+      "🔴 ユーザー判断「**やろう！**」（続き835 の申し送り「箱の絵を部屋の全員に見せますか」への答え）。⇒ `so7_game_stack_offers` に **`skin` を1列**足し、出す時に運んで、読む時に返す。",
+      "🔴 **引数が増えたので、古い署名を落としてから作る。** `create or replace` は引数が違えば**別の関数として増える**ので、落とさないと PostgREST の名前付き引数が**どちらを呼ぶか決められずに落ちる**（`so7_award_match_currency` が同じ事情で2行の drop を持っている＝この家の作法）。",
+      "🔴 **砦は2枚。** ①SQL 側で `^[A-Za-z0-9_-]{1,120}$` だけ通す（外れたら拒まずに null＝無地の箱。例外にすると「山札を出せない」という重い失敗に化ける）②画面側は `buildStackBoxArt` が**カードの表に在る id だけ**を絵にする。**他の人が書いた文字列から絵の道を作らない。** 実測で「../../evil.png」も「無い id」も無地になることを見た。",
+      "⚠ **SQL をまだ流していないサーバーでは PGRST202**（その引数の関数が無い）。箱の絵のために「山札を出せない」になっては本末転倒なので、**絵抜きでもう一度送る**退避を入れた。",
+      "⚠ 後から絵を変えた時は、**この画面を開いている間に1回だけ**出し直して追いつかせる（サーバーが覚えてくれない時に書き直しの輪にならないように）。送り直すのは**サーバーが持っている名前・セット・組み方そのまま**＝変わるのは絵だけ（端末の組み方を送ると、部屋主が選んだあとに山札の中身が黙って変わりうる）。",
+      "⚠ 実測21項目（配る側で online.js の通信だけ差し替え＝リポジトリは1バイトも触らない）。他の人の箱に絵が出る／skin の無い古い行は無地／砦2件／出す時に絵も送る／後から変えたら1回だけ追いつく／**対照: そろっていれば1回も送らない**。追い検査9項目で、6つ並べても一番下まで巻き取れば辿り着けることを見た。",
+    ],
+    devItemsEn: [
+      "The deck-offer table gained a skin column, so the lid art travels with the offer instead of living only on the owner's device.",
+      "The offer function gained a parameter, so the old signature is dropped first: create or replace would otherwise leave two functions and PostgREST could not tell which one the named arguments mean.",
+      "Two guards: SQL accepts only a card-id shaped string (anything else becomes null, a plain box, rather than an error that would block offering the deck), and the page only paints ids that exist in the card table, so a string written by someone else never becomes an image path.",
+      "On a server where the SQL has not been run yet the call fails with PGRST202, so it is sent again without the art: box art must never cost someone the ability to offer a deck.",
+      "Changing the art of an already-offered deck re-sends it once per time the chooser is open, carrying the name, set and recipe the server already holds, so only the art changes.",
+      "Measured with 21 checks against the real screen with only the network calls swapped out, plus 9 more confirming six boxes stay reachable by scrolling.",
+    ],
+  },
+  {
     date: "2026-11-23",
     summary: [
       "マイ山札に「箱の絵」を付けられます",

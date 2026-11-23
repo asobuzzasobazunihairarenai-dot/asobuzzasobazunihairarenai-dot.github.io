@@ -31,6 +31,7 @@ import {
   offerMyStackToRoom,
   withdrawMyStackFromRoom,
   isAdminUser,
+  レシピを連想へ,
 } from "./online.js";
 import { CARD_SETS, getCardSet } from "./card-set.js";
 import { getMyStacks } from "./my-stack.js";
@@ -256,6 +257,26 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
     return item;
   };
 
+  // 🔴【続き836】箱の絵を**後から**変えた時、部屋に出したぶんを追いつかせる。
+  //   ⚠ 1つの山札につき**この画面を開いている間に1回だけ**（そうしないと、サーバーが
+  //     覚えてくれない時に書き直しの輪になる）。
+  //   ⚠ 送り直すのは**サーバーが持っている名前・セット・組み方そのまま**＝変わるのは絵だけ。
+  //     端末の組み方を送ると、部屋主が選んだあとに山札の中身が黙って変わりうる。
+  const 追いついた = new Set();
+  const 追いつかせる = (offers) => {
+    const 手元 = getMyStacks();
+    for (const of of offers) {
+      if (!of.mine || 追いついた.has(of.stackKey)) continue;
+      const mine = 手元.find((x) => x.id === of.stackKey);
+      if (!mine) continue; // 端末からもう消えている山札は触らない
+      if ((mine.skin || "") === (of.skin || "")) continue;
+      追いついた.add(of.stackKey);
+      offerMyStackToRoom(gameId, of.stackKey, of.name, of.cardSet, レシピを連想へ(of.recipe), mine.skin || "")
+        .then(() => 読み直す(true))
+        .catch(() => { /* 続き836 のSQL前なら運べない。絵が無地になるだけなので黙って続ける */ });
+    }
+  };
+
   const 組み立てる = (データ) => {
     箱を片付ける();
     root.innerHTML = "";
@@ -305,12 +326,14 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
 
     // 🔴【続き835】ユーザー案「**マイ山札も同じ箱サイズで並ぶのはどう？**」。
     //   ⇒ 小さな札（チップ）をやめて、公式の箱と**同じ作り・同じ大きさ**で並べる。
-    //   ⚠ 箱の絵は**自分の山札のぶんだけ**出せる——スキン（蓋にするカードの id）は
-    //     この端末の localStorage に在り、**サーバーには送っていない**（so7_offer_my_stack は
-    //     名前・セット・組み方しか受け取らない）。他の人の山札は**名前だけの無地の箱**になる。
-    //     ⓘ 全員に見せたいなら SQL に1列足す話になる（申し送り）。
+    // 🔴【続き836】箱の絵は**サーバーが運ぶ**ようになった（so7_game_stack_offers.skin）ので、
+    //   他の人の山札にもその人が選んだ絵が出る。
+    //   ⚠ 使うのは `of.skin` を**先に**——自分の端末の記録の方が新しいこともあるが、
+    //     画面に並ぶのは「部屋に出した時の姿」で全員そろっている方がよい。
+    //     自分のぶんだけ、まだ運べていない時（続き836 のSQL前の行）に端末の記録で代える。
     const 自分の山札 = getMyStacks();
     const スキンを引く = (stackKey) => 自分の山札.find((x) => x.id === stackKey)?.skin || "";
+    const 箱の絵のid = (of) => of.skin || (of.mine ? スキンを引く(of.stackKey) : "");
 
     const list = document.createElement("div");
     list.className = "deck-chooser-stack-list is-boxes";
@@ -326,11 +349,13 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
       chip.className = "deck-chooser-item deck-chooser-stack" + (選ばれている ? " is-selected" : "") + (iamHost ? " is-pickable" : "");
       const 選ぶ = () => (iamHost ? 決める({ mode: "stack", userId: of.userId, stackKey: of.stackKey }) : null);
 
-      // 公式と同じ大きさの箱。⚠ 自分の山札だけスキンが引ける（上の注）。
+      // 公式と同じ大きさの箱。箱の絵は出した人が選んだもの（続き836）。
       const stage = document.createElement("div");
       stage.className = "deck-chooser-stage";
       const size = Math.max(120, Math.min(220, Math.round(Math.min(window.innerWidth / 3.4, window.innerHeight / 3.4))));
-      const 絵 = buildStackBoxArt(of.mine ? スキンを引く(of.stackKey) : "");
+      // ⚠ buildStackBoxArt は**カードの表に在る id だけ**を絵にする（表に無ければ無地）。
+      //   他の人が書いた文字列から絵の道を作らないための砦なので、ここを素通しにしないこと。
+      const 絵 = buildStackBoxArt(箱の絵のid(of));
       const box = buildDeckBox3d(絵, { size, flat: 平面, onTap: 選ぶ, nameplate: of.name || "?" });
       if (box) { stage.appendChild(box); 箱たち.push(box); }
       chip.appendChild(stage);
@@ -360,6 +385,7 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
       list.appendChild(chip);
     }
     stacks.appendChild(list);
+    追いつかせる(offers);
 
     // 自分のマイ山札を出す
     const 手持ち = getMyStacks().filter((s) => Object.keys(s.recipe || {}).length > 0);
@@ -394,7 +420,8 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
         const s = まだ.find((x) => x.id === sel.value);
         if (!s) return;
         btn.disabled = true;
-        try { await offerMyStackToRoom(gameId, s.id, s.表示名, getCardSet(), s.recipe); } catch (err) { 知らせる(err); }
+        // 🔴【続き836】箱の絵も一緒に送る（送らないと他の人の画面で無地になる）。
+        try { await offerMyStackToRoom(gameId, s.id, s.表示名, getCardSet(), s.recipe, s.skin || ""); } catch (err) { 知らせる(err); }
         await 読み直す(true);
         try { onChanged?.(); } catch (err) { /* 呼び先で落ちてもこちらは続ける */ }
       });

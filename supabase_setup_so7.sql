@@ -4350,6 +4350,14 @@ create policy "so7_game_stack_offers_delete" on so7_game_stack_offers for delete
 
 create index if not exists so7_game_stack_offers_game_idx on so7_game_stack_offers (game_id);
 
+-- 🔴【2026-11-24・続き836】箱の絵（蓋にするカードの id）。
+-- 続き835 で入れた「マイ山札の箱の絵」は**その端末の localStorage にしか無かった**ので、
+-- 他の人の画面では名前だけの無地の箱だった。⇒ 1列足して、部屋の全員に見えるようにする。
+-- ⚠ 入るのは**カードの id だけ**（絵の道や URL ではない）。画面側は id をカードの表で
+--   引き直して絵の道を作るので、表に無い id は**無地の箱**になる
+--   ＝他人が書いた文字列から絵の道を作ることはない（念のため下でも形を検める）。
+alter table so7_game_stack_offers add column if not exists skin text;
+
 -- ── ② 部屋主が決めた「この対局の山札」 ────────────────────────────────────
 -- 形は3通り:
 --   {"mode":"official","cardSet":"remake"}
@@ -4395,12 +4403,15 @@ $$;
 
 -- ── ③ 山札を部屋に出す／引っ込める ────────────────────────────────────────
 -- ⚠ RLS で足りるが、形の検めを1か所に置きたいので関数にする（画面側は1つ呼ぶだけ）。
+-- 🔴 引数が増えたので、古い署名（p_skin の無い5引数）を落としてから作る。
+drop function if exists so7_offer_my_stack(text, text, text, text, jsonb);
 create or replace function so7_offer_my_stack(
   p_game_id text,
   p_stack_key text,
   p_name text,
   p_card_set text,
-  p_recipe jsonb
+  p_recipe jsonb,
+  p_skin text default null
 )
 returns void
 language plpgsql
@@ -4409,6 +4420,7 @@ set search_path = public
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_skin text;
 begin
   if v_uid is null then raise exception 'not_signed_in'; end if;
   if not exists (select 1 from so7_game_seats where game_id = p_game_id and user_id = v_uid) then
@@ -4422,13 +4434,21 @@ begin
       where game_id = p_game_id and user_id = v_uid and stack_key <> p_stack_key) >= 4 then
     raise exception 'too_many_offers';
   end if;
-  insert into so7_game_stack_offers (game_id, user_id, stack_key, name, card_set, recipe)
+  -- 🔴 箱の絵は**他の人の画面で使う値**なので、カードの id に使える形だけ通す。
+  --   外れた時は拒まずに null（＝無地の箱）にする——絵が出ないだけで対局には関係ないので、
+  --   ここで例外にすると「山札を出せない」という重い失敗に化ける。
+  v_skin := nullif(coalesce(p_skin, ''), '');
+  if v_skin is not null and v_skin !~ '^[A-Za-z0-9_-]{1,120}$' then
+    v_skin := null;
+  end if;
+  insert into so7_game_stack_offers (game_id, user_id, stack_key, name, card_set, recipe, skin)
   values (p_game_id, v_uid, p_stack_key, left(coalesce(p_name, 'マイ山札'), 40),
-          coalesce(p_card_set, 'remake'), p_recipe)
+          coalesce(p_card_set, 'remake'), p_recipe, v_skin)
   on conflict (game_id, user_id, stack_key) do update
     set name = excluded.name,
         card_set = excluded.card_set,
         recipe = excluded.recipe,
+        skin = excluded.skin,
         offered_at = now();
 end;
 $$;
@@ -4472,6 +4492,8 @@ begin
            'name', o.name,
            'cardSet', o.card_set,
            'recipe', o.recipe,
+           -- 【続き836】箱の絵。古い行は null＝無地の箱（画面側はそれで動く）。
+           'skin', o.skin,
            'ownerName', coalesce(s.display_name, 'プレイヤー'),
            'mine', (o.user_id = v_uid)
          ) order by o.offered_at asc), '[]'::jsonb)
@@ -4599,8 +4621,8 @@ begin
 end;
 $$;
 
-revoke execute on function so7_offer_my_stack(text, text, text, text, jsonb) from public;
-grant  execute on function so7_offer_my_stack(text, text, text, text, jsonb) to authenticated;
+revoke execute on function so7_offer_my_stack(text, text, text, text, jsonb, text) from public;
+grant  execute on function so7_offer_my_stack(text, text, text, text, jsonb, text) to authenticated;
 revoke execute on function so7_withdraw_my_stack(text, text) from public;
 grant  execute on function so7_withdraw_my_stack(text, text) to authenticated;
 revoke execute on function so7_list_stack_offers(text) from public;
