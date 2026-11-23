@@ -71,6 +71,36 @@ export function getEffectDelegationTarget() {
   return null;
 }
 
+// 🔴【続き830】**ここから下は表示専用。** ユーザー要望「『全員』を対象にした効果
+//   （合同建設など）で、今誰が優先権を持って選んだりプレイしているかを全員にわかるように
+//   したいです。じゃないと『え？今何の時間？？』って感じになります」。
+//
+//   ⚠ 上の `getEffectDelegationTarget()` には**足さない**。あれは
+//     「いま委任の最中か」で**処理の流れを変えている**所（続き811 の到達の門・
+//     続き806 の掃除役）が見ているので、**他人の端末の話を混ぜてはいけない**。
+//   ⚠ オンラインでは、効果を回している本人の端末にしか委任の記録が無い。
+//     第三者の画面にも出すために、合図（arrival_delegate_request）を受けた時に
+//     main.js がここへ書き込む。**古くなったら自動で消える**のは上と同じ考え方。
+let 遠くの委任 = null; // { player, requestId, at }
+export function noteRemoteDelegation(player, requestId) {
+  遠くの委任 = { player, requestId, at: Date.now() };
+  notifyChange();
+}
+export function clearRemoteDelegation(requestId) {
+  if (!遠くの委任) return;
+  // 別の委任の返事なら触らない（入れ子・連続した委任で、出たばかりの表示を消さない）。
+  if (requestId != null && 遠くの委任.requestId !== requestId) return;
+  遠くの委任 = null;
+  notifyChange();
+}
+// いま「誰かの選択を待っている」なら、その人の席。表示だけに使う。
+export function getWaitingOnPlayer() {
+  const 手元 = getEffectDelegationTarget();
+  if (手元) return 手元;
+  if (遠くの委任 && Date.now() - 遠くの委任.at <= STALE_MS) return 遠くの委任.player;
+  return null;
+}
+
 // 何の処理を委ねているか（記録・診断用）。表示には使っていない。
 export function getEffectDelegationTaskType() {
   const now = Date.now();

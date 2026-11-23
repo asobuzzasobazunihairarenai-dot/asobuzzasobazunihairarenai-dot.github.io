@@ -311,7 +311,13 @@ import { initJankLogger } from "./jank-logger.js";
 import { initRankedNotify } from "./ranked-notify.js";
 import { initPushNotify, subscribeToPush } from "./push-notify.js";
 import { initAppCache } from "./sw-cache.js";
-import { beginEffectDelegation, getEffectDelegationTarget } from "./effect-delegation.js";
+import {
+  beginEffectDelegation,
+  getEffectDelegationTarget,
+  // 🔴【続き830】表示専用。オンラインでは第三者の端末に委任の記録が無いので、合図から書き込む。
+  noteRemoteDelegation,
+  clearRemoteDelegation,
+} from "./effect-delegation.js";
 import { registerRecommendedViewHelper } from "./tablet-2d-warning.js";
 import { registerRenderHelpers, animateFirstCardsDealt, animateBoardFilled } from "./setup-animation.js";
 import {
@@ -5932,7 +5938,23 @@ function closeExpiredDelegationUi(expectedFireAt) {
 // 続けて何度も出さないための間隔（performPriorityTimeoutAutoAction から参照）。
 let lastChoiceTimeoutAnnouncedAt = 0;
 const CHOICE_TIMEOUT_ANNOUNCE_GAP_MS = 8000;
+// 🔴【続き830】返事が来たら「選んでいます…」の表示を消す（全体に1つだけの聞き手）。
+//   ⚠ 上の委任ごとの聞き手（requestId で絞るもの）とは別に置く——あちらは**頼んだ側の端末**に
+//     しか居ないので、第三者の画面では永久に消えないことになる。
+//   ⚠ 消し忘れても、表示側が古い記録を無視する（effect-delegation.js の STALE_MS）。
+onArrivalDelegateResolvedEvents(({ requestId }) => {
+  try {
+    clearRemoteDelegation(requestId);
+  } catch (err) {
+    console.error("clearRemoteDelegation failed", err);
+  }
+});
 onArrivalDelegateRequestEvents(({ player, taskType, requestId, taskArg }) => {
+  // 🔴【続き830】**まず、誰が選んでいるかを控える**（表示だけ）。この合図は全員に届いていて、
+  //   宛先でない人は下で読み飛ばしていた＝第三者の画面には何も出ていなかった。
+  //   ⚠ 観戦者より**前**に書く（観戦している人にも「今は誰の時間か」は見せたい）。
+  //   ⚠ 自分宛ての時も控えてよい——出すかどうかは表示側が決める（自分が選ぶ番なら出さない）。
+  noteRemoteDelegation(player, requestId);
   // 【2026-09-21】観戦者は対局に関与しない（getSelfSeat()は観戦中「見ている席」を返すため、
   // これが無いとその席の本人として応答UIが出てしまう）。
   if (isSpectatingGame()) return;

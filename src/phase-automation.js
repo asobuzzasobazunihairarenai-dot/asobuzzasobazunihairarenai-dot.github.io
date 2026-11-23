@@ -32,7 +32,7 @@ import {
 import { t } from "./ui-text.js"; // UI英語化フェーズ11
 import { onLangChange } from "./i18n.js"; // 【B-2】上端の1行を言語切替で貼り直す
 import { runGateInvasionsIfNeeded } from "./gate-invasion.js";
-import { getEffectDelegationTarget, onEffectDelegationChange } from "./effect-delegation.js"; // 続き626
+import { getEffectDelegationTarget, onEffectDelegationChange, getWaitingOnPlayer } from "./effect-delegation.js"; // 続き626・830
 import { isGateInvasionQueueActive } from "./gate-invasion-modal.js";
 import { playSound } from "./sound.js";
 import { announceHandPickups } from "./hand-announcer.js";
@@ -1210,8 +1210,17 @@ function updateTurnHint() {
   try { el = ensureTurnHintEl(); } catch (err) { return; }
   const state = getState();
   let 文 = "";
-  // 対局中で、自分の番の時だけ出す。
-  if (state.turnPlayer && state.turnPlayer === getSelfSeat()) {
+  // 🔴【続き830】**誰かの選択を待っている間は、それを最優先で出す。**
+  //   「全員」を対象にした効果（合同建設・パーティー・役人…）は、1人ずつ順番に選ぶので、
+  //   待っている人の画面は**何も起きていないように見える**（ユーザー報告「え？今何の時間？？」）。
+  //   ⚠ 自分が選ぶ番の時は出さない——その人には選択の画面が出ているので、重ねて言わない。
+  //   ⚠ 自分の番かどうかに関わらず出す（カードを使った本人も待っている側になる）。
+  const 待つ相手 = state.turnPlayer ? getWaitingOnPlayer() : null;
+  if (待つ相手 && 待つ相手 !== getSelfSeat()) {
+    const 名 = (getPlayerName(待つ相手) || "").trim();
+    文 = 名 ? t("game.turnHint.waitingFor", { name: 名 }) : t("game.turnHint.waitingForOther");
+  } else if (state.turnPlayer && state.turnPlayer === getSelfSeat()) {
+    // 対局中で、自分の番の時だけ出す。
     const shown = getDisplayedPhase();
     文 = shown ? t("game.turnHint." + shown) : t("game.turnHint.myTurn");
   }

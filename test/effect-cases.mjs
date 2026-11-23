@@ -1245,6 +1245,83 @@ export const CASES = [
       { kind: "tokenNotInHand", id: "jump", player: "A" },
     ],
   },
+  // 🔴【続き830・ユーザーの問い「ジャンプ台2つを行き来するしかない時はどう終わる？」】
+  //   盤にジャンプ台2枚しか無く、ちょうど2マス離れている形。
+  //   ⚠ 移動先は**カードがあって駒がいないマス**だけ（カードの無いマスへ行けるのは「強制移動」
+  //     だけで、ジャンプ台の文にその語は無い＝getMoveCandidates の注）。
+  //     ⇒ 行き先は**相手のジャンプ台1つだけ**になり、選ぶ余地が無いので自動で往復する。
+  //   ⇒ 止めるのは**同じマスへ戻れる回数**（card-effect-engine.js の
+  //     HUMAN_MOVE_REVISIT_LIMIT = 10／CPUは1）。下の2件で両方向を押さえる。
+  //   ⚠ 着地→次の到達の**連鎖そのもの**を起こすのはアプリ側（main.js）で、ここでは起こせない。
+  //     連鎖が無限に伸びないことは、この「回数の守り」と、main.js の
+  //     MAX_ARRIVAL_CHAIN_DEPTH = 20（最後の砦）の2段で守られている（#49）。
+  {
+    name: "ジャンプ台: 9回戻ったマスへは、まだ跳べる",
+    kind: "arrival",
+    cardId: "red-jump-pad",
+    visited: [{ row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }],
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "jumpA", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "jumpB", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "red-jump-pad", cardTokenId: "jumpA", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 1 },
+      { kind: "pieceAt", player: "A", row: 3, col: 5 },
+    ],
+  },
+  {
+    name: "🔴 ジャンプ台: 10回戻ったマスへは跳べない（往復はここで止まる）",
+    kind: "arrival",
+    cardId: "red-jump-pad",
+    visited: [{ row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }, { row: 3, col: 5 }],
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "jumpA", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "jumpB", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "red-jump-pad", cardTokenId: "jumpA", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      // 行き先が他に無いので、**移動そのものが起きない**（不発）。駒はその場に残る。
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 0 },
+      { kind: "pieceAt", player: "A", row: 3, col: 3 },
+      // ジャンプ台は自分を手札に加えないので、2枚とも盤面に残る。
+      { kind: "tokenZone", id: "jumpA", zone: "cell" },
+      { kind: "tokenZone", id: "jumpB", zone: "cell" },
+    ],
+  },
+  // 対照: 行き先がジャンプ台**ではない**普通のカードなら、1回跳んで終わる（連鎖しない）。
+  {
+    name: "対照・ジャンプ台: 行き先がただのカードなら1回で終わる",
+    kind: "arrival",
+    cardId: "red-jump-pad",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "jumpA", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "plain", kind: "card", cardId: "blue-choosable-trap", faceUp: false, location: { zone: "cell", row: 3, col: 5 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "red-jump-pad", cardTokenId: "jumpA", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 1 },
+      { kind: "pieceAt", player: "A", row: 3, col: 5 },
+    ],
+  },
   {
     name: "白の意思の覚醒(到達): 場の表向きカードを全て捨てる（裏向きは残る）",
     kind: "arrival",

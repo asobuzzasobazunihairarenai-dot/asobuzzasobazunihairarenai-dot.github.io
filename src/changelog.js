@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "いま誰が選んでいるかが分かるようになりました",
       "カードを掴んだ時の案内を減らしました",
       "相手の持ち時間が見えるようになりました",
       "「ログイン中」からアカウントを切り替えられます",
@@ -70,6 +71,7 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "You can see who is choosing right now",
       "Fewer notices when you pick up a card",
       "You can now see your opponent's remaining time",
       "Switch accounts from \"Signed in\"",
@@ -86,6 +88,7 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "「全員」を対象にした効果（合同建設・パーティーなど）は、1人ずつ順番に選びます。その間、**画面の上に「◯◯ が選んでいます…」**と出るようになりました。誰かの選択を待っているだけの時間が、見て分かるようになります。⚠ 自分が選ぶ番の時は出ません（選ぶ画面がもう出ているため）。",
       "カードを掴んだ時に出していた「そのカードを場にドロップすると、手札効果が発動します。」の案内をやめました。効果が自動で処理されるようになり、掴めば置ける所が光るので、もう要らなくなったためです。",
       "**相手の持ち時間のカウントダウンが、はじめから見えるようになりました。**誰の持ち時間かは**その人の名前**が下に出るので、色だけで見分けなくて済みます。相手の分は**数字が少し小さく**出るので、ひと目で「自分のではない」と分かります。⚠ 見たくない方は、⚙オプションの「相手の持ち時間も表示する」を外してください。",
       "**画面の上の「ログイン中」を押すと、アカウントの札が出るようになりました。**そこから**別のアカウントに切り替え**られます（いまのアカウントからログアウトして、ログインの画面に戻ります）。⚠ 対局中・部屋に入っている間は、今までどおり部屋のパネルが開きます。",
@@ -102,6 +105,7 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "Effects that target every player (Joint Construction, Party and so on) are resolved one player at a time. While that happens, the top of the screen now says who is choosing, so a wait no longer looks like nothing happening. It does not appear on your own turn to choose, since the picker is already on screen.",
       "The notice \"Drop that card onto the board to trigger its Hand Effect\" no longer appears when you pick up a card: effects resolve on their own now, and the places you can drop it light up.",
       "**Your opponent's countdown is now shown by default.** The caption underneath names whose time it is, so you no longer have to tell by colour alone, and an opponent's number is drawn slightly smaller. You can turn it off again under Options.",
       "**Tapping \"Signed in\" at the top now opens an account card**, where you can switch to another account (you are signed out and returned to the login screen). While you are in a room, it still opens the room panel as before.",
@@ -186,6 +190,11 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴 ユーザー要望「『全員』を対象にした効果（合同建設など）で、今誰が優先権を持って選んだりプレイしているかを全員にわかるようにしたい。じゃないと『え？今何の時間？？』って感じになります」。⇒ **新しい部品は増やさず**、上端の1行（#turn-hint-bar・B-2）に出す。あそこは既にテーマも端末ごとの大きさも面倒を見てある。",
+      "🔴 オンラインでは**第三者の画面にも**出す必要がある。委任の記録（effect-delegation.js）は**効果を回している本人の端末にしか無い**ので、既にある合図（arrival_delegate_request /_resolved の broadcast）に相乗りした——**あれは元から全員に届いていて、宛先でない人は読み飛ばしているだけ**だった。⇒ **新しい通信路もサーバーの変更も要らない**。",
+      "⚠ `getEffectDelegationTarget()` には足さず、**表示専用の `getWaitingOnPlayer()`** を別に置いた——あれは「いま委任の最中か」で**処理の流れを変えている**所（続き811 の到達の門・続き806 の掃除役）が見ているので、他人の端末の話を混ぜてはいけない。",
+      "🔴🔴 ユーザーの問い「ジャンプ台2つを行き来するしかない時はどう終わる？」に、**こちらは一度間違って答えた**（「盤が空でも他のマスへ降りられる」）。正しくは`getMoveCandidates` が**カードがあって駒がいないマスしか返さない**——カードの無いマスへ行けるのは「強制移動」だけで、ジャンプ台の文にその語は無い（関数の注にそう書いてある）。⇒ 盤に2枚しか無ければ**行き先は相手のジャンプ台1つだけ**＝選ぶ余地が無く自動で往復し、**10回目で「同じマスへ戻れる回数」の守りに当たって止まる**（不発の一言が出て、駒はその場に残る）。",
+      "⇒ 測れる形にしてテストを3本足した（9回なら跳べる／**10回なら跳べない**／対照: 行き先がただのカードなら1回で終わる）。⚠ 着地→次の到達の**連鎖そのもの**を起こすのはアプリ側なので、テストの土台では起こせない。連鎖が無限に伸びないことは、この回数の守りとMAX_ARRIVAL_CHAIN_DEPTH = 20 の2段で守られている（#49）。",
       "🔴🔴 #810「手札のところにずっと貧民の行進が浮いている。あとこの時効果欄にテキストがない」は、" +
         "**2つの不具合が1つの要素に出ていた。** 報告の画面の記録で一発だった——手札の札は6枚なのに" +
         "`.hand-card.is-self` が**7個**あり、7個目だけ `bg: \"image\"`（絵をそのまま敷いている）・" +
@@ -349,6 +358,11 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "The waiting indicator reuses the existing top hint line rather than adding a new component; the line already handles both themes and the per-device sizing.",
+      "It piggybacks on the delegate-request broadcast so other clients see it too — that broadcast already reached everyone and was simply ignored by non-targets, so no new channel and no server change were needed.",
+      "The display reads a separate getWaitingOnPlayer(); the delegation target itself was left alone because the freeze guards branch on it, and another client's state must not leak into that.",
+      "A question about two jump pads bouncing forever was answered wrongly at first: move destinations must hold a card (only forced movement can land on an empty square), so with just two pads the only destination is the other pad and the bounce is automatic.",
+      "It stops on the tenth hop, when the revisit guard refuses the destination, and three tests now pin that: nine revisits still jump, ten do not, and a control where the destination is an ordinary card ends after one jump.",
       "#810 was two bugs showing through one element. The screen snapshot settled it in one read: six cards in hand but seven .hand-card.is-self elements, and only the seventh had a raw background image, no card-face mount, and sat 100px above the row — the card being held.",
       "The empty effect box: the drag ghost painted the raw card image, which is blank for the 73 cards whose text the app draws itself. The pile-drag path was fixed back in #660; only the hand path was left, so the same hole had been dug twice. It now uses the same showCardFace call as a card in hand.",
       "The stuck ghost: pointercancel was never handled, so when the browser took the gesture away (released outside the window, a system gesture) pointerup never arrived and neither the ghost nor the drag session was cleaned up. Exactly the shape fixed for long-press in an earlier pass. Cancelled gestures now clean up and log, and a sweeper removes anything left behind, since the cause may not be the only one.",
