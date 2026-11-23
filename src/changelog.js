@@ -190,6 +190,21 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴 **エディション（使うカード）を選ぶ画面**を作った（ユーザー指示。いまは管理者だけ）。" +
+        "それまではホームの「CPU戦」の設定の中に**横1列の小さなボタンが6つ**並んでいて、" +
+        "報告 #741「この選択モーダルが細々している」はまさにこの列だった（続き806 で幅は直したが、" +
+        "**窮屈さ自体**は残っていた）。しかも箱の絵（assets/boxes）を持っているのに、" +
+        "ここでは**1枚も見えていなかった**。",
+      "⇒ フレンドリーマッチの「この対局の山札」（続き744）と**同じ形**にした——画面全体を黒い" +
+        "半透明が覆い、箱が並ぶ。CSS は `.deck-chooser-*` を**そのまま共有**する（写しを作らない）。" +
+        "ホーム側は「いま何か」の1行と「変える」だけになった。",
+      "⚠ **別のモジュールにした**（src/edition-select-ui.js）。あちらは**部屋の持ち物**で選ぶと" +
+        "サーバーへ書くが、こちらは**この端末の既定**で通信は1つも無い。同じ関数に両方を持たせると" +
+        "「部屋に居ない時」の分岐が全部に散る。",
+      "⚠ 撮って直した所が2つ: ①試験用（管理者だけ）の札が**公式と同じ大きさの箱**で並んで、" +
+        "どちらが本筋か分からなかった ②その中の 0th拡張が**リメイクの箱の絵を流用している**ので、" +
+        "リメイクと見分けが付かなかった（0th拡張はブースターパックで売られた拡張＝箱が無い）。" +
+        "⇒ 試験用は**小さい札**にして箱を出さない。",
       "🔴 ユーザー要望「『全員』を対象にした効果（合同建設など）で、今誰が優先権を持って選んだりプレイしているかを全員にわかるようにしたい。じゃないと『え？今何の時間？？』って感じになります」。⇒ **新しい部品は増やさず**、上端の1行（#turn-hint-bar・B-2）に出す。あそこは既にテーマも端末ごとの大きさも面倒を見てある。",
       "🔴 オンラインでは**第三者の画面にも**出す必要がある。委任の記録（effect-delegation.js）は**効果を回している本人の端末にしか無い**ので、既にある合図（arrival_delegate_request /_resolved の broadcast）に相乗りした——**あれは元から全員に届いていて、宛先でない人は読み飛ばしているだけ**だった。⇒ **新しい通信路もサーバーの変更も要らない**。",
       "⚠ `getEffectDelegationTarget()` には足さず、**表示専用の `getWaitingOnPlayer()`** を別に置いた——あれは「いま委任の最中か」で**処理の流れを変えている**所（続き811 の到達の門・続き806 の掃除役）が見ているので、他人の端末の話を混ぜてはいけない。",
@@ -358,6 +373,10 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "An edition picker screen replaced the row of six cramped buttons in the CPU-match settings — the subject of an earlier \"this picker is tiny\" report. The app owns box art, yet none of it was visible there.",
+      "It reuses the look and the CSS classes of the room's deck chooser: the screen is covered, the boxes are large and can be spun. The home panel is now one line saying what is selected, plus a Change button.",
+      "It is a separate module even so: the room chooser writes a room setting to the server, while this one only sets this device's default and talks to nothing. Folding both into one function would scatter a \"not in a room\" branch through all of it.",
+      "Screenshots caught two things: the admin-only test entries were as large as the official boxes, and one of them borrows the remake box art, so it was indistinguishable from remake. The test row is now small cards with no box at all.",
       "The waiting indicator reuses the existing top hint line rather than adding a new component; the line already handles both themes and the per-device sizing.",
       "It piggybacks on the delegate-request broadcast so other clients see it too — that broadcast already reached everyone and was simply ignored by non-targets, so no new channel and no server change were needed.",
       "The display reads a separate getWaitingOnPlayer(); the delegation target itself was left alone because the freeze guards branch on it, and another client's state must not leak into that.",

@@ -50,7 +50,9 @@ onCardPacksChange(() => {
     tile.appendChild(b);
   } catch { /* バッジのためにホームを壊さない */ }
 });
-import { getCardSet, setCardSet, CARD_SETS } from "./card-set.js";
+import { getCardSet } from "./card-set.js";
+// 🔴【続き832】エディションを選ぶ画面（画面全体・箱が並ぶ）。
+import { openEditionChooser, セットの名 } from "./edition-select-ui.js";
 // 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
 import { isMyStackEnabled, setMyStackEnabled } from "./my-stack.js";
 import { isUiV2 } from "./ui-v2.js"; // 【2026-11-14】試作のレイアウト（?ui=v2 の時だけ使う）
@@ -705,35 +707,26 @@ function openMatchChoiceModal(opts = {}) {
     setLabel.className = "home-match-choice-difficulty-label";
     setLabel.textContent = t(cpuだけ ? "home.matchChoice.cardSetLabelShort" : "home.matchChoice.cardSetLabel");
     setBox.appendChild(setLabel);
-    const setSeg = document.createElement("div");
-    setSeg.className = "home-match-choice-segment";
-    const setButtons = [];
+    // 🔴【続き832】**6つのボタンを横に並べるのをやめた。**
+    //   報告 #741「この選択モーダルが細々している」はこの列のことで、箱の絵を持っているのに
+    //   ここでは1枚も見えていなかった。⇒ 「いま何か」の1行と「変える」だけを置き、
+    //   押したら**画面全体の選択画面**（フレンドリーマッチの山札選びと同じ形）を開く。
+    const setRow = document.createElement("div");
+    setRow.className = "home-match-choice-edition-row";
+    const setNow = document.createElement("span");
+    setNow.className = "home-match-choice-edition-now";
+    const setBtn = document.createElement("button");
+    setBtn.type = "button";
+    setBtn.className = "home-match-choice-segment-btn";
+    setBtn.textContent = t("edition.change");
     const refreshSet = () => {
-      const cur = getCardSet();
-      for (const b of setButtons) b.classList.toggle("is-selected", b.dataset.v === cur);
+      setNow.textContent = セットの名(getCardSet());
     };
-    for (const [v, key] of [
-      [CARD_SETS.REMAKE, "home.matchChoice.cardSetRemake"],
-      [CARD_SETS.EX0, "home.matchChoice.cardSetEx0"],
-      [CARD_SETS.FIRST_ED, "home.matchChoice.cardSet1st"],
-      [CARD_SETS.OLD_0TH, "home.matchChoice.cardSet0th"],
-      [CARD_SETS.MIXED, "home.matchChoice.cardSetMixed"],
-      // 🔴【続き782】志炎者を本物の対局で試すための枠（管理者だけ）。志炎者は各1枚。
-      [CARD_SETS.REMAKE_CF, "home.matchChoice.cardSetRemakeCf"],
-    ]) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "home-match-choice-segment-btn";
-      b.dataset.v = v;
-      b.textContent = t(key);
-      b.addEventListener("click", () => {
-        setCardSet(v);
-        refreshSet();
-      });
-      setSeg.appendChild(b);
-      setButtons.push(b);
-    }
-    setBox.appendChild(setSeg);
+    setBtn.addEventListener("click", () => {
+      openEditionChooser({ 試験も: true, onChanged: () => refreshSet() });
+    });
+    setRow.append(setNow, setBtn);
+    setBox.appendChild(setRow);
     const setHint = document.createElement("div");
     setHint.className = "home-match-choice-difficulty-hint";
     setHint.textContent = t("home.matchChoice.cardSetHint");

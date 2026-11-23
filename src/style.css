@@ -29244,7 +29244,11 @@ body.is-tablet-device .my-page-title-chip .my-page-title-progress-num {
 }
 
 /* ---- ② 画面全体の選び場 ---- */
-#deck-chooser {
+/* 🔴【続き832】エディションを選ぶ画面も**同じ見た目**（写しを作らない）。
+   中身の札は .deck-chooser-* をそのまま使う。違うのは「部屋の持ち物か／この端末の既定か」
+   だけなので、見た目を2つ持つ理由が無い。 */
+#deck-chooser,
+#edition-chooser {
   position: fixed;
   inset: 0;
   /* ⚠ ロビー(2200)より手前・オプションの帯(2700)より後ろ（続き75 の並び／続き734 の教訓）。 */
@@ -29268,8 +29272,22 @@ body.is-tablet-device .my-page-title-chip .my-page-title-progress-num {
 /* 🔴 開いている間はロビーを隠す。半透明なので、隠さないとロビーの文字（ターンタイマー ON
    など）が箱の名前と重なって読めなくなる（撮って見つけた）。盤面は透けたままでよい。 */
 body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
+/* 🔴【続き832】ホームの「使うカード」の1行（いま何か＋変える）。
+   ⚠ 横1列に6つ並べるのをやめた（#741「細々している」）。 */
+.home-match-choice-edition-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.home-match-choice-edition-now {
+  font-weight: bold;
+  opacity: 0.9;
+}
 /* ✕ はオプションの帯（画面右上のアイコン列）と重なるので、1段下げて内側へ入れる。 */
-#deck-chooser > .modal-close-x {
+#deck-chooser > .modal-close-x,
+#edition-chooser > .modal-close-x {
   position: absolute;
   top: 3.4rem;
   right: 1rem;
@@ -29337,6 +29355,10 @@ body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
   cursor: pointer;
 }
 .deck-chooser-dice.is-plain { width: 5rem; height: 5rem; font-size: 2rem; }
+/* 🔴【続き832】試験用（管理者だけ）の札は脇役なので小さく。公式と同じ大きさの箱が
+   並ぶと、どちらが本筋か分からなくなる（撮って気づいた）。 */
+.deck-chooser-item.is-small .deck-chooser-dice.is-plain { width: 3.2rem; height: 3.2rem; font-size: 1.3rem; }
+.deck-chooser-item.is-small .deck-chooser-name { font-size: 0.72rem; opacity: 0.85; }
 
 /* ---- みんなのマイ山札 ---- */
 .deck-chooser-stacks {

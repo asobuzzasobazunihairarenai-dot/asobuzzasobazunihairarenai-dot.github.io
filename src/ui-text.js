@@ -75,6 +75,10 @@ const UI = {
     "oui.cardSetLabel": "🧪 この部屋で使うカード（管理者のみ）",
     "oui.cardSetHint": "あなたが「ゲームを開始する」を押した時の選択が、この部屋の全員に効きます。ランク戦では使われません（必ずリメイクです）。",
     // --- この対局の山札（deck-choice-ui.js・続き743） ---
+    "edition.title": "エディションを選ぶ",
+    "edition.current": "いま選ばれているカード：{name}",
+    "edition.change": "変える",
+    "edition.note": "ここで選んだものは、次に始める対局から効きます（いま走っている対局の山札は変わりません）。ランク戦では使われません。",
     "deckChoice.title": "この対局の山札",
     "deckChoice.open.host": "山札を選ぶ",
     "deckChoice.open.guest": "候補を見る",
@@ -2663,6 +2667,10 @@ const UI = {
     "oui.cardSetLabel": "🧪 Card set for this room (admin only)",
     "oui.cardSetHint": "Whatever is selected when you press Start applies to everyone in this room. Ranked matches never use it (they are always Remake).",
     // --- Deck for this match (deck-choice-ui.js) ---
+    "edition.title": "Choose an edition",
+    "edition.current": "Currently selected: {name}",
+    "edition.change": "Change",
+    "edition.note": "What you pick here applies from your next match (the deck of a match already running does not change). Ranked matches never use it.",
     "deckChoice.title": "Deck for this match",
     "deckChoice.open.host": "Choose the deck",
     "deckChoice.open.guest": "See the candidates",
