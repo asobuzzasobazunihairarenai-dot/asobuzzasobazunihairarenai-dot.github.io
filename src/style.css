@@ -29314,3 +29314,33 @@ body.theme-light .deck-viewer-note {
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* 🔴【#790・続き813】相手を選ぶモーダルの「盤面を見る」。
+   ⚠ このモーダルは覆いを持たない（#461）ので、覗いている間も盤面はそのまま押せる。
+     隠すのは**中身だけ**で、ボタンは残す（押して戻れないと詰む）。
+   ⚠ 地と枠も透明にする（枠だけ残ると盤面の上に四角い線が浮く）。 */
+#player-pick-modal .player-pick-peek-btn {
+  position: absolute;
+  top: -0.6rem;
+  right: -0.6rem;
+  z-index: 1;
+  /* ⚠ 指で押す物なので小さくしない（実測 41x13px では押しづらかった）。 */
+  font-size: 0.95rem;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.75);
+  background: #1f2937;
+  color: #fde68a;
+  cursor: pointer;
+}
+/* 🔴 明るいテーマの規則（body.theme-light #player-pick-modal）に**詳細度で負ける**ので、
+   そちらも名指しで上書きする（続き775 と同じ罠）。 */
+body.theme-light #player-pick-modal.is-peeking,
+#player-pick-modal.is-peeking {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+#player-pick-modal.is-peeking > *:not(.player-pick-peek-btn) {
+  visibility: hidden;
+}

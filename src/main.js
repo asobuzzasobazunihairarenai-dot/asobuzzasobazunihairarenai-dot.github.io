@@ -9909,6 +9909,21 @@ function requestHandCardChoiceForEffect__inner(player, hint, tokenIdFilter, opti
 function buildPlayerPickModal(entries, hint, onPick) {
   const modal = document.createElement("div");
   modal.id = "player-pick-modal";
+  // 🔴【#790・続き813】「盤面を見る」。選択肢モーダルと**同じ仕組み・同じ文言**を使う
+  //   （新しく作ると、片方だけ直して食い違う）。
+  //   ⚠ このモーダルは覆いを持たない（アバターを押す道を残すため＝#461）ので、
+  //     覗いている間も**盤面はそのまま押せる**。隠すのは中身だけ。
+  const peekBtn = document.createElement("button");
+  peekBtn.type = "button";
+  peekBtn.className = "player-pick-peek-btn";
+  peekBtn.textContent = t("heu.peek");
+  peekBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const 覗く = !modal.classList.contains("is-peeking");
+    modal.classList.toggle("is-peeking", 覗く);
+    peekBtn.textContent = 覗く ? t("game.declare.restoreModal") : t("heu.peek");
+  });
+  modal.appendChild(peekBtn);
   const titleEl = document.createElement("div");
   titleEl.className = "contact-approval-title";
   titleEl.textContent = hint || t("ce.pickPlayerTitle");
