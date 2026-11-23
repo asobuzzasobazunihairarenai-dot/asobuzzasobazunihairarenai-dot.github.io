@@ -34,6 +34,8 @@ import {
 } from "./online.js";
 import { CARD_SETS, getCardSet } from "./card-set.js";
 import { getMyStacks } from "./my-stack.js";
+// 🔴【続き835】マイ山札の箱の絵（蓋にするカードのイラスト）。
+import { buildStackBoxArt } from "./stack-box-art.js";
 import { buildDeckBox3d, hasDeckBoxArt } from "./deck-box-3d.js";
 import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js";
@@ -301,8 +303,17 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
     sub.textContent = t("deckChoice.stacksTitle");
     stacks.appendChild(sub);
 
+    // 🔴【続き835】ユーザー案「**マイ山札も同じ箱サイズで並ぶのはどう？**」。
+    //   ⇒ 小さな札（チップ）をやめて、公式の箱と**同じ作り・同じ大きさ**で並べる。
+    //   ⚠ 箱の絵は**自分の山札のぶんだけ**出せる——スキン（蓋にするカードの id）は
+    //     この端末の localStorage に在り、**サーバーには送っていない**（so7_offer_my_stack は
+    //     名前・セット・組み方しか受け取らない）。他の人の山札は**名前だけの無地の箱**になる。
+    //     ⓘ 全員に見せたいなら SQL に1列足す話になる（申し送り）。
+    const 自分の山札 = getMyStacks();
+    const スキンを引く = (stackKey) => 自分の山札.find((x) => x.id === stackKey)?.skin || "";
+
     const list = document.createElement("div");
-    list.className = "deck-chooser-stack-list";
+    list.className = "deck-chooser-stack-list is-boxes";
     if (offers.length === 0) {
       const none = document.createElement("div");
       none.className = "deck-chooser-empty";
@@ -312,15 +323,26 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
     for (const of of offers) {
       const 選ばれている = choice?.mode === "stack" && choice.userId === of.userId && choice.stackKey === of.stackKey;
       const chip = document.createElement("div");
-      chip.className = "deck-chooser-stack" + (選ばれている ? " is-selected" : "") + (iamHost ? " is-pickable" : "");
-      const nm = document.createElement("span");
-      nm.className = "deck-chooser-stack-name";
+      chip.className = "deck-chooser-item deck-chooser-stack" + (選ばれている ? " is-selected" : "") + (iamHost ? " is-pickable" : "");
+      const 選ぶ = () => (iamHost ? 決める({ mode: "stack", userId: of.userId, stackKey: of.stackKey }) : null);
+
+      // 公式と同じ大きさの箱。⚠ 自分の山札だけスキンが引ける（上の注）。
+      const stage = document.createElement("div");
+      stage.className = "deck-chooser-stage";
+      const size = Math.max(120, Math.min(220, Math.round(Math.min(window.innerWidth / 3.4, window.innerHeight / 3.4))));
+      const 絵 = buildStackBoxArt(of.mine ? スキンを引く(of.stackKey) : "");
+      const box = buildDeckBox3d(絵, { size, flat: 平面, onTap: 選ぶ, nameplate: of.name || "?" });
+      if (box) { stage.appendChild(box); 箱たち.push(box); }
+      chip.appendChild(stage);
+
+      const nm = document.createElement("div");
+      nm.className = "deck-chooser-name deck-chooser-stack-name";
       nm.textContent = of.name || "?";
-      const who = document.createElement("span");
+      const who = document.createElement("div");
       who.className = "deck-chooser-stack-owner";
       who.textContent = of.mine ? t("deckChoice.mine") : of.ownerName || "?";
       chip.append(nm, who);
-      if (iamHost) chip.addEventListener("click", () => 決める({ mode: "stack", userId: of.userId, stackKey: of.stackKey }));
+      if (iamHost) nm.addEventListener("click", 選ぶ);
       if (of.mine) {
         const del = document.createElement("button");
         del.type = "button";

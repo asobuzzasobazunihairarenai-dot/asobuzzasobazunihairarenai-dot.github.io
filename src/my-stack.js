@@ -223,6 +223,9 @@ try {
           山札たち.push({
             id: typeof st.id === "string" && st.id ? st.id : 新しいid(),
             name: typeof st.name === "string" ? st.name : "",
+            // 🔴【続き835】箱のスキン＝**この山札を表すカードの id**（ユーザー案「好きなカードの
+            //   イラストを箱のスキンとして設定」）。絵の道は**ここでは知らない**（葉のまま保つ）。
+            skin: typeof st.skin === "string" ? st.skin : "",
             recipe: 組み方を整える(st.recipe),
           });
         }
@@ -261,7 +264,7 @@ export function isMyStackActive() {
 
 // ── 複数の山札 ───────────────────────────────────────────────────────────
 export function getMyStacks() {
-  return 山札たち.map((x) => ({ id: x.id, name: x.name, recipe: { ...x.recipe } }));
+  return 山札たち.map((x) => ({ id: x.id, name: x.name, skin: x.skin || "", recipe: { ...x.recipe } }));
 }
 export function getSelectedStackId() {
   return 今の山札()?.id || null;
@@ -275,7 +278,7 @@ export function selectMyStack(id) {
 // 新しい山札を足して、それを選ぶ。recipe を渡さなければ空（画面側が標準から始める）。
 export function createMyStack(name, recipe) {
   if (山札たち.length >= MAX_MY_STACKS) return null;
-  const st = { id: 新しいid(), name: typeof name === "string" ? name : "", recipe: 組み方を整える(recipe) };
+  const st = { id: 新しいid(), name: typeof name === "string" ? name : "", skin: "", recipe: 組み方を整える(recipe) };
   山札たち.push(st);
   選んでいる = st.id;
   保存();
@@ -288,6 +291,20 @@ export function renameMyStack(id, name) {
   保存();
   return true;
 }
+// 🔴【続き835】箱のスキン（カードの id）を覚える。空にすれば既定の箱に戻る。
+//   ⚠ カードの id が本当に在るかは**ここでは見ない**（カードの表を知らない葉のまま保つ）。
+//     画面側が候補から選ばせるので、在り得ない id は入らない。
+export function setMyStackSkin(id, cardId) {
+  const st = 山札たち.find((x) => x.id === id);
+  if (!st) return false;
+  st.skin = typeof cardId === "string" ? cardId.slice(0, 64) : "";
+  保存();
+  return true;
+}
+export function getMyStackSkin(id) {
+  return 山札たち.find((x) => x.id === id)?.skin || "";
+}
+
 // ⚠ 最後の1つは消させない（消すと「どれを編集しているのか」が無くなる）。
 export function deleteMyStack(id) {
   if (山札たち.length <= 1) return false;
@@ -323,7 +340,7 @@ export function setMyStackRecipe(recipe) {
   const next = 組み方を整える(recipe);
   let st = 今の山札();
   if (!st) {
-    st = { id: 新しいid(), name: "", recipe: next };
+    st = { id: 新しいid(), name: "", skin: "", recipe: next };
     山札たち.push(st);
     選んでいる = st.id;
   } else {

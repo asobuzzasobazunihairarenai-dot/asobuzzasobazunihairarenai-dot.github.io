@@ -75,8 +75,18 @@ export function hasDeckBoxArt(cardSet) {
 //   size      … 一辺の px（既定 150）
 //   flat      … true なら回さない（2D表示モード。動くものを全部止める）
 //   onTap     … ドラッグではない「押した」時に呼ぶ（選ぶ等）。ドラッグした時は呼ばない。
-export function buildDeckBox3d(cardSet, { size = 150, flat = false, onTap = null } = {}) {
-  const 絵 = 箱の絵[cardSet];
+//   nameplate … 蓋に載せる文字（マイ山札の名前）。空なら載せない。
+//
+// 🔴【続き835】第1引数は**エディションの名前**でも、**絵の組**でもよい。
+//   ユーザー案「マイ山札も同じ箱サイズで並ぶのはどう？ 箱のスキンはユーザーがマイ山札を
+//   作るときに好きなカードのイラストを箱のスキンとして設定します」。
+//   ⇒ マイ山札には**刷られた箱が無い**ので、呼ぶ側が絵を作って渡す。
+//   ⚠ このファイルは**何も import しない葉**のまま保つ（card-set.js と同じ作法）。
+//     カードの絵の道を知っているのは呼ぶ側なので、**ここでは受け取るだけ**にする。
+//   絵の組 = { top, back, side, edge }。`side` は省けて、その時は edge の色で塗る。
+export function buildDeckBox3d(cardSet, { size = 150, flat = false, onTap = null, nameplate = "" } = {}) {
+  const 絵 = typeof cardSet === "string" ? 箱の絵[cardSet] : cardSet;
+  // ⚠ 天面の絵（top）が無くてもよい（スキンを選んでいないマイ山札＝**無地の箱**になる）。
   if (!絵) return null;
 
   const 厚み = Math.max(8, Math.round(size * BOX_DEPTH_RATIO));
@@ -122,9 +132,23 @@ export function buildDeckBox3d(cardSet, { size = 150, flat = false, onTap = null
   const 上 = 面を作る("is-up", `rotateX(90deg) translateZ(${size / 2}px)`, { img: 絵.side, 幅: size, 高: 厚み });
   const 下 = 面を作る("is-down", `rotateX(-90deg) translateZ(${size / 2}px)`, { img: 絵.side, 幅: size, 高: 厚み });
   // 側面の絵は縦長（64x512）なので、上下の面では90度ねじって敷く。
-  for (const f of [上, 下]) {
-    f.style.backgroundSize = `${厚み}px ${size}px`;
-    f.style.backgroundRepeat = "repeat-x";
+  // ⚠ 側面の絵が無い時（マイ山札）は何もしない——edge の色で塗られたままにする。
+  if (絵.side) {
+    for (const f of [上, 下]) {
+      f.style.backgroundSize = `${厚み}px ${size}px`;
+      f.style.backgroundRepeat = "repeat-x";
+    }
+  }
+
+  // 🔴【続き835】蓋の名札（マイ山札の名前）。カードのイラストをそのまま貼ると
+  //   「どの山札か」が分からないので、名前を重ねる。
+  //   ⚠ `pointer-events: none`——箱を回す指を名札が食べない（教訓4 の家族）。
+  if (nameplate) {
+    const 札 = document.createElement("div");
+    札.className = "deck-box-nameplate";
+    札.textContent = nameplate;
+    札.style.fontSize = `${Math.max(9, Math.round(size * 0.075))}px`;
+    inner.querySelector(".deck-box-face.is-front")?.appendChild(札);
   }
 
   // ── 回す ───────────────────────────────────────────────────────────────

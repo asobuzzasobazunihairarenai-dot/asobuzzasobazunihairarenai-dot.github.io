@@ -29451,6 +29451,27 @@ body.is-phone-device .edition-carousel-title,
 body.is-tablet-device .edition-carousel-title { font-size: 1.5rem; }
 body.is-phone-device .deck-chooser-pick,
 body.is-tablet-device .deck-chooser-pick { font-size: 1.2rem; padding: 0.6rem 2rem; }
+/* 🔴【続き835】マイ山札の箱の蓋に載せる名札。カードのイラストをそのまま貼るだけだと
+   「どの山札か」が分からないので、名前を重ねる。
+   ⚠ pointer-events: none ——箱を回す指を名札が食べない（教訓4 の家族）。
+   ⚠ 文字色は決め打ちしてよい（自分で濃い地を持つ＝教訓15 の例外）。 */
+.deck-box-nameplate {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 7%;
+  padding: 0.25em 0.4em;
+  background: rgba(10, 14, 20, 0.72);
+  border: 1px solid rgba(246, 237, 220, 0.45);
+  color: #f6eddc;
+  font-family: sans-serif;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
 .deck-chooser-stacks {
   display: flex;
   flex-direction: column;
@@ -29462,6 +29483,23 @@ body.is-tablet-device .deck-chooser-pick { font-size: 1.2rem; padding: 0.6rem 2r
 .deck-chooser-sub { font-size: 0.8rem; font-weight: bold; opacity: 0.85; }
 .deck-chooser-sub.is-test { margin-top: 0.5rem; opacity: 0.6; font-weight: normal; font-size: 0.72rem; }
 .deck-chooser-empty { font-size: 0.75rem; opacity: 0.6; }
+/* 続き835: マイ山札も公式と同じ大きさの箱で並べる（ユーザー案）。 */
+.deck-chooser-stack-list.is-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.1rem;
+}
+.deck-chooser-stack-list.is-boxes .deck-chooser-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 0;
+  padding: 0;
+}
 .deck-chooser-stack-list {
   display: flex;
   flex-wrap: wrap;
@@ -29773,3 +29811,55 @@ body.theme-light #player-pick-modal.is-peeking,
     #000 calc(var(--burn-hole-r, 0%) + 1%)
   );
 }
+
+/* 🔴【続き835】マイ山札の箱の絵を選ぶ画面（ユーザー案「好きなカードのイラストを箱のスキンに」）。
+   ⚠ 126枚ぶんのカード面を DOM で組むと重い（deck-viewer.js の教訓）ので、**背景画像で敷くだけ**。 */
+#stack-skin-picker {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2681;
+  width: min(44rem, 94vw);
+  /* ⚠ vh は使わない（ステージ倍率が掛かる＝検査 check-css が止める）。
+     ステージの高さ 56.25rem の8割。 */
+  max-height: 45rem;
+  overflow-y: auto;
+  padding: 1.1rem 1.2rem 1.4rem;
+  box-sizing: border-box;
+  background: rgba(16, 22, 32, 0.96);
+  border: 1px solid rgba(216, 178, 76, 0.5);
+  color: #f1f5f9;
+  font-family: sans-serif;
+}
+body.theme-light #stack-skin-picker {
+  background: rgba(255, 253, 247, 0.98);
+  color: #3a3326;
+  border-color: rgba(176, 141, 63, 0.5);
+}
+.stack-skin-title { font-size: 1.05rem; font-weight: bold; text-align: center; }
+.stack-skin-note { font-size: 0.78rem; opacity: 0.75; text-align: center; margin-top: 0.2rem; }
+.stack-skin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+.stack-skin-cell {
+  aspect-ratio: 1 / 1;
+  border: 1px solid rgba(216, 178, 76, 0.35);
+  background-color: rgba(216, 178, 76, 0.08);
+  color: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0;
+}
+.stack-skin-cell.is-on { outline: 2px solid rgba(216, 178, 76, 0.95); outline-offset: 2px; }
+.stack-skin-cell:hover { border-color: rgba(216, 178, 76, 0.9); }
+/* 🔴 スマホ・タブレットはステージが縮むので字を大きく（#453・#569 の家族）。 */
+body.is-phone-device .stack-skin-title,
+body.is-tablet-device .stack-skin-title { font-size: 1.5rem; }
+body.is-phone-device .stack-skin-note,
+body.is-tablet-device .stack-skin-note { font-size: 1.1rem; }
+body.is-phone-device .stack-skin-cell,
+body.is-tablet-device .stack-skin-cell { font-size: 1.05rem; }

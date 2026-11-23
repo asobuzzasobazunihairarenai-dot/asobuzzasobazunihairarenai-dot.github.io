@@ -34,8 +34,11 @@ import {
   selectMyStack,
   createMyStack,
   renameMyStack,
+  setMyStackSkin,
   deleteMyStack,
 } from "./my-stack.js";
+// 🔴【続き835】箱の絵（スキン）を選ぶ画面。
+import { openStackSkinPicker } from "./my-stack-skin-picker.js";
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getCardName } from "./card-text.js";
 import { t } from "./ui-text.js";
@@ -424,6 +427,29 @@ function 山札の列を組む() {
     再描画();
   });
   手.appendChild(ren);
+
+  // 🔴【続き835】箱の絵（スキン）。ユーザー案「好きなカードのイラストを箱のスキンとして設定」。
+  //   ⚠ 候補は**この山札に入っているカード**（「この山札の顔」を選ぶ意味がそのまま通る）。
+  //     まだ空の時だけ標準の表から選ばせる（選べない画面を出さない＝#729 の家族）。
+  const skin = document.createElement("button");
+  skin.type = "button";
+  skin.className = "my-stack-tab-tool";
+  skin.textContent = t("mystack.skin.button");
+  skin.addEventListener("click", () => {
+    const 中身 = Object.keys(下書き || {}).filter((id) => (下書き[id] || 0) > 0);
+    const 候補 = 中身.length ? 中身 : 標準の表().map((c) => c.id);
+    const いま = 一覧.find((x) => x.id === 選択)?.skin || "";
+    openStackSkinPicker({
+      候補,
+      いま,
+      onPick: (id) => {
+        setMyStackSkin(選択, id);
+        再描画();
+      },
+    });
+  });
+  手.appendChild(skin);
+
   if (一覧.length > 1) {
     const del = document.createElement("button");
     del.type = "button";

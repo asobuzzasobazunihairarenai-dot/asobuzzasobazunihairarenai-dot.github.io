@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-23",
     summary: [
+      "マイ山札に「箱の絵」を付けられます",
       "いま誰が選んでいるかが分かるようになりました",
       "カードを掴んだ時の案内を減らしました",
       "相手の持ち時間が見えるようになりました",
@@ -71,6 +72,7 @@ export const CHANGELOG = [
       "ルール動画にサムネイルが付きました",
     ],
     summaryEn: [
+      "Give your decks a box of their own",
       "You can see who is choosing right now",
       "Fewer notices when you pick up a card",
       "You can now see your opponent's remaining time",
@@ -88,6 +90,7 @@ export const CHANGELOG = [
       "Rule videos now show thumbnails",
     ],
     items: [
+      "マイ山札に**箱の絵**を付けられるようになりました。マイ山札の編集で「箱の絵」を押すと、その山札に入っているカードの中から**蓋にするイラスト**を選べます。選んだ絵は、フレンドリーマッチの「この対局の山札」で**公式の箱と同じ大きさの箱**になって並びます（指でくるくる回せます）。⚠ いまのところ**自分の箱の絵は自分の画面にだけ**出ます。",
       "「全員」を対象にした効果（合同建設・パーティーなど）は、1人ずつ順番に選びます。その間、**ターン表示（「◯◯のターンです」）のすぐ上に「◯◯ が選んでいます…」**と出るようになりました。誰かの選択を待っているだけの時間が、見て分かるようになります。⚠ 自分が選ぶ番の時は出ません（選ぶ画面がもう出ているため）。",
       "カードを掴んだ時に出していた「そのカードを場にドロップすると、手札効果が発動します。」の案内をやめました。効果が自動で処理されるようになり、掴めば置ける所が光るので、もう要らなくなったためです。",
       "**相手の持ち時間のカウントダウンが、はじめから見えるようになりました。**誰の持ち時間かは**その人の名前**が下に出るので、色だけで見分けなくて済みます。相手の分は**数字が少し小さく**出るので、ひと目で「自分のではない」と分かります。⚠ 見たくない方は、⚙オプションの「相手の持ち時間も表示する」を外してください。",
@@ -105,6 +108,7 @@ export const CHANGELOG = [
       "ヘルプの「🎬 動画で見る」に**サムネイルが並ぶ**ようになりました。どちらの動画か一目で分かります。ⓘ 絵が読み込めない時は、今までどおり文字のリンクになります。",
     ],
     itemsEn: [
+      "Your decks can have a box of their own now. In the deck editor, Box art lets you pick an illustration from a card in that deck to use as the lid; the deck then appears in a friendly match's deck chooser as a box the same size as the official ones, and you can spin it. For now your box art is only visible on your own screen.",
       "Effects that target every player (Joint Construction, Party and so on) are resolved one player at a time. While that happens, a line just above the turn display says who is choosing, so a wait no longer looks like nothing happening. It does not appear on your own turn to choose, since the picker is already on screen.",
       "The notice \"Drop that card onto the board to trigger its Hand Effect\" no longer appears when you pick up a card: effects resolve on their own now, and the places you can drop it light up.",
       "**Your opponent's countdown is now shown by default.** The caption underneath names whose time it is, so you no longer have to tell by colour alone, and an opponent's number is drawn slightly smaller. You can turn it off again under Options.",
@@ -190,6 +194,11 @@ export const CHANGELOG = [
       "Leaving a choice dialog open could get it cancelled for you after a while.",
     ],
     devItems: [
+      "🔴 ユーザー案「**マイ山札も同じ箱サイズで並ぶのはどう？ 箱のスキンはユーザーがマイ山札を作るときに好きなカードのイラストを箱のスキンとして設定します。**」⇒ そのまま入れた。",
+      "⚠ **作りの分け方**: `deck-box-3d.js` は**何も import しない葉**のままにしたいので、「絵を組む」のは新しい `stack-box-art.js`、「貼る」のはあちら、と分けた。あちらの第1引数は**エディションの名前でも、絵の組（{top, back, side, edge}）でもよい**形にしてある。",
+      "⚠ 縁の色は**自分で表を持たない**——`--color-*`（style.css が1か所で決めている）から読む。表を2か所に書くと必ず食い違う（続き762 の教訓）。",
+      "⚠ 候補は**その山札に入っているカード**にした（「この山札の顔」を選ぶ意味がそのまま通る／126種を全部並べると探すのが大変／入っていない絵が蓋になると中身と食い違う）。空の時だけ標準の表から。",
+      "🔴 **他の人の箱の絵は出せない。** スキンは端末の localStorage に在り、`so7_offer_my_stack` は**名前・セット・組み方しか受け取らない**ので、サーバーを通らない。他の人の山札は**名前だけの無地の箱**になる。全員に見せるなら SQL に1列足す話（申し送り）。",
       "🔴 **旧0th EDITION の箱**を焼いて、エディションの回転台に並べた（ユーザーが在りかを" +
         "教えてくれた: 2024-03-02 の「パッケージ蓋/身展開図(31作成版)深さ修正.ai」）。" +
         "天面＝蓋の型抜き線の内側（虹の輪とロゴ）、側面＝左の帯、裏＝身の印刷面（商品説明・" +
@@ -395,6 +404,11 @@ export const CHANGELOG = [
       "🔴 **#758 は画面の特定が外れていた。** 「テキストのマイデッキ編集とマイ山札を作るはいらないかも」の指す画面を**ホームのタイル**だと読んでいたが、ホームを開いて見たら**その2つの文字は無かった**（在るのは「マイページ／マイデッキ編集」という1つのタイルだけ）。#757「マイデッキマイ山札の列とその他の項目との間の広いスペース列」と合わせると、**マイページの中**の話。⇒ **勝手に直さず止めた**（画面を取り違えたまま layout を変えると、直っていない所を直したことになる）。",
     ],
     devItemsEn: [
+      "Decks can carry box art: a card illustration from inside that deck becomes the lid, and the deck shows up in the room's chooser as a box the same size as the official ones.",
+      "The split: deck-box-3d stays a leaf that imports nothing, so a new module composes the art and that one only paints it. Its first argument now accepts either an edition name or an art object.",
+      "The edge colour is read from the --color-* custom properties rather than duplicating the palette.",
+      "The candidate list is the cards actually in that deck, which keeps the choice meaningful and the grid short; only an empty deck falls back to the standard set.",
+      "Other players cannot see your box art yet: the skin lives in this device's storage and the offer RPC carries only name, set and recipe, so their decks appear as plain boxes with a nameplate. Sharing it would mean one more column in SQL.",
       "The old 0th EDITION box was baked from the 2024 print files the user pointed at, and now appears in the edition turntable: the lid face with its rainbow ring, the side band, and the tray print for the back. The dieline was trimmed off each face. The tooling from the earlier box bake worked unchanged.",
       "Three faces came to 105KB; the source renders are 2600px square, which would be enormous if pasted straight in, so they are always baked down first.",
       "Old 0th stays on the admin-only side of the picker; only its artwork changed, not who may choose it.",
