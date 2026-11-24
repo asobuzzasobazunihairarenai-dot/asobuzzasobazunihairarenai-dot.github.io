@@ -29489,6 +29489,32 @@ body.diagnostic-flatten-3d .edition-carousel-item.is-selected .deck-chooser-stag
 @media (prefers-reduced-motion: reduce) {
   .edition-carousel-item.is-selected .deck-chooser-stage::before { animation: none; }
 }
+/* 🔴【2026-11-24・続き840】ユーザー案「**あと拡張も混ざってるので拡張パックは別で箱の
+   そばに置いてある感じで混ぜてるのを表現するのはどう？**」。
+   まぜるの中身は リメイク＋**0th拡張**＋1st＋旧0th だが、**0th拡張だけ箱が無い**
+   （ブースターパックで売られた拡張）。⇒ 蓋の帯には入れず、箱の右下に袋を立てかける。
+   ⚠ `pointer-events: none`——箱を指で回す操作を食べない（教訓4 の家族）。
+   ⚠ 袋は CSS のグラデーションだけで描かれている（画像も canvas も足していない＝#441/#607）。
+   ⚠ 置き場の大きさは JS が実測して入れる（rem が何px かに頼らない）。 */
+.edition-carousel-item .deck-chooser-stage {
+  position: relative;
+}
+.edition-pack-beside {
+  position: absolute;
+  left: 84%;
+  bottom: -6%;
+  pointer-events: none;
+  z-index: 3;
+}
+.edition-pack-beside .pkc-pack {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  /* 🔴 縮めるのは**左下を軸に**。中心を軸にすると、置き場（JS が入れた大きさ）と
+     袋の実際の位置がずれて、箱から離れた所に浮く。 */
+  transform-origin: left bottom;
+  transform: rotate(-7deg) scale(var(--edition-pack-scale, 0.3));
+}
 .edition-carousel-arrow {
   flex: 0 0 auto;
   width: 2.6rem;

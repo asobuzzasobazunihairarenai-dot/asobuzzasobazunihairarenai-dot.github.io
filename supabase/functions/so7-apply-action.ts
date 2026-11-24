@@ -146,8 +146,39 @@ const FIRST_ED_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
   { id: "1st-black-great-order", color: "black", count: 2 },
 ];
 
+// 旧0th EDITION（白地に虹の輪の版・2026.04 第2版）の通常カード19種。
+// 🔴 **src/cards-data-0th.js と同じ内容を持つ写し**（正はあちら＝tools/gen-0th-text.mjs が作る）。
+//   枚数を直す時は両方。7色は1色2種×7枚＝98、無色5種で7枚（白2+2・黒1+1+1）＝105枚。
+//   これにリメイクのなないろの欠片7枚を足して112枚でリメイクと同じになる。
+// ⚠ 旧0thには**虹・エターナル・ファーストが無い**（どれもリメイクのものをそのまま使う）。
+// ⚠ 「まぜる」（続き840 で4セット目に入った）もこの表を見るので、**写し忘れると
+//   CPU戦とフレンドリーマッチで山札の中身が違う**という一番分かりにくい形で出る。
+const OLD0TH_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
+  { id: "0th-red-dash", color: "red", count: 7 },
+  { id: "0th-red-counterattack", color: "red", count: 7 },
+  { id: "0th-orange-force", color: "orange", count: 7 },
+  { id: "0th-orange-lost-item", color: "orange", count: 7 },
+  { id: "0th-yellow-steal", color: "yellow", count: 7 },
+  { id: "0th-yellow-thunder", color: "yellow", count: 7 },
+  { id: "0th-green-peoples-road", color: "green", count: 7 },
+  { id: "0th-green-rich-whim", color: "green", count: 7 },
+  { id: "0th-blue-greedy-bridge", color: "blue", count: 7 },
+  { id: "0th-blue-set-trap", color: "blue", count: 7 },
+  { id: "0th-pink-disclosure", color: "pink", count: 7 },
+  { id: "0th-pink-favorite-flower", color: "pink", count: 7 },
+  { id: "0th-purple-wait", color: "purple", count: 7 },
+  { id: "0th-purple-apocalypse", color: "purple", count: 7 },
+  { id: "0th-white-colorful-hole", color: "white", count: 2 },
+  { id: "0th-white-rainbow-rain", color: "white", count: 2 },
+  { id: "0th-black-faded-frog", color: "black", count: 1 },
+  { id: "0th-black-greedy-palette", color: "black", count: 1 },
+  { id: "0th-black-rainbow-curse", color: "black", count: 1 },
+];
+
 // どのカードセットで山札を組むか。クライアント（src/card-set.js）と同じ文字列。
 // 「まぜる」の山札を、通常のエディションと同じ内訳（7色×14枚・虹7・白4・黒3＝112枚）で組む。
+// 🔴【続き840】混ぜる相手は **リメイク＋0th拡張＋1st＋旧0th の4セット**（ユーザー指示
+//   「混ぜるには旧0th混ぜよう！」）。枚数の決まりは1枚も変えていない（種類が 64 → 78 に増える）。
 // 🔴 これは src/mixed-deck.js の**写し**。考え方の全文はあちらの冒頭に書いてある。
 //   ズレると「CPU戦とフレンドリーマッチで山札の中身が違う」という分かりにくい形で出るので、
 //   tools/check-cards.mjs が毎回照合する。
@@ -179,9 +210,10 @@ function mixedPickRandom<T>(list: T[], n: number): T[] {
 function buildMixedNormalCards(
   remake: { id: string; color: string; count: number }[],
   ex0: { id: string; color: string; count: number }[],
-  firstEd: { id: string; color: string; count: number }[]
+  firstEd: { id: string; color: string; count: number }[],
+  old0th: { id: string; color: string; count: number }[]
 ): { id: string; color: string; count: number }[] {
-  const sets = [remake || [], ex0 || [], firstEd || []];
+  const sets = [remake || [], ex0 || [], firstEd || [], old0th || []];
   const out: { id: string; color: string; count: number }[] = [];
   for (const color of MIXED_COLORS) {
     const perSet = sets.map((s) => s.filter((c) => c.color === color));
@@ -217,7 +249,15 @@ function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; coun
     // 1st EDITION のみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
     return [...FIRST_ED_NORMAL_CARDS, ...NORMAL_CARDS.filter((c) => c.id === "rainbow-shard")];
   }
-  if (cardSet === "mixed") return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS);
+  // 🔴【続き840】旧0thの枝が**今まで無かった**（知らない値としてリメイクに落ちていた＝
+  //   オンラインで旧0thを選ぶと、CPU戦と山札の中身が食い違っていた）。
+  if (cardSet === "0th") {
+    // 旧0thのみ。なないろの欠片はリメイクのものと同じカードなので使い回す。
+    return [...OLD0TH_NORMAL_CARDS, ...NORMAL_CARDS.filter((c) => c.id === "rainbow-shard")];
+  }
+  if (cardSet === "mixed") {
+    return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS, OLD0TH_NORMAL_CARDS);
+  }
   return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
 }
 

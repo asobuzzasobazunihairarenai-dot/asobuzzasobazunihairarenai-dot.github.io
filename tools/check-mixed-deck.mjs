@@ -3,6 +3,8 @@
 // 🔴 まぜるは **通常のエディションと同じ内訳**（7色×14枚・虹7・白4・黒3＝112枚）で組む
 //   （2026-11-06・続き671 のユーザー指示「混ぜるときは山札の総枚数は通常エディションの
 //   枚数にしてください。たとえば赤は全部で１４枚に…」）。
+// 🔴【続き840】混ぜる相手は **リメイク＋0th拡張＋1st＋旧0th の4セット**（ユーザー指示
+//   「混ぜるには旧0th混ぜよう！」）。枚数の決まりは変わらず、種類が 64 → 78 に増えた。
 //   組み方の本体は src/mixed-deck.js。**Edge Function は手でコピペした写し**を持つので、
 //   いつか必ずズレる。ズレると「CPU戦とフレンドリーマッチで山札の中身が違う」という
 //   いちばん分かりにくい形で出る。
@@ -65,8 +67,9 @@ try {
 const R = 表を読む(srv, "const NORMAL_CARDS");
 const E = 表を読む(srv, "const EX0_NORMAL_CARDS");
 const Fe = 表を読む(srv, "const FIRST_ED_NORMAL_CARDS");
-if (!R || !E || !Fe || R.length < 15 || E.length < 30 || Fe.length < 15) {
-  止める("サーバーの通常カードの表が読めなかった（remake/ex0/1st）");
+const O = 表を読む(srv, "const OLD0TH_NORMAL_CARDS");
+if (!R || !E || !Fe || !O || R.length < 15 || E.length < 30 || Fe.length < 15 || O.length < 15) {
+  止める("サーバーの通常カードの表が読めなかった（remake/ex0/1st/旧0th）");
 }
 
 const a = srv.indexOf("const MIXED_PER_COLOR");
@@ -85,6 +88,7 @@ const 外す = [
   ["  remake: { id: string; color: string; count: number }[],", "  remake,"],
   ["  ex0: { id: string; color: string; count: number }[],", "  ex0,"],
   ["  firstEd: { id: string; color: string; count: number }[]", "  firstEd"],
+  ["  old0th: { id: string; color: string; count: number }[]", "  old0th"],
   ["): { id: string; color: string; count: number }[] {", ") {"],
   ["const out: { id: string; color: string; count: number }[] = []", "const out = []"],
   [" as [string, number][]", ""],
@@ -111,8 +115,8 @@ const 色の内訳 = (list) => {
 };
 const 枚 = (list, col) => list.filter((c) => c.color === col).reduce((x, y) => x + y.count, 0);
 
-const 客結果 = buildMixedNormalCards(R, E, Fe);
-const 鯖結果 = 鯖(R, E, Fe);
+const 客結果 = buildMixedNormalCards(R, E, Fe, O);
+const 鯖結果 = 鯖(R, E, Fe, O);
 const problems = [];
 
 if (色の内訳(客結果) !== 色の内訳(鯖結果)) {
@@ -131,7 +135,7 @@ const 合計 = 客結果.reduce((x, y) => x + y.count, 0);
 if (合計 !== 112) problems.push("まぜるの合計が112枚でない: " + 合計 + "枚");
 // どの色の種類も最低1枚は入っているか（まぜても消える札が無いこと）。
 const 入った = new Set(客結果.map((c) => c.id));
-for (const list of [R, E, Fe]) {
+for (const list of [R, E, Fe, O]) {
   for (const c of list) {
     if (c.color === "white" || c.color === "black") continue; // 白黒は枠が足りないので毎回全部は入らない
     if (!入った.has(c.id)) problems.push("まぜるに入らない札がある: " + c.id);

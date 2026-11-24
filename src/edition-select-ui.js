@@ -26,6 +26,7 @@
 
 import { CARD_SETS, getCardSet, setCardSet } from "./card-set.js";
 import { buildDeckBox3d, hasDeckBoxArt } from "./deck-box-3d.js";
+import { buildPackBag } from "./pack-bag.js"; // 「まぜる」の箱のそばに置く 0th拡張のパック（続き840）
 import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js";
 import { createModalCloseX } from "./ui-helpers.js";
@@ -107,6 +108,7 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
   const 並び = [...公式, ...(試験も ? 試験 : [])];
   let 位置 = Math.max(0, 並び.findIndex((o) => o.set === getCardSet()));
   const 札たち = [];
+  const 袋たち = []; // まぜるの箱のそばに置く 0th拡張のパック（続き840）
 
   // 🔴【続き839】大きさは**ステージの座標**で決める（`root` は inset:0 なので 1600x900）。
   //   ユーザー報告「スマホでは全体的に箱とかいろいろ表示もっと大きくていいかも！」。
@@ -202,6 +204,24 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
       ph.addEventListener("click", () => 選ぶ(o.set));
       stage.appendChild(ph);
     }
+    // 🔴【続き840】ユーザー案「**あと拡張も混ざってるので拡張パックは別で箱のそばに
+    //   置いてある感じで混ぜてるのを表現するのはどう？**」。
+    //   まぜるの中身は リメイク＋**0th拡張**＋1st＋旧0th だが、**0th拡張だけ箱が無い**
+    //   （ブースターパックで売られた拡張）。⇒ 蓋の帯には入れず、箱の右下に袋を立てかける。
+    //   ⚠ 袋は開封の演出と同じ部品（pack-bag.js が唯一の持ち主＝写しを作らない）。
+    //     封は切らない＝なぞる道しるべも裂け目も出さない「置いてあるだけ」の姿。
+    //   ⚠ 大きさは**実測してから**決める（rem が何px かに頼らない）。
+    if (o.set === CARD_SETS.MIXED) {
+      const 袋置き = document.createElement("div");
+      袋置き.className = "edition-pack-beside";
+      袋置き.setAttribute("aria-hidden", "true");
+      const 袋 = buildPackBag({ cards: 7, 封を切る: false });
+      袋置き.appendChild(袋);
+      stage.appendChild(袋置き);
+      // 🔴 大きさは**画面に入ってから**決める（ここではまだ文書に付いていないので
+      //   offsetHeight が 0 ＝「測れたつもりで倍率が Infinity」になる）。
+      袋たち.push({ 置き: 袋置き, 袋 });
+    }
     el.appendChild(stage);
 
     const nm = document.createElement("div");
@@ -222,6 +242,7 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
   function 組み立てる() {
     箱を片付ける();
     札たち.length = 0;
+    袋たち.length = 0;
     root.innerHTML = "";
 
     root.appendChild(createModalCloseX(とじる));
@@ -262,6 +283,18 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
 
     wrap.append(左, 台, 右);
     root.appendChild(wrap);
+
+    // 🔴 パックの大きさは**文書に入ってから実測して**決める（rem が何px かに頼らない）。
+    //   ⚠ 測れなければ何もしない＝CSS の既定（--edition-pack-scale: 0.3）のまま出る。
+    for (const { 置き, 袋 } of 袋たち) {
+      const 高 = 袋.offsetHeight;
+      if (高 <= 0) continue;
+      const 倍 = (箱の大きさ() * 0.6) / 高;
+      置き.style.setProperty("--edition-pack-scale", 倍.toFixed(3));
+      // 置き場は**袋と同じ大きさ**にする（傾けた角のぶんは外へはみ出すだけ）。
+      置き.style.width = Math.round(袋.offsetWidth * 倍) + "px";
+      置き.style.height = Math.round(高 * 倍) + "px";
+    }
 
     // 前に出ている物の名前と「これにする」。
     名前の行 = document.createElement("div");

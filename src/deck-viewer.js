@@ -407,10 +407,12 @@ export function buildDeckSections(opts = {}) {
   if (セット === CARD_SETS.FIRST_ED || 混ぜる) {
     wrap.appendChild(buildSection(t("deckviewer.firstEd"), 色でそろえる(FIRST_ED_NORMAL_CARDS)));
   }
-  // ⚠ 旧0th は「まぜる」には入れていない（mixed-deck.js は3セットで組んでいる）。
-  //   選んでいる時だけ出す。
-  //   ⚠ 旧0th は**管理者だけ**。全部出す時でもそこは変えない。
-  if (セット === CARD_SETS.OLD_0TH || (全部出す && isAdminUser())) {
+  // 🔴【続き840】旧0th は**「まぜる」にも入るようになった**（ユーザー指示「混ぜるには
+  //   旧0th混ぜよう！」）。⇒ まぜるを選んでいる時も出す。**出し忘れると「一覧に無い札が
+  //   対局で出てくる」**（この関数の上のコメントのとおり、いちばん困る形）。
+  //   ⚠ 旧0th は**管理者だけ**。「全部出す」時だけはそこを変えない
+  //     （まぜる自体が管理者だけのセットなので、混ぜるの枝には要らない）。
+  if (セット === CARD_SETS.OLD_0TH || セット === CARD_SETS.MIXED || (全部出す && isAdminUser())) {
     wrap.appendChild(buildSection(t("deckviewer.old0th"), 色でそろえる(OLD0TH_NORMAL_CARDS)));
   }
   // 🔴【続き782】リメイク＋志炎者。リメイクの19種と志炎者7種の**両方**を出す。

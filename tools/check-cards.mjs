@@ -530,6 +530,39 @@ if (old0thSrc) {
     `ⓘ 旧0th ${old0th.length} 種（E・F・なないろの欠片はリメイクのものを使う）: 文(日英)と絵2種は上で検査済み。` +
     `効果データ ${効果あり}/${old0th.length}・テスト ${テストあり}/${old0th.length}` +
     (効果あり === old0th.length && テストあり === old0th.length ? "（そろった）" : "（**これから**）");
+
+  // サーバー側の写しとのズレ（0th拡張・1st とまったく同じ理由。手でコピペしてデプロイする運用）。
+  // 🔴【続き840】旧0thは「まぜる」の4セット目にも入ったので、ここがズレると
+  //   **旧0thで遊んだ時だけでなく、まぜるでも**CPU戦とフレンドリーマッチで山札が食い違う。
+  let edge0 = null;
+  try {
+    edge0 = read("supabase/functions/so7-apply-action.ts");
+  } catch (e) {
+    edge0 = null;
+  }
+  if (edge0) {
+    const 写し = 表を読む(edge0, "const OLD0TH_NORMAL_CARDS", "0th-");
+    const 正 = 表を読む(old0thSrc, "export const OLD0TH_NORMAL_CARDS", "0th-");
+    if (!写し || !正 || 写し.size < 15 || 正.size < 15) {
+      console.error(
+        "❌ 検査そのものが怪しい: 旧0th の表が 正" + (正 ? 正.size : "読めず") +
+          " / 写し" + (写し ? 写し.size : "読めず") + " しか取れなかった"
+      );
+      process.exit(2);
+    }
+    for (const [id, v] of 正) {
+      if (!写し.has(id)) note("旧0th: サーバー側の写しに無い: " + id + " → supabase/functions/so7-apply-action.ts の OLD0TH_NORMAL_CARDS");
+      else if (写し.get(id) !== v) note("旧0th: 色か枚数がサーバー側とズレている: " + id + "（正 " + v + " / 写し " + 写し.get(id) + "）");
+    }
+    for (const id of 写し.keys()) if (!正.has(id)) note("旧0th: サーバー側にだけ在る: " + id + "（消し忘れ？）");
+    // 🔴 山札を組む枝そのものも見る（表だけ写して枝を足し忘れると、黙ってリメイクの山になる）。
+    if (!edge0.includes('cardSet === "0th"')) {
+      note("旧0th: サーバーに旧0thの枝が無い（知らない値としてリメイクの山札に落ちる） → deckPoolForCardSet");
+    }
+    if (!edge0.includes("FIRST_ED_NORMAL_CARDS, OLD0TH_NORMAL_CARDS")) {
+      note("まぜる: サーバーが旧0thを混ぜていない（続き840 で4セットにした） → deckPoolForCardSet");
+    }
+  }
 }
 
 
