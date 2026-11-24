@@ -27874,12 +27874,18 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   inherits: true;
   initial-value: 0;
 }
-/* 🔴【続き842】袋は**正方形**（実物のカードが正方形なので、袋も正方形）。
-   それまでは 20.25x28.25rem の縦長で、実物とは別物だった。 */
+/* 🔴【続き842】**版面は正方形**（実物のカードが正方形なので、袋も正方形）。
+   それまでは 20.25x28.25rem の縦長で、実物とは別物だった。
+   🔴【続き844】袋＝**正方形の版面 ＋ その上の封の帯**にした。封を版面に重ねていたので、
+   題字の「0TH」の上が欠けていた（版面の中で 6.25%〜17.8%、封は 8.02% まで＝実測）。
+   ⚠ 大きさは `--pkc-w`（版面の一辺）1つで決まる。高さをそこから出すので、
+     演出や主役の行で大きさを変えても**版面は正方形のまま**。 */
 .pkc-pack {
   position: relative;
-  width: 20.25rem;
-  height: 20.25rem;
+  --pkc-w: 20.25rem;
+  --pkc-seal: 1.625rem;
+  width: var(--pkc-w);
+  height: calc(var(--pkc-w) + var(--pkc-seal));
   --tear: 0;
 }
 .pkc-foil {
@@ -27931,7 +27937,7 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   left: 0;
   right: 0;
   top: 0;
-  height: 1.625rem;
+  height: var(--pkc-seal);
   background:
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 3px, transparent 3px 7px),
     linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(222, 214, 198, 0.9));
@@ -27954,7 +27960,7 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   left: 0;
   right: 0;
   top: 0;
-  height: 1.625rem;
+  height: var(--pkc-seal);
   pointer-events: none;
 }
 /* 袋の内側の暗がり＋中のカードの天。左から現れる。 */
@@ -28009,9 +28015,9 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
      置き場の大きさを 0.9 倍から計算してあるので、ここで大きくすると枠からはみ出す。 */
 #pack-ceremony .pkc-pack {
   /* ⚠ scale() ではなく**大きさそのもの**で。scale は場所取りを変えないので、
-     下の見出し（指でなぞって封を切る）に袋の下端が重なった（撮って気づいた）。 */
-  width: 23.3rem;
-  height: 23.3rem;
+     下の見出し（指でなぞって封を切る）に袋の下端が重なった（撮って気づいた）。
+     ⚠【続き844】版面の一辺だけ決める。高さは封のぶんを足して自動で付いてくる。 */
+  --pkc-w: 23.3rem;
 }
 /* ⚠ なぞっている間、ブラウザに縦スクロールへ取られると**途中で裂けが止まる**。 */
 .pkc-stage.is-seal .pkc-pack {
@@ -28021,8 +28027,8 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
 .pkc-notch {
   position: absolute;
   right: 0;
-  top: 1.625rem;
-  width: 1.625rem;
+  top: var(--pkc-seal);
+  width: var(--pkc-seal);
   height: 0.94rem;
   background: rgba(0, 0, 0, 0.32);
   clip-path: polygon(100% 0, 100% 100%, 0 0);
@@ -28041,9 +28047,13 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
    **全部やめた**——版面に焼かれているので、CSS で似せた偽物を重ねる理由が無い。 */
 .pkc-face {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  /* 🔴【続き844】封の帯の**下**から。重ねると題字の上が欠ける（実測で 1.77% 食っていた）。 */
+  top: var(--pkc-seal);
+  bottom: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100% - var(--pkc-seal));
   object-fit: cover;
   pointer-events: none;
 }
@@ -28590,10 +28600,11 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
 .card-pack-bag {
   flex: 0 0 auto;
   position: relative;
-  /* 傾けた角のぶん。正方形なので縦横とも 18.225*(cos7+sin7) = 20.31rem（続き842）。
-     ⚠ 左の文字は最低 17rem 要る。46 - 2.4(余白) - 1.4(あいだ) - 20.4 = 21.8rem 残るので入る。 */
-  width: 20.4rem;
-  height: 20.4rem;
+  /* 傾けた角のぶん。袋は 0.9 倍で 18.225 x 19.69rem（版面＋封。続き844）なので、
+     横 = 18.225*cos7 + 19.69*sin7 = 20.49rem ／ 縦 = 18.225*sin7 + 19.69*cos7 = 21.76rem。
+     ⚠ 左の文字は最低 17rem 要る。46 - 2.4(余白) - 1.4(あいだ) - 20.6 = 21.6rem 残るので入る。 */
+  width: 20.6rem;
+  height: 21.9rem;
 }
 .card-pack-bag .pkc-pack {
   position: absolute;

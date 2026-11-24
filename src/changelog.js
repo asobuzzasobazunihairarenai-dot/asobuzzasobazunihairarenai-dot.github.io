@@ -123,6 +123,8 @@ export const CHANGELOG = [
       "⚠ 金の線は1本では**明るい地の上で消える** ⇒ 影を敷いてから金、仕上げに細い白の3本重ねにした。中央に金の輪の飾りを置く案も描いたが、**旧0thの輪と二重**になって的のように見えたのでやめた。",
       "⚠ 裏は意匠が変わっても**1枚そのまま**（3つの裏を扇に割るとどの説明文も読めない）。額の色と四隅の金の線だけ表にそろえた。背も紙の色に。",
       "🔴 **前の意匠（濃紺＋7色の光＋虹の輪）は消していない。** 道具の先頭の1行（意匠）を切り替えて焼き直せば戻る——どちらが良いかは好みなので、選び直せる形にしてある。",
+      "🔴 **パックの題字「0TH」の上が、封の帯で欠けていた**（ユーザー指摘）。実測すると版面の中で「0TH」は上から 6.25%〜17.8%、封は 8.02% まで覆っていた。⇒ **封を版面の上に重ねるのをやめ**、袋を「正方形の版面＋その上の封の帯」にした（実物の袋もそういう作り）。版面は1ピクセルも隠れない。",
+      "⚠ 封の高さは rem の決め打ちなので、袋の大きさを変える所（開ける演出・主役の行）で**版面が正方形でなくなる**。⇒ 版面の一辺を変数にして、袋の高さをそこから出す形にした。大きさを変える側は一辺だけ決めればよい。",
     ],
     devItemsEn: [
       "The deck-offer table gained a skin column, so the lid art travels with the offer instead of living only on the owner's device.",
@@ -176,6 +178,8 @@ export const CHANGELOG = [
       "A single gold line vanished against the light artwork, so each ray is a shadow, then gold, then a fine white line. A gold medallion at the centre was drawn too, but it doubled up with the Old 0th ring and read as a target, so it was dropped.",
       "The back stays a single readable panel whatever the lid does, since splitting three info panels into sectors leaves none of them legible. Only the frame colour and the corner rays follow the front.",
       "The previous design is still in the tool. Flipping one constant and re-baking brings it back, because which one looks better is a matter of taste.",
+      "The 0TH wordmark on the pack was being clipped by the seal strip. Measuring showed the word spans 6.25% to 17.8% of the artwork while the seal covered the top 8.02%. The seal now sits above the artwork rather than over it, so the printed square is never covered.",
+      "Because the seal height is a fixed value, resizing the pack would have made the printed area non-square. The pack height is now derived from the printed side length, so anywhere that resizes it only sets that one number.",
     ],
   },
   {
