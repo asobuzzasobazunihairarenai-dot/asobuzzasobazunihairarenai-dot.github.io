@@ -169,6 +169,10 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     if (いまの行) いまの行.textContent = t("edition.current", { name: セットの名(getCardSet()) });
   };
 
+  // 🔴【#812・続き845】横に払った直後は、奥の箱の覆いの click を無視する。
+  //   払いの終わりでも click は飛ぶので、押さないと**払っただけで別の箱へ飛ぶ**。
+  let 払った時刻 = 0;
+
   const 回す = (向き) => {
     const n = 札たち.length;
     if (n < 2) return;
@@ -232,7 +236,11 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     // 後ろの箱を押したら「前へ出す」だけ（選ばない）。前に出ている時は箱そのものに触らせる。
     const 覆い = document.createElement("div");
     覆い.className = "edition-carousel-hit";
-    覆い.addEventListener("click", () => { 位置 = k; 置き直す(); });
+    覆い.addEventListener("click", () => {
+      if (performance.now() - 払った時刻 < 350) return; // 横に払った直後（#812）
+      位置 = k;
+      置き直す();
+    });
     el.appendChild(覆い);
 
     札たち.push({ el, set: o.set, 覆い });
@@ -280,6 +288,31 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     //   （1.5倍にすると、字を大きくしたぶんと合わせて縦が 900 を超えて巻き取りが出る）。
     台.style.height = Math.round(箱の大きさ() * 1.38) + "px";
     並び.forEach((o, k) => 台.appendChild(札を作る(o, k)));
+
+    // 🔴【#812・続き845】**左右のスワイプで回す**（報告「左右のスワイプで回転しないです」）。
+    //   ⚠ 前に出ている箱そのものの上では**箱を指で回す**方が勝つ（あれは箱を回す操作）。
+    //     それ以外（地・奥の箱の覆い・名前）で横に払えば、回転台が回る。
+    //   ⚠ `touch-action: pan-y` ——横の払いをブラウザの戻る操作に取られないため。
+    //     箱そのものは自分で `none` を持っているので、そちらの回転は今までどおり。
+    台.style.touchAction = "pan-y";
+    let 払い = null;
+    台.addEventListener("pointerdown", (e) => {
+      払い = null;
+      if (e.target && typeof e.target.closest === "function" && e.target.closest(".edition-carousel-item.is-front .deck-box-3d")) return;
+      払い = { x: e.clientX, y: e.clientY };
+    });
+    台.addEventListener("pointerup", (e) => {
+      const 始 = 払い;
+      払い = null;
+      if (!始) return;
+      const dx = e.clientX - 始.x;
+      const dy = e.clientY - 始.y;
+      // 横に 40px 以上、かつ縦より横が大きい時だけ回す（押しただけでは回さない）。
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      払った時刻 = performance.now();
+      回す(dx < 0 ? 1 : -1);
+    });
+    台.addEventListener("pointercancel", () => { 払い = null; });
 
     wrap.append(左, 台, 右);
     root.appendChild(wrap);

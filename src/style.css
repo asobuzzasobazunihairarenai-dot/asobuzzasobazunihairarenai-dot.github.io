@@ -29355,8 +29355,13 @@ body.is-tablet-device #edition-chooser > .modal-close-x {
     transform: scale(1.06);
   }
 }
-/* 2D表示（古い端末の保険）と「動きを控える」設定では脈打たせない（光自体は出す）。 */
-body.diagnostic-flatten-3d .edition-carousel-item.is-selected .deck-chooser-stage::before {
+/* 2D表示（古い端末の保険）と「動きを控える」設定では脈打たせない（光自体は出す）。
+   🔴【#812・続き845】**スマホ／タブレットでも止める。** 報告「重いのか動きが悪い気がします」。
+   `filter: blur(26px)` を掛けた面を毎コマ `transform: scale()` で動かすと、ぼかしごと
+   焼き直しになる（携帯の GPU には重い）。光は出したまま、脈だけ止める。 */
+body.diagnostic-flatten-3d .edition-carousel-item.is-selected .deck-chooser-stage::before,
+body.is-phone-device .edition-carousel-item.is-selected .deck-chooser-stage::before,
+body.is-tablet-device .edition-carousel-item.is-selected .deck-chooser-stage::before {
   animation: none;
 }
 @media (prefers-reduced-motion: reduce) {

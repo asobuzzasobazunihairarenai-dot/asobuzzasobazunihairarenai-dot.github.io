@@ -146,12 +146,28 @@ export function buildDeckBox3d(cardSet, { size = 150, flat = false, onTap = null
   面を作る("is-right", `rotateY(90deg) translateZ(${size / 2}px)`, { img: 絵.side, 幅: 厚み, 高: size });
   const 上 = 面を作る("is-up", `rotateX(90deg) translateZ(${size / 2}px)`, { img: 絵.side, 幅: size, 高: 厚み });
   const 下 = 面を作る("is-down", `rotateX(-90deg) translateZ(${size / 2}px)`, { img: 絵.side, 幅: size, 高: 厚み });
-  // 側面の絵は縦長（64x512）なので、上下の面では90度ねじって敷く。
+  // 🔴【続き845・#811】側面の絵は**64x512 の縦長**。上下の面は **size x 厚み の横長**なので、
+  //   90度ねじって敷く必要がある。
+  //   ⚠ それまでは `background-size` と `repeat-x` を当てていただけで、**ねじっていなかった**
+  //     ⇒ 縦長の絵の**上の一片だけ**が横に並び、箱の天地に知らない模様が繰り返されていた
+  //     （報告の写真そのもの）。CSS は背景画像を回せないので、**90度回した子**を1枚置く。
   // ⚠ 側面の絵が無い時（マイ山札）は何もしない——edge の色で塗られたままにする。
   if (絵.side) {
     for (const f of [上, 下]) {
-      f.style.backgroundSize = `${厚み}px ${size}px`;
-      f.style.backgroundRepeat = "repeat-x";
+      f.style.backgroundImage = "none"; // 面そのものには敷かない（子が敷く）
+      f.style.overflow = "hidden";
+      const 帯 = document.createElement("div");
+      帯.className = "deck-box-strip";
+      帯.style.position = "absolute";
+      帯.style.left = "50%";
+      帯.style.top = "50%";
+      // 絵と同じ向き（縦長）で作ってから90度回す ⇒ 見た目は size x 厚み にぴたり収まる。
+      帯.style.width = `${厚み}px`;
+      帯.style.height = `${size}px`;
+      帯.style.backgroundImage = `url("${絵.side}")`;
+      帯.style.backgroundSize = "100% 100%";
+      帯.style.transform = "translate(-50%, -50%) rotate(90deg)";
+      f.appendChild(帯);
     }
   }
 

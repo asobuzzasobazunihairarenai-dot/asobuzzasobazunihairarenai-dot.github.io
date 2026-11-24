@@ -52,6 +52,45 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-25",
+    summary: [
+      "燃える演出のふちが、いびつな炎の形に戻りました",
+    ],
+    summaryEn: [
+      "The burning edge is ragged again, not a clean circle",
+    ],
+    items: [
+      "HUERISE の画面から燃えて始まる時、ふちが**いびつな炎の形**になりました。端末によっては**きれいな円**で燃え広がっていて、紙が焼け落ちる感じが出ていませんでした。",
+    ],
+    itemsEn: [
+      "The burn that starts the game now has a ragged, flame-like edge on every device. On some phones it spread as a clean circle, which lost the feeling of paper burning away.",
+    ],
+    fixes: [
+      "食べすぎで隣のマスのカードを足元へ重ねる時、重なっているマスからは**1番上の1枚だけ**を取るようにしました。",
+    ],
+    fixesEn: [
+      "Overeating now takes only the top card from a stacked neighbouring cell.",
+    ],
+    devItems: [
+      "🔴 #813「HUERISEから燃える時、綺麗な円で燃えてっちゃいます。歪な炎な感じがないです」。正体は、いびつなふちを **feTurbulence + feDisplacementMap だけ**が作っていたこと——続き800 で入れた「遅い端末では乱流をあきらめる保険」が働くと、ふちが真円に戻る（当時のコメントにも「＝ふちは真円になるが、カクカクするよりはよい」と書いてあった）。⇒ **穴そのものを、はじめからギザギザの形（72点の path）で持つ**ようにした。フィルタが外れても形は残り、生きている時はその上にさらに細かい乱れが乗る。",
+      "⚠ 形は**毎回同じ**（乱数を使わない）。うねりの周期を4つ重ねてあるので不自然にはならず、実測で同じ絵を出せる。振れ幅は割合なので、穴が大きくなるほどギザギザも大きくなる＝紙の燃え方と同じ。",
+      "🔴 #811「箱の天地の表示がおかしいです」。側面の絵は **64x512 の縦長**、箱の天地の面は **横長**。コメントには「90度ねじって敷く」と書いてあったのに、**ねじる処理が無かった**（background-size と repeat-x を当てていただけ）⇒ 縦長の絵の**上の一片だけ**が横に繰り返され、箱の天地に知らない模様が並んでいた。CSS は背景画像を回せないので、**90度回した子**を1枚置く形にした。",
+      "🔴 #812「エディションの箱選ぶ時左右のスワイプで回転しないです」。矢印・矢印キー・奥の箱を押す の3つしか無かったので、**左右のスワイプ**を足した。⚠ 前に出ている箱そのものの上では**箱を指で回す**方が勝つ（あれは箱を回す操作）。⚠ 横に払った直後の click は無視する——払いの終わりでも click は飛ぶので、押さないと**払っただけで別の箱へ飛ぶ**。",
+      "⚠ #812「あと重いのか動きが悪い気がします」。選んでいる箱の**光の脈**を、スマホ／タブレットでは止めた（光は出したまま）。`filter: blur(26px)` を掛けた面を毎コマ `transform: scale()` で動かすと、ぼかしごと焼き直しになる。2D表示と「動きを控える」設定では元から止めてあったので、そこへ足す形。",
+      "🔴 #814【ユーザー裁定】「食べすぎの到達効果で隣のマスに複数枚重なっているマスがあっても**１番上の原則により１番上だけ**です」。それまでは**そのマスのカード全部**を積んでいた（「枚数の指定が無い」と読んでいた）。1枚だけ取り出す所は必ず findTopCardAtCell を使う（配列の末尾＝一番上。Array#find だと一番下を拾う）。",
+      "⚠ 実測24項目（スマホ横932x430・PC 1280x800）＋ 燃える演出16項目（chromium / webkit）。カード効果のテストも**対照つき**で直した——下に居た1枚が**動かないし裏返りもしない**ことまで見る（重なったマスを無くすと「1番上だけ」を測れない）。",
+    ],
+    devItemsEn: [
+      "The ragged burn edge was produced only by the turbulence filter, which a slow-device safeguard removes, leaving a perfect circle. The hole itself is now a 72-point jagged path, so the shape survives without the filter and the filter only adds finer detail on top.",
+      "The shape is deterministic rather than random, so the same picture can be measured, and its wobble is proportional, so it grows with the hole.",
+      "The box top and bottom faces showed a strip of artwork repeated sideways. The side artwork is a tall strip and the comment said it was rotated a quarter turn for those faces, but no rotation was ever applied. A rotated child element now carries it.",
+      "The edition carousel can be turned by swiping left and right, not only by the arrows, the arrow keys or tapping a box behind. A swipe over the front box still spins that box, and the click that follows a swipe is ignored so a swipe does not also jump to another box.",
+      "The glow around the selected box no longer pulses on phones and tablets. Animating a heavily blurred surface re-rasterises the blur every frame, which is expensive there; the glow itself stays.",
+      "Overeating now takes only the top card of a stacked neighbouring cell, following the topmost-card principle.",
+      "Measured with 24 checks on phone and desktop sizes plus 16 on the burn in both engines, and the card-effect test now also confirms the card underneath neither moves nor flips.",
+    ],
+  },
+  {
     date: "2026-11-24",
     summary: [
       "マイ山札の箱の絵が、部屋のみんなに見えます",

@@ -5719,7 +5719,10 @@ async function runAction(action, ctx, helpers) {
     case VERBS.STACK_ADJACENT_CARDS_ON_OWN_CELL: {
       // 食べ過ぎ（1st）到達「あなたの隣計４マスのカードを裏向きにして、あなたのいるマスに重ねて置く。」
       // ⚠ 「隣」＝前後左右の4マス（用語集。「周囲」＝斜めも含む8マスとは別）。
-      // ⚠ 「カードを」＝そのマスのカード**全部**（枚数の指定が無い）。
+      // 🔴【#814・続き845】**ユーザー裁定: １番上の原則により、各マスの「１番上」だけ。**
+      //   「隣のマスに複数枚重なっているマスがあっても１番上の原則により１番上だけです。」
+      //   ⚠ それまでは**そのマスのカード全部**を積んでいた（「枚数の指定が無い」と読んでいた）。
+      //     このゲームは「１番上の原則」が総合ルールに在るので、マスのカードと言えば１番上を指す。
       // 🔴 到達は起こさない（第6引数 true）。自分の足下へ**裏向きで**積むので、そもそも
       //   表向きのカードは現れない＝到達の条件を満たさない。
       // 🔴【#715・続き751】**重ねる順は本人が選ぶ。**
@@ -5748,10 +5751,11 @@ async function runAction(action, ctx, helpers) {
             : await helpers.pickLocation([...残りのマス], t("ce.feStackPickNext"), { purpose: "place" });
         const i = 残りのマス.findIndex((c) => 選んだ && c.row === 選んだ.row && c.col === 選んだ.col);
         const 次 = i >= 0 ? 残りのマス.splice(i, 1)[0] : 残りのマス.shift();
-        const stack = getState().tokens.filter(
-          (tk) => tk.kind === "card" && tk.location.zone === "cell" && tk.location.row === 次.row && tk.location.col === 次.col
-        );
-        for (const tk of stack) {
+        // 🔴 **そのマスの１番上の1枚だけ**（#814 のユーザー裁定）。
+        //   ⚠ 1枚だけ取り出す所は必ず findTopCardAtCell を使う（配列の末尾＝一番上。
+        //     Array#find だと一番下を拾う＝PICKUP_TO_HAND の過去のバグ）。
+        const tk = findTopCardAtCell(次.row,次.col);
+        if (tk) {
           if (tk.faceUp) await helpers.flipCard(tk.id); // 「裏向きにして」
           await helpers.moveAndSync(tk.id, { zone: "cell", row: here.row, col: here.col }, undefined, undefined, false, true);
           積んだ++;

@@ -168,7 +168,35 @@ function buildHueriseBurn(色, 時間ms) {
     mask.appendChild(
       作("rect", { x: -BURN_MARGIN, y: -BURN_MARGIN, width: BURN_W + BURN_MARGIN * 2, height: BURN_H + BURN_MARGIN * 2, fill: "#fff" })
     );
-    const hole = 作("circle", { cx, cy, r: 0, fill: "url(#" + uid + "-hole)" });
+    // 🔴【#813・続き845】穴は**真円ではなく、はじめからギザギザの形**で持つ。
+    //   それまで、いびつなふちは feTurbulence + feDisplacementMap だけが作っていたので、
+    //   続き800 の「遅い端末では乱流をあきらめる保険」が働くと**ふちが真円に戻っていた**
+    //   （報告「綺麗な円で燃えてっちゃいます。歪な炎な感じがないです」＝スマホでその保険が働いた）。
+    //   ⚠ 形は**毎回同じ**（乱数を使わない）。実測で同じ絵が出せるうえ、紙の燃え方として
+    //     不自然にもならない（うねりの周期を3つ重ねてある）。
+    //   ⚠ 振れ幅は**割合**なので、穴が大きくなるほどギザギザも大きくなる＝紙の燃え方と同じ。
+    const 穴の点数 = 72;
+    const 穴の向き = [];
+    for (let i = 0; i < 穴の点数; i++) {
+      const a = (i / 穴の点数) * Math.PI * 2;
+      const f =
+        1 +
+        0.045 * Math.sin(3 * a + 0.7) +
+        0.03 * Math.sin(7 * a + 2.1) +
+        0.022 * Math.sin(13 * a + 4.3) +
+        0.015 * Math.sin(23 * a + 1.2);
+      穴の向き.push({ cos: Math.cos(a), sin: Math.sin(a), f });
+    }
+    const 穴の形 = (r) => {
+      let d = "";
+      for (let i = 0; i < 穴の点数; i++) {
+        const p = 穴の向き[i];
+        const rr = r * p.f;
+        d += (i === 0 ? "M" : "L") + (cx + p.cos * rr).toFixed(2) + " " + (cy + p.sin * rr).toFixed(2) + " ";
+      }
+      return d + "Z";
+    };
+    const hole = 作("path", { d: 穴の形(0), fill: "url(#" + uid + "-hole)" });
     mask.appendChild(hole);
     defs.appendChild(mask);
 
@@ -258,7 +286,9 @@ function buildHueriseBurn(色, 時間ms) {
     let 止める = false;
     // 🔴 **遅い端末では乱流をあきらめる保険。** feDisplacementMap は画素ごとの計算なので、
     //   古い端末だとコマ落ちする可能性がある。最初の数コマの間隔を見て、明らかに重ければ
-    //   フィルタを外す（＝ふちは真円になるが、カクカクするよりはよい）。
+    //   フィルタを外す（カクカクするよりはよい）。
+    //   ⚠【#813・続き845】外しても**ふちは真円にならない**——穴そのものがギザギザの形
+    //     （上の `穴の形`）なので、乱流が乗らなくなるだけ。
     //   ⚠ 0しか出ない見張りではない（わざと遅くすれば必ず外れる）。
     // 【続き800】**8コマ → 4つの間隔**。8コマ待つ間に演出の大半が終わってしまう端末が在る
     //   （1コマ 500ms なら 8コマ＝4秒＝演出より長い）。早く捨てるほど効く。
@@ -298,7 +328,7 @@ function buildHueriseBurn(色, 時間ms) {
       const t = Math.min(1, (now - 始まり) / 時間ms);
       const p = Math.pow(t, 1.75); // じわじわ始まって、終わりに一気に広がる
       const r = p * 終わりの半径;
-      hole.setAttribute("r", String(r));
+      hole.setAttribute("d", 穴の形(r));
       const 割 = (d) => (r > 0 ? Math.min(1, Math.max(0, (r + d) / r)) : 0);
       holeMid.setAttribute("offset", 割(HOLE_FADE_IN).toFixed(4));
       holeNear.setAttribute("offset", 割(HOLE_FADE_MID).toFixed(4));

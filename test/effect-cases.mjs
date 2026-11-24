@@ -5323,7 +5323,10 @@ export const CASES = [
   },
   // 🔴【#715・続き751】食べ過ぎ: 重ねる順を本人が選ぶ。先に選んだマスのカードが下になる。
   //   盤面: 駒Aは (3,3)。カードは (2,3) に1枚・(4,3) に2枚。(4,3) → (2,3) の順に選ぶ。
-  //   ⇒ (3,3) の重なりは 下から 合同建設・宴・試練の儀式。
+  // 🔴【#814・続き845】**ユーザー裁定: 各マスから動くのは「１番上」だけ**（１番上の原則）。
+  //   ⇒ (4,3) からは**上の宴だけ**が動き、**下の合同建設はその場に残る**。
+  //   ⇒ (3,3) の重なりは 下から 宴・試練の儀式。
+  //   ⚠ (4,3) に2枚置いたまま測る——重なったマスを無くすと「１番上だけ」を測れない。
   {
     name: "食べ過ぎ(到達): どのマスから重ねるかを選べる（先に選んだ方が下）【#715】",
     kind: "arrival",
@@ -5342,10 +5345,12 @@ export const CASES = [
     ctx: { player: "A", cardId: "1st-pink-overeating", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
     picks: { location: [{ row: 4, col: 3 }, { row: 2, col: 3 }] },
     expect: [
-      { kind: "cellStackOrder", row: 3, col: 3, cards: ["green-joint-construction", "pink-party", "purple-trial-ritual"] },
+      { kind: "cellStackOrder", row: 3, col: 3, cards: ["pink-party", "purple-trial-ritual"] },
       { kind: "tokenFaceDown", id: "x1" }, // 「裏向きにして」
-      { kind: "tokenFaceDown", id: "y1" },
       { kind: "tokenFaceDown", id: "y2" },
+      // 🔴 対照: 下に居た1枚は**動かないし、裏返りもしない**（１番上の原則）。
+      { kind: "tokenAtCell", id: "y1", row: 4, col: 3 },
+      { kind: "tokenFaceUp", id: "y1" },
       { kind: "called", name: "pickLocation", n: 1 }, // 2マス目は候補が1つなので聞かない
     ],
   },
