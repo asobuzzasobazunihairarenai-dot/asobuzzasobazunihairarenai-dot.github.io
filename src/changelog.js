@@ -118,6 +118,11 @@ export const CHANGELOG = [
       "⚠ 正方形になって縦が 28.25rem → 20.25rem に縮んだので、開ける演出の中だけ少し大きくした。🔴 最初 scale() でやったら**場所取りが変わらない**ので下の見出しに袋の下端が重なった（撮って気づいた）⇒ 大きさそのもので指定し直した。",
       "⚠ 使っていなかった「小さい袋の絵」の規則も消した。続き828 で使うのをやめた後「また要るかもしれない」と残してあったが、あれは**縦長・黒**の古い意匠で、いまの袋と食い違う（古い物を残すと、次に使う人が古い方を復活させる）。",
       "⚠ 実測38項目（スマホ横932x430・PC 1280x800）。版面の絵が本当に読める／袋が正方形／**偽の印刷物が1つも残っていない**／読み上げ用の名前が付く／箱の 0.67 倍で右側に在る／指を食べない／開ける演出で封が裂けて帯が起き上がる／主役の行が案Bのまま（文字が袋の左に並ぶ）。続き840 の28項目も通る。",
+      "🔴 **まぜるの箱を「中心から放射状に区切る」形にした**（ユーザー案「中心から放射線状に区切り線やってみるの、どうかな？作ってみて！」）。中心から外へ金の線を3本引き、扇ひとつに1つの版を入れる（上＝リメイク／右下＝1st／左下＝旧0th）。",
+      "⚠ 3回描き直した。①扇に絵をそのまま入れると**どの版も地の模様ばかり**になる（題字も輪も絵の中心に在るので、扇の要に集まって見えない）②絵を寄せたら今度は扇より小さく、ふちのぼかしが見えて**貼り付けたシール**に見える ⇒ 絵を扇いっぱい（0.95倍）にして、余りは**その絵の地の色**（四隅の平均）で埋めた。同じ色なので継ぎ目が出ない。",
+      "⚠ 金の線は1本では**明るい地の上で消える** ⇒ 影を敷いてから金、仕上げに細い白の3本重ねにした。中央に金の輪の飾りを置く案も描いたが、**旧0thの輪と二重**になって的のように見えたのでやめた。",
+      "⚠ 裏は意匠が変わっても**1枚そのまま**（3つの裏を扇に割るとどの説明文も読めない）。額の色と四隅の金の線だけ表にそろえた。背も紙の色に。",
+      "🔴 **前の意匠（濃紺＋7色の光＋虹の輪）は消していない。** 道具の先頭の1行（意匠）を切り替えて焼き直せば戻る——どちらが良いかは好みなので、選び直せる形にしてある。",
     ],
     devItemsEn: [
       "The deck-offer table gained a skin column, so the lid art travels with the offer instead of living only on the owner's device.",
@@ -166,6 +171,11 @@ export const CHANGELOG = [
       "The pack is slightly larger inside the opening ceremony to make up for losing height. Using scale() first made its bottom overlap the caption, because scale does not reserve space, so the size itself is set instead.",
       "The unused miniature pack rules were deleted as well. They were kept in case a small pack was needed again, but they described the old tall dark design and would have been revived by mistake.",
       "Measured with 38 checks across phone and desktop sizes, plus the 28 checks from the previous change.",
+      "The Mixed box lid is now divided by rays from the centre, with one edition in each sector: remake at the top, 1st at the lower right, Old 0th at the lower left.",
+      "It took three attempts. Dropping each lid straight into a sector showed only background pattern, because every title and ring sits at the lid centre, which is the apex of the sector. Pushing the art outward then made it smaller than the sector, so its soft edge read as a pasted sticker. The art now fills the sector and the remainder is flooded with that lid own corner colour, so the join is invisible.",
+      "A single gold line vanished against the light artwork, so each ray is a shadow, then gold, then a fine white line. A gold medallion at the centre was drawn too, but it doubled up with the Old 0th ring and read as a target, so it was dropped.",
+      "The back stays a single readable panel whatever the lid does, since splitting three info panels into sectors leaves none of them legible. Only the frame colour and the corner rays follow the front.",
+      "The previous design is still in the tool. Flipping one constant and re-baking brings it back, because which one looks better is a matter of taste.",
     ],
   },
   {

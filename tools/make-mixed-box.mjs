@@ -1,23 +1,26 @@
-// 🔴【2026-11-24・続き839 → 841】「まぜる」の箱の絵を、**既にある箱の絵から**焼く道具。
+// 🔴【2026-11-24・続き839 → 841 → 843】「まぜる」の箱の絵を、**既にある箱の絵から**焼く道具。
 //
 // ユーザー要望（続き839）「**まぜる やつも箱絵があってもいいかも！なんか色んな箱絵が混ざってる感じの
 // かっこいい感じのやつ、あなたの方で作れる？既存の箱絵を組み合わせて！**」。
 //
-// 🔴🔴【続き841】ユーザー指摘「**中心から放射状に境界線が出ていて区切られてる感じはださいかな？**」
-//   ⇒ **帯で切り貼りするのをやめた。** 続き839〜840 は3つの蓋を斜めの帯で継ぎ、継ぎ目に金の線を
-//     引いていたが、
-//       ・金の線＝**はっきりした区切り**なので「3枚貼り合わせました」に見える（コラージュ）
-//       ・1st の蓋は**ロゴが無く模様だけ**なので、真ん中の帯が丸ごと死んでいた
-//       ・リメイクの「7」も旧0thの輪も**帯の縁で切れて**いた
-//     ⇒ いまは **1枚の絵**（線は1本も引かない）。濃紺の地＋7色の光＋旧0thの虹の輪。
-//   ⚠ 「継ぎ目のぼかしで溶かす」も試したが、**重なった所で2枚が二重写しになり**、
-//     題字も7も読めなくなった（scratchpad/_mix841/案A.png）。採らない。
-//   ⚠ 「3つの蓋を重ねて置く」案も描いたが、**箱の上に箱の絵**になるうえ、箱の横には
-//     既に本物のパックが立てかけてある（続き840）ので、**物が二重**になる。採らない。
+// ■ いまの意匠（続き843）：**中心から放射状に区切る**
+//   ユーザー案「**中心から放射線状に区切り線やってみるの、どうかな？作ってみて！**」。
+//   中心から外へ3本の線を引き、扇ひとつに1つの版を入れる（上＝リメイク／右下＝1st／左下＝旧0th）。
+//   ⚠ 0th拡張だけは**箱が無い**（ブースターパックで売られた拡張）ので絵には入らない。
+//     ユーザー案どおり、エディションを選ぶ画面で**箱の横にパックを1つ置いて**表している
+//     （src/edition-select-ui.js・続き840）。
 //
-// ■ 何をしているか
-//   assets/boxes/ に既にある絵から**虹の輪だけ**を取り出し、濃紺の地に置く。
-//   **新しく描いた絵は1枚も無い**（地と光は canvas のグラデーション）。
+// 🔴 意匠は下の `意匠` 1つで切り替わる。もう1つ（"輪"＝濃紺＋7色の光＋虹の輪）は続き841 の形で、
+//   **消さずに残してある**——どちらが良いかは好みなので、1行変えて焼き直せば戻せる。
+//
+// ■ 放射の形で踏んだこと（全部**撮って**分かった。数字では出ない）
+//  1. 扇に絵をそのまま入れると、**どの版も地の模様ばかり**になる。題字も輪も絵の中心に在るので、
+//     扇の要（中心）に集まって見えなくなる ⇒ 絵を**扇の真ん中へ寄せて**置く。
+//  2. 寄せた絵が扇より小さいと、ふちのぼかしが見えて**貼り付けたシール**に見える
+//     ⇒ 絵を扇いっぱい（0.95倍）にして、余りは**その絵の地の色**（四隅の平均）で埋める。
+//        同じ色なので継ぎ目が見えない。
+//  3. 金の線1本では**明るい地の上で消える** ⇒ 影を敷いてから金、仕上げに細い白。
+//  4. 中央に飾り（金の輪）を置く案も描いたが、**旧0thの輪と二重**になって的に見えた ⇒ 置かない。
 //
 // 🔴 元の絵は1枚も触らない。足すだけ（make-thumbs.mjs と同じ作法）。
 //
@@ -36,33 +39,30 @@ const ROOT = path.resolve(path.join(import.meta.dirname, ".."));
 const 案だけ = process.argv.includes("--candidates");
 const 箱 = path.join(ROOT, "assets", "boxes");
 
+// 🔴 ここ1つで意匠が変わる。"放射"（続き843・いま）／"輪"（続き841）。
+const 意匠 = "放射";
+
 const 読む = (名) => {
   const f = path.join(箱, 名 + ".webp");
   if (!fs.existsSync(f)) throw new Error("🔴 元の絵が無い: " + f);
   return "data:image/webp;base64," + fs.readFileSync(f).toString("base64");
 };
 
-// 🔴【続き840】**まぜるの中身は「リメイク＋0th拡張＋1st＋旧0th」**（src/mixed-deck.js）。
-//   ⚠ 0th拡張だけは**ブースターパックで売られた拡張で、箱が無い**（deck-box-3d.js でも
-//     リメイクの箱の絵を流用している）。⇒ ユーザー案「**拡張も混ざってるので拡張パックは
-//     別で箱のそばに置いてある感じで混ぜてるのを表現**」に従い、**絵には入れず**、
-//     エディションを選ぶ画面で**箱の横にパックを1つ置く**形にした（src/edition-select-ui.js）。
 const 元 = {
   rm: { top: 読む("rm-top"), back: 読む("rm-back") },
-  old: { top: 読む("old0th-top") },
+  first: { top: 読む("1st-top"), back: 読む("1st-back") },
+  old: { top: 読む("old0th-top"), back: 読む("old0th-back") },
 };
 
 // このゲームの7色（src/style.css の --color-* と同じ値）。
-// ⚠ 表を2か所に持つとズレるが、ここは**焼く時に1回使うだけ**なので写してある。
-//   style.css を変えた時は、ここも見ること。
+// ⚠ 表を2か所に持つとズレるが、ここは**焼く時に1回使うだけ**。style.css を変えた時はここも見ること。
 const 七色 = ["#d32549", "#ed910e", "#fabe00", "#18ab67", "#18b6c9", "#f19ec2", "#a0549a"];
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.setContent("<body>");
 
-// 🔴 虹の輪の位置は**目分量で切らず、実際に測る**（元の絵が差し替わっても当たるように）。
-//   鮮やかな画素（彩度が高く、明るすぎず暗すぎない）の囲みを取る。
+// 🔴 虹の輪の位置は**目分量で切らず、実際に測る**（"輪" の意匠で使う。元の絵が差し替わっても当たる）。
 const 輪 = await page.evaluate(async (u) => {
   const img = new Image(); img.src = u; await img.decode();
   const c = document.createElement("canvas");
@@ -90,7 +90,6 @@ const 輪 = await page.evaluate(async (u) => {
   return { x0, y0, x1, y1, n, w: c.width, h: c.height };
 }, 元.old.top);
 
-// 🔴 測り損ねたまま焼かない（0しか出ない道具にしない）。
 if (輪.n < 5000 || 輪.x1 - 輪.x0 < 輪.w * 0.5 || 輪.y1 - 輪.y0 < 輪.h * 0.5) {
   throw new Error("🔴 旧0thの虹の輪を測れなかった: " + JSON.stringify(輪));
 }
@@ -98,27 +97,73 @@ const 輪の中心x = (輪.x0 + 輪.x1) / 2;
 const 輪の中心y = (輪.y0 + 輪.y1) / 2;
 const 輪の半径 = Math.max(輪.x1 - 輪.x0, 輪.y1 - 輪.y0) / 2;
 console.log(
-  "旧0thの虹の輪（実測）: 中心 " + 輪の中心x.toFixed(0) + "," + 輪の中心y.toFixed(0) +
-  " / 半径 " + 輪の半径.toFixed(0) + " / 鮮やかな画素 " + 輪.n
+  "意匠: " + 意匠 + " ／ 旧0thの虹の輪（実測）: 中心 " + 輪の中心x.toFixed(0) + "," + 輪の中心y.toFixed(0) +
+  " / 半径 " + 輪の半径.toFixed(0)
 );
 
-// ブラウザの中で描く。引数は data URL の組。
-const 描く = (仕事) => page.evaluate(async ({ 元, 輪, 七色, 種, W, H, 質 }) => {
+const 描く = (仕事) => page.evaluate(async ({ 元, 輪, 七色, 意匠, 種, W, H, 質 }) => {
   const よむ = async (u) => { const i = new Image(); i.src = u; await i.decode(); return i; };
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
   const g = c.getContext("2d");
+  const R = Math.hypot(W, H); // 角まで届く長さ
+  const T = -Math.PI / 2;     // 真上
 
-  // 地（濃紺）。🔴 **旧0thの箱は白地**なので、まぜるを白地にすると小さく出した時に
-  //   見分けが付かない（並べて確かめた＝scratchpad/_mix841/くらべ2.png）。
-  const 地 = () => {
+  const 濃紺 = () => {
     const r = g.createRadialGradient(W / 2, H * 0.46, W * 0.05, W / 2, H / 2, W * 0.8);
     r.addColorStop(0, "#1d2838");
     r.addColorStop(1, "#06090f");
     g.fillStyle = r;
     g.fillRect(0, 0, W, H);
   };
-  // 7色の光を輪のまわりに置く（「7色が全部入っている」の印）。線ではないので区切って見えない。
+
+  // ── 放射の意匠 ───────────────────────────────────────────────────
+  // その絵の「地の色」（四隅の平均）。扇の余りをこの色で埋めると継ぎ目が見えない。
+  const 地の色 = (img) => {
+    const t = document.createElement("canvas"); t.width = img.width; t.height = img.height;
+    const tg = t.getContext("2d"); tg.drawImage(img, 0, 0);
+    const 点 = [[4, 4], [img.width - 5, 4], [4, img.height - 5], [img.width - 5, img.height - 5]];
+    let r = 0, gg = 0, bb = 0;
+    for (const [x, y] of 点) { const D = tg.getImageData(x, y, 1, 1).data; r += D[0]; gg += D[1]; bb += D[2]; }
+    return "rgb(" + Math.round(r / 4) + "," + Math.round(gg / 4) + "," + Math.round(bb / 4) + ")";
+  };
+  const 扇 = (img, a0, a1, 寄せ, 倍) => {
+    const m = (a0 + a1) / 2;
+    const cx = W / 2 + Math.cos(m) * W * 寄せ;
+    const cy = H / 2 + Math.sin(m) * H * 寄せ;
+    g.save();
+    g.beginPath(); g.moveTo(W / 2, H / 2); g.arc(W / 2, H / 2, R, a0, a1); g.closePath(); g.clip();
+    g.fillStyle = 地の色(img);
+    g.fillRect(0, 0, W, H);
+    const t = document.createElement("canvas"); t.width = W; t.height = H;
+    const tg = t.getContext("2d");
+    const w = W * 倍;
+    tg.drawImage(img, cx - w / 2, cy - w / 2, w, w);
+    // ふちは**絵の角のあたりだけ**をやわらかく（内側は切らない）
+    const gr = tg.createRadialGradient(cx, cy, w * 0.42, cx, cy, w * 0.5);
+    gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    tg.globalCompositeOperation = "destination-in";
+    tg.fillStyle = gr; tg.fillRect(0, 0, W, H);
+    g.drawImage(t, 0, 0);
+    g.restore();
+  };
+  // 🔴 影 → 金 → 細い白 の3本。金1本では明るい地の上で消える。
+  const 放射線 = (角たち) => {
+    for (const a of 角たち) {
+      const x1 = W / 2 + Math.cos(a) * R, y1 = H / 2 + Math.sin(a) * R;
+      g.beginPath(); g.moveTo(W / 2, H / 2); g.lineTo(x1, y1);
+      g.lineWidth = Math.max(6, W / 64); g.strokeStyle = "rgba(20,16,10,0.5)"; g.stroke();
+      g.lineWidth = Math.max(4, W / 100); g.strokeStyle = "rgba(216,178,76,0.95)"; g.stroke();
+      g.lineWidth = Math.max(1, W / 300); g.strokeStyle = "rgba(255,247,222,0.95)"; g.stroke();
+    }
+  };
+  const 放射の面 = async (面) => {
+    const 絵 = [await よむ(元.rm[面]), await よむ(元.first[面]), await よむ(元.old[面])];
+    for (let i = 0; i < 3; i++) 扇(絵[i], T + ((2 * Math.PI) / 3) * (i - 0.5), T + ((2 * Math.PI) / 3) * (i + 0.5), 0.24, 0.95);
+    放射線([0, 1, 2].map((i) => T + ((2 * Math.PI) / 3) * (i + 0.5)));
+  };
+
+  // ── 輪の意匠（続き841。残してある） ───────────────────────────────
   const 七色の光 = (強さ) => {
     g.save();
     g.globalCompositeOperation = "lighter";
@@ -134,37 +179,25 @@ const 描く = (仕事) => page.evaluate(async ({ 元, 輪, 七色, 種, W, H, �
     }
     g.restore();
   };
-
-  if (種 === "top") {
+  const 虹の輪を中央に = async () => {
     const ol = await よむ(元.old.top);
-    地();
-    七色の光("66");
-    // 虹の輪だけを円で取り出して中央へ。🔴 ふちはやわらかく——硬く切ると、
-    //   結局そこが「境界線」になってしまう（今回やめたかったもの）。
-    const R = 輪.r * 1.1;
-    const 倍 = (W * 0.82) / (R * 2);
-    const t = document.createElement("canvas");
-    t.width = W; t.height = H;
+    const Rr = 輪.r * 1.1;
+    const 倍 = (W * 0.82) / (Rr * 2);
+    const t = document.createElement("canvas"); t.width = W; t.height = H;
     const tg = t.getContext("2d");
     tg.save();
-    tg.beginPath();
-    tg.arc(W / 2, H / 2, R * 倍, 0, Math.PI * 2);
-    tg.clip();
+    tg.beginPath(); tg.arc(W / 2, H / 2, Rr * 倍, 0, Math.PI * 2); tg.clip();
     tg.drawImage(ol, W / 2 - 輪.cx * 倍, H / 2 - 輪.cy * 倍, ol.width * 倍, ol.height * 倍);
     tg.restore();
-    const gr = tg.createRadialGradient(W / 2, H / 2, R * 倍 * 0.88, W / 2, H / 2, R * 倍);
+    const gr = tg.createRadialGradient(W / 2, H / 2, Rr * 倍 * 0.88, W / 2, H / 2, Rr * 倍);
     gr.addColorStop(0, "rgba(0,0,0,1)");
     gr.addColorStop(1, "rgba(0,0,0,0)");
     tg.globalCompositeOperation = "destination-in";
-    tg.fillStyle = gr;
-    tg.fillRect(0, 0, W, H);
+    tg.fillStyle = gr; tg.fillRect(0, 0, W, H);
     g.drawImage(t, 0, 0);
-  } else if (種 === "back") {
-    // 裏は「何が入っているか」を読む面。🔴 3つの裏を継ぐと**説明の文がどれも読めなくなる**
-    //   （続き840 の形がそうだった）ので、**リメイクの裏を1枚そのまま**、濃紺の額に入れる。
+  };
+  const 裏に1枚入れる = async () => {
     const rb = await よむ(元.rm.back);
-    地();
-    七色の光("33");
     const 大 = 0.86;
     const w = W * 大, h = H * 大;
     const x = (W - w) / 2, y = (H - h) / 2;
@@ -176,11 +209,30 @@ const 描く = (仕事) => page.evaluate(async ({ 元, 輪, 七色, 種, W, H, �
     g.fillRect(x, y, w, h);
     g.restore();
     g.drawImage(rb, x, y, w, h);
+  };
+
+  if (種 === "top") {
+    if (意匠 === "放射") await 放射の面("top");
+    else { 濃紺(); 七色の光("66"); await 虹の輪を中央に(); }
+  } else if (種 === "back") {
+    // 裏は「何が入っているか」を読む面。🔴 3つの裏を扇に割ると**どの説明文も読めない**
+    //   （続き840 の帯の形がまさにそれだった）ので、意匠にかかわらず**1枚そのまま**入れる。
+    //   ⚠ 額の色だけ意匠に合わせる（放射＝紙の色／輪＝濃紺）。
+    if (意匠 === "放射") {
+      g.fillStyle = "#efe7d6";
+      g.fillRect(0, 0, W, H);
+      // 四隅へ向かう金の線（表と同じ言い方にそろえる）
+      放射線([0, 1, 2, 3].map((i) => (Math.PI / 2) * i + Math.PI / 4));
+    } else {
+      濃紺();
+      七色の光("33");
+    }
+    await 裏に1枚入れる();
   } else if (種 === "side") {
-    // 背。縦に濃紺、真ん中に7色の筋を1本。区切らない。
+    // 背。区切らない。意匠に合わせて地の色だけ変える。
     const r = g.createLinearGradient(0, 0, 0, H);
-    r.addColorStop(0, "#1d2838");
-    r.addColorStop(1, "#06090f");
+    if (意匠 === "放射") { r.addColorStop(0, "#f3ecdc"); r.addColorStop(1, "#ddd2ba"); }
+    else { r.addColorStop(0, "#1d2838"); r.addColorStop(1, "#06090f"); }
     g.fillStyle = r;
     g.fillRect(0, 0, W, H);
     const 筋 = g.createLinearGradient(0, 0, 0, H);
@@ -194,7 +246,7 @@ const 描く = (仕事) => page.evaluate(async ({ 元, 輪, 七色, 種, W, H, �
   return c.toDataURL("image/webp", 質);
 }, 仕事);
 
-const 共通 = { 元, 七色, 輪: { cx: 輪の中心x, cy: 輪の中心y, r: 輪の半径 } };
+const 共通 = { 元, 七色, 意匠, 輪: { cx: 輪の中心x, cy: 輪の中心y, r: 輪の半径 } };
 
 const 書く = async (out, 仕事) => {
   const u = await 描く({ ...共通, ...仕事 });
