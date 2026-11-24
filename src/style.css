@@ -17587,6 +17587,27 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   border-color: rgba(var(--so7-accent), 0.7);
   color: #06202e;
 }
+/* 🔴【#824・続き848】報告「スクロールせずに選べるといいです！**上から順に並べる必要はないのでは？
+   左右に余白あるので！**」。横長の端末（932x430）では、設定の4〜5組が縦1列に積まれて
+   **画面に入り切らず巻き取りが要った**のに、左右は空いていた。
+   ⇒ **組を横にも並べる。** 画面の向きや端末では分けず、**札の中身の幅だけ**で決める
+     （`auto-fit` が入る数を決める）。
+   ⚠ 札の幅は倍率で割ってあるので（#741・続き806）、縮む端末ほど **rem で見た中身が広くなる**
+     ＝そこでだけ2列になり、**PC（46rem）では1列のまま＝今までと1pxも変わらない**。
+   🔴 `:not([hidden])` を必ず付ける。`display: grid` は `[hidden]` の `display: none` を
+     **打ち消してしまう**ので、付けないと**2択の画面で畳んでいるはずの設定が出てしまう**。
+   ⚠ 行の間は各組の `margin-top` が受け持つので、すき間は**列だけ**に入れる。 */
+.home-match-choice-details:not([hidden]) {
+  /* ⚠ **段組み（column-width）は試して、やめた。** ブラウザは「段の高さがそろう」ように
+     振り分けるので、背の高い組（対戦ルール）が1段に偏ると**全体が高くなる**
+     （実測: grid 0px に対して段組みは 62px はみ出した）。行ごとに高さが決まる grid の方が、
+     この中身では低く収まる。 */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(34rem, 1fr));
+  gap: 0 2rem;
+  align-items: start;
+}
+
 /* ライトテーマ */
 body.theme-light #home-match-choice {
   background: rgba(60, 51, 38, 0.5);
@@ -26516,13 +26537,14 @@ body.theme-light #card-pack-back {
 .home-match-choice-start {
   display: block;
   width: min(100%, 22rem);
-  margin-left: auto;
-  margin-right: auto;
   box-sizing: border-box;
   /* 🔴【続き720・ユーザー指摘「はじめる と その上のエディション選択が近すぎない？？ｗ」】
      ⇒ 上に間を空ける（設定の列と「始める」は別の種類のものなので、くっついていると
-       設定の一部に見える）。下の ::before の細い罫と対で効く。 */
-  margin: 1.6rem 0 0.6rem;
+       設定の一部に見える）。下の ::before の細い罫と対で効く。
+     🔴【続き848】**左右は `auto`（＝中央）**。続き847 で幅を絞った時に
+     `margin-left/right: auto` を書いたが、**この一括指定が後ろに在って 0 に戻していた**
+     ので、ボタンだけ左に寄っていた（撮って分かった＝教訓9 そのもの）。 */
+  margin: 1.6rem auto 0.6rem;
   padding: 0.85rem 1.1rem;
   border: 1px solid rgba(233, 199, 122, 0.95);
   border-radius: 999px;
@@ -26554,6 +26576,51 @@ body.theme-light #card-pack-back {
    そのぶん小さくなる（#453・#569・#721・#760 と同じ家族）。
    ⚠ 枠は元から `overflow-y: auto` なので、大きくして入り切らなくなっても巻き取れる。
    ⚠ 横に並ぶ列は**折り返せる**ようにする（「自分にも持ち時間」のような長い札が在るため）。 */
+/* 🔴【#824・続き848】指で押す大きさにしたぶん、組が縦に積まれると入り切らない
+   （管理者には**エディションを足して5組**出る）。⇒ **札の幅の上限（46rem）を外す**。
+   横長の端末では左右が大きく空いていたので、そこを使えば3列に並んで2段で収まる。
+   ⚠ 外すのは上限だけ——`94vw` と `100% - 2rem` の歯止めはそのまま（画面からはみ出さない）。
+   ⚠ 縦長の端末では `94vw` の方が小さくなるので、今までどおり1列に落ちる（auto-fit が決める）。 */
+body.is-phone-device .home-match-choice-panel,
+body.is-tablet-device .home-match-choice-panel {
+  width: min(calc(94vw / var(--stage-scale, 1)), calc(100% - 2rem));
+}
+/* 🔴 余白も詰める。指で押す大きさにしたぶん、1.4rem の間が段ごとに積もると効く。
+   ⚠ 詰めるのは**すき間だけ**（押す物の大きさは #822 で決めた値のまま触らない）。 */
+body.is-phone-device .home-match-choice-panel,
+body.is-tablet-device .home-match-choice-panel {
+  padding: 1.4rem 1.6rem 1.2rem;
+}
+body.is-phone-device .home-match-choice-title,
+body.is-tablet-device .home-match-choice-title {
+  margin-bottom: 0.6rem;
+}
+body.is-phone-device .home-match-choice-details:not([hidden]) > .home-match-choice-difficulty,
+body.is-tablet-device .home-match-choice-details:not([hidden]) > .home-match-choice-difficulty {
+  margin-top: 0.7rem;
+}
+/* 🔴 「はじめる」と「戻る」を**横に並べて1段ぶん縮める**。
+   ⚠ 左右は #746 の決まり（やめる側が左・進む側が右）。DOM は はじめる → 戻る のままで、
+     `order` で入れ替える（並べ替えを DOM でやると、片方しか出ない形で取りこぼす）。
+   ⚠ PC では箱がただの入れ物のまま＝今までどおり縦に積まれる。 */
+body.is-phone-device .home-match-choice-foot,
+body.is-tablet-device .home-match-choice-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6rem;
+  margin-top: 1.2rem;
+}
+body.is-phone-device .home-match-choice-foot .home-match-choice-cancel,
+body.is-tablet-device .home-match-choice-foot .home-match-choice-cancel {
+  order: -1;
+  margin-top: 0;
+}
+body.is-phone-device .home-match-choice-foot .home-match-choice-start,
+body.is-tablet-device .home-match-choice-foot .home-match-choice-start {
+  margin: 0;
+  width: min(100%, 26rem);
+}
 body.is-phone-device .home-match-choice-segment,
 body.is-tablet-device .home-match-choice-segment {
   flex-wrap: wrap;

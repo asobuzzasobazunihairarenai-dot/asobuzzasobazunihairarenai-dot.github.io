@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-25",
     summary: [
+      "CPU戦の設定が、巻き取らずに1画面で選べるようになりました",
       "CPU戦の設定が、指で押しやすい大きさになりました",
       "エディションを選ぶ画面に、0th拡張と志炎者の絵が付きました",
       "エディションの箱が、左右のスワイプで指に付いてくるようになりました",
@@ -61,6 +62,7 @@ export const CHANGELOG = [
       "燃える演出のふちが、いびつな炎の形に戻りました",
     ],
     summaryEn: [
+      "The CPU match settings now fit on one screen without scrolling",
       "The CPU match settings are now comfortable to tap",
       "The edition chooser gained artwork for the 0th expansion and Shienja",
       "The edition chooser now follows your finger as you swipe",
@@ -68,6 +70,7 @@ export const CHANGELOG = [
       "The burning edge is ragged again, not a clean circle",
     ],
     items: [
+      "**CPU戦の設定が、巻き取らずに1画面で収まるようになりました。** 横長の端末では、強さ・人数・対戦ルール・山札が縦1列に積まれて画面に入り切らず、左右が大きく空いていました。いまは**横にも並べて**、「はじめる」と「戻る」も横に並べています。縦長の画面や PC では今までどおりです。",
       "**CPU戦の設定を、指で押せる大きさにしました。** 強さ・人数・対戦ルール・山札のボタンは**実画面で16px**しかなく（字は7px）、押し間違えやすい大きさでした。いまは**41〜53px**です。「はじめる」も、横いっぱいの平らな帯だったのを**幅を絞って浮かせた形**にしました（飾りの帯に見えていました）。",
       "**エディションを選ぶ画面に絵が増えました。** 「0th拡張」は箱が無い版なので**ブースターパックを3つ重ねた姿**に、「リメイク＋志炎者」は**リメイクの箱のまわりに志炎者の札**を広げた姿にしました。",
       "**エディションを選ぶ画面が、左右のスワイプで指に付いてくるようになりました。** それまでは払い終わった所で一気に次の箱へ飛んでいました。離すといちばん近い箱へ寄ります。",
@@ -75,6 +78,7 @@ export const CHANGELOG = [
       "HUERISE の画面から燃えて始まる時、ふちが**いびつな炎の形**になりました。端末によっては**きれいな円**で燃え広がっていて、紙が焼け落ちる感じが出ていませんでした。",
     ],
     itemsEn: [
+      "The CPU match settings now fit on one screen. On a wide, short screen the groups were stacked in a single column that overflowed, while the sides sat empty; they now sit side by side, and the start and back buttons share a row. Tall screens and desktops are unchanged.",
       "The CPU match settings are now comfortable to tap. The difficulty, player count, rule and deck buttons were only 16 real pixels tall with 7px text; they are now 41 to 53. The start button was a flat full-width band that read as decoration, and is now a narrower raised button.",
       "The edition chooser gained artwork: the 0th expansion, which was never sold in a box, now shows three booster packs stacked, and the remake-plus-Shienja set shows the remake box with its cards fanned around it.",
       "The edition chooser now follows your finger as you swipe, instead of jumping to the next box when you let go. It settles on the nearest box when you release.",
@@ -82,14 +86,25 @@ export const CHANGELOG = [
       "The burn that starts the game now has a ragged, flame-like edge on every device. On some phones it spread as a clean circle, which lost the feeling of paper burning away.",
     ],
     fixes: [
+      "1st EDITION の箱の裏に、印刷の型抜き線が写り込んでいたのを直しました。",
+      "CPU戦の設定の「はじめる」が左に寄っていたのを、真ん中に戻しました。",
       "食べすぎで隣のマスのカードを足元へ重ねる時、重なっているマスからは**1番上の1枚だけ**を取るようにしました。",
       "パックを開ける画面のいちばん上に出ていた、管理者向けの小さな文字を下へ移しました。",
     ],
     fixesEn: [
+      "The back of the 1st EDITION box no longer shows the printing die lines.",
+      "The start button in the CPU match settings is centred again.",
       "Overeating now takes only the top card from a stacked neighbouring cell.",
       "The small administrator-only diagnostic line on the pack screen moved to the bottom.",
     ],
     devItems: [
+      "🔴 #823「旧1stの箱裏が少しおかしいです！」。**展開図の切り出し位置が1つ外側だった**——面の枠（型抜き線）ごと切っていたので、裏の絵のまわりに線と折り返しの白地が写り込み、中身も片寄っていた。⇒ **入稿の .ai を描き直してから、線の位置を機械で測った**（行／列ごとに『地と違う画素』を数える）。身（底）の面は 3600px の描画で x 813..2786 / y 816..2783 ＝ちょうど正方形で、中心は 1799.5。そこから少し内側で切り直した。蓋と側面も同じ作法でそろえた（側面には折り返しの形が写っていた）。",
+      "⚠ **目で読まない**（続き766 の教訓）。線の位置は4辺とも対称に出たので、読み違えていないことがその場で分かる。⚠ 1st の面は「まぜる」の箱の材料でもあるので、`tools/make-mixed-box.mjs` を走らせ直した。",
+      "🔴 #824「スクロールせずに選べるといいです！**上から順に並べる必要はないのでは？左右に余白あるので！**」。設定の4〜5組が縦1列に積まれて入り切らず、左右は空いていた。⇒ `.home-match-choice-details` を **grid の auto-fit**（minmax 34rem）にした。札の幅は倍率で割ってあるので（#741・続き806）、**縮む端末ほど rem で見た中身が広くなり、そこでだけ2列になる**＝PC（46rem）は1列のままで1pxも変わらない。",
+      "🔴 `:not([hidden])` を必ず付ける——`display: grid` は `[hidden]` の `display: none` を**打ち消す**ので、付けないと2択の画面で畳んでいるはずの設定が出てしまう。実測でも両方向を見ている。",
+      "⚠ **段組み（column-width）は試して、やめた。** ブラウザは「段の高さがそろう」ように振り分けるので、背の高い組（対戦ルール）が1段に偏ると全体が高くなる（実測: grid 0px に対して段組みは 62px はみ出した）。行ごとに高さが決まる grid の方が、この中身では低く収まる。",
+      "⚠ それでも**管理者の5組**では3段になって 169px はみ出した。⇒ ①「はじめる」と「戻る」を**横に並べて1段ぶん縮める**（#746 の決まりどおり、左右は CSS の `order` で決める。DOM は今までどおりなので PC は縦のまま）②組の間・見出しの下・札の内側の余白を詰める。**詰めたのはすき間だけで、押す物の大きさ（#822 で決めた値）は触っていない。** 結果 4組 401→317px・5組も 0px。",
+      "🔴 撮って1つ見つけた: 「はじめる」が**左に寄っていた**。続き847 で幅を絞った時に `margin-left/right: auto` を書いたが、**同じ規則の後ろに在る `margin:` の一括指定が 0 に戻していた**（教訓9 そのもの）。数字では落ちない——幅も高さも影も合っていた。",
       "🔴 #813「HUERISEから燃える時、綺麗な円で燃えてっちゃいます。歪な炎な感じがないです」。正体は、いびつなふちを **feTurbulence + feDisplacementMap だけ**が作っていたこと——続き800 で入れた「遅い端末では乱流をあきらめる保険」が働くと、ふちが真円に戻る（当時のコメントにも「＝ふちは真円になるが、カクカクするよりはよい」と書いてあった）。⇒ **穴そのものを、はじめからギザギザの形（72点の path）で持つ**ようにした。フィルタが外れても形は残り、生きている時はその上にさらに細かい乱れが乗る。",
       "⚠ 形は**毎回同じ**（乱数を使わない）。うねりの周期を4つ重ねてあるので不自然にはならず、実測で同じ絵を出せる。振れ幅は割合なので、穴が大きくなるほどギザギザも大きくなる＝紙の燃え方と同じ。",
       "🔴 #811「箱の天地の表示がおかしいです」。側面の絵は **64x512 の縦長**、箱の天地の面は **横長**。コメントには「90度ねじって敷く」と書いてあったのに、**ねじる処理が無かった**（background-size と repeat-x を当てていただけ）⇒ 縦長の絵の**上の一片だけ**が横に繰り返され、箱の天地に知らない模様が並んでいた。CSS は背景画像を回せないので、**90度回した子**を1枚置く形にした。",
@@ -109,6 +124,13 @@ export const CHANGELOG = [
       "⚠ 実測14項目。触る端末では乱流を掛けない／**対照: PC では掛ける**／穴は72点のまま／ホームで覆いが立つ／**対照: 対局の画面では覆われない**（今までどおり作り直す）。⚠ 測り方を2つ間違えた: ①ヘッドレスは遅いので700ms待つと PC でも「遅い端末の保険」が働いて乱流が外れる（掛けた直後に読む）②`querySelector(\"g\")` は最初の <g> であって乱流を掛けた物とは限らない。",
     ],
     devItemsEn: [
+      "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
+      "All four edges came out symmetric, which is itself evidence the reading is right. The lid and side were re-cut the same way; the side had a fold shape baked into it. The 1st faces are also the material for the mixed box, so that was re-baked too.",
+      "The CPU settings groups were stacked in one column that overflowed while the sides sat empty. The details block is now an auto-fit grid with a 34rem minimum, so the number of columns follows the panel content width alone. Because the panel width is divided by the stage scale, a scaled-down phone ends up wider in rem terms and gets two columns, while the desktop panel stays at one and does not change by a pixel.",
+      "The rule must be written with :not([hidden]), because display: grid overrides the display: none that [hidden] provides; without it the collapsed settings would appear in the two-choice dialog. Both directions are measured.",
+      "Multi-column layout was tried and rejected: the browser balances column heights, so a tall group landing in one column makes the whole block taller. Measured, the grid overflowed by 0px where columns overflowed by 62px.",
+      "With an administrator five groups appear, which became three rows and overflowed by 169px. The start and back buttons now share a row, with left-right order decided by a single CSS order rule so the DOM and the desktop stacking are untouched, and the gaps between groups and around the panel were tightened. Only gaps were reduced; the tap-target sizes are unchanged. Four groups went from 401 to 317px and five now fit.",
+      "A screenshot caught one more thing: the start button had drifted left, because a margin shorthand later in the same rule reset the auto side margins written for centring. No number caught it; the width, height and shadow were all correct.",
       "The ragged burn edge was produced only by the turbulence filter, which a slow-device safeguard removes, leaving a perfect circle. The hole itself is now a 72-point jagged path, so the shape survives without the filter and the filter only adds finer detail on top.",
       "The shape is deterministic rather than random, so the same picture can be measured, and its wobble is proportional, so it grows with the hole.",
       "The box top and bottom faces showed a strip of artwork repeated sideways. The side artwork is a tall strip and the comment said it was rotated a quarter turn for those faces, but no rotation was ever applied. A rotated child element now carries it.",

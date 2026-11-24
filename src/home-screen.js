@@ -743,6 +743,14 @@ function openMatchChoiceModal(opts = {}) {
   cancel.addEventListener("click", closeMatchChoiceModal);
   panel.appendChild(details);
   refreshDetailsToggle(); // 文言と「設定を変えています」の1行を、開く前に一度そろえる
+  // 🔴【#824・続き848】「はじめる」と「戻る」を1つの箱に入れる。
+  //   PC では今までどおり縦に積まれる（箱はただの入れ物）が、**横長の端末では
+  //   横に並べて1段ぶん縮める**（style.css の `.home-match-choice-foot`）。
+  //   ⚠ DOM の順は**今までどおり はじめる → 戻る**（縦に積まれる PC の見え方を変えない）。
+  //     横に並べた時の左右（#746: やめる側が左・進む側が右）は **CSS の `order` 1か所**で
+  //     決める——並べ替えを DOM でやると、片方が出ない形（2択の画面）で取りこぼす。
+  const foot = document.createElement("div");
+  foot.className = "home-match-choice-foot";
   // 【#647 の直し】CPU だけの形では、ここに「はじめる」を置く（2択の代わり）。
   // ⚠ 二度押しで2回始まらないように、押したら無効にする。
   if (cpuだけ) {
@@ -756,9 +764,10 @@ function openMatchChoiceModal(opts = {}) {
       closeMatchChoiceModal();
       await startCpuBattleFromHome();
     });
-    panel.appendChild(start);
+    foot.appendChild(start);
   }
-  panel.appendChild(cancel);
+  foot.appendChild(cancel);
+  panel.appendChild(foot);
 
   // 背景クリックでも閉じる（パネル内クリックは伝播させない）。
   back.addEventListener("click", closeMatchChoiceModal);
