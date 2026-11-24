@@ -27874,30 +27874,38 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   inherits: true;
   initial-value: 0;
 }
+/* 🔴【続き842】袋は**正方形**（実物のカードが正方形なので、袋も正方形）。
+   それまでは 20.25x28.25rem の縦長で、実物とは別物だった。 */
 .pkc-pack {
   position: relative;
   width: 20.25rem;
-  height: 28.25rem;
+  height: 20.25rem;
   --tear: 0;
 }
 .pkc-foil {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background:
-    repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 7px),
-    linear-gradient(161deg, #2a2724 0%, #16140f 34%, #1f1b14 62%, #100e0a 100%);
-  border: 1px solid rgba(176, 141, 63, 0.5);
-  box-shadow: 0 2.4rem 4rem -1.9rem rgba(0, 0, 0, 0.95), inset 0 0 4.4rem rgba(0, 0, 0, 0.7);
+  /* 🔴 地は**白**（実物の版面が白い紙）。絵が読めていない間もここが見える。 */
+  background: #f6f1e6;
+  /* 🔴 撮って分かった: 開ける演出の地は**白い紙**なので、白い袋はそのままだと溶ける
+     （前の袋は黒かったので、影が無くても浮いていた）。接地の影を1枚足して縁も濃くする。 */
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 0.5rem 1.2rem -0.35rem rgba(0, 0, 0, 0.42),
+    0 2.4rem 4rem -1.9rem rgba(0, 0, 0, 0.85),
+    inset 0 0 3.2rem rgba(0, 0, 0, 0.08);
 }
-/* 銀蒸着フィルムの虹色（実物のパックの、角度で色が変わるあれ）。
-   ⚠ mix-blend-mode はここだけ。**全画面ではなく 324x452 の小さい面**なので、
-     続き700 で「重い」と疑った全画面の合成とは別物（実測で問題なし）。 */
+/* 包材のツヤ（角度で色が変わるあれ）。
+   ⚠ mix-blend-mode はここだけ。**全画面ではなく 324x324 の小さい面**なので、
+     続き700 で「重い」と疑った全画面の合成とは別物（実測で問題なし）。
+   🔴【続き842】白い袋になったので **screen をやめた**——screen は白の上では何もしない
+     （白 + 何か = 白）ので、虹色が丸ごと消えていた。multiply を薄く当てる。 */
 .pkc-film {
   position: absolute;
   inset: 0;
-  opacity: 0.3;
-  mix-blend-mode: screen;
+  opacity: 0.13;
+  mix-blend-mode: multiply;
   background: linear-gradient(118deg, transparent 6%, #cc5b52 16%, #d98b45 26%, #d8b24c 36%, #7fa86f 48%, #6fa2a8 60%, #ce7f90 72%, #9183b5 82%, transparent 92%);
 }
 .pkc-sheen {
@@ -27906,7 +27914,9 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   bottom: 0;
   left: 0;
   width: 5.75rem;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  /* 🔴【続き842】白い袋の上では**白いツヤは見えない**。わずかに影を落としてから
+     白く抜くと、艶のある包材を斜めに光が走って見える。 */
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06) 38%, rgba(255, 255, 255, 0.9) 50%, rgba(0, 0, 0, 0.05) 62%, transparent);
   animation: pkc-sheen 2.6s ease-in-out infinite;
   pointer-events: none;
 }
@@ -27923,9 +27933,9 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   top: 0;
   height: 1.625rem;
   background:
-    repeating-linear-gradient(90deg, rgba(240, 233, 219, 0.22) 0 3px, transparent 3px 7px),
-    linear-gradient(180deg, rgba(240, 233, 219, 0.17), rgba(240, 233, 219, 0.03));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(222, 214, 198, 0.9));
+  border-bottom: 1px solid rgba(0, 0, 0, 0.14);
   transform-origin: left center;
   /* 🔴【続き828】**閉じている所だけ**残す（なぞった所から左は消える）。
      それまでは is-tearing で帯を丸ごと持ち上げていたが、`.pkc-foil` は
@@ -27974,9 +27984,11 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   position: absolute;
   top: 0;
   height: 100%;
+  /* ⚠【続き842】**透かさない**。白い袋の上でも、裂け目の暗がりの上でも見えるように
+     （前は半透明のクリームだったので、白い袋では消えてしまう）。 */
   background:
-    repeating-linear-gradient(90deg, rgba(240, 233, 219, 0.22) 0 3px, transparent 3px 7px),
-    linear-gradient(180deg, rgba(240, 233, 219, 0.3), rgba(240, 233, 219, 0.06));
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, #f5f0e4, #ded6c6);
   /* ちぎれたギザギザ（下端）。周期は帯1つの幅とだいたい合わせてある。 */
   clip-path: polygon(0 0, 100% 0, 100% 74%, 87% 100%, 74% 70%, 61% 97%, 50% 68%, 38% 99%, 25% 72%, 12% 100%, 0 71%);
   transform-origin: bottom center;
@@ -27991,6 +28003,16 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   opacity: calc(1 - var(--okiru) * 0.25);
   box-shadow: 0 0.12rem 0.3rem rgba(0, 0, 0, 0.55);
 }
+/* 🔴【続き842】**開ける演出の中だけ**少し大きく出す。袋が正方形になって縦が
+   28.25rem → 20.25rem に縮んだので、そのままだと画面がすかすかに見えた（撮って決めた）。
+   ⚠ 「パックを開ける」画面の袋（.card-pack-bag .pkc-pack）には当てない——あちらは
+     置き場の大きさを 0.9 倍から計算してあるので、ここで大きくすると枠からはみ出す。 */
+#pack-ceremony .pkc-pack {
+  /* ⚠ scale() ではなく**大きさそのもの**で。scale は場所取りを変えないので、
+     下の見出し（指でなぞって封を切る）に袋の下端が重なった（撮って気づいた）。 */
+  width: 23.3rem;
+  height: 23.3rem;
+}
 /* ⚠ なぞっている間、ブラウザに縦スクロールへ取られると**途中で裂けが止まる**。 */
 .pkc-stage.is-seal .pkc-pack {
   touch-action: none;
@@ -28002,7 +28024,7 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   top: 1.625rem;
   width: 1.625rem;
   height: 0.94rem;
-  background: #14120e;
+  background: rgba(0, 0, 0, 0.32);
   clip-path: polygon(100% 0, 100% 100%, 0 0);
 }
 .pkc-tearhere {
@@ -28012,118 +28034,20 @@ body.theme-light #profile-mainstack .profile-mainstack-name { color: #1e293b; }
   font-family: Oswald, "Arial Narrow", sans-serif;
   font-size: 0.62rem;
   letter-spacing: 0.22em;
-  color: rgba(240, 233, 219, 0.72);
+  color: rgba(40, 34, 24, 0.55);
 }
-.pkc-innerframe {
+/* 🔴【続き842】表の版面（実物の 0th拡張 ブースターパックの入稿データから焼いたもの）。
+   それまでここに在った「内枠・七色の筋・ロゴ・0TH EDITION・BOOSTER PACK・下の情報帯」は
+   **全部やめた**——版面に焼かれているので、CSS で似せた偽物を重ねる理由が無い。 */
+.pkc-face {
   position: absolute;
-  left: 0.8rem;
-  right: 0.8rem;
-  top: 2.375rem;
-  bottom: 0.8rem;
-  border: 1px solid rgba(199, 154, 71, 0.3);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
-/* 七色の筋（この商品の記号）。 */
-.pkc-stripe {
-  position: absolute;
-  left: 0.8rem;
-  right: 0.8rem;
-  top: 2.375rem;
-  height: 3px;
-  background: linear-gradient(90deg, #cc5b52, #d98b45 16%, #d8b24c 33%, #7fa86f 50%, #6fa2a8 66%, #ce7f90 83%, #9183b5);
-}
-.pkc-logo {
-  position: absolute;
-  left: calc(50% + 1rem);
-  top: 11.4rem;
-  transform: translate(-50%, -50%);
-  width: 13.4rem;
-  height: auto;
-}
-.pkc-edition {
-  position: absolute;
-  left: 50%;
-  top: 15.5rem;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  height: 1.625rem;
-  padding: 0 1.25rem;
-  background: linear-gradient(180deg, #d8b24c, #a9823a);
-  color: #19160f;
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  font-size: 0.74rem;
-  font-weight: 500;
-  letter-spacing: 0.3em;
-  white-space: nowrap;
-}
-.pkc-booster {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 18rem;
-  text-align: center;
-  font-family: "Cormorant Garamond", serif;
-  font-variant-numeric: lining-nums;
-  font-size: 0.95rem;
-  letter-spacing: 0.3em;
-  color: rgba(240, 233, 219, 0.8);
-}
-/* 下の情報帯（入り数・会社名・著作権・バーコード）。 */
-.pkc-info {
-  position: absolute;
-  left: 0.8rem;
-  right: 0.8rem;
-  bottom: 0.8rem;
-  padding: 0.7rem 0.8rem 0.62rem;
-  background: linear-gradient(180deg, rgba(10, 9, 6, 0.55), rgba(10, 9, 6, 0.9));
-  border-top: 1px solid rgba(199, 154, 71, 0.3);
-}
-.pkc-info-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-.pkc-info-n {
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #f0e9db;
-  line-height: 1;
-  display: flex;
-  align-items: baseline;
-  gap: 0.25em;
-}
-.pkc-info-n span {
-  font-size: 0.6rem;
-  letter-spacing: 0.2em;
-  color: rgba(240, 233, 219, 0.75);
-}
-.pkc-info-sub {
-  margin-top: 0.25rem;
-  font-size: 0.62rem;
-  color: rgba(240, 233, 219, 0.62);
-}
-.pkc-info-right { text-align: right; }
-.pkc-brand {
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: #d8b24c;
-  line-height: 1;
-}
-.pkc-copy {
-  margin-top: 0.2rem;
-  font-size: 0.5rem;
-  letter-spacing: 0.08em;
-  color: rgba(240, 233, 219, 0.5);
-}
-.pkc-barcode {
-  margin-top: 0.56rem;
-  height: 1.2rem;
-  background: repeating-linear-gradient(90deg, rgba(240, 233, 219, 0.85) 0 1px, transparent 1px 3px, rgba(240, 233, 219, 0.85) 3px 5px, transparent 5px 6px, rgba(240, 233, 219, 0.85) 6px 8px, transparent 8px 11px);
-}
+
 /* 封を切る所の光（呼吸する帯）と、なぞる道しるべ。 */
 .pkc-tearglow {
   position: absolute;
@@ -28648,8 +28572,8 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
 }
 
 /* ② 主役の行（画面案B・続き828）。**袋を大きく右に**置き、左に文字を組む。
-   ⚠ 袋は開封の演出と同じ部品（.pkc-pack）。実寸は 20.25x28.25rem あるので、
-     ここでは 0.8 倍にして少し傾ける（置いてある物ではなく、手に取る物に見える）。 */
+   ⚠ 袋は開封の演出と同じ部品（.pkc-pack）。実寸は 20.25rem 角なので、
+     ここでは 0.9 倍にして少し傾ける（置いてある物ではなく、手に取る物に見える）。 */
 .card-pack-hero {
   display: flex;
   align-items: center;
@@ -28666,16 +28590,17 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
 .card-pack-bag {
   flex: 0 0 auto;
   position: relative;
-  /* 傾けた角のぶん。16.2*cos7 + 22.6*sin7 = 18.83rem（実測で 18.6 では 3px 足りなかった） */
-  width: 19rem;
-  height: 24.6rem;
+  /* 傾けた角のぶん。正方形なので縦横とも 18.225*(cos7+sin7) = 20.31rem（続き842）。
+     ⚠ 左の文字は最低 17rem 要る。46 - 2.4(余白) - 1.4(あいだ) - 20.4 = 21.8rem 残るので入る。 */
+  width: 20.4rem;
+  height: 20.4rem;
 }
 .card-pack-bag .pkc-pack {
   position: absolute;
   left: 50%;
   top: 50%;
   /* ⚠ scale3d ではなく scale で足りる（この袋に translateZ は無い＝教訓6 の対象外）。 */
-  transform: translate(-50%, -50%) rotate(7deg) scale(0.8);
+  transform: translate(-50%, -50%) rotate(7deg) scale(0.9);
 }
 /* 左の文字。大きい数字 → 一言 → ボタン → ワイルドの行。
    🔴 撮って分かった: 左の列の基準幅が 24rem のままだと、袋（19rem）と足して
@@ -28719,69 +28644,10 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
   opacity: 0.72;
   font-variant-numeric: tabular-nums;
 }
-/* ⚠【続き828】**もう使っていない**（主役は本物の袋＝.pkc-pack に替えた）。
-   消さずに残してあるのは、小さい袋の絵がまた要るかもしれないため。
-   袋のミニチュア。実物のブースターパックと同じ作り（銀蒸着の虹色・七色の筋・版の帯）を、
-   グラデーションだけで小さく描く。 */
-.card-pack-foil {
-  position: relative;
-  flex: 0 0 auto;
-  width: 6.4rem;
-  height: 8.9rem;
-  overflow: hidden;
-  background:
-    repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 7px),
-    linear-gradient(161deg, #2a2724 0%, #16140f 34%, #1f1b14 62%, #100e0a 100%);
-  border: 1px solid rgba(176, 141, 63, 0.5);
-  box-shadow: 0 0.8rem 1.6rem -0.8rem rgba(0, 0, 0, 0.9);
-}
-.card-pack-foil::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.3;
-  background: linear-gradient(118deg, transparent 6%, #cc5b52 16%, #d98b45 26%, #d8b24c 36%, #7fa86f 48%, #6fa2a8 60%, #ce7f90 72%, #9183b5 82%, transparent 92%);
-}
-/* 上端の熱圧着（ギザギザ）。 */
-.card-pack-foil::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 0.8rem;
-  background:
-    repeating-linear-gradient(90deg, rgba(240, 233, 219, 0.22) 0 3px, transparent 3px 7px),
-    linear-gradient(180deg, rgba(240, 233, 219, 0.17), rgba(240, 233, 219, 0.03));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-}
-.card-pack-foil-stripe {
-  position: absolute;
-  left: 0.4rem;
-  right: 0.4rem;
-  top: 1.2rem;
-  height: 2px;
-  background: linear-gradient(90deg, #cc5b52, #d98b45 16%, #d8b24c 33%, #7fa86f 50%, #6fa2a8 66%, #ce7f90 83%, #9183b5);
-  z-index: 2;
-}
-.card-pack-foil-ed {
-  position: absolute;
-  left: 50%;
-  top: 54%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  height: 1.05rem;
-  padding: 0 0.55rem;
-  background: linear-gradient(180deg, #d8b24c, #a9823a);
-  color: #19160f;
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  font-size: 0.5rem;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  white-space: nowrap;
-  z-index: 2;
-}
+/* ⚠【続き842】ここに在った「小さい袋の絵」（.card-pack-foil*）は消した。
+   続き828 で使うのをやめた後も「また要るかもしれない」と残してあったが、あれは
+   **縦長・黒**の古い意匠で、いまの袋（正方形・白＝実物の版面）と食い違う。
+   小さい袋がまた要るなら、.pkc-pack を縮めるか pack-0th-face.webp を貼る。 */
 /* 🔴 撮って分かった: 幅の指定が無いと、ボタンが4つ並んだ時に**袋の下へ折り返して**
    左半分が空っぽになる。袋の隣に収まる幅を与える。 */
 .card-pack-hero-text {
@@ -28852,8 +28718,6 @@ body.is-phone-device .card-pack-progress,
 body.is-tablet-device .card-pack-progress { font-size: 1.3rem; }
 body.is-phone-device #card-pack-title::before,
 body.is-tablet-device #card-pack-title::before { font-size: 1.1rem; }
-body.is-phone-device .card-pack-foil,
-body.is-tablet-device .card-pack-foil { width: 9rem; height: 12.5rem; }
 /* 🔴【続き828】案Bの左の列。既定のままだと一言 0.8rem＝**実画面 6.1px** で読めない。 */
 body.is-phone-device .card-pack-hero-num b,
 body.is-tablet-device .card-pack-hero-num b { font-size: 3.4rem; }
@@ -28863,8 +28727,6 @@ body.is-phone-device .card-pack-lead,
 body.is-tablet-device .card-pack-lead { font-size: 1.2rem; }
 body.is-phone-device .card-pack-wilds,
 body.is-tablet-device .card-pack-wilds { font-size: 1.1rem; }
-body.is-phone-device .card-pack-foil-ed,
-body.is-tablet-device .card-pack-foil-ed { font-size: 0.8rem; height: 1.6rem; }
 
 /* 【続き737】パックの画面の中身を、1本の中央の帯にそろえる（左端に散らばって見えていた）。 */
 .card-pack-diag,

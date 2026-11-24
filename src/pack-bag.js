@@ -7,10 +7,20 @@
 //   内枠・七色の筋・版の帯・下の情報帯とバーコード）ので、2か所に書くと必ず食い違う
 //   （続き762・769 で同じ形を踏んでいる）。
 //
+// 🔴【続き842】**実物の 0th拡張 ブースターパックの版面に作り直した。**
+//   ユーザー指摘「旧0thの拡張パックデザインですが、今のままだとリメイクの拡張パックの
+//   デザインに見えます！旧ゼロスの拡張パックはすでに正方形のデザインがあるので
+//   そちらをアレンジしてリデザインしてみて」。
+//   ⇒ 袋は**正方形・白**（実物のカードが正方形なので、袋も正方形）。表の版面は
+//     入稿データから焼いた assets/ui-v2/pack-0th-face.webp（tools/make-pack-face.mjs）。
+//   ⚠ それまで CSS で組んでいた「内枠・七色の筋・ロゴ・0TH EDITION・BOOSTER PACK・
+//     下の情報帯」は**全部やめた**（版面に焼かれている）。入り数は読み上げ用の名前に残した。
+//
 // 🔴 きまり（pack-opening.js から引き継いだもの。どれも実害から来ている）
-//  ・**新しい画像も canvas も1枚も足さない。** 全画面の canvas は1枚で約23MB
-//    （#441・#607 で実機が実際に落ちている）。袋は全部 CSS のグラデーションと inline SVG。
-//    商品名だけは**既にある** assets/ui-v2/logo.webp を使う。
+//  ・**canvas は1枚も足さない。** 全画面の canvas は1枚で約23MB
+//    （#441・#607 で実機が実際に落ちている）。袋の光や封は全部 CSS のグラデーション。
+//    ⚠ 画像は**版面の1枚だけ**（512x512＝約1MB。カードの絵より少し大きい程度）。
+//      その1枚を足した理由は tools/make-pack-face.mjs の冒頭に書いてある。
 //  ・**`filter: blur()` も `backdrop-filter` も使わない**（#634・#715）。
 //
 // ■ 封の切れ目（続き828 で足した）
@@ -23,8 +33,8 @@
 
 import { t } from "./ui-text.js";
 
-// 袋の商品名。**続き706 で取り込んだ既存の素材**（新しい画像は足さない）。
-const LOGO = "assets/ui-v2/logo.webp";
+// 袋の表の版面（実物の入稿データから焼いたもの＝tools/make-pack-face.mjs）。
+const FACE = "assets/ui-v2/pack-0th-face.webp";
 
 // 裂け目の札の数。多いほど滑らかだが、8つで十分に「ギザギザが1つずつ起きる」と見える
 // （1つ 2.5rem ＝ ギザギザの周期とだいたい合う）。
@@ -33,7 +43,7 @@ const 札の数 = 8;
 /**
  * ブースターパックの袋を1つ作る。
  * @param {object} o
- * @param {number} o.cards      下の情報帯に出す入り数（既定7）
+ * @param {number} o.cards      入り数（既定7）。読み上げ用の名前にだけ出る（版面には焼かれている）
  * @param {boolean} o.封を切る   なぞる道しるべ（光・点線・走る光・裂け目）を付けるか。
  *                              false なら**封がされたままの絵**だけ（画面の主役用）。
  */
@@ -45,7 +55,17 @@ export function buildPackBag({ cards = 7, 封を切る = true } = {}) {
   const foil = document.createElement("div");
   foil.className = "pkc-foil";
 
-  const film = document.createElement("div"); // 銀蒸着フィルムの虹色
+  // 🔴 版面は**いちばん下**に置く。あとから足す光（film / sheen）と封（seal）は
+  //   この上に乗らないと、ツヤが紙の下に潜って見えなくなる。
+  const face = document.createElement("img");
+  face.className = "pkc-face";
+  face.src = FACE;
+  face.alt = "";
+  face.setAttribute("aria-hidden", "true");
+  face.decoding = "async";
+  foil.appendChild(face);
+
+  const film = document.createElement("div"); // 包材のツヤ（虹色）
   film.className = "pkc-film";
   film.setAttribute("aria-hidden", "true");
   foil.appendChild(film);
@@ -70,64 +90,10 @@ export function buildPackBag({ cards = 7, 封を切る = true } = {}) {
   tear.textContent = "TEAR HERE \u25b6";
   foil.appendChild(tear);
 
-  const frame = document.createElement("div"); // 内枠
-  frame.className = "pkc-innerframe";
-  frame.setAttribute("aria-hidden", "true");
-  foil.appendChild(frame);
-
-  const stripe = document.createElement("div"); // 七色の筋（この商品の記号）
-  stripe.className = "pkc-stripe";
-  stripe.setAttribute("aria-hidden", "true");
-  foil.appendChild(stripe);
-
-  const logo = document.createElement("img");
-  logo.className = "pkc-logo";
-  logo.src = LOGO;
-  logo.alt = "7 SHADES OF S:EVEN";
-  foil.appendChild(logo);
-
-  const ed = document.createElement("div");
-  ed.className = "pkc-edition";
-  ed.textContent = "0TH EDITION";
-  foil.appendChild(ed);
-
-  const bp = document.createElement("div");
-  bp.className = "pkc-booster";
-  bp.textContent = "BOOSTER PACK";
-  foil.appendChild(bp);
-
-  // 下の情報帯（入り数・会社名・著作権・バーコード）
-  const info = document.createElement("div");
-  info.className = "pkc-info";
-  const left = document.createElement("div");
-  const n = document.createElement("div");
-  n.className = "pkc-info-n";
-  const nb = document.createElement("b");
-  nb.textContent = String(枚);
-  const ns = document.createElement("span");
-  ns.textContent = "CARDS";
-  n.append(nb, ns);
-  const sub = document.createElement("div");
-  sub.className = "pkc-info-sub";
-  sub.textContent = t("packs.cer.packNote", { n: 枚 });
-  left.append(n, sub);
-  const right = document.createElement("div");
-  right.className = "pkc-info-right";
-  const brand = document.createElement("div");
-  brand.className = "pkc-brand";
-  brand.textContent = "AsobuzZ";
-  const cp = document.createElement("div");
-  cp.className = "pkc-copy";
-  cp.textContent = "\u00a92026 AsobuzZ";
-  right.append(brand, cp);
-  const bar = document.createElement("div");
-  bar.className = "pkc-barcode";
-  bar.setAttribute("aria-hidden", "true");
-  const row = document.createElement("div");
-  row.className = "pkc-info-row";
-  row.append(left, right);
-  info.append(row, bar);
-  foil.appendChild(info);
+  // ⚠ 版面に全部焼かれているので、画面に出す要素はこれ以上足さない。
+  //   入り数と商品名は**読み上げ用の名前**に残す（絵の中の字は読み上げに乗らない）。
+  pack.setAttribute("role", "img");
+  pack.setAttribute("aria-label", "0TH EDITION BOOSTER PACK \u2014 " + t("packs.cer.packNote", { n: 枚 }));
 
   pack.appendChild(foil);
 
