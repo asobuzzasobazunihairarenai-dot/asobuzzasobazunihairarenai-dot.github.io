@@ -26510,24 +26510,35 @@ body.theme-light #card-pack-back {
      ⇒ **新しいボタンを足したら、その場で見た目も書く。**
    ⚠ この画面でいちばん押してほしいものなので、主役の見た目（金の地）にする。
    ⚠ 文字色は地に合わせて自分で持つ（明暗2テーマで地が変わらない＝教訓15 の逆向きの注意）。 */
+/* 🔴【#820・続き847】報告「はじめるボタンがただの装飾の帯に見えて気づきづらいかも！」。
+   **横いっぱい・平ら・角が立っている**ので、帯の飾りと区別が付かなかった。
+   ⇒ 幅を絞って中央に置き、角を丸め、浮かせる（押せる物に見せる）。 */
 .home-match-choice-start {
   display: block;
-  width: 100%;
+  width: min(100%, 22rem);
+  margin-left: auto;
+  margin-right: auto;
   box-sizing: border-box;
   /* 🔴【続き720・ユーザー指摘「はじめる と その上のエディション選択が近すぎない？？ｗ」】
      ⇒ 上に間を空ける（設定の列と「始める」は別の種類のものなので、くっついていると
        設定の一部に見える）。下の ::before の細い罫と対で効く。 */
   margin: 1.6rem 0 0.6rem;
-  padding: 0.6rem 1.1rem;
-  border: 1px solid rgba(199, 154, 71, 0.85);
-  border-radius: 0.4rem;
-  background: linear-gradient(100deg, #c79a47, #b0812f);
+  padding: 0.85rem 1.1rem;
+  border: 1px solid rgba(233, 199, 122, 0.95);
+  border-radius: 999px;
+  background: linear-gradient(160deg, #e2b75f, #b0812f 60%, #8f671f);
   color: #1b1408;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.08em;
+  /* 浮かせる。平らなままだと「地の飾り」と見分けが付かない（#820）。 */
+  box-shadow: 0 0.45rem 1rem -0.35rem rgba(0, 0, 0, 0.65), inset 0 0.08rem 0 rgba(255, 255, 255, 0.45);
   cursor: pointer;
+  transition: transform 0.12s ease, filter 0.15s ease;
+}
+.home-match-choice-start:active {
+  transform: translateY(0.12rem);
 }
 .home-match-choice-start:hover {
   filter: brightness(1.08);
@@ -26535,6 +26546,65 @@ body.theme-light #card-pack-back {
 .home-match-choice-start:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* 🔴【#822・続き847】**指で押す大きさにする。** 実測（932x430・倍率0.478）で、
+   強さ／人数／ルール／山札 のボタンは**高さ16px・字 6.9px**、「はじめる」は**高さ21px**
+   しかなかった（21個が 44px 未満）。このアプリは body ごと縮むので、rem で書いた値は
+   そのぶん小さくなる（#453・#569・#721・#760 と同じ家族）。
+   ⚠ 枠は元から `overflow-y: auto` なので、大きくして入り切らなくなっても巻き取れる。
+   ⚠ 横に並ぶ列は**折り返せる**ようにする（「自分にも持ち時間」のような長い札が在るため）。 */
+body.is-phone-device .home-match-choice-segment,
+body.is-tablet-device .home-match-choice-segment {
+  flex-wrap: wrap;
+  border-radius: 0.8rem;
+}
+body.is-phone-device .home-match-choice-segment-btn,
+body.is-tablet-device .home-match-choice-segment-btn {
+  padding: 1.5rem 1.8rem;
+  font-size: 1.9rem;
+}
+/* ⚠「組み方を編集」はここに書いても効かない——**同じ強さの上書きが後ろに在る**
+   （マイ山札の並びと共有している所）ので、後が勝つ。あちらの値を上げてある。 */
+body.is-phone-device .home-match-choice-details-toggle,
+body.is-tablet-device .home-match-choice-details-toggle,
+body.is-phone-device .home-match-choice-cancel,
+body.is-tablet-device .home-match-choice-cancel {
+  padding: 1.3rem 2rem;
+  font-size: 1.8rem;
+  border-radius: 0.8rem;
+}
+body.is-phone-device .home-match-choice-start,
+body.is-tablet-device .home-match-choice-start {
+  width: min(100%, 34rem);
+  padding: 1.6rem 1.8rem;
+  font-size: 2.4rem;
+}
+/* 対戦ルールの4つは**別のクラス**（.home-match-choice-rule-btn）。実測17px だった。 */
+body.is-phone-device .home-match-choice-rule-btn,
+body.is-tablet-device .home-match-choice-rule-btn {
+  padding: 1.5rem 1.6rem;
+  font-size: 1.8rem;
+  border-radius: 0.8rem;
+}
+/* 丸い「i」（補足を開く）は実測8px＝指では押せない。 */
+body.is-phone-device .home-match-choice-info,
+body.is-tablet-device .home-match-choice-info {
+  margin-left: 0.8rem;
+  width: 3.4rem;
+  height: 3.4rem;
+  font-size: 2rem;
+}
+/* 見出しと説明も、字が小さすぎて読めないので一緒に上げる
+   （実測: 説明は 1.35rem でも実画面 10px しかなかった）。 */
+body.is-phone-device .home-match-choice-difficulty-label,
+body.is-tablet-device .home-match-choice-difficulty-label {
+  font-size: 1.9rem;
+}
+body.is-phone-device .home-match-choice-difficulty-hint,
+body.is-tablet-device .home-match-choice-difficulty-hint {
+  font-size: 1.6rem;
+  max-width: none;
 }
 
 /* 【2026-11-15・続き722】図鑑「カード一覧を開く」の中の7色の扇。
@@ -26921,8 +26991,9 @@ body.is-phone-device .my-stack-action-btn,
 body.is-tablet-device .my-stack-action-btn,
 body.is-phone-device .home-match-choice-stack-edit,
 body.is-tablet-device .home-match-choice-stack-edit {
-  font-size: 1.5rem;
-  padding: 0.6rem 1.2rem;
+  /* 🔴【#822・続き847】実測で高さ 27px しかなく、指では押しづらかった。 */
+  font-size: 1.8rem;
+  padding: 1.3rem 2rem;
 }
 /* 色の列は字を上げたぶん幅も広げる（「なないろ」が割れないように）。 */
 body.is-phone-device .my-stack-body,
@@ -29297,6 +29368,12 @@ body.is-tablet-device #edition-chooser > .modal-close-x {
   /* ⚠ 回っている間だけ滑らせる。箱の中の回転（deck-box-3d）には一切触らない。 */
   transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.32s ease;
 }
+/* 🔴【#821・続き847】**指に付いてくる間は滑らせない。** 滑りが残っていると、指の動きに
+   0.32 秒遅れて付いてくるので「ぬるっと」ではなく「もたつく」になる。
+   離した所の寄せだけ、上の滑りが効く。 */
+.edition-carousel-stage.is-dragging .edition-carousel-item {
+  transition: none;
+}
 /* 後ろの箱は押したら「前へ出す」だけ（選ばない）。前に出ている1枚だけが箱そのものに触れる。 */
 .edition-carousel-hit {
   position: absolute;
@@ -29376,6 +29453,55 @@ body.is-tablet-device .edition-carousel-item.is-selected .deck-chooser-stage::be
    ⚠ 置き場の大きさは JS が実測して入れる（rem が何px かに頼らない）。 */
 .edition-carousel-item .deck-chooser-stage {
   position: relative;
+}
+/* 🔴【#818・続き847】0th拡張の「パックがたくさん」。3つを少しずつずらして重ねる。
+   ⚠ `pointer-events` は束の側で受ける（袋そのものは絵）。 */
+.edition-pack-pile {
+  position: relative;
+  cursor: pointer;
+}
+.edition-pack-pile-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+.edition-pack-pile-item .pkc-pack {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: center center;
+  transform:
+    translate(-50%, -50%)
+    translate(calc((var(--i) - 1) * 2.6rem), calc((var(--i) - 1) * -0.9rem))
+    rotate(calc((var(--i) - 1) * 7deg))
+    scale(var(--edition-pack-scale, 0.3));
+}
+/* 🔴【#819・続き847】「リメイク＋志炎者」の箱のまわりに、志炎者の札を扇に。 */
+.edition-cf-fan {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.edition-cf-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6.4rem;
+  height: 6.4rem;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0.5rem 1rem -0.4rem rgba(0, 0, 0, 0.75);
+  transform-origin: center bottom;
+  transform:
+    translate(-50%, -50%)
+    translateX(calc((var(--i) - 1.5) * 4.6rem))
+    rotate(calc((var(--i) - 1.5) * 9deg));
 }
 .edition-pack-beside {
   position: absolute;

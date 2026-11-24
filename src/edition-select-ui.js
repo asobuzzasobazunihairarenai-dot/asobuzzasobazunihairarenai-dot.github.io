@@ -124,6 +124,10 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     return Math.round(Math.max(190, Math.min(320, Math.min(W / 4.6, H / 3.2))));
   };
 
+  // 🔴【#821・続き847】**指に付いてくる**ための小数のずれ（1.0 ＝ 箱1つぶん）。
+  //   払っている間はここが動き、離した所でいちばん近い位置へ寄せて 0 に戻す。
+  let ずれ = 0;
+
   // 角度 → 置き場所。奥（z が小さい）ほど小さく・薄く・後ろに。
   const 置き直す = () => {
     const n = 札たち.length;
@@ -135,17 +139,22 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     // ⚠ 枚数が少ない時に真円で並べると**真後ろ**に1枚隠れて「消えた」ように見える。
     //   1周を枚数で割るのではなく、1つあたりの角度に上限（60度）を置く。
     const 刻み = Math.min((Math.PI * 2) / n, Math.PI / 3);
+    // 🔴【#821】指に付いてくる間は**小数**の位置で並べる。
+    //   ⚠ 名前・ボタン・覆いのような「どれが前か」で決まる物は、**丸めた位置**で決める
+    //     （小数のまま使うと、払っている途中で名前がちらつく）。
+    const 見かけ = 位置 + ずれ;
+    const 前の番号 = ((Math.round(見かけ) % n) + n) % n;
     for (let k = 0; k < n; k++) {
       const 札 = 札たち[k];
       // いちばん近い向きで数える（端から端へ回る時に大回りしない）。
-      let d = k - 位置;
+      let d = k - 見かけ;
       if (d > n / 2) d -= n;
       if (d < -n / 2) d += n;
       const a = d * 刻み;
       const x = Math.sin(a) * R;
       const z = Math.cos(a); // 1 = 手前、-1 = 真後ろ
       const 倍 = 0.56 + 0.44 * ((z + 1) / 2);
-      const 前 = k === 位置;
+      const 前 = k === 前の番号;
       札.el.style.transform = `translate(-50%, -50%) translateX(${Math.round(x)}px) scale(${倍.toFixed(3)})`;
       札.el.style.opacity = (0.35 + 0.65 * ((z + 1) / 2)).toFixed(3);
       札.el.style.zIndex = String(100 + Math.round(z * 100));
@@ -159,7 +168,7 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
       //   後ろの箱を触れるままにすると、回そうとした指で**奥の箱**を掴んでしまう。
       if (札.覆い) 札.覆い.style.display = 前 ? "none" : "block";
     }
-    const いま = 並び[位置];
+    const いま = 並び[前の番号];
     if (名前の行) 名前の行.textContent = いま ? t(いま.key) : "";
     if (決めるボタン) {
       const 選択中 = いま && getCardSet() === いま.set;
@@ -201,6 +210,48 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     if (箱を出す) {
       const box = buildDeckBox3d(o.set, { size: 箱の大きさ(), flat: 平面, onTap: () => 選ぶ(o.set) });
       if (box) { stage.appendChild(box); 箱たち.push(box); }
+    } else if (o.set === CARD_SETS.EX0) {
+      // 🔴【#818・続き847】0th拡張は**箱が無い**（ブースターパックで売られた拡張）。
+      //   ユーザー案「**パックがたくさんな感じ**がいいかも！パック一つじゃ絶対山札
+      //   作れないから笑」⇒ 袋を3つ、少しずつずらして重ねる。
+      //   ⚠ 袋は開封の演出と**同じ部品**（pack-bag.js が唯一の持ち主）。封は切らない姿。
+      //   ⚠ 大きさは**文書に入ってから実測**して決める（rem が何px かに頼らない）。
+      const 束 = document.createElement("div");
+      束.className = "edition-pack-pile";
+      // 🔴 束は**箱と同じ大きさの場所**を取る。点にすると札が潰れて、名前も当たり判定も
+      //   場所を失う（実測で札の矩形が 42x18 になった）。
+      束.style.width = 箱の大きさ() + "px";
+      束.style.height = 箱の大きさ() + "px";
+      for (let i = 0; i < 3; i++) {
+        const 置き = document.createElement("div");
+        置き.className = "edition-pack-pile-item";
+        置き.style.setProperty("--i", String(i));
+        const 袋 = buildPackBag({ cards: 7, 封を切る: false });
+        置き.appendChild(袋);
+        束.appendChild(置き);
+        袋たち.push({ 置き, 袋, 束: true });
+      }
+      束.addEventListener("click", () => 選ぶ(o.set));
+      stage.appendChild(束);
+    } else if (o.set === CARD_SETS.REMAKE_CF) {
+      // 🔴【#819・続き847】ユーザー案「**リメイクの箱の周りにしえんしゃのカードがある**
+      //   のはどう？」⇒ リメイクの箱を置いて、志炎者の札を扇に広げて添える。
+      //   ⚠ 箱は**リメイクの絵**（このセットは「リメイク＋志炎者」なので筋が通る）。
+      const box = buildDeckBox3d("remake", { size: 箱の大きさ(), flat: 平面, onTap: () => 選ぶ(o.set) });
+      if (box) { stage.appendChild(box); 箱たち.push(box); }
+      const 扇 = document.createElement("div");
+      扇.className = "edition-cf-fan";
+      扇.setAttribute("aria-hidden", "true");
+      // 7色から4枚（並べすぎると小さく出した時に団子になる）。
+      const 札の絵 = ["cf-red-ignis", "cf-yellow-scintilla", "cf-blue-candela", "cf-purple-favilla"];
+      札の絵.forEach((id, i) => {
+        const c = document.createElement("div");
+        c.className = "edition-cf-card";
+        c.style.setProperty("--i", String(i));
+        c.style.backgroundImage = 'url("assets/cards-blank/' + id + '.webp")';
+        扇.appendChild(c);
+      });
+      stage.appendChild(扇);
     } else {
       const ph = document.createElement("div");
       ph.className = "deck-chooser-dice is-plain";
@@ -295,34 +346,57 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     //   ⚠ `touch-action: pan-y` ——横の払いをブラウザの戻る操作に取られないため。
     //     箱そのものは自分で `none` を持っているので、そちらの回転は今までどおり。
     台.style.touchAction = "pan-y";
+    // 🔴【#821・続き847】**指に付いてくる。** 報告「一瞬で次の箱にいっちゃいます。
+    //   ヌルヌルはワイプに追従して欲しいです」。払っている間は小数の `ずれ` を動かして
+    //   その場で並べ直し、離した所でいちばん近い位置へ寄せる（寄せる所だけ滑らせる）。
+    //   ⚠ 箱1つぶんの指の動きは**台の幅の 22%**（実画面の px）。狭いと少し動かしただけで
+    //     飛び、広いと重く感じる。
     let 払い = null;
+    const 一歩 = () => Math.max(60, 台.getBoundingClientRect().width * 0.22);
+    const 付いてくるのをやめる = () => {
+      払い = null;
+      台.classList.remove("is-dragging");
+      if (ずれ !== 0) {
+        const n = 札たち.length;
+        if (n > 0) 位置 = (((位置 + Math.round(ずれ)) % n) + n) % n;
+        ずれ = 0;
+        置き直す();
+      }
+    };
     台.addEventListener("pointerdown", (e) => {
       払い = null;
       if (e.target && typeof e.target.closest === "function" && e.target.closest(".edition-carousel-item.is-front .deck-box-3d")) return;
-      払い = { x: e.clientX, y: e.clientY };
+      払い = { x: e.clientX, y: e.clientY, 横: false };
     });
-    台.addEventListener("pointerup", (e) => {
-      const 始 = 払い;
-      払い = null;
-      if (!始) return;
-      const dx = e.clientX - 始.x;
-      const dy = e.clientY - 始.y;
-      // 横に 40px 以上、かつ縦より横が大きい時だけ回す（押しただけでは回さない）。
-      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-      払った時刻 = performance.now();
-      回す(dx < 0 ? 1 : -1);
+    台.addEventListener("pointermove", (e) => {
+      if (!払い) return;
+      const dx = e.clientX - 払い.x;
+      const dy = e.clientY - 払い.y;
+      // 横払いだと決まるまでは何もしない（縦に動かしただけで回らないように）。
+      if (!払い.横) {
+        if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+        払い.横 = true;
+        台.classList.add("is-dragging"); // 付いてくる間は滑らせない（1対1で動かす）
+      }
+      ずれ = -dx / 一歩();
+      置き直す();
     });
-    台.addEventListener("pointercancel", () => { 払い = null; });
+    台.addEventListener("pointerup", () => {
+      if (払い && 払い.横) 払った時刻 = performance.now();
+      付いてくるのをやめる();
+    });
+    台.addEventListener("pointercancel", 付いてくるのをやめる);
 
     wrap.append(左, 台, 右);
     root.appendChild(wrap);
 
     // 🔴 パックの大きさは**文書に入ってから実測して**決める（rem が何px かに頼らない）。
     //   ⚠ 測れなければ何もしない＝CSS の既定（--edition-pack-scale: 0.3）のまま出る。
-    for (const { 置き, 袋 } of 袋たち) {
+    for (const { 置き, 袋, 束 } of 袋たち) {
       const 高 = 袋.offsetHeight;
       if (高 <= 0) continue;
-      const 倍 = (箱の大きさ() * 0.6) / 高;
+      // ⚠ 束（0th拡張）は**箱の横に添える袋ではなく主役**なので、札いっぱいに置く。
+      const 倍 = (箱の大きさ() * (束 ? 0.82 : 0.6)) / 高;
       置き.style.setProperty("--edition-pack-scale", 倍.toFixed(3));
       // 置き場は**袋と同じ大きさ**にする（傾けた角のぶんは外へはみ出すだけ）。
       置き.style.width = Math.round(袋.offsetWidth * 倍) + "px";
