@@ -536,19 +536,6 @@ function 中身を組む(inner) {
     inner.appendChild(n);
   }
 
-  // 🔴 診断（管理者だけ）。「0 と出るが実際は違う」のような時に、**何が返ってきたか**を見る。
-  if (管理者) {
-    const c2 = getCollection();
-    const d = document.createElement("div");
-    d.className = "card-pack-diag";
-    d.textContent =
-      "診断: 読めた=" + (c2.読んだ ? "はい" : "いいえ") +
-      " / セヴル(RPC)=" + c2.balance + " / セヴル(表から直接)=" + (直接の残高 === null ? "?" : 直接の残高) +
-      " / パック=" + c2.packs + " / カード=" + Object.keys(c2.cards).length + "種" +
-      (生のエラー ? " / 最後のエラー: " + 生のエラー : "");
-    inner.appendChild(d);
-  }
-
   // 🔴【続き828】主役の行（画面案B）。**本物の袋を大きく右に**置き、左に文字を組む。
   //   ⚠ 袋は開封の演出と**同じ部品**（pack-bag.js）。それまではここだけのために
   //     グラデーション4枚の小さな写しを描いていたので、見た目が別物だった。
@@ -636,6 +623,24 @@ function 中身を組む(inner) {
   //   ⚠ 組み立てる関数（デイリーの区画／ウィークリーの区画）は**消していない**——
   //     戻したくなったらこの2行を足すだけ。
   inner.appendChild(コレクションの区画());
+
+  // 🔴【#815・#816・続き846】診断の行（**管理者だけ**）。「0 と出るが実際は違う」のような時に
+  //   **何が返ってきたか**を見るためのもの（続き737）。
+  //   ⚠ それまで**画面のいちばん上**（主役の行より前）に出ていたので、開いた瞬間に
+  //     目に入るのがこの行だった（報告「このページの 診断よめた とかの表示はなんですか？」
+  //     「パックを開ける画面ってオシャレにするんじゃなかったっけ？」）。⇒ **いちばん下**へ。
+  //   ⚠ 消さない——残高の食い違いを調べる時に効く。かわりに**自分で名乗る**。
+  if (管理者) {
+    const c2 = getCollection();
+    const d = document.createElement("div");
+    d.className = "card-pack-diag";
+    d.textContent =
+      "［管理者だけに出ています］診断: 読めた=" + (c2.読んだ ? "はい" : "いいえ") +
+      " / セヴル(RPC)=" + c2.balance + " / セヴル(表から直接)=" + (直接の残高 === null ? "?" : 直接の残高) +
+      " / パック=" + c2.packs + " / カード=" + Object.keys(c2.cards).length + "種" +
+      (生のエラー ? " / 最後のエラー: " + 生のエラー : "");
+    inner.appendChild(d);
+  }
 }
 
 export async function openCardPackPanel(admin) {

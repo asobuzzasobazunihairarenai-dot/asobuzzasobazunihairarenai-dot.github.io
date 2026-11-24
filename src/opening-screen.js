@@ -264,7 +264,14 @@ function buildHueriseBurn(色, 時間ms) {
       fill: "#ffffff",
       mask: "url(#" + uid + "-mask)",
     });
-    const burning = 作("g", { filter: "url(#" + uid + "-rough)" });
+    // 🔴【続き846】**指で触る端末では乱流を掛けない。** 報告「HUERISE の燃える時
+    //   iPhone で重たいです」。feDisplacementMap は**画素ごと**の計算で、全画面・dpr3 なら
+    //   1コマ約290万画素。しかも中身（穴）が毎コマ変わるので**毎コマ焼き直し**になる。
+    //   ⚠ 続き845 で**穴そのものをギザギザの形**にしたので、乱流が無くてもいびつなふちは出る
+    //     （乱流は「さらに細かい乱れ」を足す役）。PC は今までどおり。
+    const 触る端末 = (() => { try { return isTouchPrimaryDevice(); } catch (err) { return false; } })();
+    const burning = 作("g", 触る端末 ? {} : { filter: "url(#" + uid + "-rough)" });
+    if (触る端末) { try { logAction("diag-huerise-burn", { 乱流なし: true, 理由: "touch" }); } catch (err) {} }
     burning.append(edgeC, paper);
     const bloomC = 作("circle", { cx, cy, r: 0, fill: "url(#" + uid + "-bloom)" });
     // ⚠ 光（bloom）は歪ませない——あれは「空気が光っている」ぶんなので、輪郭を持たない方が自然。
@@ -314,7 +321,7 @@ function buildHueriseBurn(色, 時間ms) {
         合計間隔 += 間隔;
         コマ数++;
         if (コマ数 === 見る間隔数 && 合計間隔 / 見る間隔数 > 60) {
-          burning.removeAttribute("filter");
+          burning.removeAttribute("filter"); // 触る端末では元から付いていない（続き846）
           フィルタを外した = true;
           try { logAction("diag-huerise-burn", { 外した: true, 平均間隔: Math.round(合計間隔 / 見る間隔数) }); } catch (err) {}
         }
@@ -347,8 +354,11 @@ function buildHueriseBurn(色, 時間ms) {
       // 🔴【続き800】**毎コマ書き換えない。** フィルタの属性を触るたびに、ブラウザは
       //   乱流（いちばん高い所）まで含めて**フィルタを丸ごと焼き直す**。段（8刻み）にして
       //   書き換えの回数を 1/10 以下に落とす。見た目の差は撮っても分からない。
-      const うねり = Math.round((10 + 34 * p) / 8) * 8;
-      if (うねり !== 前のうねり) { 前のうねり = うねり; disp.setAttribute("scale", String(うねり)); }
+      // ⚠ 乱流を掛けていない端末では、うねりを書き換える意味が無い（触らない＝費用0）。
+      if (!触る端末) {
+        const うねり = Math.round((10 + 34 * p) / 8) * 8;
+        if (うねり !== 前のうねり) { 前のうねり = うねり; disp.setAttribute("scale", String(うねり)); }
+      }
       // 🔴【#773・続き811】**紙を1回描けた印**。ゲートの白を手放してよいかの合図に使う。
       //   時間（300ms）で待っていたら、重い端末では**保険の方が先に勝って**
       //   紙が出る前にゲートが透明になり、下のタイトルが丸見えになっていた。

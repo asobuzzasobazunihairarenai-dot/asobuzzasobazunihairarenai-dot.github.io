@@ -1679,7 +1679,56 @@ function noteTransformWritten(key) {
   pendingTransformFrame = frameSeq;
   needsDraw = true; // 変形が変わったのだから描き直す（#348 の「変化が無ければ描かない」の対象外）
 }
+// 🔴【続き846】**盤面が全画面ページに覆われているか。**
+//   実機（#817・iPhone）の記録では、板の作り直しが **44〜215ms** かかっていて、
+//   それが 500ms ごとの保険で**ホーム画面の裏でも**ずっと走っていた。
+//   ⚠ クラス（body.full-screen-page-active）だけで決めない——全画面ページが DOM に
+//     残ったまま隠れている時に、見えているのに止めてしまう。**画面の真ん中で実際に
+//     何が最前面か**を見る（教訓3・4 の家族）。
+//   ⚠ 読むのは 500ms に1回だけなので、この当たり判定は費用にならない。
+// ⚠ オープニング（#opening-screen）も入れる——**燃える演出の最中**も盤面は完全に隠れており、
+//   そこで作り直しが走ると演出そのものがカクつく（報告「HUERISE の燃える時 iPhone で重たい」）。
+const 全画面ページ =
+  "#home-screen, #profile-page, #ranking-page, #codex-page, #my-deck-page, #my-deck-list-page, #opening-screen";
+function 覆われているか() {
+  try {
+    // ⚠ クラス（full-screen-page-active）は**前置きの早道に使わない**——オープニングは
+    //   そのクラスを付けないので、門にすると燃えている間だけ素通りしてしまう。
+    const c = canvasEl;
+    if (!c) return false;
+    const g = c.getBoundingClientRect();
+    if (g.width < 2 || g.height < 2) return false;
+    // 🔴 重なりの列を**上から**見て、canvas に行き着く前に全画面ページが在れば覆い。
+    //   ⚠ 「最前面がページか」では足りない——ホームの上にお知らせの札が出ているだけで
+    //     『覆われていない』になってしまう（盤面は確かに隠れているのに）。
+    const 列 = document.elementsFromPoint(g.x + g.width / 2, g.y + g.height / 2);
+    for (const el of 列) {
+      if (el === c) return false; // canvas まで来た＝手前に全画面ページは無かった
+      if (typeof el.closest === "function" && el.closest(全画面ページ)) return true;
+    }
+    return false;
+  } catch (err) {
+    return false; // 判定できないなら今までどおり（止める方へ倒さない）
+  }
+}
+let 覆われていた = false;
+
 function markDirty() {
+  // 🔴【続き846】覆われている間は**保険の作り直しをしない**（実機で 44〜215ms／回）。
+  //   作り直さなければ描き直しも起きない＝描画の費用も一緒に消える。
+  const 覆い = 覆われているか();
+  if (覆い) {
+    if (!覆われていた) {
+      覆われていた = true;
+      try { logAction("diag-board3d-covered", { on: 1 }); } catch (err) {}
+    }
+    return;
+  }
+  if (覆われていた) {
+    // 覆いが外れた。覆われている間の変化を取り戻すため、ここで1回作り直す。
+    覆われていた = false;
+    try { logAction("diag-board3d-covered", { on: 0 }); } catch (err) {}
+  }
   needsRebuild = true;
 }
 

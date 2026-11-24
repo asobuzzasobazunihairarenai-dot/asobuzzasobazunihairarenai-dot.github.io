@@ -54,22 +54,28 @@ export const CHANGELOG = [
   {
     date: "2026-11-25",
     summary: [
+      "動きが軽くなりました（ホーム画面や燃える演出の裏で、見えていない盤面を描き直し続けていました）",
       "燃える演出のふちが、いびつな炎の形に戻りました",
     ],
     summaryEn: [
+      "The app runs lighter: the hidden board was being rebuilt behind every full-screen page",
       "The burning edge is ragged again, not a clean circle",
     ],
     items: [
+      "**動きが軽くなりました。** ホーム画面・図鑑・マイページなどを開いている間と、HUERISE の燃える演出の間は、**盤面が完全に隠れている**のに裏で描き直し続けていました。隠れている間は休むようにしたので、その分だけ指の反応や演出が滑らかになります。とくに iPhone で効きます。",
       "HUERISE の画面から燃えて始まる時、ふちが**いびつな炎の形**になりました。端末によっては**きれいな円**で燃え広がっていて、紙が焼け落ちる感じが出ていませんでした。",
     ],
     itemsEn: [
+      "The app runs lighter. While a full-screen page is open, and during the opening burn, the board is completely hidden but was still being rebuilt behind it. It now rests while hidden, which makes touches and animations smoother, especially on iPhone.",
       "The burn that starts the game now has a ragged, flame-like edge on every device. On some phones it spread as a clean circle, which lost the feeling of paper burning away.",
     ],
     fixes: [
       "食べすぎで隣のマスのカードを足元へ重ねる時、重なっているマスからは**1番上の1枚だけ**を取るようにしました。",
+      "パックを開ける画面のいちばん上に出ていた、管理者向けの小さな文字を下へ移しました。",
     ],
     fixesEn: [
       "Overeating now takes only the top card from a stacked neighbouring cell.",
+      "The small administrator-only diagnostic line on the pack screen moved to the bottom.",
     ],
     devItems: [
       "🔴 #813「HUERISEから燃える時、綺麗な円で燃えてっちゃいます。歪な炎な感じがないです」。正体は、いびつなふちを **feTurbulence + feDisplacementMap だけ**が作っていたこと——続き800 で入れた「遅い端末では乱流をあきらめる保険」が働くと、ふちが真円に戻る（当時のコメントにも「＝ふちは真円になるが、カクカクするよりはよい」と書いてあった）。⇒ **穴そのものを、はじめからギザギザの形（72点の path）で持つ**ようにした。フィルタが外れても形は残り、生きている時はその上にさらに細かい乱れが乗る。",
@@ -79,6 +85,11 @@ export const CHANGELOG = [
       "⚠ #812「あと重いのか動きが悪い気がします」。選んでいる箱の**光の脈**を、スマホ／タブレットでは止めた（光は出したまま）。`filter: blur(26px)` を掛けた面を毎コマ `transform: scale()` で動かすと、ぼかしごと焼き直しになる。2D表示と「動きを控える」設定では元から止めてあったので、そこへ足す形。",
       "🔴 #814【ユーザー裁定】「食べすぎの到達効果で隣のマスに複数枚重なっているマスがあっても**１番上の原則により１番上だけ**です」。それまでは**そのマスのカード全部**を積んでいた（「枚数の指定が無い」と読んでいた）。1枚だけ取り出す所は必ず findTopCardAtCell を使う（配列の末尾＝一番上。Array#find だと一番下を拾う）。",
       "⚠ 実測24項目（スマホ横932x430・PC 1280x800）＋ 燃える演出16項目（chromium / webkit）。カード効果のテストも**対照つき**で直した——下に居た1枚が**動かないし裏返りもしない**ことまで見る（重なったマスを無くすと「1番上だけ」を測れない）。",
+      "🔴🔴 #817「箱をくるくるする時カクつきます。スマホが重いのかな？」。**報告に数字が入っていた**（iPhone・iOS18.7・dpr3・PWA・**ホーム画面**）: frameMs 45〜410 ／ **rebuildMs 44〜215** ／ drawMs 2〜8.5。⇒ **描くのは速い。重いのは板の作り直し。** そして作り直しは `setInterval(markDirty, 500)` の保険で**ずっと**走っていた——**盤面が全画面ページに完全に覆われている間も**。1秒に2回 44〜215ms ＝主スレッドの1〜4割をそれだけで食う。",
+      "⇒ **覆われている間は保険の作り直しをしない。** 作り直さなければ描き直しも起きない（needsDraw が立たない）ので、描画の費用も一緒に消える。覆いが外れた所で1回だけ作り直す。⚠ 判定はクラスの有無で決めず、**canvas の真ん中の重なりの列を上から見て、canvas に行き着く前に全画面ページが在るか**で見る（ホームの上にお知らせの札が出ていると最前面はその札になるため）。",
+      "🔴 「HUERISE の燃える時 iPhone で重たい」。乱流（feTurbulence + feDisplacementMap）は**画素ごと**の計算で、全画面・dpr3 なら1コマ約290万画素。しかも**フィルタを掛けた <g> の中身が毎コマ変わる**（穴が広がる）ので毎コマ焼き直しになる。⇒ **指で触る端末では、はじめから掛けない。** 続き845 で穴そのものをギザギザの形にしたので、乱流が無くてもいびつなふちは出る（PC は今までどおり）。あわせて、燃えている間も盤面の作り直しが走っていたので、覆いの名簿に #opening-screen を足した。",
+      "⚠ #815 #816 は同じ物を指していた——管理者だけに出る**診断の行**が画面のいちばん上（主役の行より前）に在ったので、開いた瞬間に目に入るのがそれだった。**いちばん下へ移し**、行が**自分で名乗る**ようにした（消さない。残高の食い違いを調べる時に効く）。",
+      "⚠ 実測14項目。触る端末では乱流を掛けない／**対照: PC では掛ける**／穴は72点のまま／ホームで覆いが立つ／**対照: 対局の画面では覆われない**（今までどおり作り直す）。⚠ 測り方を2つ間違えた: ①ヘッドレスは遅いので700ms待つと PC でも「遅い端末の保険」が働いて乱流が外れる（掛けた直後に読む）②`querySelector(\"g\")` は最初の <g> であって乱流を掛けた物とは限らない。",
     ],
     devItemsEn: [
       "The ragged burn edge was produced only by the turbulence filter, which a slow-device safeguard removes, leaving a perfect circle. The hole itself is now a 72-point jagged path, so the shape survives without the filter and the filter only adds finer detail on top.",
@@ -88,6 +99,11 @@ export const CHANGELOG = [
       "The glow around the selected box no longer pulses on phones and tablets. Animating a heavily blurred surface re-rasterises the blur every frame, which is expensive there; the glow itself stays.",
       "Overeating now takes only the top card of a stacked neighbouring cell, following the topmost-card principle.",
       "Measured with 24 checks on phone and desktop sizes plus 16 on the burn in both engines, and the card-effect test now also confirms the card underneath neither moves nor flips.",
+      "A report carried real numbers from an iPhone sitting on the home screen: frames of 45 to 410ms, of which the WebGL scene rebuild took 44 to 215ms while drawing took only 2 to 8. A safety timer rebuilt that scene twice a second even though a full-screen page hid it completely.",
+      "The safety rebuild is now skipped while the board is covered, which also removes the redraw, and runs once when the cover lifts. Coverage is decided by walking the stack of elements at the centre of the canvas rather than by a body class.",
+      "The opening burn no longer applies the turbulence filter on touch devices. It is a per-pixel displacement over the whole screen at triple density, re-baked every frame because the hole inside it keeps growing; the ragged hole added earlier keeps the look without it. The board also stopped rebuilding behind the burn.",
+      "The administrator-only diagnostic line on the pack screen moved from the top of the page to the bottom and now says what it is.",
+      "Measured with 14 checks, including a control that desktops still get the filter and that the board is not treated as covered during a match.",
     ],
   },
   {
