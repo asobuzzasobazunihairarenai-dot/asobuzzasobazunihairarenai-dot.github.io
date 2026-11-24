@@ -1,11 +1,23 @@
-// 🔴【2026-11-24・続き839】「まぜる」の箱の絵を、**既にある箱の絵から**焼く道具。
+// 🔴【2026-11-24・続き839 → 841】「まぜる」の箱の絵を、**既にある箱の絵から**焼く道具。
 //
-// ユーザー要望「**まぜる やつも箱絵があってもいいかも！なんか色んな箱絵が混ざってる感じの
+// ユーザー要望（続き839）「**まぜる やつも箱絵があってもいいかも！なんか色んな箱絵が混ざってる感じの
 // かっこいい感じのやつ、あなたの方で作れる？既存の箱絵を組み合わせて！**」。
 //
+// 🔴🔴【続き841】ユーザー指摘「**中心から放射状に境界線が出ていて区切られてる感じはださいかな？**」
+//   ⇒ **帯で切り貼りするのをやめた。** 続き839〜840 は3つの蓋を斜めの帯で継ぎ、継ぎ目に金の線を
+//     引いていたが、
+//       ・金の線＝**はっきりした区切り**なので「3枚貼り合わせました」に見える（コラージュ）
+//       ・1st の蓋は**ロゴが無く模様だけ**なので、真ん中の帯が丸ごと死んでいた
+//       ・リメイクの「7」も旧0thの輪も**帯の縁で切れて**いた
+//     ⇒ いまは **1枚の絵**（線は1本も引かない）。濃紺の地＋7色の光＋旧0thの虹の輪。
+//   ⚠ 「継ぎ目のぼかしで溶かす」も試したが、**重なった所で2枚が二重写しになり**、
+//     題字も7も読めなくなった（scratchpad/_mix841/案A.png）。採らない。
+//   ⚠ 「3つの蓋を重ねて置く」案も描いたが、**箱の上に箱の絵**になるうえ、箱の横には
+//     既に本物のパックが立てかけてある（続き840）ので、**物が二重**になる。採らない。
+//
 // ■ 何をしているか
-//   assets/boxes/ に既にある3つの版の面（リメイク／1st／旧0th）を**切り貼り**して、
-//   まぜる用の 天面・裏・側面 を作る。**新しく描いた絵は1枚も無い**（全部この3つの合成）。
+//   assets/boxes/ に既にある絵から**虹の輪だけ**を取り出し、濃紺の地に置く。
+//   **新しく描いた絵は1枚も無い**（地と光は canvas のグラデーション）。
 //
 // 🔴 元の絵は1枚も触らない。足すだけ（make-thumbs.mjs と同じ作法）。
 //
@@ -15,7 +27,7 @@
 //
 // 使い方:
 //   node tools/make-mixed-box.mjs            … assets/boxes/mixed-*.webp を焼く
-//   node tools/make-mixed-box.mjs --candidates  … scratchpad/_mixbox/ に案を3つ出す（焼かない）
+//   node tools/make-mixed-box.mjs --candidates  … scratchpad/_mixbox/ に出す（assets は触らない）
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
@@ -31,147 +43,171 @@ const 読む = (名) => {
 };
 
 // 🔴【続き840】**まぜるの中身は「リメイク＋0th拡張＋1st＋旧0th」**（src/mixed-deck.js）。
-//   ユーザー指示「混ぜるには旧0th混ぜよう！」で旧0thが4セット目に入ったので、
-//   **箱の帯も3本**（リメイク／1st／旧0th）になった。
 //   ⚠ 0th拡張だけは**ブースターパックで売られた拡張で、箱が無い**（deck-box-3d.js でも
 //     リメイクの箱の絵を流用している）。⇒ ユーザー案「**拡張も混ざってるので拡張パックは
-//     別で箱のそばに置いてある感じで混ぜてるのを表現**」に従い、**帯には入れず**、
+//     別で箱のそばに置いてある感じで混ぜてるのを表現**」に従い、**絵には入れず**、
 //     エディションを選ぶ画面で**箱の横にパックを1つ置く**形にした（src/edition-select-ui.js）。
 const 元 = {
-  rm: { top: 読む("rm-top"), back: 読む("rm-back"), side: 読む("rm-side") },
-  first: { top: 読む("1st-top"), back: 読む("1st-back"), side: 読む("1st-side") },
-  old: { top: 読む("old0th-top"), back: 読む("old0th-back"), side: 読む("old0th-side") },
+  rm: { top: 読む("rm-top"), back: 読む("rm-back") },
+  old: { top: 読む("old0th-top") },
 };
-// 帯に並べる版（左から）。0th拡張は箱が無いので入らない（上の注）。
-const 並び = ["rm", "first", "old"];
+
+// このゲームの7色（src/style.css の --color-* と同じ値）。
+// ⚠ 表を2か所に持つとズレるが、ここは**焼く時に1回使うだけ**なので写してある。
+//   style.css を変えた時は、ここも見ること。
+const 七色 = ["#d32549", "#ed910e", "#fabe00", "#18ab67", "#18b6c9", "#f19ec2", "#a0549a"];
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
+await page.setContent("<body>");
+
+// 🔴 虹の輪の位置は**目分量で切らず、実際に測る**（元の絵が差し替わっても当たるように）。
+//   鮮やかな画素（彩度が高く、明るすぎず暗すぎない）の囲みを取る。
+const 輪 = await page.evaluate(async (u) => {
+  const img = new Image(); img.src = u; await img.decode();
+  const c = document.createElement("canvas");
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0);
+  const D = g.getImageData(0, 0, c.width, c.height).data;
+  let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1, n = 0;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4;
+      const r = D[i], gg = D[i + 1], bb = D[i + 2];
+      const mx = Math.max(r, gg, bb), mn = Math.min(r, gg, bb);
+      const L = (mx + mn) / 2 / 255;
+      const S = mx === mn ? 0 : (mx - mn) / (255 - Math.abs(mx + mn - 255));
+      if (S > 0.35 && L > 0.2 && L < 0.88) {
+        n++;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  return { x0, y0, x1, y1, n, w: c.width, h: c.height };
+}, 元.old.top);
+
+// 🔴 測り損ねたまま焼かない（0しか出ない道具にしない）。
+if (輪.n < 5000 || 輪.x1 - 輪.x0 < 輪.w * 0.5 || 輪.y1 - 輪.y0 < 輪.h * 0.5) {
+  throw new Error("🔴 旧0thの虹の輪を測れなかった: " + JSON.stringify(輪));
+}
+const 輪の中心x = (輪.x0 + 輪.x1) / 2;
+const 輪の中心y = (輪.y0 + 輪.y1) / 2;
+const 輪の半径 = Math.max(輪.x1 - 輪.x0, 輪.y1 - 輪.y0) / 2;
+console.log(
+  "旧0thの虹の輪（実測）: 中心 " + 輪の中心x.toFixed(0) + "," + 輪の中心y.toFixed(0) +
+  " / 半径 " + 輪の半径.toFixed(0) + " / 鮮やかな画素 " + 輪.n
+);
 
 // ブラウザの中で描く。引数は data URL の組。
-const 描く = (仕事) => page.evaluate(async ({ 元, 並び, 種, W, H, 質 }) => {
+const 描く = (仕事) => page.evaluate(async ({ 元, 輪, 七色, 種, W, H, 質 }) => {
   const よむ = async (u) => { const i = new Image(); i.src = u; await i.decode(); return i; };
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
   const g = c.getContext("2d");
 
-  // 地（濃い紺。白い蓋が2つあるので、間を暗くしないと境目が消える）
+  // 地（濃紺）。🔴 **旧0thの箱は白地**なので、まぜるを白地にすると小さく出した時に
+  //   見分けが付かない（並べて確かめた＝scratchpad/_mix841/くらべ2.png）。
   const 地 = () => {
-    const r = g.createRadialGradient(W / 2, H * 0.42, W * 0.05, W / 2, H * 0.5, W * 0.78);
-    r.addColorStop(0, "#1b2432");
-    r.addColorStop(1, "#070a10");
+    const r = g.createRadialGradient(W / 2, H * 0.46, W * 0.05, W / 2, H / 2, W * 0.8);
+    r.addColorStop(0, "#1d2838");
+    r.addColorStop(1, "#06090f");
     g.fillStyle = r;
     g.fillRect(0, 0, W, H);
   };
-  // 絵を「その中心が箱の中心に来る」ように、倍率を指定して描く。
-  const のせる = (img, cx, cy, 倍) => {
-    const w = img.width * 倍, h = img.height * 倍;
-    g.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  // 7色の光を輪のまわりに置く（「7色が全部入っている」の印）。線ではないので区切って見えない。
+  const 七色の光 = (強さ) => {
+    g.save();
+    g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 - Math.PI / 2;
+      const cx = W / 2 + Math.cos(a) * W * 0.34;
+      const cy = H / 2 + Math.sin(a) * W * 0.34;
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, W * 0.3);
+      gr.addColorStop(0, 七色[i] + 強さ);
+      gr.addColorStop(1, "#00000000");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, W, H);
+    }
+    g.restore();
   };
-  const 金 = "rgba(216,178,76,0.85)";
 
-  if (種 === "A" || 種 === "A-back") {
-    // ── 案A: 斜めの帯で継ぐ（**横に3本**）────────────────────────
-    // 🔴【続き840】帯が2本の時は**縦**に割っていたが、3本にしたら全部読めなくなった。
-    //   512px角の蓋を縦3つに割ると、1本あたり幅の 1/3（171px）しか見えず、
-    //   題字もロゴも真ん中で切れる。**横に割れば幅は丸ごと見える**ので、
-    //   「運命の７つの贈り物」も「SHADES OF S:EVEN」も虹の輪も読める。
-    //   ⇒ **縦と横を並べて143px（スマホの実寸）で見て決めた**（scratchpad/_shot840/帯くらべ.png）。
-    // 斜めにするのは、まっすぐだと「3枚並べただけ」に見えるため。
-    const 面 = 種 === "A-back" ? "back" : "top";
-    const 絵 = [];
-    for (const k of 並び) 絵.push(await よむ(元[k][面]));
-    const n = 絵.length;
+  if (種 === "top") {
+    const ol = await よむ(元.old.top);
     地();
-    // 左辺と右辺のずれ。🔴 **帯の太さに比例させる**——決め打ちだと、帯が増えた時に
-    //   ずれが帯の太さを越えて、どの帯も隣の絵で埋まってしまう。
-    const 傾き = (H / n) * 0.3;
-    for (let i = 0; i < n; i++) {
-      const y0 = (H / n) * i, y1 = (H / n) * (i + 1);
-      // 🔴 両端の帯は**画面の外まで**広げる。広げないと、斜めにずらした分だけ
-      //   右上と左下の角に地（黒）の三角が残る（143px で撮って気づいた）。
-      const 切0 = i === 0 ? -H : y0;
-      const 切1 = i === n - 1 ? H * 2 : y1;
-      g.save();
-      g.beginPath();
-      g.moveTo(-2, 切0 + 傾き);
-      g.lineTo(-2, 切1 + 傾き);
-      g.lineTo(W + 2, 切1 - 傾き);
-      g.lineTo(W + 2, 切0 - 傾き);
-      g.closePath();
-      g.clip();
-      // その帯の真ん中に、その版の**中心**が来るように置く（題字やロゴが帯から外れない）。
-      // 🔴 倍率は「幅いっぱい」。縮めると左右に地（黒）の帯が残る——角だけでなく
-      //   **左右の全高**が暗くなり、蓋に見えなくなる（続き839 で縦の時に踏んだ形）。
-      のせる(絵[i], W / 2, (y0 + y1) / 2, W / 絵[i].width);
-      g.restore();
-    }
-    // 継ぎ目の金の線（2本引いて、細い方を影に見せる）
-    for (let k = 1; k < n; k++) {
-      const y = (H / n) * k;
-      g.lineWidth = Math.max(3, W / 110);
-      g.strokeStyle = 金;
-      g.beginPath();
-      g.moveTo(0, y + 傾き);
-      g.lineTo(W, y - 傾き);
-      g.stroke();
-      g.lineWidth = Math.max(1, W / 340);
-      g.strokeStyle = "rgba(255,245,215,0.9)";
-      g.stroke();
-    }
+    七色の光("66");
+    // 虹の輪だけを円で取り出して中央へ。🔴 ふちはやわらかく——硬く切ると、
+    //   結局そこが「境界線」になってしまう（今回やめたかったもの）。
+    const R = 輪.r * 1.1;
+    const 倍 = (W * 0.82) / (R * 2);
+    const t = document.createElement("canvas");
+    t.width = W; t.height = H;
+    const tg = t.getContext("2d");
+    tg.save();
+    tg.beginPath();
+    tg.arc(W / 2, H / 2, R * 倍, 0, Math.PI * 2);
+    tg.clip();
+    tg.drawImage(ol, W / 2 - 輪.cx * 倍, H / 2 - 輪.cy * 倍, ol.width * 倍, ol.height * 倍);
+    tg.restore();
+    const gr = tg.createRadialGradient(W / 2, H / 2, R * 倍 * 0.88, W / 2, H / 2, R * 倍);
+    gr.addColorStop(0, "rgba(0,0,0,1)");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    tg.globalCompositeOperation = "destination-in";
+    tg.fillStyle = gr;
+    tg.fillRect(0, 0, W, H);
+    g.drawImage(t, 0, 0);
+  } else if (種 === "back") {
+    // 裏は「何が入っているか」を読む面。🔴 3つの裏を継ぐと**説明の文がどれも読めなくなる**
+    //   （続き840 の形がそうだった）ので、**リメイクの裏を1枚そのまま**、濃紺の額に入れる。
+    const rb = await よむ(元.rm.back);
+    地();
+    七色の光("33");
+    const 大 = 0.86;
+    const w = W * 大, h = H * 大;
+    const x = (W - w) / 2, y = (H - h) / 2;
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.6)";
+    g.shadowBlur = W * 0.04;
+    g.shadowOffsetY = W * 0.012;
+    g.fillStyle = "#fff";
+    g.fillRect(x, y, w, h);
+    g.restore();
+    g.drawImage(rb, x, y, w, h);
   } else if (種 === "side") {
-    // ── 側面: 背を縦に継ぐ（上から リメイク / 1st / 旧0th）────────────
-    const 絵 = [];
-    for (const k of 並び) 絵.push(await よむ(元[k].side));
-    const n = 絵.length;
-    g.fillStyle = "#0a0f16";
+    // 背。縦に濃紺、真ん中に7色の筋を1本。区切らない。
+    const r = g.createLinearGradient(0, 0, 0, H);
+    r.addColorStop(0, "#1d2838");
+    r.addColorStop(1, "#06090f");
+    g.fillStyle = r;
     g.fillRect(0, 0, W, H);
-    for (let i = 0; i < n; i++) {
-      const y0 = (H / n) * i;
-      g.save();
-      g.beginPath();
-      g.rect(0, y0, W, H / n);
-      g.clip();
-      // 背の真ん中（ロゴや題字がある所）がその区画に来るように置く。
-      const img = 絵[i];
-      const 倍 = W / img.width;
-      g.drawImage(img, 0, y0 + H / n / 2 - (img.height * 倍) / 2, W, img.height * 倍);
-      g.restore();
-    }
-    g.strokeStyle = 金;
-    g.lineWidth = Math.max(2, H / 260);
-    for (let k = 1; k < n; k++) {
-      g.beginPath();
-      g.moveTo(0, (H / n) * k);
-      g.lineTo(W, (H / n) * k);
-      g.stroke();
-    }
+    const 筋 = g.createLinearGradient(0, 0, 0, H);
+    for (let i = 0; i < 七色.length; i++) 筋.addColorStop(i / (七色.length - 1), 七色[i]);
+    g.save();
+    g.globalAlpha = 0.72;
+    g.fillStyle = 筋;
+    g.fillRect(W * 0.41, H * 0.07, W * 0.18, H * 0.86);
+    g.restore();
   }
   return c.toDataURL("image/webp", 質);
 }, 仕事);
 
+const 共通 = { 元, 七色, 輪: { cx: 輪の中心x, cy: 輪の中心y, r: 輪の半径 } };
+
 const 書く = async (out, 仕事) => {
-  const u = await 描く(仕事);
+  const u = await 描く({ ...共通, ...仕事 });
   const buf = Buffer.from(u.split(",")[1], "base64");
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, buf);
   console.log("  " + path.relative(ROOT, out) + "  " + 仕事.W + "x" + 仕事.H + "  " + (buf.length / 1024).toFixed(0) + "KB");
 };
 
-if (案だけ) {
-  // assets は1バイトも触らず、scratchpad に出すだけ（見てから決めるため）。
-  console.log("案を出す（焼かない）:");
-  await 書く(path.join(ROOT, "scratchpad", "_mixbox", "蓋.webp"), { 元, 並び, 種: "A", W: 512, H: 512, 質: 0.9 });
-  await 書く(path.join(ROOT, "scratchpad", "_mixbox", "裏.webp"), { 元, 並び, 種: "A-back", W: 512, H: 512, 質: 0.9 });
-  await 書く(path.join(ROOT, "scratchpad", "_mixbox", "側面.webp"), { 元, 並び, 種: "side", W: 64, H: 512, 質: 0.9 });
-} else {
-  // 🔴 採った形は**斜めの帯で継ぐ**。小さく出しても（スマホで143px）どちらの版が
-  //   混ざっているか一目で分かる。
-  //   ⚠ 一度「扇に3枚重ねる」案と「四分割＋7色」案も描いて並べたが、前者は小さくすると
-  //     3枚とも潰れ、後者は7色の帯が強すぎて箱に見えなかった（撮って決めた）。
-  console.log("まぜるの箱を焼く:");
-  await 書く(path.join(箱, "mixed-top.webp"), { 元, 並び, 種: "A", W: 512, H: 512, 質: 0.9 });
-  await 書く(path.join(箱, "mixed-back.webp"), { 元, 並び, 種: "A-back", W: 512, H: 512, 質: 0.9 });
-  await 書く(path.join(箱, "mixed-side.webp"), { 元, 並び, 種: "side", W: 64, H: 512, 質: 0.9 });
-}
+const 先 = 案だけ ? path.join(ROOT, "scratchpad", "_mixbox") : 箱;
+const 名 = 案だけ ? { top: "蓋", back: "裏", side: "側面" } : { top: "mixed-top", back: "mixed-back", side: "mixed-side" };
+console.log(案だけ ? "案を出す（assets は触らない）:" : "まぜるの箱を焼く:");
+await 書く(path.join(先, 名.top + ".webp"), { 種: "top", W: 512, H: 512, 質: 0.9 });
+await 書く(path.join(先, 名.back + ".webp"), { 種: "back", W: 512, H: 512, 質: 0.9 });
+await 書く(path.join(先, 名.side + ".webp"), { 種: "side", W: 64, H: 512, 質: 0.9 });
 await browser.close();
