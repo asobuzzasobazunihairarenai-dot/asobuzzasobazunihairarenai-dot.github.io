@@ -108,14 +108,28 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
   let 位置 = Math.max(0, 並び.findIndex((o) => o.set === getCardSet()));
   const 札たち = [];
 
-  const 箱の大きさ = () =>
-    Math.max(120, Math.min(250, Math.round(Math.min(window.innerWidth, window.innerHeight) / 3.2)));
+  // 🔴【続き839】大きさは**ステージの座標**で決める（`root` は inset:0 なので 1600x900）。
+  //   ユーザー報告「スマホでは全体的に箱とかいろいろ表示もっと大きくていいかも！」。
+  //   それまでは `window.innerWidth / innerHeight`（＝**実画面**の px）から出していたが、
+  //   この値を**ステージの px として**使っていたので、body ごとの縮小（--stage-scale）で
+  //   **もう一度**小さくなっていた（実測: スマホ 932x430 で狙い134 → 画面では **64px**）。
+  //   ＝#453・#569・#721・#731・#760・#796 と同じ家族で**7回目**。
+  //   ⚠ ステージは窓の大きさによらず 1600x900 なので、この式は**窓を変えても動かない**
+  //     （どの端末でもステージに対して同じ割合＝実画面では端末の大きさに比例する）。
+  const 箱の大きさ = () => {
+    const W = root.clientWidth || 1568;
+    const H = root.clientHeight || 900;
+    return Math.round(Math.max(190, Math.min(320, Math.min(W / 4.6, H / 3.2))));
+  };
 
   // 角度 → 置き場所。奥（z が小さい）ほど小さく・薄く・後ろに。
   const 置き直す = () => {
     const n = 札たち.length;
     if (!n) return;
-    const R = Math.min(window.innerWidth * 0.3, 箱の大きさ() * 1.25);
+    // ⚠ 半径も**ステージの座標**で（`clientWidth` は縮む前の px、`getBoundingClientRect`
+    //   は縮んだ後の px。混ぜると上と同じ二重縮小になる）。
+    const 台幅 = 台 ? 台.clientWidth : root.clientWidth || 1440;
+    const R = Math.min(台幅 * 0.3, 箱の大きさ() * 1.25);
     // ⚠ 枚数が少ない時に真円で並べると**真後ろ**に1枚隠れて「消えた」ように見える。
     //   1周を枚数で割るのではなく、1つあたりの角度に上限（60度）を置く。
     const 刻み = Math.min((Math.PI * 2) / n, Math.PI / 3);
@@ -163,6 +177,7 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
   let 名前の行 = null;
   let 決めるボタン = null;
   let いまの行 = null;
+  let 台 = null;
 
   // 札1つ（箱＋名前）。位置は 置き直す() が決めるので、ここでは作るだけ。
   const 札を作る = (o, k) => {
@@ -172,9 +187,10 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
 
     const stage = document.createElement("div");
     stage.className = "deck-chooser-stage";
-    // ⚠ 箱の絵が無いセット（旧0th・まぜる・リメイク＋志炎者）は札の絵で代える。
+    // ⚠ 箱の絵が無いセット（いまは「リメイク＋志炎者」だけ）は札の絵で代える。
     //   ⚠ 0th拡張は deck-box-3d がリメイクの箱の絵を流用しているので、ここでは出さない
     //     （リメイクと見分けが付かない＝続き832 で撮って気づいた）。
+    //   ⓘ 旧0th は続き834 で、まぜるは続き839 で箱の絵が付いた。
     const 箱を出す = hasDeckBoxArt(o.set) && o.set !== CARD_SETS.EX0;
     if (箱を出す) {
       const box = buildDeckBox3d(o.set, { size: 箱の大きさ(), flat: 平面, onTap: () => 選ぶ(o.set) });
@@ -237,9 +253,11 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     右.textContent = "▶";
     右.addEventListener("click", () => 回す(1));
 
-    const 台 = document.createElement("div");
+    台 = document.createElement("div");
     台.className = "edition-carousel-stage";
-    台.style.height = Math.round(箱の大きさ() * 1.5) + "px";
+    // ⚠ 箱の下に名前が付くので、箱の高さそのままでは足りない。1.38倍で両方入る
+    //   （1.5倍にすると、字を大きくしたぶんと合わせて縦が 900 を超えて巻き取りが出る）。
+    台.style.height = Math.round(箱の大きさ() * 1.38) + "px";
     並び.forEach((o, k) => 台.appendChild(札を作る(o, k)));
 
     wrap.append(左, 台, 右);

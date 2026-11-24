@@ -29257,6 +29257,9 @@ body.is-tablet-device .my-page-title-chip .my-page-title-progress-num {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* ⚠ 中身が入り切らない時、素の `center` は**上側がはみ出して巻き取れなくなる**
+     （見出しが読めなくなる）。`safe` を知らないブラウザはこの行を捨てて従来どおり。 */
+  justify-content: safe center;
   gap: 0.55rem;
   padding: 1.2rem 1rem 1.6rem;
   box-sizing: border-box;
@@ -29285,13 +29288,45 @@ body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
   font-weight: bold;
   opacity: 0.9;
 }
-/* ✕ はオプションの帯（画面右上のアイコン列）と重なるので、1段下げて内側へ入れる。 */
+/* ✕ はオプションの帯（画面右上のアイコン列）と重なるので、1段下げて内側へ入れる。
+   🔴【#811・続き839】ユーザー報告「**右上のバツがオプションボタンと被ってて押せない**」。
+   3.4rem の決め打ちでは**スマホで足りなかった**——スマホは #option-area 全体が
+   --option-area-scale-phone(1.65) 倍されるので、⚙ の下端が 3.4rem より下まで伸びる。
+   しかも #option-area は全画面ページを開いている間 z-index:2700（この画面の 2300 より手前）
+   なので、重なった所では**⚙ が先にタップを受け取る**（elementsFromPoint で確かめた
+   ——✕ の真ん中で返ってくる1番目が options-menu-button だった＝文字どおり押せない）。
+   ⇒ 各ページが帯を避けるのに使っている共通の値（--page-top-safe。スマホでは自動で
+   1.65倍される）＋ ⚙ が帯より少し大きいぶんの余白で避ける。**PC は 3.4→4.0rem で
+   ほぼ従来どおり。** */
 #deck-chooser > .modal-close-x,
 #edition-chooser > .modal-close-x {
   position: absolute;
   top: 3.4rem;
   right: 1rem;
   z-index: 1;
+}
+/* ⚠ 下げるのは **#edition-chooser だけ**。部屋の「この対局の山札」(#deck-chooser) は
+   全画面ページから開かないので #option-area(z900) より手前に出ており、被らない
+   ——直す理由が無い所を動かさない。 */
+#edition-chooser > .modal-close-x {
+  top: calc(var(--page-top-safe, 3.4rem) + 1.2rem);
+}
+/* 🔴 中身そのものも帯の下から始める。#option-area は全画面ページの間 z-index:2700 で
+   **この画面より手前**に描かれるので、避けないと見出し（エディションを選ぶ）が
+   アイコン列の裏に隠れる（撮って気づいた）。
+   ⚠ 部屋の「この対局の山札」(#deck-chooser) には当てない——あちらは全画面ページから
+     開かないのでアイコン列より手前に出ており、下げると縦に入り切らなくなる。 */
+#edition-chooser {
+  padding-top: calc(var(--page-top-safe, 3.4rem) + 1.2rem);
+}
+/* スマホはこの✕だけ指で押せる大きさに（共通の 2.6rem＝実画面20px では小さい）。
+   ⚠ 全画面の選び場なので、見出しの箱に被る心配が無い（共通の✕を大きくできない理由＝
+     続き575 の「見出しの箱に被る量が増えた」はモーダルの話）。 */
+body.is-phone-device #edition-chooser > .modal-close-x,
+body.is-tablet-device #edition-chooser > .modal-close-x {
+  width: 5rem;
+  height: 5rem;
+  font-size: 3rem;
 }
 .deck-chooser-title {
   font-size: 1.15rem;
@@ -29412,6 +29447,47 @@ body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
 .edition-carousel-item.is-selected .deck-chooser-stage {
   outline: 2px solid rgba(216, 178, 76, 0.9);
   outline-offset: 6px;
+  position: relative;
+}
+/* 🔴【続き839】ユーザー要望「**選択中のやつに何かオーラがついてたりしてもかっこいいかも！**」。
+   いま使うことになっている版の箱の**後ろ**に、金色のぼんやりした光を置いて脈打たせる。
+   ⚠ `filter` を**箱の祖先に付けない**（教訓1: preserve-3d が平坦化されて箱が潰れる）。
+     ここでぼかしているのは `::before`（箱の**兄弟**）なので、箱の3Dには触らない。
+   ⚠ `z-index: -1` で箱の後ろへ回す。`.edition-carousel-item` は JS が z-index を
+     振っていて積み重ねの文脈を作るので、この -1 は札の中に収まる（画面の地まで抜けない）。
+   ⚠ `pointer-events: none`——箱を回す指を光が食べない（教訓4 の家族）。 */
+.edition-carousel-item.is-selected .deck-chooser-stage::before {
+  content: "";
+  position: absolute;
+  /* 🔴 **丸いグラデーションではなく、四角のべた塗りをぼかす。**
+     丸い光にすると、箱（正方形）の角に届く頃にはもう透明になっていて**ほとんど見えなかった**
+     （撮って気づいた。円の直径を箱の対角線より大きくしても、外側ほど薄いグラデーションでは
+     足りない）。四角をぼかすと、箱の縁をぐるりと同じ濃さで囲む光になる。 */
+  inset: -13%;
+  border-radius: 14%;
+  background: rgba(246, 201, 69, 0.62);
+  filter: blur(26px);
+  pointer-events: none;
+  z-index: -1;
+  animation: edition-aura 2.6s ease-in-out infinite;
+}
+@keyframes edition-aura {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+/* 2D表示（古い端末の保険）と「動きを控える」設定では脈打たせない（光自体は出す）。 */
+body.diagnostic-flatten-3d .edition-carousel-item.is-selected .deck-chooser-stage::before {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .edition-carousel-item.is-selected .deck-chooser-stage::before { animation: none; }
 }
 .edition-carousel-arrow {
   flex: 0 0 auto;
@@ -29444,13 +29520,28 @@ body.is-deck-chooser-open #online-lobby-modal { visibility: hidden; }
   color: #f6eddc;
   cursor: default;
 }
-/* 🔴 スマホ・タブレットはステージが縮むので、矢印と名前を大きく（#453・#569 の家族）。 */
+/* 🔴 スマホ・タブレットはステージが縮むので、矢印と名前を大きく（#453・#569 の家族）。
+   【#811・続き839】ユーザー報告「**スマホでは全体的に箱とかいろいろ表示もっと大きくていい
+   かも！**」。前の値でも足りていなかった——実測（932x430・倍率0.478）で
+   **見出し8.8px／いま選ばれている6.3px／箱の名前6.5px／注意書き5.7px**。
+   ⚠ 読める大きさ（実画面12px前後）から**逆算**して決めた＝ 12 ÷ 0.478 ≒ 25px ≒ 1.55rem。
+   ⚠ 箱そのものの大きさは CSS ではなく JS（edition-select-ui.js の 箱の大きさ()）。 */
 body.is-phone-device .edition-carousel-arrow,
-body.is-tablet-device .edition-carousel-arrow { width: 3.6rem; height: 3.6rem; font-size: 1.5rem; }
+body.is-tablet-device .edition-carousel-arrow { width: 5.4rem; height: 5.4rem; font-size: 2.1rem; }
 body.is-phone-device .edition-carousel-title,
-body.is-tablet-device .edition-carousel-title { font-size: 1.5rem; }
+body.is-tablet-device .edition-carousel-title { font-size: 2.5rem; }
 body.is-phone-device .deck-chooser-pick,
-body.is-tablet-device .deck-chooser-pick { font-size: 1.2rem; padding: 0.6rem 2rem; }
+body.is-tablet-device .deck-chooser-pick { font-size: 1.9rem; padding: 0.8rem 2.6rem; }
+body.is-phone-device #edition-chooser .deck-chooser-title,
+body.is-tablet-device #edition-chooser .deck-chooser-title { font-size: 2.1rem; }
+body.is-phone-device #edition-chooser .deck-chooser-current,
+body.is-tablet-device #edition-chooser .deck-chooser-current { font-size: 1.55rem; }
+body.is-phone-device #edition-chooser .deck-chooser-name,
+body.is-tablet-device #edition-chooser .deck-chooser-name { font-size: 1.55rem; max-width: 20rem; }
+body.is-phone-device #edition-chooser .deck-chooser-hint,
+body.is-tablet-device #edition-chooser .deck-chooser-hint { font-size: 1.35rem; }
+body.is-phone-device #edition-chooser .deck-chooser-note,
+body.is-tablet-device #edition-chooser .deck-chooser-note { font-size: 1.45rem; max-width: 56rem; }
 /* 🔴【続き835】マイ山札の箱の蓋に載せる名札。カードのイラストをそのまま貼るだけだと
    「どの山札か」が分からないので、名前を重ねる。
    ⚠ pointer-events: none ——箱を回す指を名札が食べない（教訓4 の家族）。

@@ -61,6 +61,19 @@ const 箱の絵 = {
     side: "assets/boxes/old0th-side.webp",
     edge: "#d8d2c2",
   },
+  // 🔴【続き839】「まぜる」の箱（ユーザー要望「まぜるやつも箱絵があってもいいかも！
+  //   なんか色んな箱絵が混ざってる感じのかっこいい感じのやつ、既存の箱絵を組み合わせて」）。
+  //   ⚠ **新しく描いた絵は1枚も無い**——リメイクと 1st の面を斜めの帯で継いだもの
+  //     （`tools/make-mixed-box.mjs` で焼く。走らせ直せば同じ物が出る）。
+  //   ⚠ まぜるの中身は**リメイク＋0th拡張＋1st**（src/mixed-deck.js）。0th拡張は
+  //     ブースターパックで売られていて箱が無く、絵もリメイクの流用なので、
+  //     リメイクの帯がそのぶんも兼ねている。**旧0th は入らないので混ぜていない。**
+  mixed: {
+    top: "assets/boxes/mixed-top.webp",
+    back: "assets/boxes/mixed-back.webp",
+    side: "assets/boxes/mixed-side.webp",
+    edge: "#c7a460",
+  },
 };
 
 export function hasDeckBoxArt(cardSet) {
