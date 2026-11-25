@@ -30248,3 +30248,110 @@ body.is-tablet-device .stack-skin-cell { font-size: 1.05rem; }
   padding-top: calc(var(--page-top-safe) + 0.6rem);
   box-sizing: border-box;
 }
+
+/* 🔴【#827・続き858】コレクションの色の手がかりと絞り込み。
+   ユーザー指摘「**色別のがみやすくないですか？気のせい？**」——並びは最初から色順だったが、
+   **色の手がかりが1つも無かった**ので分からなかった。
+   ⚠ この塊は**ファイルの末尾に置く**（続き857 の教訓: 前の方に書くと、後ろのショートハンドに
+     上書きされることがある）。
+   ⚠ 色は決め打ちしない——:root の --color-* をそのまま引く（表を2か所に書かない）。 */
+.card-pack-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.6rem 0 0.2rem;
+}
+.card-pack-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.card-pack-filter-chip:hover {
+  border-color: rgba(var(--so7-accent), 0.7);
+}
+.card-pack-filter-chip.is-on {
+  border-color: rgba(var(--so7-accent), 0.9);
+  background: rgba(var(--so7-accent), 0.16);
+  font-weight: bold;
+}
+body.theme-light .card-pack-filter-chip {
+  border-color: rgba(176, 141, 63, 0.45);
+}
+body.theme-light .card-pack-filter-chip.is-on {
+  border-color: rgba(176, 141, 63, 0.9);
+  background: rgba(176, 141, 63, 0.18);
+}
+.card-pack-filter-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18) inset;
+  flex: 0 0 auto;
+}
+/* 色の見出し。⚠ 格子の中に置くので**行いっぱい**に広げる（1マスに収まると区切りに見えない）。 */
+.card-pack-color-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 0.78rem;
+  font-weight: bold;
+}
+body.theme-light .card-pack-color-head {
+  border-bottom-color: rgba(176, 141, 63, 0.35);
+}
+.card-pack-color-head-num {
+  margin-left: auto;
+  font-weight: normal;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+/* 札の上辺にその色の細い帯。⚠ ::before を使う（.card-pack-cell の ::before / ::after は
+   どちらも空いていることを確かめた）。box-shadow は使わない（複数ルールで合成されない＝教訓10）。 */
+.card-pack-cell {
+  position: relative;
+  overflow: hidden;
+}
+.card-pack-cell::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: var(--cell-color, transparent);
+}
+/* スマホ・タブレット（ステージを縮めて描くので、上の 0.72rem は実画面7pxしかない）。 */
+body.is-phone-device .card-pack-filter-chip,
+body.is-tablet-device .card-pack-filter-chip {
+  font-size: 1.35rem;
+  padding: 0.5rem 1rem;
+}
+body.is-phone-device .card-pack-filter-dot,
+body.is-tablet-device .card-pack-filter-dot {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+body.is-phone-device .card-pack-color-head,
+body.is-tablet-device .card-pack-color-head {
+  font-size: 1.45rem;
+}
+/* 🔴【続き858】コレクションも**左端を1本に**（続き856 と同じ考え方）。
+   格子だけ 76rem で中央寄せのままだと、上の絞り込みの行・見出し・説明と左端が揃わない。
+   ⚠ この画面の中だけに絞る（.card-pack-collection は他からも使う）。 */
+#card-pack-collection-box .card-pack-collection {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}

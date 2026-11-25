@@ -20,7 +20,7 @@
 
 import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js";
 import { NORMAL_CARDS } from "./cards-data.js";
-import { sortCardDefsByColor } from "./card-sort.js";
+import { sortCardDefsByColor, CARD_COLOR_ORDER } from "./card-sort.js";
 import { FIRST_ED_NORMAL_CARDS } from "./cards-data-1st.js";
 import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 志炎者7枚（限定報酬・パックには入らない）
 import { getCardImagePath, getCardBackImagePath, hasNoPrintedFace, getCardDefinition } from "./cards-data.js";
@@ -131,6 +131,10 @@ let 直接の残高 = null;
 let 忙しい = false;
 // 🔴【続き855】袋に刷ってある版の名。**袋の絵と同じもの**を出す（いまは 0th 拡張だけ）。
 const PACK_EDITION = "0th edition";
+// 🔴【#827・続き858】コレクションの絞り込み（この画面を開いている間だけ覚える）。
+//   ⚠ localStorage には入れない——次に開いた時に**絞ったまま**だと「札が消えた」に見える。
+let 絞り色 = null;   // null = すべて
+let 未所持だけ = false;
 let 管理者 = false;
 
 // ── 小さな部品 ─────────────────────────────────────────────────────────────
@@ -454,9 +458,57 @@ function 枚数(c, def) {
 }
 
 // ── ⑥ コレクション ─────────────────────────────────────────────────────────
+// 🔴【#827・続き858】ユーザー指摘「**コレクションですが、色別のがみやすくないですか？**
+//   **気のせい？ほかに見やすくなる案があれば！あとコレクションはソートや絞り込みが**
+//   **あるといい？**」。
+//   ⇒ 調べたら**並びは最初から色順**（getCollectionPool → sortCardDefsByColor）だった。
+//     見えていなかったのは**色の手がかりが1つも無かった**から。⇒ 3つ足した:
+//       ①色ごとの見出しで区切る ②札の上辺に色の帯 ③絞り込み（色・持っていないものだけ）
+//   ⚠ 並べ替え（ソート）は足していない——色順はルールブックの並びで、ここを変える意味が
+//     薄い。欲しくなったら「持っている順」などをここへ足す。
+
+// 絞り込みの行。押すと**コレクションの区画だけ**を作り直す（画面全体を描き直さない＝
+// 縦の位置が飛ばない）。
+function 絞り込みの行() {
+  const bar = document.createElement("div");
+  bar.className = "card-pack-filter";
+  const 作る = (色, 名) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "card-pack-filter-chip" + (絞り色 === 色 ? " is-on" : "");
+    if (色) {
+      const dot = document.createElement("span");
+      dot.className = "card-pack-filter-dot";
+      dot.style.background = "var(--color-" + 色 + ")";
+      b.appendChild(dot);
+    }
+    b.appendChild(document.createTextNode(名));
+    b.title = 名;
+    b.addEventListener("click", () => { 絞り色 = 色; コレクションを描き直す(); });
+    return b;
+  };
+  bar.appendChild(作る(null, t("packs.filterAll")));
+  for (const 色 of CARD_COLOR_ORDER) bar.appendChild(作る(色, t("game.color." + 色)));
+  const 未 = document.createElement("button");
+  未.type = "button";
+  未.className = "card-pack-filter-chip is-toggle" + (未所持だけ ? " is-on" : "");
+  未.textContent = t("packs.filterMissing");
+  未.addEventListener("click", () => { 未所持だけ = !未所持だけ; コレクションを描き直す(); });
+  bar.appendChild(未);
+  return bar;
+}
+
+// ⚠ 区画だけを入れ替える。panel 全体を再描画すると、縦の位置が頭へ飛ぶ。
+function コレクションを描き直す() {
+  const 古 = panel && panel.querySelector("#card-pack-collection-box");
+  if (!古) return;
+  古.replaceWith(コレクションの区画());
+}
+
 function コレクションの区画() {
   const c = getCollection();
   const box = document.createElement("div");
+  box.id = "card-pack-collection-box"; // ⚠ 絞り込みでここだけ入れ替える
   // 🔴【#691】リメイクの33種も並べる＋色の順（getCollectionPool）。
   const pool = getCollectionPool();
   const 持っている = pool.filter((d) => 枚数(c, d) > 0).length;
@@ -478,13 +530,55 @@ function コレクションの区画() {
   prog.appendChild(num);
   box.appendChild(prog);
 
+  box.appendChild(絞り込みの行());
+
+  // 絞った後の顔ぶれ。⚠ **伏せ札も数に入れる**（持っていない札なので「持っていないものだけ」
+  //   で出るのが自然。中身は伏せたまま）。
+  const 出す = pool.filter((d) => {
+    if (絞り色 && d.color !== 絞り色) return false;
+    if (未所持だけ && 枚数(c, d) >= capOf(d)) return false;
+    return true;
+  });
+
+  if (出す.length === 0) {
+    const からっぽ = document.createElement("div");
+    からっぽ.className = "card-pack-note";
+    からっぽ.textContent = t("packs.filterNone");
+    box.appendChild(からっぽ);
+    return box;
+  }
+
   const grid = document.createElement("div");
   grid.className = "card-pack-collection";
+  // 色ごとの見出しで区切る。⚠ 色で絞っている時は見出しを出さない（1色しかないので無駄）。
+  let 前の色 = null;
   for (const def of pool) {
+    if (!出す.includes(def)) continue;
+    if (!絞り色 && def.color !== 前の色) {
+      前の色 = def.color;
+      const 同色 = 出す.filter((d) => d.color === def.color);
+      const h = document.createElement("div");
+      h.className = "card-pack-color-head";
+      const dot = document.createElement("span");
+      dot.className = "card-pack-filter-dot";
+      dot.style.background = "var(--color-" + def.color + ")";
+      h.appendChild(dot);
+      const nm = document.createElement("span");
+      nm.textContent = t("game.color." + def.color);
+      h.appendChild(nm);
+      const cn = document.createElement("span");
+      cn.className = "card-pack-color-head-num";
+      cn.textContent = 同色.filter((d) => 枚数(c, d) > 0).length + " / " + 同色.length;
+      h.appendChild(cn);
+      grid.appendChild(h);
+    }
     const n = Math.min(枚数(c, def), capOf(def));
     const 伏せる = 伏せて出す札か(def, n);
     const cell = document.createElement("div");
     cell.className = "card-pack-cell" + (n === 0 ? " is-missing" : "") + (伏せる ? " is-mystery" : "");
+    // ⚠ 上辺の細い帯でその札の色を出す（色の手がかり）。色は :root の --color-* から引く
+    //   （表を2か所に書かない）。知らない色なら帯を出さない。
+    if (def.color) cell.style.setProperty("--cell-color", "var(--color-" + def.color + ")");
     if (伏せる) {
       // 🔴 拡大表示（attachCardHoverPreview）は**付けない**——付けると中身が割れる。
       cell.appendChild(伏せ札(def, "3.4rem"));
@@ -685,6 +779,9 @@ function 中身を組む(inner) {
 
 export async function openCardPackPanel(admin) {
   管理者 = !!admin;
+  // ⚠ 開くたびに絞りを戻す（前に絞ったままだと「札が消えた」に見える）。
+  絞り色 = null;
+  未所持だけ = false;
   if (!panel) {
     const close = () => {
       if (!panel) return;
