@@ -165,6 +165,7 @@ export const CHANGELOG = [
       "🔴 見出しを左へ寄せる時、最初 `padding-left` で動かしたが、**padding では字が動くだけで箱は動かない**ので「← 戻る と重ならない」の検査が**すり抜けた**（スマホで実際に重なっていた）。⇒ `margin-left` にして、縦にも少し下げて二重に避ける。**重なりは値で測る**——撮った絵を目で見るだけだと、端末が変わった時に気づけない。",
       "⚠ 実測17項目（`scratchpad/_p855.mjs`・PC 1360x820 ／ スマホ横 932x430）。版の名・のこり・ボタンの文・右上の1行・**大きい札が0個**・**枠が 0px**・袋が在る／**見出しと「← 戻る」が重ならない**・**右上の1行と ✕ が重ならない**（どちらも矩形で判定）・画面の外へ出た要素0・横スクロールなし。撮って確かめた。",
       "ⓘ いただいた絵に無いものを2つ**残した**: 欠片とワイルドの説明文（情報としては要る）と、管理者用のボタン2つ。どちらも消すのは簡単なので、要らなければ言ってもらえれば外す。",
+      "🔴 ユーザー指摘「**もっとボタン類が左端によってたと思うけど、それだと実際は微妙？**」。指摘のとおりで、微妙どころか左端が正しかった——中央寄せ（`max-width: 68rem`）だと主役の行の左端が **290px**、下の「コレクション」が **16px** ＝**同じ画面に左端が2本**在った。⇒ 幅を絞るのをやめ、パネルの余白から始める。欠片とワイルドの説明も左端へそろえた（そこだけ真ん中だと浮く）。⚠ 「そろっている」は**値で**見る（撮った絵では 2〜3px のずれが分からない）。実測19項目。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -222,6 +223,7 @@ export const CHANGELOG = [
       "Moving the heading clear of the back button was first done with padding, which moves the text but not the box, so the overlap check passed while the two actually overlapped on a phone. It now uses margin, with a small vertical offset as well. Overlaps are measured as rectangles rather than judged from a screenshot, because a screenshot only tells you about the one device you rendered.",
       "Seventeen checks on desktop and landscape phone: the edition name, the remaining count, the button text, the status line, zero large tiles, a zero-width border, the bag present, no overlap between the heading and the back button or between the status line and the close control, nothing off-screen and no horizontal scroll.",
       "Two things in the image were deliberately kept that it does not show: the paragraph explaining shards and wildcards, which carries information, and the two administrator buttons. Both are easy to remove if they are not wanted.",
+      "The user pointed out that in the supplied design the controls sat further left, and asked whether that would actually be worse. It would not: centring the hero put its left edge at 290px while the collection below started at 16, so the page had two left margins. The width limit is gone and the hero now starts at the panel padding, with the shard and wildcard paragraph aligned to the same line. Alignment is asserted numerically, since a two or three pixel difference does not show in a screenshot.",
     ],
   },
   {
