@@ -28749,19 +28749,81 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
    ⚠ この画面は `?ui=v2` の時だけ出る（続き731 のユーザー判断）ので、
      **アイボリーと金の世界**に合わせる（青い主役ボタンをやめた）。
    ⚠ **新しい画像は1枚も足していない**（袋はグラデーションだけ）。 */
+/* 🔴【続き855】いただいた絵の形へ: 見出しは**左上に小さく**、持ち物は**右上の静かな1行**、
+   主役の行は**枠を外して**左に文字・右に袋。 */
 #card-pack-title {
-  text-align: center;
-  letter-spacing: 0.14em;
+  text-align: left;
+  letter-spacing: 0.08em;
+  font-size: 1.25rem;
+  /* ⚠ 左上には「← 戻る」が貼り付いている（position: fixed）ので、その右へ寄せる。
+     🔴 **padding ではなく margin**——padding だと字は動くが**箱は動かない**ので、
+     重なりを測る検査がすり抜ける（実測でそうなった）。縦にも少し下げて二重に避ける。
+     実測で重なっていないことを見ている（scratchpad/_p855.mjs）。 */
+  margin: 0.5rem 0 0.2rem 10rem;
 }
-#card-pack-title::before {
-  content: "BOOSTER PACK";
-  display: block;
+/* ⚠ 「BOOSTER PACK」の小見出しは**主役の行の中へ移した**（card-pack-hero-eyebrow）。
+   ここに置くと、版の名の上と画面の上で**二重に並ぶ**（続き828 で撮って気づいた所）。 */
+#card-pack-status {
+  position: absolute;
+  /* ⚠ 右上には ✕ が貼り付いているので、その左へ。実測で重なりを見ている。 */
+  right: 5.4rem;
+  top: 1.4rem;
+  font-size: 0.8rem;
+  color: #8a7a52;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.card-pack-hero-eyebrow {
   font-family: Oswald, "Arial Narrow", sans-serif;
   font-size: 0.68rem;
   font-weight: 500;
   letter-spacing: 0.34em;
   color: #b08d3f;
-  margin-bottom: 0.2rem;
+}
+.card-pack-hero-edition {
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  margin: 0.1rem 0 0.25rem;
+}
+/* 「のこり **N** パック」。数字だけ大きく、前後の言葉は小さく添える。 */
+.card-pack-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-top: 1.2rem;
+  font-size: 0.9rem;
+  color: #6b6257;
+}
+.card-pack-left b {
+  font-size: 2.1rem;
+  font-variant-numeric: tabular-nums;
+  color: #3a3326;
+}
+body.is-phone-device #card-pack-title,
+body.is-tablet-device #card-pack-title {
+  font-size: 2.2rem;
+}
+body.is-phone-device #card-pack-status,
+body.is-tablet-device #card-pack-status {
+  font-size: 1.4rem;
+}
+body.is-phone-device .card-pack-hero-eyebrow,
+body.is-tablet-device .card-pack-hero-eyebrow {
+  font-size: 1.15rem;
+}
+body.is-phone-device .card-pack-hero-edition,
+body.is-tablet-device .card-pack-hero-edition {
+  font-size: 4rem;
+}
+body.is-phone-device .card-pack-left,
+body.is-tablet-device .card-pack-left {
+  font-size: 1.5rem;
+}
+body.is-phone-device .card-pack-left b,
+body.is-tablet-device .card-pack-left b {
+  font-size: 3.4rem;
 }
 
 /* ① 持ち物の4つの札 */
@@ -28820,12 +28882,15 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.4rem;
+  gap: 2.2rem;
   flex-wrap: wrap;
-  max-width: 46rem;
-  margin: 0.4rem auto 0;
-  padding: 1.1rem 1.2rem;
-  border: 1px solid rgba(176, 141, 63, 0.45);
+  /* 🔴【続き855】文字を左へ、袋を右へ**離して**置く（いただいた絵の形）。 */
+  justify-content: space-between;
+  max-width: 68rem;
+  /* 🔴【続き855】**枠を外した**（いただいた絵には無い）。枠があると「札」に見えて、
+     袋が置物になる。地のまま置く方が、手に取る物らしく見える。 */
+  margin: 2.2rem auto 0;
+  padding: 0 1.2rem;
 }
 /* 🔴 傾けた袋の角がはみ出すので、置き場は**傾いた分も含む大きさ**を持つ。
    持たないと、はみ出した角で画面に横スクロールが出る（#760 の家族）。 */

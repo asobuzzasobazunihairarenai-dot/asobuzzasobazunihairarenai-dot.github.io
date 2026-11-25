@@ -129,6 +129,8 @@ let 生のエラー = null;
 // 表から直接読んだ残高（診断用。RPC の値と並べる）。
 let 直接の残高 = null;
 let 忙しい = false;
+// 🔴【続き855】袋に刷ってある版の名。**袋の絵と同じもの**を出す（いまは 0th 拡張だけ）。
+const PACK_EDITION = "0th edition";
 let 管理者 = false;
 
 // ── 小さな部品 ─────────────────────────────────────────────────────────────
@@ -261,6 +263,24 @@ function 持ち物の数字() {
 }
 
 // ワイルドカードの持ち数と欠片の進み（小さい1行）。
+// 🔴【続き855】「のこり **N** パック」。大きい札2つ（持ち物の数字）のかわり。
+//   ⚠ 数字だけ大きくして、単位は小さく添える（語順が言語で変わらない形）。
+function のこりの行() {
+  const c = getCollection();
+  const el = document.createElement("div");
+  el.className = "card-pack-left";
+  const 前 = document.createElement("span");
+  前.className = "card-pack-left-lead";
+  前.textContent = t("packs.leftLead");
+  const n = document.createElement("b");
+  n.textContent = String(c.packs);
+  const 後 = document.createElement("span");
+  後.className = "card-pack-left-unit";
+  後.textContent = t("packs.packs");
+  el.append(前, n, 後);
+  return el;
+}
+
 function 持ちワイルドの行() {
   const c = getCollection();
   const el = document.createElement("div");
@@ -518,6 +538,15 @@ function コレクションの区画() {
 function 中身を組む(inner) {
   inner.textContent = "";
 
+  // 🔴【続き855】右上の静かな1行。⚠ ログインしていない時は空にする（0 と出さない）。
+  const 札 = panel && panel.querySelector("#card-pack-status");
+  if (札) {
+    札.textContent = "";
+    if (isCollectionReady()) {
+      const c0 = getCollection();
+      setTextWithCoin(札, t("packs.statusLine", { coin: c0.balance, wild: c0.wildCards + " / " + WILD_PER }));
+    }
+  }
   if (!isCollectionReady()) {
     const n = document.createElement("div");
     n.className = "card-pack-note is-warn";
@@ -544,13 +573,24 @@ function 中身を組む(inner) {
   hero.className = "card-pack-hero";
   const heroText = document.createElement("div");
   heroText.className = "card-pack-hero-text";
-  // ⚠ ここに「BOOSTER PACK」の小見出しは置かない——**見出しが既に出している**
-  //   （`#card-pack-title::before`）。撮って気づいた: 置くと画面に二重に並ぶ。
-  heroText.appendChild(持ち物の数字());
+  // 🔴【続き855】いただいた絵の形に寄せた。小見出し → 版の名 → 一言 → のこり → ボタン。
+  //   ⚠ 「BOOSTER PACK」はここに置く。**画面の見出し（#card-pack-title）側からは外した**ので、
+  //     二重には並ばない（続き828 で踏んだ所）。
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "card-pack-hero-eyebrow";
+  eyebrow.textContent = "BOOSTER PACK";
+  heroText.appendChild(eyebrow);
+  // ⚠ 版の名は**袋に刷ってあるもの**と同じ（いまは 0th 拡張のパックしか無い）。
+  //   セットが増えたら、ここを持ち物の中身から決める。
+  const edition = document.createElement("div");
+  edition.className = "card-pack-hero-edition";
+  edition.textContent = PACK_EDITION;
+  heroText.appendChild(edition);
   const lead = document.createElement("div");
   lead.className = "card-pack-lead";
   lead.textContent = t("packs.heroLead", { n: PACK_SIZE });
   heroText.appendChild(lead);
+  heroText.appendChild(のこりの行());
 
   const actions = document.createElement("div");
   actions.className = "card-pack-actions";
@@ -559,7 +599,7 @@ function 中身を組む(inner) {
   //   理由が分からない（ユーザー報告の形）。押せるようにして、足りなければ
   //   サーバーが返す理由（no_pack / insufficient_balance）を文で出す。
   actions.appendChild(
-    ボタン(t("packs.open"), async () => {
+    ボタン(t("packs.openSeal"), async () => {
       const 引いた = await openPack();
       // 🔴【続き735】引いたら**演出に渡す**（試作の3段構え: 封を切る→めくれる→1枚ずつ）。
       //   ⚠ 一覧（いまの引き）は**残したまま**にする——演出を途中で閉じても、
@@ -666,6 +706,12 @@ export async function openCardPackPanel(admin) {
     title.id = "card-pack-title";
     title.textContent = t("packs.title");
     panel.appendChild(title);
+
+    // 🔴【続き855】右上の静かな1行（セヴル・ワイルド）。大きい札2つのかわり。
+    //   ⚠ 中身は 再描画() が書き換える（ここでは殻だけ）。
+    const status = document.createElement("div");
+    status.id = "card-pack-status";
+    panel.appendChild(status);
 
     const closeX = createModalCloseX(close);
     closeX.style.position = "fixed"; // 全画面＋縦スクロールなので貼り付ける（#641 と同じ）

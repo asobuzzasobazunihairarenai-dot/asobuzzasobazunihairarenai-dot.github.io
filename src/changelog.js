@@ -160,6 +160,11 @@ export const CHANGELOG = [
       "🔴 ユーザー判断「**デイリーで7回勝つだと重いですね💦 デイリーで1ゲージ増えるだけで少しだけセヴル貰えるようにしない？**」。⇒ `so7_daily_challenge_of` に **`step` の列**（1ゲージぶんの報酬）を足し、`so7_note_progress` が**本当に進んだぶんだけ**（`v_after - v_before`）払う。目標で頭打ちになった後は 0 になるので、同じ申告が何度来ても払い過ぎない。勝つ 8／色つき 6／その他 5。達成の報酬はそのまま。",
       "⚠ 額は **`step` の列が唯一の持ち主**——進みを付ける所も、画面に出す所（`so7_get_my_collection` が `step` を返す）も、札に出す所（daily-ring の「1つ進むごとに +N」）もここを読む。**クライアントで数字を決め打ちしない。** 古いサーバーなら欄が無いので何も出さない。",
       "⚠ これで1日あたり最大 3×7×(5〜8) ＝ **105〜168セヴル**が自動で入る（達成ぶん 140 とは別）。パックは100なので、**遊べば1日2〜3パック**ぶん。重すぎ／軽すぎなら  の列の数字を直すだけ。",
+      "🔴 ユーザーからいただいた絵（パックの画面の提案）を見て、**いまの形と違う所を数えて**から寄せた。①見出しを左上に小さく ②持ち物の大きい札2つ → **右上の静かな1行**（セヴル・ワイルド）③主役の行に **BOOSTER PACK ／ 0th edition ／ のこり N パック** を足す ④主役のボタンを「**封を切る**」に ⑤主役の行の**枠を外す**（枠があると札に見えて、袋が置物になる）。",
+      "🔴 **袋は差し替えていない。** いただいた絵の袋は、続き842 でユーザー指示（「旧0thの拡張パックはすでに正方形のデザインがあるのでそちらをアレンジして」）により**実物の刷り（白・正方形）へ替えたもの**の、ひとつ前の姿（黒い銀蒸着）。勝手に戻すとその指示を取り消すことになるので、**layout だけ寄せて袋はそのまま**にした。戻すかは聞く。",
+      "🔴 見出しを左へ寄せる時、最初 `padding-left` で動かしたが、**padding では字が動くだけで箱は動かない**ので「← 戻る と重ならない」の検査が**すり抜けた**（スマホで実際に重なっていた）。⇒ `margin-left` にして、縦にも少し下げて二重に避ける。**重なりは値で測る**——撮った絵を目で見るだけだと、端末が変わった時に気づけない。",
+      "⚠ 実測17項目（`scratchpad/_p855.mjs`・PC 1360x820 ／ スマホ横 932x430）。版の名・のこり・ボタンの文・右上の1行・**大きい札が0個**・**枠が 0px**・袋が在る／**見出しと「← 戻る」が重ならない**・**右上の1行と ✕ が重ならない**（どちらも矩形で判定）・画面の外へ出た要素0・横スクロールなし。撮って確かめた。",
+      "ⓘ いただいた絵に無いものを2つ**残した**: 欠片とワイルドの説明文（情報としては要る）と、管理者用のボタン2つ。どちらも消すのは簡単なので、要らなければ言ってもらえれば外す。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -212,6 +217,11 @@ export const CHANGELOG = [
       "Winning seven in a day was judged too heavy, so each gauge step now pays a little on its own. A step column was added to so7_daily_challenge_of, and so7_note_progress pays only for progress actually gained, which is zero once the goal caps, so repeated reports cannot overpay. Wins pay 8, colour challenges 6, the rest 5, and the completion reward is unchanged.",
       "That column is the single owner of the amount: the progress function, the collection payload and the line shown on the card all read it, and the client never hardcodes a number. An older server simply omits the field and the line does not appear.",
       "The ceiling is three challenges times seven steps times five to eight, so 105 to 168 Sevre a day on top of the 140 from completions. A pack costs 100, so an active day funds two or three. It is one column to adjust if that proves wrong.",
+      "A design image was supplied for the pack screen, so the differences from the current page were counted and then closed: the heading moved to the top left and shrank, the two large count tiles became a quiet line at the top right, the hero gained a BOOSTER PACK eyebrow, the edition name and a packs-remaining line, the main button now reads tear it open, and the box border around the hero is gone, since a border made the bag read as an ornament rather than something to pick up.",
+      "The bag itself was not changed. The one in the image is the dark foil version that was replaced in November at the user's own instruction, after they pointed out that a real square printed design already exists. Swapping it back would undo that, so only the layout was matched and the question is left open.",
+      "Moving the heading clear of the back button was first done with padding, which moves the text but not the box, so the overlap check passed while the two actually overlapped on a phone. It now uses margin, with a small vertical offset as well. Overlaps are measured as rectangles rather than judged from a screenshot, because a screenshot only tells you about the one device you rendered.",
+      "Seventeen checks on desktop and landscape phone: the edition name, the remaining count, the button text, the status line, zero large tiles, a zero-width border, the bag present, no overlap between the heading and the back button or between the status line and the close control, nothing off-screen and no horizontal scroll.",
+      "Two things in the image were deliberately kept that it does not show: the paragraph explaining shards and wildcards, which carries information, and the two administrator buttons. Both are easy to remove if they are not wanted.",
     ],
   },
   {
