@@ -94,6 +94,7 @@ export const CHANGELOG = [
       "The 17 normal cards of the 1st EDITION now carry flavour text, the short line printed above the artwork. Of the 52 you chose earlier, the 16 from the 0th expansion and the 19 from the old 0th were already in place; these 17 were the ones still missing, so all 52 are now on their cards.",
     ],
     fixes: [
+      "「マイ山札」「山札一覧」などの画面で、左上の「戻る」が上のアイコンの帯に隠れていたのを直しました。",
       "HUERISE から燃えて始まる演出が、スマホでカクついていたのを軽くしました。",
       "図鑑の「カード一覧」に、まだ遊べないカードが並んでいたのを直しました。",
       "1st EDITION の箱の裏に、印刷の型抜き線が写り込んでいたのを直しました。",
@@ -102,6 +103,7 @@ export const CHANGELOG = [
       "パックを開ける画面のいちばん上に出ていた、管理者向けの小さな文字を下へ移しました。",
     ],
     fixesEn: [
+      "The back button on the my-stack and deck-list screens no longer hides under the icon bar at the top.",
       "The opening burn from HUERISE is lighter; it was stuttering on phones.",
       "The card list in the codex no longer includes cards you cannot play yet.",
       "The back of the 1st EDITION box no longer shows the printing die lines.",
@@ -166,6 +168,11 @@ export const CHANGELOG = [
       "⚠ 実測17項目（`scratchpad/_p855.mjs`・PC 1360x820 ／ スマホ横 932x430）。版の名・のこり・ボタンの文・右上の1行・**大きい札が0個**・**枠が 0px**・袋が在る／**見出しと「← 戻る」が重ならない**・**右上の1行と ✕ が重ならない**（どちらも矩形で判定）・画面の外へ出た要素0・横スクロールなし。撮って確かめた。",
       "ⓘ いただいた絵に無いものを2つ**残した**: 欠片とワイルドの説明文（情報としては要る）と、管理者用のボタン2つ。どちらも消すのは簡単なので、要らなければ言ってもらえれば外す。",
       "🔴 ユーザー指摘「**もっとボタン類が左端によってたと思うけど、それだと実際は微妙？**」。指摘のとおりで、微妙どころか左端が正しかった——中央寄せ（`max-width: 68rem`）だと主役の行の左端が **290px**、下の「コレクション」が **16px** ＝**同じ画面に左端が2本**在った。⇒ 幅を絞るのをやめ、パネルの余白から始める。欠片とワイルドの説明も左端へそろえた（そこだけ真ん中だと浮く）。⚠ 「そろっている」は**値で**見る（撮った絵では 2〜3px のずれが分からない）。実測19項目。",
+      "🔴 #827「**戻るボタンなどが上のオプションエリアの帯と重なってしまってます。他のページも総点検を！**」。**総点検した**——全画面ページを1つずつ本物の経路で開き、**帯の下端より上に在る『押す物・読む字』**を矩形で数える道具を書いた（`scratchpad/_p857.mjs`）。残っていたのは **3画面**（パックを開ける・マイ山札・山札一覧）で、22107行の一覧に**加え忘れていた**（続き712 の「戻る」と同じ取りこぼし方）。",
+      "🔴🔴 その一覧に足しても**効かなかった**。正体は並び順——この3つは `padding: 1rem 1.2rem 2rem` という**ショートハンド**を一覧より**後ろ**に持っていて、同じ強さなら後が勝つので `padding-top` が丸ごと上書きされていた（教訓9 の家族）。⚠ あの一覧のコメントは「各ページの元の padding より**後に**効かせるため」と書いてあるが、**それが本当なのはその行より前に書いてあるページだけ**だった。⇒ 末尾へ移して、理由をそこに書いた。",
+      "🔴 山札一覧はさらに別だった——余白が **JS のじか書き（`style.cssText`）**なので、CSS からは上書きできない（続き721・737 と同じ家族）。⇒ じか書きの方を `calc(var(--page-top-safe) + 0.6rem)` に直した。⚠ 貼り付けた ✕（position: fixed）も余白では動かないので、帯の下へ直に置いた（**直の子だけ**に当てる——中に開く小さなモーダルの ✕ まで動かさない）。",
+      "⚠ 最初の道具は**左端の「← 戻る」を取りこぼした**。帯の地は擬似要素なので要素としては拾えず、アイコンの矩形とだけ比べていたため。⇒ **帯の下端より上か**で見る形に直したら出てきた。**「重なっている」を測る時、帯は幅いっぱいの帯として見る。**",
+      "⚠ 直した後、8画面とも**重なり0**（マイページだけはこの土台で開けないので測れていない）。ⓘ ユーザー判断「**旧0thの拡張はこの正方形のでざいんでいいです！**」＝袋は今のまま（続き855 の返事待ちが1つ片付いた）。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -224,6 +231,11 @@ export const CHANGELOG = [
       "Seventeen checks on desktop and landscape phone: the edition name, the remaining count, the button text, the status line, zero large tiles, a zero-width border, the bag present, no overlap between the heading and the back button or between the status line and the close control, nothing off-screen and no horizontal scroll.",
       "Two things in the image were deliberately kept that it does not show: the paragraph explaining shards and wildcards, which carries information, and the two administrator buttons. Both are easy to remove if they are not wanted.",
       "The user pointed out that in the supplied design the controls sat further left, and asked whether that would actually be worse. It would not: centring the hero put its left edge at 290px while the collection below started at 16, so the page had two left margins. The width limit is gone and the hero now starts at the panel padding, with the shard and wildcard paragraph aligned to the same line. Alignment is asserted numerically, since a two or three pixel difference does not show in a screenshot.",
+      "A report said the back button was hidden under the icon bar at the top and asked for every page to be checked. A tool was written that opens each full-screen page through its real entry point and counts anything clickable or readable whose box sits above the bar's bottom edge. Three pages were still wrong, having been missed from the list that applies the top inset.",
+      "Adding them to that list did nothing, because all three set padding as a shorthand later in the file than the list, and at equal specificity the later rule wins, so the padding-top was simply overwritten. The comment on that list claims it comes after each page's own padding, which is only true for pages written above it. The rule moved to the end of the file with that reasoning recorded.",
+      "The deck list was different again: its padding is written inline from JavaScript, which no stylesheet can override, so the inline value itself now uses the shared inset. The pinned close control is positioned fixed and does not move with padding either, so it is placed below the bar directly, scoped to direct children so that modals opened inside these panels are left alone.",
+      "The first version of the tool missed the back button entirely: the bar's background is a pseudo-element and cannot be selected, so only the icon rectangles were being compared. Measuring against the bar's bottom edge instead found it. When checking for overlap with a bar, treat the bar as the full width.",
+      "After the fix all eight pages report zero overlaps; the my-page screen cannot be opened in this harness and is untested. The user also confirmed the square pack artwork stays as it is, closing the open question from the previous entry.",
     ],
   },
   {

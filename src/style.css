@@ -22107,6 +22107,14 @@ body.is-phone-device {
   padding-top: max(2rem, var(--page-top-safe));
   box-sizing: border-box;
 }
+/* 🔴 貼り付けた ✕（position: fixed）は**余白では動かない**ので、帯の下へ直に置く。
+   ⚠ この3つの画面は全画面＋縦スクロールなので ✕ を貼り付けてある（#641）。
+   ⚠ 直の子だけに当てる——中に開く小さなモーダルの ✕ まで動かさない。 */
+#card-pack-panel > .modal-close-x,
+#my-stack-panel > .modal-close-x,
+#deck-viewer-panel > .modal-close-x {
+  top: calc(var(--page-top-safe) + 0.3rem);
+}
 
 /* ── マイデッキ編成ページの「デッキの箱」（続き302、ユーザー要望2026-08-28）──────────
    「マイデッキ編集画面に、マイデッキの箱絵を追加したい。箱にカードをドラッグすると箱絵が
@@ -28765,9 +28773,10 @@ body.is-tablet-device .pkc-colorbadge { font-size: 1.3rem; height: 3rem; }
    ここに置くと、版の名の上と画面の上で**二重に並ぶ**（続き828 で撮って気づいた所）。 */
 #card-pack-status {
   position: absolute;
-  /* ⚠ 右上には ✕ が貼り付いているので、その左へ。実測で重なりを見ている。 */
+  /* ⚠ 右上には ✕ が貼り付いているので、その左へ。実測で重なりを見ている。
+     🔴【#827・続き857】**上端の帯の下へ**（帯はこの画面より手前に在るので、潜ると読めない）。 */
   right: 5.4rem;
-  top: 1.4rem;
+  top: calc(var(--page-top-safe, 3.4rem) + 0.5rem);
   font-size: 0.8rem;
   color: #8a7a52;
   font-variant-numeric: tabular-nums;
@@ -30224,3 +30233,18 @@ body.is-phone-device .stack-skin-note,
 body.is-tablet-device .stack-skin-note { font-size: 1.1rem; }
 body.is-phone-device .stack-skin-cell,
 body.is-tablet-device .stack-skin-cell { font-size: 1.05rem; }
+
+/* 🔴🔴【#827・続き857】**この3つの余白は、ファイルのいちばん後ろに置く。**
+   22107 行の一覧（--page-top-safe を当てるページ）にこの3つを足したが、**効かなかった**。
+   正体は並び順——この3つは `padding: 1rem 1.2rem 2rem` という**ショートハンド**を
+   26777 / 27133 行あたり（＝その一覧より**後ろ**）に持っていて、同じ強さなら後が勝つので
+   `padding-top` が丸ごと上書きされていた（教訓9 の家族）。
+   ⚠ あの一覧のコメントには「各ページの元の padding 指定より**後に**効かせるため」と
+     書いてあるが、それが本当なのは**その行より前に書いてあるページだけ**だった。
+   ⇒ 新しく全画面ページを足す時は、**実測で確かめる**（scratchpad/_p857.mjs）。 */
+#card-pack-panel,
+#my-stack-panel,
+#deck-viewer-panel {
+  padding-top: calc(var(--page-top-safe) + 0.6rem);
+  box-sizing: border-box;
+}

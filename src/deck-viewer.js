@@ -330,9 +330,12 @@ function buildPanel(close) {
   panel.id = "deck-viewer-panel";
   // ユーザー要望「山札一覧は全画面表示にしましょう」。中央モーダルではなく画面いっぱいに
   // 広げ、中身は縦スクロールで見せる。
+  // 🔴【#827・続き857】上端の帯（#option-area）はこの画面より手前に在るので、
+  //   上の余白を帯のぶん空ける。**じか書き（cssText）は CSS の上書きが効かない**ので、
+  //   ここで直に書く（続き721・737 と同じ家族）。値は共通の --page-top-safe。
   panel.style.cssText = `
     position: fixed; inset: 0; overflow-y: auto;
-    padding: 1rem 1.2rem 2rem; z-index: 2001;
+    padding: calc(var(--page-top-safe, 3.4rem) + 0.6rem) 1.2rem 2rem; z-index: 2001;
     font-family: sans-serif; font-size: 0.85rem;
     display: none;
   `;
