@@ -271,6 +271,9 @@ function buildHueriseBurn(色, 時間ms) {
     //     （乱流は「さらに細かい乱れ」を足す役）。PC は今までどおり。
     const 触る端末 = (() => { try { return isTouchPrimaryDevice(); } catch (err) { return false; } })();
     const burning = 作("g", 触る端末 ? {} : { filter: "url(#" + uid + "-rough)" });
+    // 🔴【#826・続き852】**触る端末かどうかを外へ知らせる。** ゲート側の覆い（CSS マスク）を
+    //   畳んでよいかの判断に使う（下の __穴を伝える）。乱流が無い＝紙が遅れて出ることはない。
+    svg.__乱流なし = 触る端末;
     if (触る端末) { try { logAction("diag-huerise-burn", { 乱流なし: true, 理由: "touch" }); } catch (err) {} }
     burning.append(edgeC, paper);
     const bloomC = 作("circle", { cx, cy, r: 0, fill: "url(#" + uid + "-bloom)" });
@@ -1298,6 +1301,22 @@ export function initOpeningScreen() {
       //   ⚠ 半径は演出と**同じコマ・同じ値**（割合）で入れる＝二重に動かない。
       燃えぎわ.__穴を伝える = (穴) => {
         try {
+          // 🔴🔴【#826・続き852】**触る端末では、紙が出たらゲートの覆いを畳む。**
+          //   ゲートの CSS マスクと SVG の mask は**どちらも画面いっぱい**で、毎コマ
+          //   焼き直される。dpr 3 のスマホでは1枚あたり約360万画素＝それが2枚。
+          //   報告「すごいカクカクぎこちなく燃えていきます」の時、乱流は既に外れていて
+          //   （続き846 が効いていた）なお 1コマ 415ms だった＝重さは乱流ではない。
+          //   ⚠ 畳んでよいのは**紙が本当に描けた後**だけ（__描けた）。これが #793 の
+          //     「燃える前にタイトルが見える」を二度と起こさないための条件。
+          //   ⚠ 触る端末には乱流が無いので、**紙が遅れて出ることはもう無い**（続き846）。
+          //     PC（乱流あり）は今までどおり2枚とも動かす——あちらは軽いし、
+          //     フィルタの焼き上がりを待つ間の覆いが要る。
+          if (渡した && 燃えぎわ?.__乱流なし && 燃えぎわ?.__描けた) {
+            startGate.style.setProperty("--burn-hole-r", "130%"); // 穴が画面より大きい＝全部透ける
+            燃えぎわ.__穴を伝える = null; // 以降この書き換えは走らない
+            try { logAction("diag-huerise-burn", { ゲートを畳んだ: true }); } catch (err) {}
+            return;
+          }
           startGate.style.setProperty("--burn-hole-x", 穴.x + "%");
           startGate.style.setProperty("--burn-hole-y", 穴.y + "%");
           startGate.style.setProperty("--burn-hole-r", 穴.r + "%");

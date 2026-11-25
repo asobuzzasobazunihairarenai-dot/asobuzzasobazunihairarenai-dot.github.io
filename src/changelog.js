@@ -90,6 +90,7 @@ export const CHANGELOG = [
       "The 17 normal cards of the 1st EDITION now carry flavour text, the short line printed above the artwork. Of the 52 you chose earlier, the 16 from the 0th expansion and the 19 from the old 0th were already in place; these 17 were the ones still missing, so all 52 are now on their cards.",
     ],
     fixes: [
+      "HUERISE から燃えて始まる演出が、スマホでカクついていたのを軽くしました。",
       "図鑑の「カード一覧」に、まだ遊べないカードが並んでいたのを直しました。",
       "1st EDITION の箱の裏に、印刷の型抜き線が写り込んでいたのを直しました。",
       "CPU戦の設定の「はじめる」が左に寄っていたのを、真ん中に戻しました。",
@@ -97,6 +98,7 @@ export const CHANGELOG = [
       "パックを開ける画面のいちばん上に出ていた、管理者向けの小さな文字を下へ移しました。",
     ],
     fixesEn: [
+      "The opening burn from HUERISE is lighter; it was stuttering on phones.",
       "The card list in the codex no longer includes cards you cannot play yet.",
       "The back of the 1st EDITION box no longer shows the printing die lines.",
       "The start button in the CPU match settings is centred again.",
@@ -138,6 +140,13 @@ export const CHANGELOG = [
       "⚠ **セットごとの枝は外さない**——エディションを選べるのは管理者だけ（続き850）だが、万一セットが remake 以外になっている人には**その山の中身**が並ばないといけない（「一覧に無い札が対局で出てくる」のが、この関数でいちばん困る形）。旧0thの枝に付いていた `(全部出す && isAdminUser())` は `全部出す` だけで足りるので縮めた。",
       "⚠ 志炎者（限定報酬）もここで消える。伏せ札（「？」）で楽しみを見せるのは**コレクションの側**の役目（#738・続き780）なので、あちらは今までどおり。⚠ 関数の上に残っていた「未公開のものまで並べるわけではない（旧0thは管理者だけ・志炎者は伏せる）」という**古い注も直した**（覚え書きが古いまま残ると同じ取り違えがまた起きる＝続き803）。",
       "⚠ 実測12項目（`scratchpad/_p851.mjs`）。管理者の側は**配る側で online.js の `isAdminUser` だけ**を差し替えて作った（リポジトリのファイルは1バイトも触らない＝続き823・836 と同じ手）。管理者でない側は**素の判定そのまま**。🔴 **対照つき**: 一覧が本当に開いて節と札が並ぶ／管理者なら4つとも出て伏せ札も7枚在る——これが無いと「出ない」は必ず真になる。⚠ 期待値を1回間違えた（続き850 の「7節・99札」は**管理者でない時**の数。管理者には旧0thが足されて8節・118札）。",
+      "🔴 #825「直前に手に入れたカードが名前だけ並んでる。」。パックで引いた札の**表**は `.card-pack-face` でもある（`札の面()` が返す要素に `.card-pack-card-front` を足して使う）。`.card-pack-card-back, .card-pack-card-front { position: absolute; inset: 0 }` と、続き825 で #804 のために足した `.card-pack-face { position: relative }` は**どちらもクラス1つ＝同じ強さ**で、**後ろに在る後者が勝っていた** ⇒ 表は `inset` を失って**高さ 0**（中身の無い div）になり、めくった後は何も見えない（裏は rotateY で背を向けている）。⇒ `.card-pack-face.card-pack-card-front` で**部品のクラス＋置く側のクラス**にした（続き775 の決まり）。",
+      "🔴🔴 #826「HUERISE押した時、すごいカクカクぎこちなく燃えていきます。」。報告の記録が決め手だった——`diag-huerise-burn {乱流なし:true, 理由:\"touch\"}` が出ている＝続き846 の手当ては**効いていた**のに、同じ回に `{外した:true, 平均間隔:415}` ＝ **1コマ 415ms**。**重さは乱流ではなかった。**",
+      "🔴 もう1つ、同じ記録に出ていた: 燃えている3.8秒のあいだ `diag-board3d-covered` が **1→0 に落ちて**いた＝続き846 で入れた「覆われている間は板を作り直さない」が**燃えている間だけ効いていなかった**（作り直しは実機で 53ms／回・500ms ごと）。正体は当たり判定——燃えている紙は CSS マスクで真ん中に穴が開き、**マスクで抜けた所は当たり判定からも抜ける**。その下の燃える SVG は `pointer-events: none`（ui-v2.css）。⇒ 画面の真ん中を見ると canvas まで素通りする。**実測でも webkit で 11回中6回・chromium で 13回中8回 素通りした。**",
+      "⇒ **オープニングだけは body のクラス（`opening-screen-active`）で見る**（閉じるまで必ず付いている）。他の全画面ページは今までどおり当たり判定——あちらは DOM に残ったまま隠れていることがあり、クラスだけでは「見えているのに止める」事故になる（続き846）。名簿に残した `#opening-screen` は燃えていない間の控え、と書き直した。",
+      "🔴 **触る端末では、紙が出たらゲートの覆いを畳む。** ゲートの CSS マスクと SVG の mask は**どちらも画面いっぱい**で毎コマ焼き直される（dpr 3 のスマホなら1枚あたり約360万画素×2枚）。続き846 で触る端末には乱流を掛けなくなった＝**紙が遅れて出ることはもう無い**ので、紙が描けた後はゲートの覆いが要らない。穴を 130% にして以降の書き換えを止める（`diag-huerise-burn {ゲートを畳んだ}`）。⚠ 畳んでよいのは `__描けた` が立った後だけ——これが #793「燃える前にタイトルが見える」を二度と起こさないための条件。PC は今までどおり2枚とも動かす（フィルタの焼き上がりを待つ間の覆いが要る）。",
+      "⚠ 実測14項目（`scratchpad/_p852.mjs`）。#825 は**本物の道**で測った（通信だけ差し込んでパックを開け、引いた札の表を見る。122x122・position:absolute・7枚とも中身あり）。🔴 A/B で、新しい規則を打ち消すと**高さ 0 に戻る**＝報告の形を再現。#826 は webkit と chromium の両方で、燃えている間の「当たり判定」と「クラス」を何度も見比べた。⚠ chromium は board3d が回らず `covered` の記録が0件だったので、その行は**合格にせず ⓘ**にしてある（0件なら『落ちていない』は必ず真）。",
+      "🔴 **これで直りきるとは言えない。** 消したのは板の作り直し（53ms／回）と、画面いっぱいのマスク2枚のうち1枚。**1コマ 415ms の内訳は実機でしか分からない**ので、次の報告の `diag-huerise-burn` の `平均間隔` を見る。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -174,6 +183,13 @@ export const CHANGELOG = [
       "The per-set branches stay. Only admins can pick an edition (see the previous entry), but anyone whose stored set is not remake must still see that deck's contents, because a card appearing in play that is absent from the list is the worst failure this function can have. The old 0th branch's `(showAll && isAdminUser())` collapsed to just `showAll`.",
       "The Shienja cards disappear from the list too. Showing them face-down as a teaser is the collection screen's job, and that screen is untouched. The stale comment above the function, which still claimed old 0th was admin-gated and Shienja were hidden per card, was corrected: a comment left stale is how the same misreading recurs.",
       "Twelve checks. The admin side was produced by patching only `isAdminUser` on the way out of the dev server, so no repository file was touched; the non-admin side runs the real check. Controls matter here: the list really opens with sections and cards, and admins really see all four extra sections plus seven face-down cards. Without them the five absence assertions would be vacuously true. One expectation was wrong at first: the earlier 7-section, 99-card figure was the non-admin count, and an admin sees 8 and 118.",
+      "#825: the cards you just pulled showed as names only. A pulled card's front is also a `.card-pack-face`, and the rule giving every face `position: relative` (added for #804) sits later in the stylesheet than the rule that places the front with `position: absolute; inset: 0`. Same specificity, so the later one won, the front lost its insets, and an empty div collapsed to zero height; the back was already turned away by the flip. Fixed by writing the override as component-class plus placement-class.",
+      "#826: the burn from HUERISE still stuttered. The report settled it. The log shows the turbulence filter was already skipped on this touch device, and the same run still measured 415ms per frame, so turbulence was never the cost.",
+      "The same log showed `diag-board3d-covered` dropping from 1 to 0 for the whole 3.8 seconds of the burn, meaning the board kept rebuilding behind it at 53ms a time, twice a second. The cause is hit testing: the burning sheet is masked with a hole in the middle, and a masked-out area is not hit-testable, while the burning SVG beneath it has pointer-events none. A probe at the centre of the canvas therefore falls straight through. Measured: WebKit missed it on 6 of 11 samples, Chromium on 8 of 13.",
+      "So the opening screen is now detected by its body class, which stays on until it closes. Every other full-screen page keeps the hit test, because those can linger in the DOM while hidden and a class alone would stop the board while it is visible.",
+      "On touch devices the gate now folds away once the sheet has actually painted. Both the gate mask and the SVG mask cover the whole screen and are re-rasterised every frame, which on a 3x phone is about 3.6 million pixels each. Since touch devices no longer apply the filter, the sheet can no longer be late, so after it paints the gate is redundant: its hole goes to 130% and further writes stop. The fold only happens once the sheet has painted, which is what keeps the earlier bug from returning. Desktop keeps both layers.",
+      "Fourteen checks. The #825 side ran through the real path, injecting only the transport so a pack could be opened, and the seven fronts measured 122 by 122, absolute, with content. An A/B confirms that undoing the new rule returns them to zero height. For #826 both WebKit and Chromium were driven through the burn and sampled. In the Chromium run the board never logged covered at all, so that assertion is reported as informational rather than a pass.",
+      "This is not claimed as a cure. It removes the rebuild and one of the two full-screen masks; what makes up the remaining 415ms per frame can only be seen on the device, so the next report's burn timing is the thing to read.",
     ],
   },
   {

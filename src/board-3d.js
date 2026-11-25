@@ -1686,14 +1686,23 @@ function noteTransformWritten(key) {
 //     残ったまま隠れている時に、見えているのに止めてしまう。**画面の真ん中で実際に
 //     何が最前面か**を見る（教訓3・4 の家族）。
 //   ⚠ 読むのは 500ms に1回だけなので、この当たり判定は費用にならない。
-// ⚠ オープニング（#opening-screen）も入れる——**燃える演出の最中**も盤面は完全に隠れており、
-//   そこで作り直しが走ると演出そのものがカクつく（報告「HUERISE の燃える時 iPhone で重たい」）。
+// ⚠ オープニング（#opening-screen）も名簿に残してあるが、**当てにしない**——燃えている間は
+//   当たり判定をすり抜ける（下の 覆われているか() の先頭を見ること）。あちらは body の
+//   クラスで見ている。この行は、燃えていない間（タイトルを眺めている間）のための控え。
 const 全画面ページ =
   "#home-screen, #profile-page, #ranking-page, #codex-page, #my-deck-page, #my-deck-list-page, #opening-screen";
 function 覆われているか() {
   try {
-    // ⚠ クラス（full-screen-page-active）は**前置きの早道に使わない**——オープニングは
-    //   そのクラスを付けないので、門にすると燃えている間だけ素通りしてしまう。
+    // 🔴🔴【#826・続き852】**オープニングだけは当たり判定で捕まえられない。**
+    //   燃えている紙（.opening-start-gate.is-burning）は CSS マスクで真ん中に穴が開き、
+    //   WebKit では**マスクで抜けた所は当たり判定からも抜ける**。その下の燃える SVG は
+    //   `pointer-events: none`（ui-v2.css）。⇒ 画面の真ん中を見ると canvas まで素通りして
+    //   「覆われていない」になる。実機の記録（#826）では、燃えている 3.8秒のあいだ
+    //   covered が 1→0 に落ち、その裏で板の作り直し（53ms）が 500ms ごとに走っていた。
+    //   ⇒ オープニングは**body のクラスで見る**（あれは閉じるまで必ず付いている）。
+    //   ⚠ 他の全画面ページは今までどおり当たり判定で見る——DOM に残ったまま隠れている
+    //     ことがあり、クラスだけでは「見えているのに止める」事故が起きる（続き846）。
+    if (document.body.classList.contains("opening-screen-active")) return true;
     const c = canvasEl;
     if (!c) return false;
     const g = c.getBoundingClientRect();
