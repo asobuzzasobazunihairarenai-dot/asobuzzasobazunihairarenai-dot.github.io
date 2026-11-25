@@ -90,12 +90,14 @@ export const CHANGELOG = [
       "The 17 normal cards of the 1st EDITION now carry flavour text, the short line printed above the artwork. Of the 52 you chose earlier, the 16 from the 0th expansion and the 19 from the old 0th were already in place; these 17 were the ones still missing, so all 52 are now on their cards.",
     ],
     fixes: [
+      "図鑑の「カード一覧」に、まだ遊べないカードが並んでいたのを直しました。",
       "1st EDITION の箱の裏に、印刷の型抜き線が写り込んでいたのを直しました。",
       "CPU戦の設定の「はじめる」が左に寄っていたのを、真ん中に戻しました。",
       "食べすぎで隣のマスのカードを足元へ重ねる時、重なっているマスからは**1番上の1枚だけ**を取るようにしました。",
       "パックを開ける画面のいちばん上に出ていた、管理者向けの小さな文字を下へ移しました。",
     ],
     fixesEn: [
+      "The card list in the codex no longer includes cards you cannot play yet.",
       "The back of the 1st EDITION box no longer shows the printing die lines.",
       "The start button in the CPU match settings is centred again.",
       "Overeating now takes only the top card from a stacked neighbouring cell.",
@@ -132,6 +134,10 @@ export const CHANGELOG = [
       "🔴 実測が最初「17種とも出ない」と出たが、**原因は私の測り方だった**——照合スクリプトが吐く中間ファイルを実測が読んでいて、**適用後に照合を走らせ直すとそれが空に上書きされる**ので、見るカードが0件になっていた（0件なら『出ない』は必ず真）。⇒ **中間ファイルに頼らず、アーティファクトから毎回期待値を起こす**形に直し、17件そろわなければ測る前に止めるようにした。",
       "ⓘ 調べて分かったこと: **ファーストカードのレイアウトには flavor のスロットが無い**（LAYOUT.first / LAYOUT.first1st）ので、Fカードはデータに文が在っても画面には出ない。印刷されたFカードにフレーバーの行が無いので**それで正しい**が、知らないと「入れたのに出ない」で時間を使う。",
       "⚠ 実測9項目: 17種とも行が出る・**選んだ文と一字一句同じ**・字 10.8px・枠からはみ出した要素0／**対照: 志炎者（フレーバーが空）には行が出ない**（その札は名前が出ているので描けてはいる）／回帰: 1st のエターナル・旧0th・0th拡張は今までどおり出る。例外0・404 0。",
+      "🔴 ユーザー指示「**図鑑のカード一覧も管理者以外はリメイクだけにしておいて**」。`buildDeckSections` の **`全部出す` そのものを管理者だけ**にした（`!!opts.showAll && isAdminUser()`）。管理者以外に残るのはセットごとの枝だけで、既定は REMAKE なので **通常19＋エターナル7＋ファースト7 ＝ 33札・3節**。管理者は今までどおり **8節・118札**。",
+      "⚠ **セットごとの枝は外さない**——エディションを選べるのは管理者だけ（続き850）だが、万一セットが remake 以外になっている人には**その山の中身**が並ばないといけない（「一覧に無い札が対局で出てくる」のが、この関数でいちばん困る形）。旧0thの枝に付いていた `(全部出す && isAdminUser())` は `全部出す` だけで足りるので縮めた。",
+      "⚠ 志炎者（限定報酬）もここで消える。伏せ札（「？」）で楽しみを見せるのは**コレクションの側**の役目（#738・続き780）なので、あちらは今までどおり。⚠ 関数の上に残っていた「未公開のものまで並べるわけではない（旧0thは管理者だけ・志炎者は伏せる）」という**古い注も直した**（覚え書きが古いまま残ると同じ取り違えがまた起きる＝続き803）。",
+      "⚠ 実測12項目（`scratchpad/_p851.mjs`）。管理者の側は**配る側で online.js の `isAdminUser` だけ**を差し替えて作った（リポジトリのファイルは1バイトも触らない＝続き823・836 と同じ手）。管理者でない側は**素の判定そのまま**。🔴 **対照つき**: 一覧が本当に開いて節と札が並ぶ／管理者なら4つとも出て伏せ札も7枚在る——これが無いと「出ない」は必ず真になる。⚠ 期待値を1回間違えた（続き850 の「7節・99札」は**管理者でない時**の数。管理者には旧0thが足されて8節・118札）。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -164,6 +170,10 @@ export const CHANGELOG = [
       "The first measurement reported that none of the 17 appeared, and the fault was in the measurement: it read an intermediate file that the cross-check script empties once the work is applied, so it was looking at zero cards, and zero cards always satisfies absence. It now derives the expected text from the artifact every run and refuses to measure unless all 17 are present.",
       "Worth knowing: the First-card layouts have no flavour slot, so a First card never shows flavour text even when the data holds some. That matches the printed cards, which have no flavour line, but it costs time if you do not know it.",
       "Nine checks: all 17 lines appear, each matching the chosen text exactly, at 10.8px, with nothing overflowing the card; a control confirms the Shienja cards, whose flavour is empty, show no line while still rendering their names; and the 1st eternals, old 0th and 0th expansion are unchanged.",
+      "User instruction: the codex card list should show only the remake to non-admins. The `showAll` flag in `buildDeckSections` is now admin-gated (`!!opts.showAll && isAdminUser()`), so a non-admin keeps only the per-set branches, and with REMAKE as the default that is 19 normals plus 7 eternals plus 7 Firsts: 3 sections, 33 cards. Admins still see 8 sections and 118 cards.",
+      "The per-set branches stay. Only admins can pick an edition (see the previous entry), but anyone whose stored set is not remake must still see that deck's contents, because a card appearing in play that is absent from the list is the worst failure this function can have. The old 0th branch's `(showAll && isAdminUser())` collapsed to just `showAll`.",
+      "The Shienja cards disappear from the list too. Showing them face-down as a teaser is the collection screen's job, and that screen is untouched. The stale comment above the function, which still claimed old 0th was admin-gated and Shienja were hidden per card, was corrected: a comment left stale is how the same misreading recurs.",
+      "Twelve checks. The admin side was produced by patching only `isAdminUser` on the way out of the dev server, so no repository file was touched; the non-admin side runs the real check. Controls matter here: the list really opens with sections and cards, and admins really see all four extra sections plus seven face-down cards. Without them the five absence assertions would be vacuously true. One expectation was wrong at first: the earlier 7-section, 99-card figure was the non-admin count, and an admin sees 8 and 118.",
     ],
   },
   {
