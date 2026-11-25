@@ -60,6 +60,7 @@ export const CHANGELOG = [
       "エディションの箱が、左右のスワイプで指に付いてくるようになりました",
       "動きが軽くなりました（ホーム画面や燃える演出の裏で、見えていない盤面を描き直し続けていました）",
       "燃える演出のふちが、いびつな炎の形に戻りました",
+      "1st EDITION の通常カード17種に、フレーバーテキストが入りました",
     ],
     summaryEn: [
       "The CPU match settings now fit on one screen without scrolling",
@@ -68,6 +69,7 @@ export const CHANGELOG = [
       "The edition chooser now follows your finger as you swipe",
       "The app runs lighter: the hidden board was being rebuilt behind every full-screen page",
       "The burning edge is ragged again, not a clean circle",
+      "The 17 normal cards of the 1st EDITION now carry flavour text",
     ],
     items: [
       "**CPU戦の設定が、巻き取らずに1画面で収まるようになりました。** 横長の端末では、強さ・人数・対戦ルール・山札が縦1列に積まれて画面に入り切らず、左右が大きく空いていました。いまは**横にも並べて**、「はじめる」と「戻る」も横に並べています。縦長の画面や PC では今までどおりです。",
@@ -76,6 +78,7 @@ export const CHANGELOG = [
       "**エディションを選ぶ画面が、左右のスワイプで指に付いてくるようになりました。** それまでは払い終わった所で一気に次の箱へ飛んでいました。離すといちばん近い箱へ寄ります。",
       "**動きが軽くなりました。** ホーム画面・図鑑・マイページなどを開いている間と、HUERISE の燃える演出の間は、**盤面が完全に隠れている**のに裏で描き直し続けていました。隠れている間は休むようにしたので、その分だけ指の反応や演出が滑らかになります。とくに iPhone で効きます。",
       "HUERISE の画面から燃えて始まる時、ふちが**いびつな炎の形**になりました。端末によっては**きれいな円**で燃え広がっていて、紙が焼け落ちる感じが出ていませんでした。",
+      "**1st EDITION の通常カード17種に、フレーバーテキストが入りました。** カードの絵の上にひとこと添える短い文です。以前アーティファクトで選んでいただいた52種ぶんのうち、0th拡張の16種と旧0th の19種は既に入っていて、**残っていた 1st の17種**を入れました。これで選んでいただいた52種が、すべてカードに載っています。",
     ],
     itemsEn: [
       "The CPU match settings now fit on one screen. On a wide, short screen the groups were stacked in a single column that overflowed, while the sides sat empty; they now sit side by side, and the start and back buttons share a row. Tall screens and desktops are unchanged.",
@@ -84,6 +87,7 @@ export const CHANGELOG = [
       "The edition chooser now follows your finger as you swipe, instead of jumping to the next box when you let go. It settles on the nearest box when you release.",
       "The app runs lighter. While a full-screen page is open, and during the opening burn, the board is completely hidden but was still being rebuilt behind it. It now rests while hidden, which makes touches and animations smoother, especially on iPhone.",
       "The burn that starts the game now has a ragged, flame-like edge on every device. On some phones it spread as a clean circle, which lost the feeling of paper burning away.",
+      "The 17 normal cards of the 1st EDITION now carry flavour text, the short line printed above the artwork. Of the 52 you chose earlier, the 16 from the 0th expansion and the 19 from the old 0th were already in place; these 17 were the ones still missing, so all 52 are now on their cards.",
     ],
     fixes: [
       "1st EDITION の箱の裏に、印刷の型抜き線が写り込んでいたのを直しました。",
@@ -122,6 +126,12 @@ export const CHANGELOG = [
       "⚠ #818 #819 の絵。0th拡張は**箱が無い**ので袋を3つ重ね、リメイク+志炎者はリメイクの箱に志炎者の札4枚を扇に。🔴 束は**箱と同じ大きさの場所**を取らせる——点（width:0）にすると札が潰れて、名前も当たり判定も場所を失った（実測で札の矩形が 42x18 になった）。",
       "⚠ 実測17項目。ボタンの高さ／「はじめる」が帯でない・浮いている／横にはみ出さない／0th拡張の袋3つ・**対照: もう「🎴」を出さない**／志炎者の札4枚と絵が当たっている／払っている間に箱が動く・**途中では前の箱は変わらない**・離すと寄る。",
       "⚠ 実測14項目。触る端末では乱流を掛けない／**対照: PC では掛ける**／穴は72点のまま／ホームで覆いが立つ／**対照: 対局の画面では覆われない**（今までどおり作り直す）。⚠ 測り方を2つ間違えた: ①ヘッドレスは遅いので700ms待つと PC でも「遅い端末の保険」が働いて乱流が外れる（掛けた直後に読む）②`querySelector(\"g\")` は最初の <g> であって乱流を掛けた物とは限らない。",
+      "🔴 続き765・766 で選んでもらったフレーバー52種のうち、**1st の17種だけが未適用のまま残っていた**（0th拡張16・旧0th19 は入っていた）。アーティファクトの `db`（picks/flavor）を ArtifactData で読み、`pick` の番号をアーティファクト側の CARDS の `o[pick]` に当てて文に直した（`pick: -1` は自分で書いた文＝52種のうち2件）。**写さずに元から起こす。**",
+      "🔴 書いたのは**元データ**（tools/1st-text-source.json）で、生成物（src/card-text-1st.ja.js）ではない。生成物に直に書くと、次に gen-1st-text.mjs を走らせた人が**黙って巻き戻す**（続き810 の実害）。⚠ JSON を読み書きし直しても**1バイトも変わらない**ことを先に確かめたので、差分は狙った17行だけ（card-text-1st.en.js と cards-data-1st.js は**0行**）。",
+      "⚠ **英語のフレーバーは全セットで空**（＝日本語だけの欄）なので、日本語を入れれば足りる。",
+      "🔴 実測が最初「17種とも出ない」と出たが、**原因は私の測り方だった**——照合スクリプトが吐く中間ファイルを実測が読んでいて、**適用後に照合を走らせ直すとそれが空に上書きされる**ので、見るカードが0件になっていた（0件なら『出ない』は必ず真）。⇒ **中間ファイルに頼らず、アーティファクトから毎回期待値を起こす**形に直し、17件そろわなければ測る前に止めるようにした。",
+      "ⓘ 調べて分かったこと: **ファーストカードのレイアウトには flavor のスロットが無い**（LAYOUT.first / LAYOUT.first1st）ので、Fカードはデータに文が在っても画面には出ない。印刷されたFカードにフレーバーの行が無いので**それで正しい**が、知らないと「入れたのに出ない」で時間を使う。",
+      "⚠ 実測9項目: 17種とも行が出る・**選んだ文と一字一句同じ**・字 10.8px・枠からはみ出した要素0／**対照: 志炎者（フレーバーが空）には行が出ない**（その札は名前が出ているので描けてはいる）／回帰: 1st のエターナル・旧0th・0th拡張は今までどおり出る。例外0・404 0。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -148,6 +158,12 @@ export const CHANGELOG = [
       "The pack pile has to occupy the same space as a box; as a zero-sized point it collapsed the whole card, name and hit area included.",
       "Measured with 17 checks across the settings panel, the new artwork and the swipe.",
       "Measured with 14 checks, including a control that desktops still get the filter and that the board is not treated as covered during a match.",
+      "Of the 52 flavour lines chosen earlier, only the 17 from the 1st EDITION were still unapplied; the 16 from the 0th expansion and the 19 from the old 0th were already in. The choices were read from the artifact database and resolved against the artifact own option lists, rather than retyped.",
+      "They were written into the source data, not the generated file, because writing into the generated file means the next person to run the generator silently reverts them. A no-op round trip of the JSON was confirmed byte-identical first, so the diff is exactly the 17 intended lines and the English and card-data files did not change at all.",
+      "English flavour text is empty for every set, so only the Japanese was needed.",
+      "The first measurement reported that none of the 17 appeared, and the fault was in the measurement: it read an intermediate file that the cross-check script empties once the work is applied, so it was looking at zero cards, and zero cards always satisfies absence. It now derives the expected text from the artifact every run and refuses to measure unless all 17 are present.",
+      "Worth knowing: the First-card layouts have no flavour slot, so a First card never shows flavour text even when the data holds some. That matches the printed cards, which have no flavour line, but it costs time if you do not know it.",
+      "Nine checks: all 17 lines appear, each matching the chosen text exactly, at 10.8px, with nothing overflowing the card; a control confirms the Shienja cards, whose flavour is empty, show no line while still rendering their names; and the 1st eternals, old 0th and 0th expansion are unchanged.",
     ],
   },
   {
