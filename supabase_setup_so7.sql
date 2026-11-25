@@ -4072,8 +4072,14 @@ alter table so7_user_currency add column if not exists daily_claimed boolean[] n
 --   5 は件数(12)と互いに素なので、12日かけて全部の組み合わせが回る。
 --   ⓘ kind の文（題と説明）は**クライアントが持つ**（英語に切り替えられるようにするため）。
 drop function if exists so7_daily_challenge_of(date);
+-- 🔴【続き854】**1ゲージ進むごとに少しだけセヴルが入る**（ユーザー判断
+--   「デイリーで1ゲージ増えるだけで少しだけセヴル貰えるようにしない？」）。
+--   目標を7にして重くなったぶん、**最後まで行かなくても手応えが残る**ようにする。
+--   ⚠ 1ゲージの額は `step` の列に持たせた——**ここが唯一の持ち主**。
+--     進みを付ける所（so7_note_progress）も、画面に出す所（so7_get_my_collection）も
+--     この列を読む。2か所に数字を書くと必ず食い違う。
 create or replace function so7_daily_challenge_of(p_day date)
-returns table (slot int, kind text, goal int, reward int)
+returns table (slot int, kind text, goal int, reward int, step int)
 language sql
 immutable
 as $$
@@ -4085,21 +4091,22 @@ as $$
       --   ⚠ 変えたのは goal の列だけ。種類も報酬もそのまま。
       --   ⚠ 'win' を 7 にすると「1日に7回勝つ」＝かなり重い。重すぎたら、
       --     **この列の数字を1つ直すだけ**で戻せる（輪は割合から出しているので壊れない）。
-      (0,  'win'::text,         7, 60),
-      (1,  'play'::text,        7, 40),
-      (2,  'lock'::text,        7, 40),
-      (3,  'hand'::text,        7, 40),
-      (4,  'arrival'::text,     7, 40),
-      (5,  'hand_red'::text,    7, 50),
-      (6,  'hand_orange'::text, 7, 50),
-      (7,  'hand_yellow'::text, 7, 50),
-      (8,  'hand_green'::text,  7, 50),
-      (9,  'hand_blue'::text,   7, 50),
-      (10, 'hand_pink'::text,   7, 50),
-      (11, 'hand_purple'::text, 7, 50)
-    ) as t(n, kind, goal, reward)
+      -- n, 種類, 目標, 達成の報酬, 1ゲージごとの報酬
+      (0,  'win'::text,         7, 60, 8),
+      (1,  'play'::text,        7, 40, 5),
+      (2,  'lock'::text,        7, 40, 5),
+      (3,  'hand'::text,        7, 40, 5),
+      (4,  'arrival'::text,     7, 40, 5),
+      (5,  'hand_red'::text,    7, 50, 6),
+      (6,  'hand_orange'::text, 7, 50, 6),
+      (7,  'hand_yellow'::text, 7, 50, 6),
+      (8,  'hand_green'::text,  7, 50, 6),
+      (9,  'hand_blue'::text,   7, 50, 6),
+      (10, 'hand_pink'::text,   7, 50, 6),
+      (11, 'hand_purple'::text, 7, 50, 6)
+    ) as t(n, kind, goal, reward, step)
   ), total as (select count(*)::int as c from pool)
-  select s.i as slot, p.kind, p.goal, p.reward
+  select s.i as slot, p.kind, p.goal, p.reward, p.step
   from generate_series(0, 2) as s(i)
   cross join total
   join pool p on p.n = ((extract(doy from p_day)::int * 5 + s.i) % total.c)
@@ -4151,6 +4158,9 @@ as $$
 declare
   v_uid uuid := auth.uid();
   r record;
+  v_before int;
+  v_after int;
+  v_pay int := 0;
 begin
   if v_uid is null then
     raise exception 'not_authenticated';
@@ -4161,14 +4171,25 @@ begin
   perform so7_roll_periods();
   for r in select * from so7_daily_challenge_of(current_date) loop
     if p_kind = r.kind then
+      -- 🔴【続き854】**本当に進んだぶんだけ**払う。目標で頭打ちになった後は 0 になるので、
+      --   同じ申告が何度来ても払い過ぎない（`v_after - v_before` が 0 になる）。
+      select coalesce(daily_progress[r.slot + 1], 0) into v_before
+        from so7_user_currency where user_id = v_uid for update;
+      v_after := least(coalesce(v_before, 0) + p_amount, r.goal);
       update so7_user_currency
         set daily_progress = daily_progress[1:r.slot]
-              || least(coalesce(daily_progress[r.slot + 1], 0) + p_amount, r.goal)
+              || v_after
               || daily_progress[r.slot + 2:3],
             updated_at = now()
         where user_id = v_uid;
+      v_pay := v_pay + greatest(0, v_after - coalesce(v_before, 0)) * coalesce(r.step, 0);
     end if;
   end loop;
+  if v_pay > 0 then
+    update so7_user_currency
+      set balance = balance + v_pay, updated_at = now()
+      where user_id = v_uid;
+  end if;
   if p_kind = 'win' then
     update so7_user_currency
       set weekly_wins = weekly_wins + p_amount, updated_at = now()
@@ -4243,6 +4264,7 @@ begin
     from so7_user_cards where user_id = v_uid and copies > 0;
   select coalesce(jsonb_agg(jsonb_build_object(
            'slot', d.slot, 'kind', d.kind, 'goal', d.goal, 'reward', d.reward,
+           'step', d.step,
            'progress', coalesce(v_cur.daily_progress[d.slot + 1], 0),
            'claimed', coalesce(v_cur.daily_claimed[d.slot + 1], false)
          ) order by d.slot), '[]'::jsonb)

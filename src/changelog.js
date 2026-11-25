@@ -54,6 +54,7 @@ export const CHANGELOG = [
   {
     date: "2026-11-25",
     summary: [
+      "対局をしていると、セヴルが少しずつたまるようになりました",
       "CPU戦の設定が、巻き取らずに1画面で選べるようになりました",
       "CPU戦の設定が、指で押しやすい大きさになりました",
       "エディションを選ぶ画面に、0th拡張と志炎者の絵が付きました",
@@ -63,6 +64,7 @@ export const CHANGELOG = [
       "1st EDITION の通常カード17種に、フレーバーテキストが入りました",
     ],
     summaryEn: [
+      "Playing matches now earns you Sevre a little at a time",
       "The CPU match settings now fit on one screen without scrolling",
       "The CPU match settings are now comfortable to tap",
       "The edition chooser gained artwork for the 0th expansion and Shienja",
@@ -72,6 +74,7 @@ export const CHANGELOG = [
       "The 17 normal cards of the 1st EDITION now carry flavour text",
     ],
     items: [
+      "**対局をしていると、セヴルが少しずつたまるようになりました。** これまでは「その日のチャレンジを最後までやり切った時」にだけもらえましたが、いまは**1つ進むごとに**その場で少し入ります（たとえば1回ロックするたびに、1回勝つたびに）。やり切った時のぶんは今までどおりです。",
       "**CPU戦の設定が、巻き取らずに1画面で収まるようになりました。** 横長の端末では、強さ・人数・対戦ルール・山札が縦1列に積まれて画面に入り切らず、左右が大きく空いていました。いまは**横にも並べて**、「はじめる」と「戻る」も横に並べています。縦長の画面や PC では今までどおりです。",
       "**CPU戦の設定を、指で押せる大きさにしました。** 強さ・人数・対戦ルール・山札のボタンは**実画面で16px**しかなく（字は7px）、押し間違えやすい大きさでした。いまは**41〜53px**です。「はじめる」も、横いっぱいの平らな帯だったのを**幅を絞って浮かせた形**にしました（飾りの帯に見えていました）。",
       "**エディションを選ぶ画面に絵が増えました。** 「0th拡張」は箱が無い版なので**ブースターパックを3つ重ねた姿**に、「リメイク＋志炎者」は**リメイクの箱のまわりに志炎者の札**を広げた姿にしました。",
@@ -81,6 +84,7 @@ export const CHANGELOG = [
       "**1st EDITION の通常カード17種に、フレーバーテキストが入りました。** カードの絵の上にひとこと添える短い文です。以前アーティファクトで選んでいただいた52種ぶんのうち、0th拡張の16種と旧0th の19種は既に入っていて、**残っていた 1st の17種**を入れました。これで選んでいただいた52種が、すべてカードに載っています。",
     ],
     itemsEn: [
+      "Playing now earns Sevre a little at a time. Until now the daily challenges paid out only when you finished one; now each step pays a small amount as you go, such as every lock you place or every match you win. The completion reward is unchanged.",
       "The CPU match settings now fit on one screen. On a wide, short screen the groups were stacked in a single column that overflowed, while the sides sat empty; they now sit side by side, and the start and back buttons share a row. Tall screens and desktops are unchanged.",
       "The CPU match settings are now comfortable to tap. The difficulty, player count, rule and deck buttons were only 16 real pixels tall with 7px text; they are now 41 to 53. The start button was a flat full-width band that read as decoration, and is now a narrower raised button.",
       "The edition chooser gained artwork: the 0th expansion, which was never sold in a box, now shows three booster packs stacked, and the remake-plus-Shienja set shows the remake box with its cards fanned around it.",
@@ -153,6 +157,9 @@ export const CHANGELOG = [
       "⚠ 節目は**サーバーが持っている `steps`** から描く（こちらで決め打ちしない）。⚠ 色の帯の id は**輪ごとに別**にする（同じ id が2つ在ると後が勝つ）。⚠ 回る破線は、動きを控える設定・2D表示・スマホ／タブレットでは止める（光は出したまま）。⚠ 持ち物がまだ読めていない時も**3つぶん空の輪**を置く——数が増減すると読み込みのたびに横幅が動いて目が散る（#685 の骨組みと同じ考え方）。",
       "⚠ 実測23項目（`scratchpad/_p853.mjs`）。**本物の `buildDailyRing()`** に通信だけ差し込んで測った: 輪4つ／弧7本ずつ／灯る数 3・7・0／中の字 3・✓・0／**印は済んで未受け取りの1つだけ**／ウィークリーは弧0本・節目3つ中2つ灯・**帯の長さが 7/12**／横に並んで重なっていない。**回帰**: 目標が 5/3/1 でも壊れない（7・2・0本）／ウィークリーが無くても輪は4つ／読めていない時は1本も灯らない。撮って確かめた。",
       "🔴 **SQL を手で流す必要がある**（`so7_daily_challenge_of` の goal）。流すまでは目標が古いままで、輪は**今までどおり割合で**灯る（壊れはしない）。",
+      "🔴 ユーザー判断「**デイリーで7回勝つだと重いですね💦 デイリーで1ゲージ増えるだけで少しだけセヴル貰えるようにしない？**」。⇒ `so7_daily_challenge_of` に **`step` の列**（1ゲージぶんの報酬）を足し、`so7_note_progress` が**本当に進んだぶんだけ**（`v_after - v_before`）払う。目標で頭打ちになった後は 0 になるので、同じ申告が何度来ても払い過ぎない。勝つ 8／色つき 6／その他 5。達成の報酬はそのまま。",
+      "⚠ 額は **`step` の列が唯一の持ち主**——進みを付ける所も、画面に出す所（`so7_get_my_collection` が `step` を返す）も、札に出す所（daily-ring の「1つ進むごとに +N」）もここを読む。**クライアントで数字を決め打ちしない。** 古いサーバーなら欄が無いので何も出さない。",
+      "⚠ これで1日あたり最大 3×7×(5〜8) ＝ **105〜168セヴル**が自動で入る（達成ぶん 140 とは別）。パックは100なので、**遊べば1日2〜3パック**ぶん。重すぎ／軽すぎなら  の列の数字を直すだけ。",
     ],
     devItemsEn: [
       "The 1st EDITION box back was cropped one boundary too far out, so the die lines and the white fold area around the printed panel came with it and the artwork sat off-centre. The source artwork was re-rendered and the line positions were measured rather than eyeballed, by counting pixels that differ from the background in each row and column. The printed panel is x 813 to 2786 and y 816 to 2783 in a 3600px render, exactly square and centred at 1799.5.",
@@ -202,6 +209,9 @@ export const CHANGELOG = [
       "The milestones are drawn from the steps the server sends rather than hardcoded. Each ring's gradient gets its own id, since two of the same id would let the later one win. The spinner stops under reduced motion, in 2D mode and on phones and tablets. Three empty rings are drawn before the collection loads, so the row does not change width as data arrives.",
       "Twenty-three checks against the real buildDailyRing with only the transport injected: four rings, seven arcs each, 3/7/0 lit, centres 3, tick, 0, the claim dot on exactly the one that is done and unclaimed, the weekly with no arcs, two of three milestones lit and a band exactly 7/12 long, and no overlap. Regressions cover goals of 5, 3 and 1, a missing weekly, and the unloaded state.",
       "The SQL has to be run by hand. Until then the goals stay as they were and the rings simply light by ratio, which is not broken, only coarser.",
+      "Winning seven in a day was judged too heavy, so each gauge step now pays a little on its own. A step column was added to so7_daily_challenge_of, and so7_note_progress pays only for progress actually gained, which is zero once the goal caps, so repeated reports cannot overpay. Wins pay 8, colour challenges 6, the rest 5, and the completion reward is unchanged.",
+      "That column is the single owner of the amount: the progress function, the collection payload and the line shown on the card all read it, and the client never hardcodes a number. An older server simply omits the field and the line does not appear.",
+      "The ceiling is three challenges times seven steps times five to eight, so 105 to 168 Sevre a day on top of the 140 from completions. A pack costs 100, so an active day funds two or three. It is one column to adjust if that proves wrong.",
     ],
   },
   {

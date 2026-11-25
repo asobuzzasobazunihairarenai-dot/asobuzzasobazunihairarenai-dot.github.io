@@ -319,6 +319,16 @@ function 札を組む() {
     行.className = "daily-ring-line";
     行.textContent = 題文(d.kind, "desc", goal) + "　" + prog + " / " + goal;
     row.appendChild(行);
+    // 🔴【続き854】**1つ進むごとに少しだけセヴルが入る**ことを、その場で言う。
+    //   ⚠ 額は**サーバーが持っている**（`step`）。こちらで数字を決め打ちしない
+    //     （2か所に書くと必ず食い違う）。古いサーバーなら欄が無いので何も出さない。
+    const 刻み = Number(d.step) || 0;
+    if (刻み > 0 && !済) {
+      const 行2 = document.createElement("div");
+      行2.className = "daily-ring-line is-step";
+      setTextWithCoin(行2, t("packs.ch.perStep", { n: 刻み }));
+      row.appendChild(行2);
+    }
     row.appendChild(
       ボタン(
         d.claimed ? t("packs.ch.done") : t("packs.ch.claim", { n: d.reward ?? 0 }),

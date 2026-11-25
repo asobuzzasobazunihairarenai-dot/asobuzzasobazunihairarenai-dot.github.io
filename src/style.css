@@ -27618,6 +27618,16 @@ body.is-tablet-device .card-pack-cell .card-pack-sub-btn {
 .daily-ring-week-rim {
   stroke: rgba(216, 178, 76, 0.55);
 }
+/* 🔴【続き854】「1つ進むごとに +N」。控えめに（主役は題と進み）。
+   ⚠ 色は決め打ちしない——親から継いだ色を薄くするだけなら、明暗どちらでも読める。 */
+.daily-ring-line.is-step {
+  opacity: 0.78;
+  font-size: 0.72rem;
+}
+body.is-phone-device .daily-ring-line.is-step,
+body.is-tablet-device .daily-ring-line.is-step {
+  font-size: 1.35rem;
+}
 .daily-ring-week-track {
   stroke: rgba(176, 141, 63, 0.22);
 }
