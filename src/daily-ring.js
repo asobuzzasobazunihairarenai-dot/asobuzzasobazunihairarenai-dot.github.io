@@ -45,34 +45,32 @@ let 外れる = null;
 function 一覧(c) {
   return Array.isArray(c?.daily) ? c.daily : [];
 }
-// 3つを合わせた進み（0〜1）。「どれか1つが終わった」より「全体でどこまで来たか」の方が
-//   7本の弧には素直に乗る。
-function 進み(c) {
-  const ds = 一覧(c);
-  if (ds.length === 0) return 0;
-  let 済 = 0;
-  let 全 = 0;
-  for (const d of ds) {
-    const g = Math.max(1, Number(d.goal) || 1);
-    全 += g;
-    済 += Math.min(Math.max(0, Number(d.progress) || 0), g);
-  }
-  return 全 > 0 ? 済 / 全 : 0;
-}
-function 灯る数(c) {
-  const 割合 = 進み(c);
+// 🔴【続き853】**デイリーは1つにつき1つの輪**（ユーザー判断「リングは1にしよう！要するに
+//   リング3つ！」）。あわせて**どのチャレンジも目標を7に**そろえたので、1回進むごとに
+//   弧がちょうど1本灯る＝ゲージが素直に進む（ユーザー判断「〇〇を7回とかに縛りませんか？
+//   そうすればリングのゲージの進捗が綺麗です！」）。
+//   ⚠ **目標が7でない時も壊れない**ように、割合から出す（7 なら 1:1 になる）。
+//     サーバー側の goal を後で調整しても、この輪はそのまま付いていく。
+function 灯る数(prog, goal) {
+  const g = Math.max(1, Number(goal) || 1);
+  const p = Math.min(Math.max(0, Number(prog) || 0), g);
   // 🔴 1つでも進んだら1本は灯す（0と1の違いが見えないと、進んだ実感が無い）。
-  if (割合 <= 0) return 0;
-  return Math.max(1, Math.ceil(割合 * SEVEN.length));
+  if (p <= 0) return 0;
+  return Math.max(1, Math.min(SEVEN.length, Math.round((p / g) * SEVEN.length)));
 }
 
-function 弧を描く(c) {
-  const 灯 = 灯る数(c);
-  const ns = "http://www.w3.org/2000/svg";
+const ns = "http://www.w3.org/2000/svg";
+function 輪の土台() {
   const svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", "0 0 64 64");
   svg.setAttribute("aria-hidden", "true");
   svg.classList.add("daily-ring-svg");
+  return svg;
+}
+
+// 7色の弧（デイリー1つぶん）。
+function 七色の弧(灯) {
+  const svg = 輪の土台();
   const r = 26;
   const 周 = 2 * Math.PI * r;
   const 弧１本 = 周 / SEVEN.length;
@@ -96,16 +94,128 @@ function 弧を描く(c) {
   return svg;
 }
 
-function 中の数え(c) {
+function 中の字(文) {
   const el = document.createElement("div");
   el.className = "daily-ring-num";
-  const ds = 一覧(c);
-  if (ds.length === 0) el.textContent = "–";
-  else {
-    // 3つのうち**何個終わったか**（全部済んだら ✓）。
-    const 済 = ds.filter((d) => (Number(d.progress) || 0) >= (Number(d.goal) || 1)).length;
-    el.textContent = 済 >= ds.length ? "✓" : 済 + "/" + ds.length;
+  el.textContent = 文;
+  return el;
+}
+
+// デイリー1つぶんの輪。
+function 日の輪(d) {
+  const goal = Math.max(1, Number(d?.goal) || 1);
+  const prog = Math.min(Math.max(0, Number(d?.progress) || 0), goal);
+  const 済 = prog >= goal;
+  const el = document.createElement("div");
+  el.className = "daily-ring-ring is-daily" + (済 ? " is-done" : "");
+  el.appendChild(七色の弧(灯る数(prog, goal)));
+  el.appendChild(中の字(済 ? "✓" : String(prog)));
+  // ⚠ 受け取れる印は**その輪だけ**に付ける（どれが受け取れるのかが一目で分かる）。
+  if (済 && !d?.claimed) el.classList.add("has-claim");
+  el.title = 題文(d?.kind, "title") + "　" + prog + " / " + goal;
+  return el;
+}
+
+// 🔴【続き853】**ウィークリーは特別な1つの輪**（ユーザー判断）。デイリーの7色とは別物に
+//   見せたいので、作りを変えてある:
+//     ・7色の弧ではなく、**金〜七色のひと続きの帯**が勝ち数のぶんだけ伸びる
+//     ・節目（3 / 7 / 12勝）に**印**。届いた印だけ金で灯る
+//     ・ゆっくり回る破線の輪を1本重ねる（止める設定は CSS 側で面倒を見る）
+//   ⚠ 節目はサーバーが持っている（steps）。こちらで数を決め打ちしない。
+let 週の番号 = 0;
+function 週の輪(w) {
+  const steps = (w?.steps || []).map((n) => Number(n) || 0).filter((n) => n > 0);
+  const 最大 = steps.length ? steps[steps.length - 1] : 1;
+  const wins = Math.max(0, Number(w?.wins) || 0);
+  const 届いた = steps.filter((n) => wins >= n).length;
+  const 割合 = Math.min(1, 最大 > 0 ? wins / 最大 : 0);
+
+  const el = document.createElement("div");
+  el.className = "daily-ring-ring is-weekly" + (届いた >= steps.length && steps.length ? " is-done" : "");
+  const svg = 輪の土台();
+  const r = 26;
+  const 周 = 2 * Math.PI * r;
+
+  // 帯の色（7色のひと続き）。id は**この輪ごとに別**にする（同じ id が2つ在ると後が勝つ）。
+  const 鍵 = "daily-ring-week-" + ++週の番号;
+  const defs = document.createElementNS(ns, "defs");
+  const grad = document.createElementNS(ns, "linearGradient");
+  grad.setAttribute("id", 鍵);
+  grad.setAttribute("x1", "0");
+  grad.setAttribute("y1", "0");
+  grad.setAttribute("x2", "1");
+  grad.setAttribute("y2", "1");
+  SEVEN.forEach((hex, i) => {
+    const s = document.createElementNS(ns, "stop");
+    s.setAttribute("offset", ((i / (SEVEN.length - 1)) * 100).toFixed(1) + "%");
+    s.setAttribute("stop-color", hex);
+    grad.appendChild(s);
+  });
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  // いちばん外の細い金の輪（勲章らしく見せる飾り。デイリーには無い）。
+  const 外 = document.createElementNS(ns, "circle");
+  外.setAttribute("cx", "32");
+  外.setAttribute("cy", "32");
+  外.setAttribute("r", "30.5");
+  外.setAttribute("fill", "none");
+  外.setAttribute("stroke-width", "0.9");
+  外.classList.add("daily-ring-week-rim");
+  svg.appendChild(外);
+
+  // 下地の輪（金の細い線）。
+  const track = document.createElementNS(ns, "circle");
+  track.setAttribute("cx", "32");
+  track.setAttribute("cy", "32");
+  track.setAttribute("r", String(r));
+  track.setAttribute("fill", "none");
+  track.setAttribute("stroke-width", "5");
+  track.classList.add("daily-ring-week-track");
+  svg.appendChild(track);
+
+  // ゆっくり回る破線（飾り）。
+  const spin = document.createElementNS(ns, "circle");
+  spin.setAttribute("cx", "32");
+  spin.setAttribute("cy", "32");
+  spin.setAttribute("r", String(r - 5));
+  spin.setAttribute("fill", "none");
+  spin.setAttribute("stroke-width", "1");
+  spin.setAttribute("stroke-dasharray", "1.6 6");
+  spin.classList.add("daily-ring-week-spin");
+  svg.appendChild(spin);
+
+  // 勝ち数のぶんだけ伸びる帯。
+  const arc = document.createElementNS(ns, "circle");
+  arc.setAttribute("cx", "32");
+  arc.setAttribute("cy", "32");
+  arc.setAttribute("r", String(r));
+  arc.setAttribute("fill", "none");
+  arc.setAttribute("stroke", "url(#" + 鍵 + ")");
+  arc.setAttribute("stroke-width", "5");
+  arc.setAttribute("stroke-linecap", "round");
+  arc.setAttribute("stroke-dasharray", `${(周 * 割合).toFixed(2)} ${周.toFixed(2)}`);
+  arc.setAttribute("transform", "rotate(-90 32 32)");
+  arc.classList.add("daily-ring-week-arc");
+  if (割合 > 0) arc.classList.add("is-on");
+  svg.appendChild(arc);
+
+  // 節目の印。
+  for (const n of steps) {
+    const 角 = (n / 最大) * Math.PI * 2 - Math.PI / 2;
+    const dot = document.createElementNS(ns, "circle");
+    dot.setAttribute("cx", (32 + Math.cos(角) * r).toFixed(2));
+    dot.setAttribute("cy", (32 + Math.sin(角) * r).toFixed(2));
+    dot.setAttribute("r", "3.1");
+    dot.classList.add("daily-ring-week-step");
+    if (wins >= n) dot.classList.add("is-on");
+    svg.appendChild(dot);
   }
+
+  el.appendChild(svg);
+  el.appendChild(中の字(steps.length === 0 ? "–" : String(wins)));
+  if (届いた > (Number(w?.claimed) || 0)) el.classList.add("has-claim");
+  el.title = t("packs.weekly") + "　" + wins + (steps.length ? " / " + steps.join(" / ") : "");
   return el;
 }
 
@@ -259,8 +369,13 @@ function 描き直す() {
   if (!ringEl) return;
   const c = getCollection();
   ringEl.textContent = "";
-  ringEl.appendChild(弧を描く(c));
-  ringEl.appendChild(中の数え(c));
+  // 🔴【続き853】デイリーは**1つにつき1つの輪**＋ ウィークリーの特別な輪を1つ。
+  //   ⚠ まだ読めていない時（持ち物が空）は**3つぶん空の輪**を置く——数が増えたり減ったり
+  //     すると、読み込みのたびに横幅が動いて目が散る（#685 の骨組みと同じ考え方）。
+  const ds = 一覧(c);
+  const 日々 = ds.length ? ds : [null, null, null];
+  for (const d of 日々) ringEl.appendChild(日の輪(d || {}));
+  ringEl.appendChild(週の輪(c?.weekly));
   ringEl.classList.toggle("has-claim", 受け取れる(c));
   // 札は開いている時だけ作り直す（閉じている間は何も持たない＝軽い）。
   if (cardEl) cardEl.remove();

@@ -4079,18 +4079,24 @@ immutable
 as $$
   with pool as (
     select * from (values
-      (0,  'win'::text,         1, 60),
-      (1,  'play'::text,        2, 40),
-      (2,  'lock'::text,        5, 40),
-      (3,  'hand'::text,        3, 40),
-      (4,  'arrival'::text,     5, 40),
-      (5,  'hand_red'::text,    2, 50),
-      (6,  'hand_orange'::text, 2, 50),
-      (7,  'hand_yellow'::text, 2, 50),
-      (8,  'hand_green'::text,  2, 50),
-      (9,  'hand_blue'::text,   2, 50),
-      (10, 'hand_pink'::text,   2, 50),
-      (11, 'hand_purple'::text, 2, 50)
+      -- 🔴【続き853】**目標はどれも 7**（ユーザー判断「〇〇を7回とかに縛りませんか？
+      --   そうすればリングのゲージの進捗が綺麗です！」）。ホームの輪は7本の弧なので、
+      --   7 にそろえると**1回進むごとにちょうど1本灯る**。
+      --   ⚠ 変えたのは goal の列だけ。種類も報酬もそのまま。
+      --   ⚠ 'win' を 7 にすると「1日に7回勝つ」＝かなり重い。重すぎたら、
+      --     **この列の数字を1つ直すだけ**で戻せる（輪は割合から出しているので壊れない）。
+      (0,  'win'::text,         7, 60),
+      (1,  'play'::text,        7, 40),
+      (2,  'lock'::text,        7, 40),
+      (3,  'hand'::text,        7, 40),
+      (4,  'arrival'::text,     7, 40),
+      (5,  'hand_red'::text,    7, 50),
+      (6,  'hand_orange'::text, 7, 50),
+      (7,  'hand_yellow'::text, 7, 50),
+      (8,  'hand_green'::text,  7, 50),
+      (9,  'hand_blue'::text,   7, 50),
+      (10, 'hand_pink'::text,   7, 50),
+      (11, 'hand_purple'::text, 7, 50)
     ) as t(n, kind, goal, reward)
   ), total as (select count(*)::int as c from pool)
   select s.i as slot, p.kind, p.goal, p.reward

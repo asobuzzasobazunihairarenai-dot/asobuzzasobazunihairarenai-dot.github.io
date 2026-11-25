@@ -27591,13 +27591,77 @@ body.is-tablet-device .card-pack-cell .card-pack-sub-btn {
      ホバー／長押し／押す で中身の札が開く（MTGA のやり方）。
    ⚠ **新しい画像は1枚も足していない**（弧は SVG・色はアプリの7色）。
    ⚠ 色は決め打ちしない（教訓15）＝札の地と字はテーマごとに分ける。 */
+/* 🔴【続き853】デイリーは**1つにつき1つの輪**（リング3つ）＋ ウィークリーの特別な輪。
+   ⇒ #daily-ring は「輪を横に並べる入れ物」になった（押す所・札の置き場は今までどおり）。 */
 #daily-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  cursor: pointer;
+  outline: none;
+}
+.daily-ring-ring {
   position: relative;
   width: 3.4rem;
   height: 3.4rem;
   flex: 0 0 auto;
-  cursor: pointer;
-  outline: none;
+}
+/* ウィークリーは一回り大きく（特別な1つ）。 */
+.daily-ring-ring.is-weekly {
+  width: 4.2rem;
+  height: 4.2rem;
+  margin-left: 0.3rem;
+}
+/* 下地の輪と、ゆっくり回る破線。⚠ 色は決め打ちしない（テーマで変わる金） */
+.daily-ring-week-rim {
+  stroke: rgba(216, 178, 76, 0.55);
+}
+.daily-ring-week-track {
+  stroke: rgba(176, 141, 63, 0.22);
+}
+.daily-ring-week-spin {
+  stroke: rgba(216, 178, 76, 0.5);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: daily-ring-spin 16s linear infinite;
+}
+@keyframes daily-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.daily-ring-week-arc {
+  opacity: 0.25;
+  transition: opacity 0.35s ease;
+}
+.daily-ring-week-arc.is-on {
+  opacity: 1;
+}
+.daily-ring-week-step {
+  fill: rgba(176, 141, 63, 0.3);
+  transition: fill 0.35s ease;
+}
+.daily-ring-week-step.is-on {
+  fill: #e9cd81;
+  stroke: rgba(70, 52, 14, 0.5);
+  stroke-width: 0.7;
+}
+/* 全部の節目に届いたら、輪そのものがほのかに光る。 */
+.daily-ring-ring.is-weekly.is-done .daily-ring-svg {
+  filter: drop-shadow(0 0 0.35rem rgba(233, 205, 129, 0.85));
+}
+/* ⚠ 動きを控える設定と2D表示では、回る飾りを止める（光は出したまま）。 */
+@media (prefers-reduced-motion: reduce) {
+  .daily-ring-week-spin {
+    animation: none;
+  }
+}
+body.flatten-2d .daily-ring-week-spin,
+body.is-phone-device .daily-ring-week-spin,
+body.is-tablet-device .daily-ring-week-spin {
+  animation: none;
 }
 .daily-ring-svg {
   width: 100%;
@@ -27623,8 +27687,9 @@ body.is-tablet-device .card-pack-cell .card-pack-sub-btn {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
-/* 受け取れるものがある時だけ、右上に小さな点。 */
-#daily-ring.has-claim::after {
+/* 受け取れるものがある時だけ、右上に小さな点。
+   🔴【続き853】点は**輪ごと**に付ける（どれが受け取れるのかが一目で分かる）。 */
+.daily-ring-ring.has-claim::after {
   content: "";
   position: absolute;
   right: 0.1rem;
@@ -27694,10 +27759,15 @@ body.theme-light .daily-ring-card {
 
 /* 🔴 スマホ・タブレット（ステージ倍率 0.478）。輪は押す所なので 28px 以上に、
    札の字は実画面 11px 以上に。 */
-body.is-phone-device #daily-ring,
-body.is-tablet-device #daily-ring {
+body.is-phone-device .daily-ring-ring,
+body.is-tablet-device .daily-ring-ring {
   width: 6rem;
   height: 6rem;
+}
+body.is-phone-device .daily-ring-ring.is-weekly,
+body.is-tablet-device .daily-ring-ring.is-weekly {
+  width: 7.2rem;
+  height: 7.2rem;
 }
 body.is-phone-device .daily-ring-num,
 body.is-tablet-device .daily-ring-num {
