@@ -35,6 +35,9 @@ import { t } from "./ui-text.js";
 
 // 袋の表の版面（実物の入稿データから焼いたもの＝tools/make-pack-face.mjs）。
 const FACE = "assets/ui-v2/pack-0th-face.webp";
+// 🔴【#828・続き859】袋の**裏**の版面（同じ入稿データの -03。どれが裏かは11枚を並べて
+//   目で決めた＝tools/make-pack-face.mjs の注）。ひっくり返す時だけ使う。
+const BACK = "assets/ui-v2/pack-0th-back.webp";
 
 // 裂け目の札の数。多いほど滑らかだが、8つで十分に「ギザギザが1つずつ起きる」と見える
 // （1つ 2.5rem ＝ ギザギザの周期とだいたい合う）。
@@ -46,8 +49,11 @@ const 札の数 = 8;
  * @param {number} o.cards      入り数（既定7）。読み上げ用の名前にだけ出る（版面には焼かれている）
  * @param {boolean} o.封を切る   なぞる道しるべ（光・点線・走る光・裂け目）を付けるか。
  *                              false なら**封がされたままの絵**だけ（画面の主役用）。
+ * @param {boolean} o.裏も      表と裏の2面にして、指で**ひっくり返せる**ようにするか（#828）。
+ *                              ⚠ 封を切る と同時には使わない——あちらは同じ指の動きで
+ *                                「なぞって封を切る」を取るので、操作がぶつかる。
  */
-export function buildPackBag({ cards = 7, 封を切る = true } = {}) {
+export function buildPackBag({ cards = 7, 封を切る = true, 裏も = false } = {}) {
   const 枚 = Number(cards) > 0 ? Math.floor(Number(cards)) : 7;
   const pack = document.createElement("div");
   pack.className = "pkc-pack";
@@ -95,6 +101,28 @@ export function buildPackBag({ cards = 7, 封を切る = true } = {}) {
   pack.setAttribute("role", "img");
   pack.setAttribute("aria-label", "0TH EDITION BOOSTER PACK \u2014 " + t("packs.cer.packNote", { n: 枚 }));
 
+  // 🔴【#828・続き859】**表と裏の2面**にして、指でひっくり返せるようにする。
+  //   ⚠ 回すのは **foil の外**（.pkc-flip）。foil は `overflow: hidden` を持っていて、
+  //     あれは 3D を**平らに潰す**ので、foil 自身を回しても裏が出ない（教訓1・2 の家族）。
+  //   ⚠ `filter` は1つも足さない（preserve-3d を潰す＝教訓1）。影は box-shadow のまま。
+  if (裏も && !封を切る) {
+    const flip = document.createElement("div");
+    flip.className = "pkc-flip";
+    const back = document.createElement("div");
+    back.className = "pkc-backface";
+    back.setAttribute("aria-hidden", "true");
+    const bimg = document.createElement("img");
+    bimg.className = "pkc-face";
+    bimg.src = BACK;
+    bimg.alt = "";
+    bimg.decoding = "async";
+    back.appendChild(bimg);
+    flip.append(foil, back);
+    pack.appendChild(flip);
+    回せるようにする(pack, flip);
+    return pack;
+  }
+
   pack.appendChild(foil);
 
   // 🔴 裂け目は **foil の外**（兄弟）に置く。foil は `overflow: hidden` なので、
@@ -135,6 +163,49 @@ export function buildPackBag({ cards = 7, 封を切る = true } = {}) {
   pack.appendChild(run);
 
   return pack;
+}
+
+// 🔴【#828・続き859】指で左右になぞると回り、離すと**いちばん近い面**（表か裏）で止まる。
+//   押すだけなら 180 度ひっくり返す。
+//   ⚠ 角度は**要素のインラインの style**に書く（CSS 変数1つ）。1コマごとに transform を
+//     組み立て直すと、止まる時の滑りも JS で持つことになる。
+//   ⚠ なぞっている間は CSS の滑りを切る（残っていると指に遅れて付いてくる＝続き847）。
+//   ⚠ touch-action: none（縦スクロールに取られると途中で止まる）。CSS 側で当てている。
+function 回せるようにする(pack, flip) {
+  let 角 = 0;        // 度
+  let つかんだ = null; // { x, 角 }
+  let 動いた = 0;
+  const 書く = (v, 滑る) => {
+    flip.style.setProperty("--flip", v.toFixed(2) + "deg");
+    flip.style.transition = 滑る ? "transform .45s cubic-bezier(.2,.8,.2,1)" : "none";
+  };
+  書く(0, false);
+  pack.addEventListener("pointerdown", (e) => {
+    つかんだ = { x: e.clientX, 角 };
+    動いた = 0;
+    try { pack.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  pack.addEventListener("pointermove", (e) => {
+    if (!つかんだ) return;
+    const dx = e.clientX - つかんだ.x;
+    動いた = Math.max(動いた, Math.abs(dx));
+    角 = つかんだ.角 + dx * 0.55;
+    書く(角, false);
+  });
+  const 離す = () => {
+    if (!つかんだ) return;
+    つかんだ = null;
+    // いちばん近い面（180度ごと）で止める。
+    角 = Math.round(角 / 180) * 180;
+    書く(角, true);
+  };
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) pack.addEventListener(ev, 離す);
+  pack.addEventListener("click", () => {
+    // ⚠ なぞった後の click は無視する（押さないと、払っただけで余計に回る＝続き847 と同じ）。
+    if (動いた > 6) { 動いた = 0; return; }
+    角 += 180;
+    書く(角, true);
+  });
 }
 
 // 裂けた中身と、めくれ上がる札。**どちらも `--tear` だけを見て動く**

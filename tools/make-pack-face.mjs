@@ -23,12 +23,22 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(path.join(import.meta.dirname, ".."));
-const 元 = "J:/自作カードゲーム/7 seven/印刷（名前変えない）/★最新リンク（名前変えない）/カード（0th 拡張）（名前変えない）/裏面＆説明書（0th BP）_アートボード 1.png";
-const 先 = path.join(ROOT, "assets", "ui-v2", "pack-0th-face.webp");
+const 素材 = "J:/自作カードゲーム/7 seven/印刷（名前変えない）/★最新リンク（名前変えない）/カード（0th 拡張）（名前変えない）/";
+// 🔴【#828・続き859】**表と裏の2枚**を焼く（袋をひっくり返せるようにしたため）。
+//   裏がどれかはファイル名では分からない（-02 〜 -15）。**11枚を並べて目で決めた**
+//   （scratchpad/_bp見る.mjs → _bp一覧.png）:
+//     -03 … **袋の裏**（「0th EDITION をさらに楽しむための拡張パック」・パッケージ内容・バーコード）
+//     _アートボード 1 … 表
+//     他（-02 -04 -09 〜 -15）… 同梱の説明書と用語集・題字・紋章
+const 焼くもの = [
+  { 元: 素材 + "裏面＆説明書（0th BP）_アートボード 1.png", 先: path.join(ROOT, "assets", "ui-v2", "pack-0th-face.webp"), 名: "表" },
+  { 元: 素材 + "裏面＆説明書（0th BP）-03.png", 先: path.join(ROOT, "assets", "ui-v2", "pack-0th-back.webp"), 名: "裏" },
+];
 const 辺 = 512;
 
-if (!fs.existsSync(元)) {
-  console.error("🔴 元の絵が無い: " + 元);
+for (const x of 焼くもの) {
+  if (fs.existsSync(x.元)) continue;
+  console.error("🔴 元の絵が無い（" + x.名 + "）: " + x.元);
   console.error("   実物の入稿データは git 管理外。手元に無い端末では焼けない（既に焼いた webp を使う）。");
   process.exit(2);
 }
@@ -36,7 +46,7 @@ if (!fs.existsSync(元)) {
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.setContent("<body>");
-const u = await page.evaluate(async ({ src, 辺 }) => {
+const 焼く = async (src) => page.evaluate(async ({ src, 辺 }) => {
   const img = new Image();
   img.src = src;
   await img.decode();
@@ -47,10 +57,13 @@ const u = await page.evaluate(async ({ src, 辺 }) => {
   g.imageSmoothingQuality = "high";
   g.drawImage(img, 0, 0, 辺, 辺);
   return { webp: c.toDataURL("image/webp", 0.92), w: img.width, h: img.height };
-}, { src: "data:image/png;base64," + fs.readFileSync(元).toString("base64"), 辺 });
+}, { src, 辺 });
 
-const buf = Buffer.from(u.webp.split(",")[1], "base64");
-fs.mkdirSync(path.dirname(先), { recursive: true });
-fs.writeFileSync(先, buf);
-console.log("元 " + u.w + "x" + u.h + " → " + path.relative(ROOT, 先) + "  " + 辺 + "x" + 辺 + "  " + (buf.length / 1024).toFixed(0) + "KB");
+for (const x of 焼くもの) {
+  const u = await 焼く("data:image/png;base64," + fs.readFileSync(x.元).toString("base64"));
+  const buf = Buffer.from(u.webp.split(",")[1], "base64");
+  fs.mkdirSync(path.dirname(x.先), { recursive: true });
+  fs.writeFileSync(x.先, buf);
+  console.log(x.名 + "  元 " + u.w + "x" + u.h + " → " + path.relative(ROOT, x.先) + "  " + 辺 + "x" + 辺 + "  " + (buf.length / 1024).toFixed(0) + "KB");
+}
 await browser.close();

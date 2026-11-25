@@ -30355,3 +30355,43 @@ body.is-tablet-device .card-pack-color-head {
   margin-left: 0;
   margin-right: 0;
 }
+
+/* 🔴【#828・続き859】袋を**表と裏の2面**にして、指でひっくり返せるようにする。
+   ユーザー案「パックもクルクル回せるといい？」。
+   ⚠ 回すのは **.pkc-foil の外**（.pkc-flip）。foil は `overflow: hidden` を持っていて、
+     あれは 3D を**平らに潰す**ので、foil 自身を回しても裏が出ない（教訓1・2 の家族）。
+   ⚠ `filter` は1つも足さない（preserve-3d を潰す＝教訓1）。影は foil の box-shadow のまま。
+   ⚠ 角度は JS が CSS 変数 --flip に書く。1コマごとに transform を組み立て直さない。 */
+.pkc-flip {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--flip, 0deg));
+  /* ⚠ 縦スクロールに取られると途中で止まる。 */
+  touch-action: none;
+  cursor: grab;
+}
+.pkc-flip:active {
+  cursor: grabbing;
+}
+/* 表と裏。どちらも背を向けている間は消す（でないと鏡文字が透けて見える）。 */
+.pkc-flip > .pkc-foil,
+.pkc-flip > .pkc-backface {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.pkc-backface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #f6f1e6;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  border-radius: inherit;
+  transform: rotateY(180deg);
+}
+/* 動きを控える設定では滑らせない（回ること自体は残す）。 */
+@media (prefers-reduced-motion: reduce) {
+  .pkc-flip {
+    transition: none !important;
+  }
+}

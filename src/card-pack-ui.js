@@ -740,7 +740,8 @@ function 中身を組む(inner) {
   const bag = document.createElement("div");
   bag.className = "card-pack-bag";
   bag.setAttribute("aria-hidden", "true"); // 絵（中身は左の文字が全部言っている）
-  bag.appendChild(buildPackBag({ cards: PACK_SIZE, 封を切る: false }));
+  // 🔴【#828・続き859】ユーザー案「パックもクルクル回せるといい？」⇒ 指でひっくり返せる。
+  bag.appendChild(buildPackBag({ cards: PACK_SIZE, 封を切る: false, 裏も: true }));
   hero.appendChild(bag);
   inner.appendChild(hero);
 
