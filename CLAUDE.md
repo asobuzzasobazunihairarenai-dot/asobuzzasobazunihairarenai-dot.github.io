@@ -8293,10 +8293,13 @@ revoke execute on function so7_ranked_create_game(uuid[]) from anon, authenticat
 
 #### ⚠ 申し送り
 
-- 🔴 **残り4つの `revoke ... from public` が在る関数のうち、開けてある55件は検めていない。**
-  あれらは `grant to authenticated` が在る＝意図して開けてあるが、**中で誰かを確かめているかは別の話**。
-  `so7_ranked_apply_delta` と同じ形（security definer・引数で他人を指せる・守りが無い）が
-  他にも無いかは、**別に数える価値がある**。
+- ✅ **「意図して開けてある」57件も数えた**（`scratchpad/p862audit.mjs`・読むだけ）。
+  `so7_ranked_apply_delta` と同じ形（**security definer かつ引数で他人を指せる**）は **5件**
+  （`so7_ranked_admin_apply_delta` / `so7_ranked_ready` / `so7_request_friend` /
+  `so7_respond_friend` / `so7_remove_friend`）で、**5件とも中で `auth.uid()` を見て弾いている**。
+  ⇒ **守りが無いまま開いていたのは `so7_ranked_apply_delta` 1件だけ**で、それは閉じた。
+  ⚠ これは**引数で他人を指せる形**だけを数えたもの。「自分の行しか触らないが、
+  **渡された数字を信じている**」形（通貨・ポイントを引数で受ける類）は**別の軸**で、まだ数えていない。
 - ⚠ **実機では見ていない**（本番のSQLと目録まで）。**ランク戦を1回通してほしい**
   ——内部からの呼び出しは本番で測ったが、**本物の対局で作られるところ**は見ていない。
 - 🔴 debug の残り10件（墜落8・#798 観戦・#808）は続き852 のまま。
