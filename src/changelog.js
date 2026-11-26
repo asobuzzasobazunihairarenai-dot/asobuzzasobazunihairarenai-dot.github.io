@@ -65,10 +65,14 @@ export const CHANGELOG = [
     fixes: [
       "ヤエザなどの効果で、ファーストカードを捨てられてしまうことがあったのを直しました。",
       "裏向きのカードを捨てる効果で、1マスだけ捨てられずに「そこに特別なカードがある」と分かってしまうことがあったのを直しました。",
+      "効果の最中に出る「もう動かない」などのボタンが、上の案内と重なっていたのを直しました。案内も読みやすい大きさになりました。",
+      "「ちょっと待った！」に何度も乗り直せてしまい、同じことが繰り返されるのを直しました。",
     ],
     fixesEn: [
       "Fixed First cards being discardable by effects such as Yaeza's.",
       "Fixed an effect that discards face-down cards skipping one square, which revealed that something special was hidden there.",
+      "Fixed the buttons shown during an effect overlapping the instruction banner above them. The banner is also easier to read now.",
+      "Fixed being able to step back onto Wait a Moment over and over, repeating the same thing.",
     ],
     itemsEn: [
       "In a friendly match's deck lineup, each player can now offer one custom deck instead of up to four. With four players that could fill the list with a dozen candidates, and the host could no longer read it. You can still swap: offering another deck replaces the one you had out. The list marks the deck you are offering with a check and starts out with it selected.",
@@ -106,6 +110,11 @@ export const CHANGELOG = [
       "🔴 作りは**判定の引数をカード名からトークンへ替えるだけ**で済んだ（エンジン11か所・main.js 10か所）。一覧を組んでいる所はどれも元からトークンを持っていたため。`isTargetableToken(トークン)` が新しい入口で、`isCardIdentityPublic` が「いま公開されているか」を見る。⚠ **手札の `faceUp` は見ない**——あれは「自分の画面で見えるか」でしかない（`faceUpForLocation` が hand で `player === 'A'` を返すだけ）。居る所で決める。",
       "⚠ **古い名前（`isTargetableByOtherCardEffects`）は消していない。** 続き863 で公開済みなので、端末のキャッシュに残った古い main.js がまだ import している（公開済みの src/*.js から export を消さない＝続き423 の家族）。検査が「残してあること」も見る。",
       "🔴 **テストは3本の対**にした: 手札からは捨てられる／**裏向きのマスなら捨てられる**／**表向きのマスなら捨てられない**。3本目が無いと「全部捨てられる」実装でも2本目が通る（0しか出ない検査）。検査（30本目）も決まりごと書き直し、判定を**8例**で動かす（公開4・秘匿2・ふつう2）。A/B で3通り崩して**3通りとも名指しで落ちる**。",
+      "🔴 **#832: 効果の最中に画面の上へ出る3つ（案内の帯・スキップ・おまかせ）が重なっていた。** 実測すると**スマホ横で 8px・PC で 1px** 食い込んでいた。原因は、3つとも別々の `position: fixed` で `top` を rem で決め打ちしていたのに、**ボタンだけが `--stage-scale` の打ち消しで中心から拡大される**こと（続き801 で足した拡大。上へも伸びる）。⇒ **縦に積む入れ物を1つ置き、そこだけを拡大する**（原点は `top center` ＝下へ伸びる）。並びは flex が決めるので、**どの倍率でも重なりようがない**。",
+      "ⓘ ついでに**案内の帯も読める大きさになった**（スマホ横で高さ 20px → 42px）。あれは拡大の打ち消しを持っていなかったので、縮んだまま出ていた（#453・#569 の家族）。実測12項目（2機種・隙間・最前面・画面の外へ出ないこと）。",
+      "🔴 **#835: 「ちょっと待った！」に何度も乗り直せた。** ループの守り（#49）は在ったが、**人間は同じマスへ10回まで戻れる**作りなので10周できていた。あの上限はジャンプ台の「周囲が全部ジャンプ台のときに起点へ何度か戻る」といった**正当な繰り返し**のための値。ところが ちょっと待った！は「強制移動で戻る → １マス移動する」なので、元のマスへ戻ると**戻されて、また１マス選ぶ＝まったく同じ状態**に戻る——**回数で許す話ではなかった**。",
+      "⇒ **強制移動で追い出されたマスは、その効果の中では選べない**ようにした（`ctx` に持つので次のターンには何も残らない）。⚠ ジャンプ台の繰り返しには**1ミリも触っていない**（あちらは強制移動で追い出されていない）。",
+      "🔴 既存の #767 のテストが**まさにこの動き（戻る）を期待していた**ので、「別のマスへ進む」に直した（#767 が見たかった『移動が2回起きる』はそのまま守れる）。さらに「**追い出されたマスへは戻れない**」を1本足した——戻り先以外に行ける所が無い盤面で、**駒の移動が1回だけ**（強制移動のぶん）になることで見る。",
     ],
     devItemsEn: [
       "Server: the four-per-player cap in so7_offer_my_stack is gone; the function now deletes the caller's other rows before inserting. The primary key still carries stack_key: dropping it would mean cleaning up rows already stacked, and this file is checked for being safe to re-run whole, so guarding inside the function is cheaper. One function is one transaction, so nothing slips in between the delete and the insert.",
@@ -140,6 +149,11 @@ export const CHANGELOG = [
       "The change amounted to passing the token instead of the card id, in eleven engine places and ten in main.js, since every list already had the token in hand. The new entry point takes a token and asks whether the card is currently public. Hand cards deliberately ignore the face-up flag, which only says whether the local player can see it, and are judged by their zone instead.",
       "The old predicate name is kept rather than removed, because it shipped earlier today and a cached copy of main.js on someone's device still imports it. The check asserts that it is still exported.",
       "The tests are a triple: discardable from hand, discardable face-down on the board, and protected face-up on the board. Without the third, an implementation that discards everything would still pass the second. The check was rewritten around the new rule and exercises the predicate on eight cases; an A/B pass breaks it three ways and all three are named.",
+      "The three things shown at the top during an effect (the instruction banner, the skip button and the auto button) overlapped: eight pixels on a phone in landscape, one on desktop. Each was separately fixed-positioned with a hard-coded top in rem, but only the buttons carried the stage-scale compensation, which grows them from their centre and therefore upwards. They now live in one vertical stack that is scaled as a whole from its top edge, so the flex layout keeps them apart at any scale.",
+      "The banner also became readable as a side effect, growing from twenty to forty-two pixels tall on a phone, since it had never carried the scale compensation. Twelve assertions across two screen sizes cover the gap, which element is in front, and staying on screen.",
+      "Stepping back onto Wait a Moment repeatedly was possible because the anti-loop guard lets a human revisit the same square ten times. That allowance exists for jump pads, where returning to the start can be a legitimate repetition. Wait a Moment is different: it forces you back and then grants one step, so returning to it restores exactly the state you were already in. That is not something a counter should allow.",
+      "The square a piece was forced away from is now excluded from the destinations offered later in the same effect. It is held on the effect context, so nothing persists into the next turn, and jump pads are untouched since no forced move pushed the piece away there.",
+      "An existing test expected exactly this return, so it was changed to step elsewhere, which still proves the two moves it was written for. A new test asserts the return is impossible: on a board where the forced-away square is the only neighbour with a card, the piece moves once and stays put.",
     ],
   },
   {

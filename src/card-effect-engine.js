@@ -4489,9 +4489,21 @@ async function runAction(action, ctx, helpers) {
       //   🔴【2026-11-23・ユーザー裁定】ちょっと待った！の「オープンしない」は**戻る時だけ**に
       //     掛かる。続く「１マス移動する」の先は**ふつうにオープンする**（あちらは別の動詞
       //     ＝MOVE_CHOSEN_PLAYER_ONE_CELL なので、ここに noArrival を足しても影響しない）。
+      // 🔴【#835・続き866】**追い出された元のマスを覚える。**
+      //   ちょっと待った！は「強制移動で戻る → １マス移動する」なので、その１マスで
+      //   **元のマスへ戻ると、まったく同じ状態に戻る＝完全な無意味**（戻されて、また
+      //   １マス選ぶ）。ループの守り（人間は10回まで戻れる）は**回数で許す**作りなので、
+      //   報告どおり10周できていた（#835）。⇒ この効果の中だけ、そのマスを選べなくする。
+      //   ⚠ ジャンプ台のように「何度か戻るのが正当」な繰り返しには触らない
+      //     （あちらは強制移動で追い出されていない）。
+      const 追い出された元 =
+        ctx.pieceLocation && ctx.pieceLocation.zone === "cell"
+          ? { row: ctx.pieceLocation.row, col: ctx.pieceLocation.col }
+          : null;
       await helpers.moveAndSync(ctx.pieceTokenId, dest, undefined, !!action.noArrival);
       helpers.recordMoveVisited?.(dest);
       ctx.pieceLocation = dest;
+      if (追い出された元) ctx.強制移動で追い出されたマス = 追い出された元;
       if (!action.noArrival) ctx.arrivedAt = dest; // 強制移動は「移動」なので、戻った先のカードに到達する
       else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
       return true;
@@ -5677,7 +5689,14 @@ async function runAction(action, ctx, helpers) {
       if (!piece || piece.location.zone !== "cell") return false;
       helpers.recordMoveVisited?.(piece.location); // 出発マスを記録
       const 上限 = helpers.isCpuDriving?.(相手) ? 1 : HUMAN_MOVE_REVISIT_LIMIT;
-      const 全候補 = getMoveCandidates(piece.location, 1, false);
+      // 🔴【#835・続き866】**強制移動で追い出されたマスは選べない。**
+      //   ちょっと待った！の「戻る → １マス移動する」で元のマスへ戻ると、まったく同じ
+      //   状態に戻るだけ（＝完全な無意味）。回数で許す話ではないので、ここで外す。
+      //   ⚠ 外すのは**その効果の中だけ**（ctx に持つ）。次のターンには何も残らない。
+      const 出禁 = ctx.強制移動で追い出されたマス;
+      const 全候補 = getMoveCandidates(piece.location, 1, false).filter(
+        (c) => !(出禁 && c.row === 出禁.row && c.col === 出禁.col),
+      );
       const 新しい候補 = 全候補.filter((c) => !helpers.isLoopMoveDest?.(c, 上限));
       // CPU はループ先を選ばない（行ける所が無ければ動かない＝連鎖はここで自然に終わる）。
       // 人間には上限までは戻れるので、候補が空になった時だけ全候補へ戻す。

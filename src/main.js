@@ -8929,6 +8929,23 @@ document.addEventListener(
 // モーダルを出して案内するようにしてほしい」への対応。ハイライトだけでは何をすればいいか
 // 分かりにくいという指摘のため、選択中は画面上部に案内文を出す（盤面操作の邪魔をしない
 // pointer-events:noneのバナー、モーダルのように操作を止めない）。
+// 【#832・続き866】効果の最中に画面の上へ出る3つ（案内の帯・スキップ・おまかせ）の**入れ物**。
+// 🔴 以前は3つとも別々の position: fixed で、top を rem で決め打ちしていた。ところが
+//   ボタンだけが `--stage-scale` の打ち消しで**中心から**拡大されるので、**上へはみ出して
+//   案内の帯に食い込んだ**（スマホ横で実測 8px・PC で 1px ＝ 報告 #832）。
+//   ⇒ 縦に積む入れ物を1つ置き、**そこだけ**を拡大する（原点は top center ＝下へ伸びる）。
+//   並びは CSS の flex が決めるので、**どの倍率でも重なりようがない**。
+// ⚠ 入れ物は当たり判定を通さない（pointer-events: none）。ボタン側だけが受ける。
+let 効果の上の段El = null;
+function 効果の上の段() {
+  if (!効果の上の段El) {
+    効果の上の段El = document.createElement("div");
+    効果の上の段El.id = "card-effect-top-stack";
+    document.body.appendChild(効果の上の段El);
+  }
+  return 効果の上の段El;
+}
+
 let effectPickerHintEl = null;
 // CPU戦で、今まさにCPU(疑似CPU)が優先権を持って選択中か（＝その選択は自動で解決される）。
 // この間は「○○を選択してください」等の案内・候補ハイライトを人間に見せない（人間が自分で
@@ -8963,7 +8980,7 @@ function showEffectPickerHint(text, owner) {
   if (!effectPickerHintEl) {
     effectPickerHintEl = document.createElement("div");
     effectPickerHintEl.id = "card-effect-picker-hint";
-    document.body.appendChild(effectPickerHintEl);
+    効果の上の段().appendChild(effectPickerHintEl);
   }
   effectPickerHintEl.textContent = text;
   effectPickerHintEl.classList.add("show");
@@ -8985,7 +9002,7 @@ function showEffectSkipButton(label, options = {}) {
     effectSkipButtonEl = document.createElement("button");
     effectSkipButtonEl.id = "card-effect-skip-button";
     effectSkipButtonEl.type = "button";
-    document.body.appendChild(effectSkipButtonEl);
+    効果の上の段().appendChild(effectSkipButtonEl);
   }
   effectSkipButtonEl.textContent = label;
   // 【続き545】枚数が揃うまで確定できない場面で薄くする。**押せなくする効果は無い**——
@@ -9011,7 +9028,7 @@ function showEffectAutoButton(label, onClick) {
     effectAutoButtonEl = document.createElement("button");
     effectAutoButtonEl.id = "card-effect-auto-button";
     effectAutoButtonEl.type = "button";
-    document.body.appendChild(effectAutoButtonEl);
+    効果の上の段().appendChild(effectAutoButtonEl);
   }
   if (effectAutoButtonHandler) effectAutoButtonEl.removeEventListener("click", effectAutoButtonHandler);
   effectAutoButtonHandler = onClick;

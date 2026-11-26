@@ -500,7 +500,14 @@ export const CASES = [
     ],
   },
   {
-    name: "旧0th ちょっと待った！(到達): #767 もう通ったマスでも戻れる（オープンしない＝ループにならない）",
+    // 🔴【#835・続き866】**追い出されたマスへは戻れない。**
+    //   ちょっと待った！は「強制移動で戻る → １マス移動する」。その１マスで元のマスへ
+    //   戻ると、戻されて、また１マス選ぶ——**まったく同じ状態に戻る＝完全な無意味**。
+    //   報告（#835）は「何度も乗れてしまう」。ループの守りは在ったが**人間は10回まで**
+    //   戻れる作りだったので、10周できていた。いまは候補から外れる。
+    //   ⚠ ここでは戻り先（3,3）**以外に行ける所が無い**ので、1マス移動そのものが起きない
+    //     ＝駒は (3,2) に残り、駒の移動は**1回だけ**（強制移動のぶん）。
+    name: "旧0th ちょっと待った！(到達): #835 追い出されたマスへは戻れない（無意味なループ）",
     kind: "arrival",
     cardId: "0th-purple-wait",
     state: {
@@ -513,16 +520,46 @@ export const CASES = [
       piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
     },
     movedFrom: { A: { row: 3, col: 2 } },
+    ctx: { player: "A", cardId: "0th-purple-wait", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // わざと戻り先を選ぼうとしても、候補に無いので選べない。
+    picks: { location: [{ row: 3, col: 3 }] },
+    expect: [
+      // 🔴 本体: 戻ったマス（3,2）に残っている＝(3,3) へは戻っていない。
+      { kind: "pieceAt", player: "A", row: 3, col: 2 },
+      // 🔴 対: 駒の移動は**1回だけ**（強制移動のぶん）。直す前は2回起きて (3,3) へ戻っていた。
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 1 },
+    ],
+  },
+  {
+    name: "旧0th ちょっと待った！(到達): #767 もう通ったマスでも戻れる（オープンしない＝ループにならない）",
+    kind: "arrival",
+    cardId: "0th-purple-wait",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-wait", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "back", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 2 } },
+        // 🔴【#835・続き866】進める先。以前はここに札が無く、戻り先（3,3）しか候補が
+        //   無かったので、このケースは「追い出されたマスへ戻る」を期待していた。
+        { id: "other", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    movedFrom: { A: { row: 3, col: 2 } },
     // 🔴 CPU の上限は2。戻り先を**既に2回通ったことにする**＝直す前はここで弾かれていた
     //   （報告「ちょっと待ったへの２回目の到達時、戻らなかった」）。
     cpuDriving: true,
     visited: [{ row: 3, col: 2 }, { row: 3, col: 2 }],
     ctx: { player: "A", cardId: "0th-purple-wait", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
-    // 戻ったあとの「１マス移動する。」で (3,3) へ戻す（本人が選ぶ）。
-    picks: { location: [{ row: 3, col: 3 }] },
+    // 🔴【#835・続き866】戻ったあとの「１マス移動する。」で **(2,2) へ進む**。
+    //   以前はここで (3,3)（＝追い出されたマス）へ**戻って**いたが、それは
+    //   「戻されて、また１マス選ぶ」の繰り返しになる無意味なループなので禁じた。
+    //   #767 が見たかったのは「**移動が2回起きる**」ことなので、行き先を変えれば守れる。
+    picks: { location: [{ row: 2, col: 2 }] },
     expect: [
       { kind: "tokenFaceDown", id: "back" },
-      { kind: "pieceAt", player: "A", row: 3, col: 3 },
+      { kind: "pieceAt", player: "A", row: 2, col: 2 },
       // 🔴【続き804】**ここが本当の検査。** 上の2行は**直す前でも通る**——戻るのが
       //   弾かれた時も駒は (3,3) のままで、札もめくれない（土台では）＝0しか出ない検査だった。
       //   ⇒ **移動が2回起きたこと**で見る（戻る＋その後の「１マス移動する」）。

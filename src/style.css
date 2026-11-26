@@ -16473,10 +16473,10 @@ body.reduce-glow .cell.card-effect-target-cell .board-card {
   /* 以前は top:50%（画面ど真ん中）で、サフラン等の「マスを選択」時に選択対象マスの上に
      案内バナーが被って見づらかった（不具合報告）。ヘッダー直下の上部に固定して、盤面中央の
      選択マスに被らないようにする。pointer-events:none なのでクリック自体は元々通す。 */
-  top: 4.6rem;
-  left: 50%;
-  transform: translate(-50%, -0.6rem);
-  z-index: 3200;
+  /* 🔴【#832・続き866】位置は入れ物（#card-effect-top-stack）が決める。
+     ここで top/left/transform を持つと、入れ物の縦並びから外れて重なる。 */
+  position: static;
+  transform: translateY(-0.6rem);
   pointer-events: none;
   opacity: 0;
   background: linear-gradient(160deg, rgba(66, 32, 6, 0.92), rgba(28, 16, 4, 0.92));
@@ -16493,7 +16493,7 @@ body.reduce-glow .cell.card-effect-target-cell .board-card {
 }
 #card-effect-picker-hint.show {
   opacity: 1;
-  transform: translateX(-50%);
+  transform: none;
   /* ユーザー要望「目立つように枠を点滅させる等の工夫をしてほしい」。出現時の
      フェードインとは別に、表示中はずっと枠が点滅し続けて視線を誘導する。 */
   animation: card-effect-picker-hint-blink 1.1s ease-in-out infinite;
@@ -16544,17 +16544,16 @@ body.reduce-glow #card-effect-picker-hint.show {
    すぐ下に、クリック可能(pointer-events:auto=button既定)なボタンとして出す。黄のキューブ
    サフラン等の「してもよい」効果を途中でやめられるようにするため。 */
 #card-effect-skip-button {
-  position: fixed;
-  /* 案内バナー(#card-effect-picker-hint)を上部へ移したので、そのすぐ下へ合わせる。 */
-  top: 7.4rem;
-  left: 50%;
+  /* 🔴【#832・続き866】位置と拡大は入れ物（#card-effect-top-stack）に任せる。
+     以前はここで top を決め打ちし、さらに中心から拡大していたので、**上へはみ出して
+     案内の帯に食い込んだ**（スマホ横で8px）。 */
+  position: static;
   /* 🔴【続き801】**ステージの縮小を打ち消す。** このアプリは body ごと縮小するので、
      position: fixed のこのボタンも一緒に縮み、スマホ横では実測 70x17px・字は実質6px だった
      ＝**指で押せないし読めない**（#453・#569・#721 と同じ家族）。
      ⚠ PC（倍率1）では max(1, …) が 1 ＝**今までと1pxも変わらない**。
      ⚠ 上限 2.4（窓がとても小さい時に巨大化しないように）。 */
-  transform: translateX(-50%) scale(min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
-  z-index: 3201;
+  transform: none;
   display: none;
   padding: 0.4rem 1.1rem;
   border: 1px solid rgba(250, 204, 21, 0.7);
@@ -16587,17 +16586,15 @@ body.reduce-glow #card-effect-picker-hint.show {
    横に並べると確定ボタンの文言の長さで中央がズレる（枚数によって文字数が変わる）ので、
    同じ中央寄せのまま真下に置く。色は控えめにして、主役（確定）と見分けが付くようにする。 */
 #card-effect-auto-button {
-  position: fixed;
-  /* 🔴【続き801】スキップと重ならないよう下げた（大きくすると上へも伸びるため）。 */
-  top: 12.8rem;
-  left: 50%;
+  /* 🔴【#832・続き866】位置と拡大は入れ物（#card-effect-top-stack）に任せる。
+     「スキップと重ならないよう下げる」調整（続き801）は、縦並びになったので要らない。 */
+  position: static;
   /* 🔴【続き801】**ステージの縮小を打ち消す。** このアプリは body ごと縮小するので、
      position: fixed のこのボタンも一緒に縮み、スマホ横では実測 70x17px・字は実質6px だった
      ＝**指で押せないし読めない**（#453・#569・#721 と同じ家族）。
      ⚠ PC（倍率1）では max(1, …) が 1 ＝**今までと1pxも変わらない**。
      ⚠ 上限 2.4（窓がとても小さい時に巨大化しないように）。 */
-  transform: translateX(-50%) scale(min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
-  z-index: 3201;
+  transform: none;
   display: none;
   padding: 0.3rem 0.9rem;
   border: 1px solid rgba(148, 163, 184, 0.6);
@@ -30456,4 +30453,31 @@ body.is-tablet-device .ranked-vote-btn {
   padding: 0.8rem 1.3rem;
   min-height: 3.4rem;
   border-radius: 0.8rem;
+}
+
+/* 【#832・続き866】効果の最中に画面の上へ出る3つ（案内の帯・スキップ・おまかせ）の入れ物。
+   🔴 **縦に積むので、どの倍率でも重なりようがない。** 以前は3つとも別々の fixed で、
+   ボタンだけが中心から拡大されて**上へはみ出し、案内の帯に食い込んでいた**
+   （スマホ横で実測 8px・PC で 1px ＝ 報告 #832）。
+   ⚠ 拡大の原点は **top center**。既定（中心）だと上へも伸びて、上の帯や見出しに被る。
+   ⚠ 入れ物は当たり判定を通さない。ボタンだけが受ける（教訓4 の自前判定で拾う）。 */
+#card-effect-top-stack {
+  position: fixed;
+  top: 4.6rem;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 3201;
+  pointer-events: none;
+  /* 🔴 ステージの縮小を打ち消す（#453・#569・#721 と同じ家族）。PC（倍率1）では 1 ＝不変。 */
+  transform: translateX(-50%) scale(min(2.4, max(1, calc(1 / var(--stage-scale, 1)))));
+  transform-origin: top center;
+}
+#card-effect-top-stack > * {
+  pointer-events: auto;
+}
+#card-effect-top-stack > #card-effect-picker-hint {
+  pointer-events: none;
 }
