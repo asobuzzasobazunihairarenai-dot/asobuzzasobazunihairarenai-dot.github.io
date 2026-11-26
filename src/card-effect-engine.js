@@ -37,6 +37,7 @@ import { logAction } from "./action-log.js";
 // card-effect-engine.jsを（直接にも間接にも）importしていないため循環参照の
 // 心配はない。
 import { wouldCompleteLockWithNewIndex, getLockedCardCount } from "./victory.js";
+import { isTargetableByOtherCardEffects } from "./untargetable-cards.js";
 
 // ユーザー確認済み「効果自動処理は基本設定でON/OFFを選べるように」。他の「アニメーションを
 // 減らす」設定（motion-prefs.js）と同じくセッション限りの設定（ページ再読み込みで
@@ -956,17 +957,9 @@ export function canPayHandEffectCost(cardId, cardTokenId, player) {
   });
 }
 
-// docs/rulebook.md「ファーストカード/エターナルカード: 他のカードの効果の対象に
-// ならない（奪われたり捨てることはできない）」。ロックされていても、選べる罠の
-// 「ロックしているカードを1枚捨てる」のような他カードの効果からは常に除外する。
-// 0th拡張（我忘れの白き龍）: ★「これは他のカードの効果の対象にならない。」
-// ⚠ ファースト/エターナルと同じ扱い（cardId の命名規則では拾えないので名指しで足す）。
-const NOT_TARGETABLE_CARD_IDS = new Set(["ex0-white-dragon"]);
-
-function isTargetableByOtherCardEffects(cardId) {
-  if (NOT_TARGETABLE_CARD_IDS.has(cardId)) return false;
-  return !cardId?.startsWith("eternal-") && !cardId?.startsWith("first-");
-}
+// 🔴 「他のカードの効果の対象にならない」の決まりは **src/untargetable-cards.js が唯一の
+//    持ち主**（続き863）。ここに写しを置かない——写すたびに1つずつ欠けていった
+//    （#829: ヤエザ②といろ落ちガエル■では丸ごと抜け、ゴメンナサイッ！では龍が抜けていた）。
 
 // ユーザー確認済み設計方針（続き55、ヴァーディアンの手札効果で公開ドローした2枚が
 // 選べる罠の「手札を半分捨てる」を選べない現象への対応）: 「ドロー」＝「山札から

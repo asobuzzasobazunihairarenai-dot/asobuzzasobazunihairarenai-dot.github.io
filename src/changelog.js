@@ -62,6 +62,12 @@ export const CHANGELOG = [
     summaryEn: [
       "Each player now offers one custom deck to a friendly match, not several",
     ],
+    fixes: [
+      "ヤエザなどの効果で、ファーストカードを捨てられてしまうことがあったのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed First cards being discardable by effects such as Yaeza's.",
+    ],
     itemsEn: [
       "In a friendly match's deck lineup, each player can now offer one custom deck instead of up to four. With four players that could fill the list with a dozen candidates, and the host could no longer read it. You can still swap: offering another deck replaces the one you had out. The list marks the deck you are offering with a check and starts out with it selected.",
     ],
@@ -82,6 +88,12 @@ export const CHANGELOG = [
       "🔴🔴 **4つ目は外してはいけなかった。** `so7_ranked_admin_apply_delta` には**すぐ下に `grant ... to authenticated` が在る**＝管理者用RPCとして意図的に開けてあり、関数の中でメールを検めている。外すと管理者の手動補正が止まる。**気づいたのは差分を読んだから**——道具は「src/*.js で呼ばれていない＝内部専用」としか見ておらず、**SQL の側に書いてある意図を見ていなかった**。⚠ 教訓: 「クライアントから呼ばれていないか」をコードの grep だけで決めない。**SQL に明示の grant が在れば、それが意図の正。**",
       "🔴 **本番で前後を測った。** 直に呼ぶと `42501 permission denied`／`so7_ranked_get_self()` の**中から**呼ぶと**関数の12行目まで入っている**（落ちたのは私が渡した偽の uuid の外部キー違反だけ）＝**内部からの呼び出しは生きている**。どちらも `rollback` 付きで何も残していない。目録でも3つとも `anon=false / auth=false`・所有者 postgres は `execute=true`（内部の呼び出しは所有者の権限で検められる）。",
       "🔴 **検査を1本足した**（29本目・`tools/check-sql-grants.mjs`）: `revoke from public` が在る関数は「`grant to authenticated` が在る（意図して開けてある）」か「`anon, authenticated` からも revoke 済み（本当に閉じてある）」のどちらかでなければ落ちる。いま **58件＝開けてある55・閉じた3・穴0**。A/B で3通り崩して3通りとも名指しで落ち、指紋で元に戻ったことも照合した。⚠ 書き方の揺れ（`grant  execute` の**空白2つ**）に当たらず**55件を0件と数えかけた** ⇒ **母数そのものを毎回出す**ようにした（数え方が壊れたら母数が崩れて分かる）。⚠ CRLF の罠もこの回で踏んだ（続き751 と同じ）——複数行の目印は LF にそろえてから当てる。",
+      "🔴 **#829: ファースト／エターナル／我忘れの白き龍が「他のカードの効果の対象にならない」守りが、エンジンの外では効いていなかった。** ヤエザ②「自分のロックしている１枚を捨てる」と いろ落ちガエル■ の同じ選択肢は、委任タスクとして `main.js` に書かれていて、**守りが丸ごと無かった**（＝報告どおり**ファーストカードを捨てられた**）。ゴメンナサイッ！は条件を手で書き写していて**我忘れの白き龍だけが抜けていた**。",
+      "🔴🔴 **根っこは「判定がエンジンの private 関数にしか無く、export されていなかった」こと。** だからよそで同じ一覧を組む人は条件を**手で書き写す**ことになり、写すたびに1つずつ欠けた（実際に **4通りの書き方**が repo に散っていた）。⇒ `src/untargetable-cards.js`（何も import しない葉）を**唯一の持ち主**にし、エンジンと main.js の両方がそこから読む形にした。",
+      "🔴 **検査を1本足した**（30本目・`tools/check-untargetable.mjs`）。葉が在って龍が名簿に居ること／**判定そのものを6例で動かすこと**（名簿が在るだけでは動く証拠にならない）／エンジンが写しを持たないこと／**ロックの一覧を組む委任タスクが全部 判定を通していること**／ゴメンナサイッ！が手写しに戻っていないこと。A/B で4通り崩して**4通りとも名指しで落ち**、指紋で元に戻ったことも照合した。",
+      "🔴 **実測は本物の対局で、本物の委任タスクを呼んだ**（`scratchpad/_p863.mjs`・OK 11・例外0・404 0）。対局直後、Aのロックは**ファーストカード1枚だけ**なので、ヤエザは**何も聞かずに終わる**のが正しい。対照: 盤面のふつうの札を1枚ロックすると**選ばせる側になる**。🔴 **A/B で直す前に戻すと、実測が5件落ち**——ヤエザが札を出して待ちに入り、③では**ファーストカードがロックから消えて `[]`** ＝ **報告そのものを再現した**。",
+      "⚠ 測り方で2つつまずいた（どちらもこちら側）: ①**Aの側は `south` ではなく `bottom`**（思い込みで書いた）。⇒ `SEAT_TO_SIDE` から引く形に直した。②`state.js` の `dispatch` は **export されていない**（続き802 と同じ）。⇒ `moveToken` / `sendTokenToPile` を使う。⚠ 実測から委任タスクを呼べる棚（`debugRunDelegatedTask`）を足した（`debugOpenPlayerPick` と同じ扱い。アプリ側のどこからも呼んでいない）。",
+      "⚠ **手札側はまだ**（申し送り）。ゲート侵攻で押し出された**エターナルカードは手札へ行く**（`state.js` の実装）ので、「手札をすべて捨てる」等で捨てられうる。ただし「手札が２枚以下になるように捨てる」で**対象にならない札を枚数に数えるか**は読み方が割れるため、こちらで決めずに聞くことにした。",
     ],
     devItemsEn: [
       "Server: the four-per-player cap in so7_offer_my_stack is gone; the function now deletes the caller's other rows before inserting. The primary key still carries stack_key: dropping it would mean cleaning up rows already stacked, and this file is checked for being safe to re-run whole, so guarding inside the function is cheaper. One function is one transaction, so nothing slips in between the delete and the insert.",
@@ -100,6 +112,12 @@ export const CHANGELOG = [
       "The fourth one had to stay open. The admin point adjuster has an explicit grant to authenticated right below it: that is the intent, and the function checks the caller email itself, so revoking it would stop admin corrections. This only surfaced from reading the diff — the tool had judged not-called-from-src as internal-only and had not looked at what the SQL itself says. Lesson: an explicit grant in the SQL is the authoritative statement of intent, not a grep over the client.",
       "Measured on production, both ways. Called directly as authenticated the revoked function is denied outright; called from inside the ranked self-lookup it reaches line twelve of its body and fails only on the foreign key for the fake id supplied — so internal calls still work. Both ran inside a rolled-back transaction and left nothing behind. The catalogue agrees: all three now read false for both roles, while the owner still holds execute, which is what an internal call is checked against.",
       "A twenty-ninth check now guards this: any function with a revoke-from-public must either carry an explicit grant to authenticated or be revoked from anon and authenticated too. Today that is fifty-eight functions — fifty-five open on purpose, three closed, no holes. An A/B pass breaks it three ways and all three are named, and the file fingerprint confirms it was restored. A whitespace variant with two spaces almost made the counter report zero instead of fifty-five, so the check now prints its own denominator; a CRLF mismatch also bit once while writing the A/B.",
+      "#829: the rule that First and Eternal cards (and the White Dragon) are never targeted by another card's effect was not enforced outside the card-effect engine. Yaeza's discard-a-locked-card option and the colour-fading frog's matching option are delegated tasks written in main.js, and had no guard at all, so a First card really could be discarded. The Sorry card copied the condition by hand and its copy was missing the White Dragon.",
+      "The root cause was that the predicate lived in a private function in the engine and was never exported, so every other place that built the same list copied the condition by hand and each copy lost a piece; four different spellings were scattered through the repository. The rule now lives in one leaf module that imports nothing, and both the engine and main.js read it from there.",
+      "A thirtieth check guards it: the leaf exists and lists the dragon, the predicate itself is exercised on six cases (a roster alone is no proof that it works), the engine keeps no copy, every delegated task that builds a list of locked cards goes through it, and the Sorry card has not reverted to a hand-written copy. An A/B pass breaks it four ways, all four are named, and the file fingerprints confirm the restore.",
+      "Measured in a real match by calling the real delegated tasks: eleven assertions, no exceptions, no 404s. Right after setup the only locked card is the player's First card, so Yaeza must finish without asking; the control locks an ordinary board card and the task starts asking instead. Reverting the fix makes five assertions fail, with Yaeza waiting on a prompt and the First card gone from the lock area, which reproduces the report exactly.",
+      "Two stumbles, both in the measurement: the seat side is bottom, not south, which was written from assumption, so it now reads the real seat table; and state.js does not export dispatch, so the measurement moves tokens through the exported helpers. A debug shelf was added so measurements can call a delegated task directly, in the same style as the existing picker shelves and called from nowhere in the app.",
+      "The hand side is still open. Gate invasion pushes a displaced Eternal card into the attacker's hand, so a discard-your-whole-hand effect could still take it. Whether an untargetable card counts toward a discard-down-to-two is a reading question, so it is being asked rather than decided here.",
     ],
   },
   {

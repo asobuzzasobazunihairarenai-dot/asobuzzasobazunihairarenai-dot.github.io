@@ -521,6 +521,7 @@ import { onLangChange } from "./i18n.js";
 //   クラスを付けるだけ（admin.js の applyThemeMode と同じ作法）。既定は今までの見た目。
 import "./ui-v2.js";
 import { t } from "./ui-text.js";
+import { isTargetableByOtherCardEffects } from "./untargetable-cards.js";
 import {
   COLORS,
   GATE_POSITIONS,
@@ -4996,7 +4997,14 @@ async function runGreedyPaletteTask(player, taskArg) {
 }
 
 async function runDiscardOneLockedTask(player) {
-  const 札 = getState().tokens.filter((t) => t.kind === "card" && t.location.zone === "lock" && SIDE_TO_SEAT[t.location.side] === player);
+  // 🔴【#829】ヤエザ②と同じ——他のカードの効果の対象にならない札は捨てられない。
+  const 札 = getState().tokens.filter(
+    (t) =>
+      t.kind === "card" &&
+      t.location.zone === "lock" &&
+      SIDE_TO_SEAT[t.location.side] === player &&
+      isTargetableByOtherCardEffects(t.cardId)
+  );
   if (札.length === 0) return false;
   const ordered = await requestLockCardsOrderedForEffect(player, t("ce.0thFrogDiscardLocked"), 札.map((t2) => t2.id), { limit: 1 });
   const 選 = (ordered || [])[0];
@@ -5058,9 +5066,17 @@ async function runYaezaOptionTask(player) {
     getState().tokens.filter(
       (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
     );
+  // 🔴【#829】ファースト／エターナル／我忘れの白き龍は**他のカードの効果の対象にならない**
+  //   （docs/rulebook.md「奪われたり捨てることはできない」）。ここはエンジンの外なので、
+  //   以前は守りが1つも無く、**ファーストカードを捨てられた**。判定は1か所で持つ。
   const ロック = () =>
     getState().tokens.filter(
-      (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === SEAT_TO_SIDE[player] && !t.placed
+      (t) =>
+        t.kind === "card" &&
+        t.location.zone === "lock" &&
+        t.location.side === SEAT_TO_SIDE[player] &&
+        !t.placed &&
+        isTargetableByOtherCardEffects(t.cardId)
     );
   const options = [
     { id: "ex0-yaeza-discard-all", label: t("cef.opt.ex0YaezaDiscardAll"), usable: 手札().length > 0 },
@@ -10616,6 +10632,14 @@ export function debugOpenCellPick(candidates, hint, options) {
 }
 export function debugOpenHandPick(player, hint, tokenIdFilter, options) {
   return requestHandCardChoiceForEffect(player, hint, tokenIdFilter, options);
+}
+
+// 【続き863・#829】同じ棚: 委任タスク（run*Task）の本物を実測から呼べるようにする。
+//   あれは runDelegatedArrivalTask 経由でしか呼ばれないので、外から届かず
+//   「ファーストカードが候補から外れているか」を本物の道で測れなかった。
+//   ⚠ アプリ側のどこからも呼んでいない。
+export function debugRunDelegatedTask(player, taskType, taskArg) {
+  return runDelegatedArrivalTask(player, taskType, taskArg);
 }
 
 export function isAnyEffectProcessingBusy() {
@@ -18890,8 +18914,8 @@ function findGomennasaiEligibility(seat) {
           t.kind === "card" &&
           t.location.zone === "lock" &&
           t.location.side === attackerSide &&
-          !t.cardId?.startsWith("eternal-") &&
-          !t.cardId?.startsWith("first-")
+          // 🔴【#829】以前はここに書き写した条件があり、**我忘れの白き龍が抜けていた**。
+          isTargetableByOtherCardEffects(t.cardId)
       )
     : [];
   if (stealableLocks.length === 0) return null;

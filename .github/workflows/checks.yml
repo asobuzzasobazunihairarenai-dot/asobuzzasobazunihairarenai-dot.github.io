@@ -46,6 +46,8 @@ jobs:
         run: node tools/check-freeze-guards.mjs
       - name: カードの持ち物検査
         run: node tools/check-cards.mjs
+      - name: 他のカードの効果の対象にならない札の守り
+        run: node tools/check-untargetable.mjs
       - name: SQL の全文再実行が安全か
         run: node tools/check-sql-rerun.mjs
       - name: SQL の関数が「閉じたつもりで開いていない」か

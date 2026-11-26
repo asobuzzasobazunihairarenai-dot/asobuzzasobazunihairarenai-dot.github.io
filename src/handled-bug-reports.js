@@ -591,6 +591,11 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   // 🔴 #758（テキストのマイデッキ編集／マイ山札を作る）は**まだ**。指す画面を
   //   ホームのタイルだと読んでいたが、ホームには無く**マイページの中**だった。
   //   #757（列の間の広いスペース）と同じ画面なので、2つまとめて見るのが筋。
+
+  // 2026-11-26（続き863）。⚠ #827 #828 は続き857〜859 で直していたのに**登録漏れ**
+  //   （取りこぼしは7回目）。直したらその場で足すこと。
+  827, // 上端の帯に戻るボタンが潜る（3画面）＋コレクションに色の手がかりと絞り込み
+  828, // パックを表と裏でひっくり返せるように
 ]);
 
 // ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
@@ -1255,6 +1260,10 @@ export const BUG_REPORT_FIX_NOTES = {
   719: {
     ja: "直しました。#717 と同じ出来事です。あなたの手番が進まなくなっていたので、CPUが続けて打っているように見えていました。",
     en: "Fixed. Same incident as #717: your own turn had stalled, so it looked as if the CPU played twice in a row.",
+  },
+  829: {
+    ja: "直しました。おっしゃるとおりで、ファーストカード・エターナルカード（と我忘れの白き龍）は他のカードの効果の対象になりません。ヤエザの「自分のロックしている１枚を捨てる」と、いろ落ちガエルの同じ選択肢で、この守りが**丸ごと抜けていました**。総点検したところ、守りの判定がカード効果の内側にしか無く、外から使えない形だったため、同じ一覧を組む所が条件を手で書き写していて、書き写すたびに1つずつ欠けていました（ゴメンナサイッ！では白き龍だけが抜けていました）。判定を1か所にまとめ、3か所とも通るようにしたうえで、今後よそで書き写されたら公開前に止まる検査も足しました。",
+    en: "Fixed. You are right: First and Eternal cards (and the White Dragon) are never targeted by another card's effect. Yaeza's discard-a-locked-card option and the same option on the colour-fading frog had no such guard at all. Auditing it showed why: the rule lived inside the card-effect engine and was not exported, so every other place that built the same list copied the condition by hand, and each copy lost a piece (the Sorry card's version was missing the White Dragon). The rule now lives in one place, all three go through it, and a new check stops any future hand-written copy before release.",
   },
   720: {
     ja: "直しました。おっしゃるとおり「任意のプレイヤー」は自分も含みます。カードの文も処理も自分を含んでいたのですが、**選ぶ画面を組む所で自分の席だけが落ちて**いました。自分の盤面アバターは既定で表示されない設定（左下の大きいアバターと重複するため）で、選ぶ画面が「盤面にアバターがある人」だけを並べていたのが原因です。これからは自分も必ず並び、「（自分）」と添えて分かるようにしました。あわせて、候補が自分ひとりだけの効果（リトルマウス等）がこの穴で黙って不発になっていたのも直っています。",
