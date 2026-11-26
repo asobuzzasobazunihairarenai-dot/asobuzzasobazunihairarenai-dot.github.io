@@ -55,27 +55,33 @@ export const CHANGELOG = [
     date: "2026-11-26",
     summary: [
       "フレンドリーマッチに出すマイ山札は、1人1つになりました",
+      "デイリーチャレンジの輪を押すと、その目標だけが出ます",
     ],
     items: [
       "フレンドリーマッチの「この対局の山札」で、**1人が出せるマイ山札は1つだけ**になりました。それまでは1人で最大4つ出せたので、4人そろうと候補が十数個並んで、部屋を立てた人が選びにくくなっていました。⚠ 出したあとも**別のものに出し直せます**（出し直すと差し替わります）。候補の一覧では、いま出しているものに ✓ が付いて、最初からそれが選ばれています。",
+      "ホームのデイリーチャレンジで、**輪を1つ押すと、その輪の目標だけ**が出るようになりました。3つ並んでいるとどれがどれか分かりにくかったので、押したものに絞って読めます。ウィークリーの輪を押せばウィークリーだけ。絞っている間は「ぜんぶ見る」が出るので、いつでも元に戻せます。⚠ パソコンでマウスを載せた時は、今までどおり**ぜんぶ**出ます（流し見のため）。",
     ],
     summaryEn: [
       "Each player now offers one custom deck to a friendly match, not several",
+      "Tap one daily-challenge ring to see just that goal",
     ],
     fixes: [
       "ヤエザなどの効果で、ファーストカードを捨てられてしまうことがあったのを直しました。",
       "裏向きのカードを捨てる効果で、1マスだけ捨てられずに「そこに特別なカードがある」と分かってしまうことがあったのを直しました。",
       "効果の最中に出る「もう動かない」などのボタンが、上の案内と重なっていたのを直しました。案内も読みやすい大きさになりました。",
       "「ちょっと待った！」に何度も乗り直せてしまい、同じことが繰り返されるのを直しました。",
+      "「ちょっと待った！」で元のマスへ戻る時、カメラが行ったり来たりしないようにしました。",
     ],
     fixesEn: [
       "Fixed First cards being discardable by effects such as Yaeza's.",
       "Fixed an effect that discards face-down cards skipping one square, which revealed that something special was hidden there.",
       "Fixed the buttons shown during an effect overlapping the instruction banner above them. The banner is also easier to read now.",
       "Fixed being able to step back onto Wait a Moment over and over, repeating the same thing.",
+      "The camera no longer swings back and forth when Wait a Moment sends you back to where you came from.",
     ],
     itemsEn: [
       "In a friendly match's deck lineup, each player can now offer one custom deck instead of up to four. With four players that could fill the list with a dozen candidates, and the host could no longer read it. You can still swap: offering another deck replaces the one you had out. The list marks the deck you are offering with a check and starts out with it selected.",
+      "On the home screen, tapping one of the daily-challenge rings now shows only that ring's goal. With three of them side by side it was hard to tell which was which, so now you can read just the one you tapped; tapping the weekly ring shows only the weekly. While filtered, a show-all link is there to go back. Hovering with a mouse still shows everything, for a quick glance.",
     ],
     devItems: [
       "🔴 サーバー: `so7_offer_my_stack` の「1人4つまで」（`too_many_offers`）を外し、**出す前に自分の他の行を消す**形にした。⚠ 表の主キーは `(game_id, user_id, stack_key)` のまま——主キーを削ると**既に積まれている行の後始末**が要るうえ、このファイルは**全文を流し直しても落ちない**ことを検査している（`check-sql-rerun`）ので、関数の中で守る方が安い。1つの関数＝1つのトランザクションなので、消してから入れる間に割り込まれない。",
@@ -115,6 +121,9 @@ export const CHANGELOG = [
       "🔴 **#835: 「ちょっと待った！」に何度も乗り直せた。** ループの守り（#49）は在ったが、**人間は同じマスへ10回まで戻れる**作りなので10周できていた。あの上限はジャンプ台の「周囲が全部ジャンプ台のときに起点へ何度か戻る」といった**正当な繰り返し**のための値。ところが ちょっと待った！は「強制移動で戻る → １マス移動する」なので、元のマスへ戻ると**戻されて、また１マス選ぶ＝まったく同じ状態**に戻る——**回数で許す話ではなかった**。",
       "⇒ **強制移動で追い出されたマスは、その効果の中では選べない**ようにした（`ctx` に持つので次のターンには何も残らない）。⚠ ジャンプ台の繰り返しには**1ミリも触っていない**（あちらは強制移動で追い出されていない）。",
       "🔴 既存の #767 のテストが**まさにこの動き（戻る）を期待していた**ので、「別のマスへ進む」に直した（#767 が見たかった『移動が2回起きる』はそのまま守れる）。さらに「**追い出されたマスへは戻れない**」を1本足した——戻り先以外に行ける所が無い盤面で、**駒の移動が1回だけ**（強制移動のぶん）になることで見る。",
+      "🔴 **#831: デイリーチャレンジの輪を押すと、その輪の目標だけを出す。** 輪に `data-slot` の印を付け、押された輪で絞る（`絞り` は null ＝ぜんぶ）。⚠ **ホバー（PC）は今までどおりぜんぶ**出す（流し見のため。絞るのは押した時だけ）。⚠ 同じ輪をもう一度押したら閉じ、**別の輪を押したらそちらへ切り替える**（閉じてから開き直させない）。⚠ 閉じたら絞りを忘れる（次に開いた時に前の絞りが残っていると驚く）。⚠ 絞っている間は「ぜんぶ見る」を必ず出す（押せない行き止まりを作らない＝#729 の家族）。実測14項目・例外0。",
+      "🔴 **#834: さっきまで居た所へ戻るだけの移動には、カメラを寄せない。** 報告「ちょっと待ったに到達したあと戻るまで、カメラはそのままでいい気がする！」。カメラが寄るのは「何が起きたか分かりにくい移動」を**説明する**ため（続き547 の意図）なので、**戻るだけなら説明は要らない**し、寄ると行って戻っての往復で画面が揺れる。⇒ 行き先が `getMovedFromCell`（その駒がさっきまで居たマス）と同じなら寄らない。⚠ 戻った**後**の「１マス移動する」は行き先が違うので**今までどおり寄る**。⚠ リーチキャンセルのような他の「戻る」札にも同じ理屈で効く。",
+      "⚠ 実測の不安定を1つ潰した（**私の測り方**）: ホーム画面も自分で輪を作るので、台の中の輪が**8個**になる回があった（`buildDailyRing` は呼ばれるたびに新しい要素を作り、モジュールの中の `ringEl` を差し替える）。⇒ 先に在るものを全部どけてから作る形にして、**3回続けて 14/0** になることを確かめた。",
     ],
     devItemsEn: [
       "Server: the four-per-player cap in so7_offer_my_stack is gone; the function now deletes the caller's other rows before inserting. The primary key still carries stack_key: dropping it would mean cleaning up rows already stacked, and this file is checked for being safe to re-run whole, so guarding inside the function is cheaper. One function is one transaction, so nothing slips in between the delete and the insert.",
@@ -154,6 +163,9 @@ export const CHANGELOG = [
       "Stepping back onto Wait a Moment repeatedly was possible because the anti-loop guard lets a human revisit the same square ten times. That allowance exists for jump pads, where returning to the start can be a legitimate repetition. Wait a Moment is different: it forces you back and then grants one step, so returning to it restores exactly the state you were already in. That is not something a counter should allow.",
       "The square a piece was forced away from is now excluded from the destinations offered later in the same effect. It is held on the effect context, so nothing persists into the next turn, and jump pads are untouched since no forced move pushed the piece away there.",
       "An existing test expected exactly this return, so it was changed to step elsewhere, which still proves the two moves it was written for. A new test asserts the return is impossible: on a board where the forced-away square is the only neighbour with a card, the piece moves once and stays put.",
+      "Tapping one daily ring now filters the card to that ring's goal. Each ring carries a slot marker and the card renders only the matching entry, with null meaning everything. Hovering with a mouse still shows all of them, since that is for glancing. Tapping the same ring again closes the card, tapping a different one switches to it rather than closing first, and closing forgets the filter so the next open starts fresh. A show-all link is always present while filtered, so there is no dead end. Fourteen assertions, no exceptions.",
+      "The camera no longer zooms for a move that merely returns a piece to where it just was. Zooming exists to explain a move the player did not make, and a return needs no explanation while the swing back and forth is unpleasant. The destination is compared with the square the piece came from, so the step that follows the return still gets its zoom, and other cards that send you back benefit from the same reasoning.",
+      "One flaky measurement was traced to my own harness: the home screen builds its own ring, so the stage sometimes held eight rings instead of four, because each call creates a fresh element and rebinds the module's reference. Clearing any existing ring before building made three consecutive runs pass fourteen of fourteen.",
     ],
   },
   {

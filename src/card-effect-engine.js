@@ -268,7 +268,9 @@ export function notePieceLocationsForMovedFrom() {
     pieceLastCell.set(tk.id, now);
   }
 }
-function getMovedFromCell(player) {
+// 🔴【#834・続き867】main.js（カメラ）からも読む。**読むだけ**で何も変えない。
+//   「さっきまで居た所へ戻るだけの移動には寄らない」の判定に要る。
+export function getMovedFromCell(player) {
   const cell = movedFromByPlayer.get(player);
   return cell ? { zone: "cell", row: cell.row, col: cell.col } : null;
 }

@@ -108,6 +108,8 @@ function 日の輪(d) {
   const 済 = prog >= goal;
   const el = document.createElement("div");
   el.className = "daily-ring-ring is-daily" + (済 ? " is-done" : "");
+  // 🔴【#831・続き867】押された輪がどれかを、この印で見分ける。
+  el.dataset.slot = String(Number(d?.slot) || 0);
   el.appendChild(七色の弧(灯る数(prog, goal)));
   el.appendChild(中の字(済 ? "✓" : String(prog)));
   // ⚠ 受け取れる印は**その輪だけ**に付ける（どれが受け取れるのかが一目で分かる）。
@@ -122,6 +124,10 @@ function 日の輪(d) {
 //     ・節目（3 / 7 / 12勝）に**印**。届いた印だけ金で灯る
 //     ・ゆっくり回る破線の輪を1本重ねる（止める設定は CSS 側で面倒を見る）
 //   ⚠ 節目はサーバーが持っている（steps）。こちらで数を決め打ちしない。
+// 🔴【#831・続き867】いまどの輪だけを出しているか（null ＝ぜんぶ）。
+//   ユーザー要望「デイリーチャレンジのリングをタップしたらそのリングの目標だけが出るといいです」。
+//   ⚠ ホバー（PC）は今までどおり**ぜんぶ**出す（流し見のため）。押した時だけ絞る。
+let 絞り = null;
 let 週の番号 = 0;
 function 週の輪(w) {
   const steps = (w?.steps || []).map((n) => Number(n) || 0).filter((n) => n > 0);
@@ -132,6 +138,7 @@ function 週の輪(w) {
 
   const el = document.createElement("div");
   el.className = "daily-ring-ring is-weekly" + (届いた >= steps.length && steps.length ? " is-done" : "");
+  el.dataset.slot = "weekly";
   const svg = 輪の土台();
   const r = 26;
   const 周 = 2 * Math.PI * r;
@@ -298,14 +305,19 @@ function 札を組む() {
 
   const w = c?.weekly;
 
-  const 題 = document.createElement("div");
-  題.className = "daily-ring-card-title";
-  題.textContent = t("packs.daily");
-  el.appendChild(題);
+  // 🔴【#831・続き867】週の輪だけを見ている時は、デイリーの題を出さない。
+  if (絞り !== "weekly") {
+    const 題 = document.createElement("div");
+    題.className = "daily-ring-card-title";
+    題.textContent = t("packs.daily");
+    el.appendChild(題);
+  }
 
   // 🔴【#683】1日3つ。それぞれに**題**（ユーザー要望「タイトルくらいは入れる？」）と
   //   進み、**セヴルの報酬**を出す。⚠ 題と説明はクライアントが持つ（英語に切り替えるため）。
-  for (const d of 一覧(c)) {
+  // 🔴【#831・続き867】押された輪だけを出す（null ならぜんぶ）。
+  const 日々 = 絞り === null ? 一覧(c) : 絞り === "weekly" ? [] : 一覧(c).filter((d) => (Number(d.slot) || 0) === 絞り);
+  for (const d of 日々) {
     const goal = Math.max(1, Number(d.goal) || 1);
     const prog = Math.min(Math.max(0, Number(d.progress) || 0), goal);
     const 済 = prog >= goal;
@@ -342,12 +354,16 @@ function 札を組む() {
     el.appendChild(row);
   }
 
-  const 題2 = document.createElement("div");
-  題2.className = "daily-ring-card-title";
-  題2.textContent = t("packs.weekly");
-  el.appendChild(題2);
+  // 🔴【#831・続き867】デイリーの輪だけを見ている時は、週の節を出さない。
+  const 週も出す = 絞り === null || 絞り === "weekly";
+  if (週も出す) {
+    const 題2 = document.createElement("div");
+    題2.className = "daily-ring-card-title";
+    題2.textContent = t("packs.weekly");
+    el.appendChild(題2);
+  }
 
-  if (w) {
+  if (w && 週も出す) {
     const steps = w.steps || [];
     const 届いた = steps.filter((n) => w.wins >= n).length;
     const 次 = steps.find((n) => w.wins < n) ?? steps[steps.length - 1] ?? 0;
@@ -367,6 +383,20 @@ function 札を組む() {
         Math.max(0, 届いた - (w.claimed || 0))
       )
     );
+  }
+
+  // 🔴【#831・続き867】絞っている時は、戻る道を必ず出す（押せない行き止まりを作らない）。
+  if (絞り !== null) {
+    const 全部 = document.createElement("button");
+    全部.type = "button";
+    全部.className = "daily-ring-showall";
+    全部.textContent = t("packs.ch.showAll");
+    全部.addEventListener("click", (e) => {
+      e.stopPropagation();
+      絞り = null;
+      描き直す();
+    });
+    el.appendChild(全部);
   }
 
   const note = document.createElement("div");
@@ -399,6 +429,8 @@ function 描き直す() {
 
 function 開く(v) {
   開いている = !!v;
+  // ⚠ 閉じたら絞りを忘れる（次に開いた時に、前の絞りが残っていると驚く）。
+  if (!開いている) 絞り = null;
   描き直す();
 }
 
@@ -418,7 +450,8 @@ export function buildDailyRing() {
   ringEl.setAttribute("role", "button");
 
   // ホバー（PC）: 開く。離すと閉じる。
-  ringEl.addEventListener("mouseenter", () => 開く(true));
+  // ⚠ ホバー（PC）は今までどおり**ぜんぶ**出す（流し見のため。絞りは押した時だけ）。
+  ringEl.addEventListener("mouseenter", () => { 絞り = null; 開く(true); });
   ringEl.addEventListener("mouseleave", () => {
     // 札の上にマウスが載っている時は閉じない。
     setTimeout(() => {
@@ -426,8 +459,20 @@ export function buildDailyRing() {
     }, 120);
   });
   // 押す（スマホもPCも）: 開く／閉じる。
+  // 🔴【#831・続き867】**押された輪だけ**を出す（ユーザー要望）。
+  //   ⚠ 同じ輪をもう一度押したら閉じる。別の輪を押したら、そちらへ切り替える
+  //     （閉じてから開き直させない）。輪の外（札の外側の余白）を押したら今までどおり。
   ringEl.addEventListener("click", (e) => {
     e.stopPropagation();
+    const 輪 = e.target instanceof Element ? e.target.closest(".daily-ring-ring") : null;
+    const 押された = 輪 ? (輪.dataset.slot === "weekly" ? "weekly" : Number(輪.dataset.slot) || 0) : null;
+    if (輪) {
+      if (開いている && 絞り === 押された) { 開く(false); return; }
+      絞り = 押された;
+      開く(true);
+      return;
+    }
+    絞り = null;
     開く(!開いている);
   });
   // 長押し（スマホ）: 開く。

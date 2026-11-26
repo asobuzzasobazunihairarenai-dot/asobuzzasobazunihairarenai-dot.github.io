@@ -32,6 +32,7 @@ import { initRankingIcon } from "./ranking-page.js";
 import { openEmotePicker, openEmoteMuteMenu } from "./emote.js";
 import { initCardDevMode, registerCardDevModeArrivalHelpers } from "./card-dev-mode.js";
 import {
+  getMovedFromCell, // 【#834・続き867】戻るだけの移動ではカメラを寄せない
   canAutoProcessArrival,
   runArrivalEffect,
   canUseHandEffect,
@@ -1966,8 +1967,20 @@ async function moveAndSyncForEffect(...args) {
   const [tokenId, location] = args;
   const token = getState().tokens.find((t) => t.id === tokenId);
   const table = document.getElementById("game-table");
+  // 🔴【#834・続き867】**さっきまで居た所へ戻るだけの移動には寄らない。**
+  //   報告「ちょっと待ったに到達したあと戻るまで、カメラはそのままでいい気がする！」。
+  //   カメラが寄るのは「何が起きたか分かりにくい移動」を**説明する**ため（続き547 の意図）。
+  //   戻るだけなら説明は要らないし、寄ると行って戻っての往復で画面が揺れる。
+  //   ⚠ 戻った**後**の「１マス移動する」は、行き先が違うので今までどおり寄る。
+  const 戻るだけ =
+    token?.kind === "piece" &&
+    location?.zone === "cell" &&
+    (() => {
+      const 元 = getMovedFromCell(token.player);
+      return !!元 && 元.row === location.row && 元.col === location.col;
+    })();
   const useCamera =
-    token?.kind === "piece" && location?.zone === "cell" && cinematicAllows("highlight") && !!table;
+    token?.kind === "piece" && location?.zone === "cell" && cinematicAllows("highlight") && !!table && !戻るだけ;
   if (!useCamera) return moveAndSyncForEffect__inner(...args);
   const destEl = findLocationElement(table, location);
   // 【#518・#520】1.28 の決め打ちをやめ、他の決め所と同じ**管理者モードで回せるつまみ**にした
