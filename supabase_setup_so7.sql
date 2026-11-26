@@ -1831,7 +1831,14 @@ begin
     where user_id = p_user_id;
 end;
 $$;
+-- 🔴 `from public` だけでは anon / authenticated を止められない（Supabase は新しい関数へ
+--    既定でその2つの役へ EXECUTE を付けるので、public から revoke しても残る）。
+--    この関数は security definer で、引数に**他人の uuid**を取る＝誰のランクでも書き換えられる。
+--    クライアントから1度も呼ばれていないことを確かめたうえで、2つの役からも外す（続き862）。
+--    ⚠ 内部から呼ぶ so7_ranked_get_self / _admin_apply_delta / _report_result はどれも
+--      security definer なので、所有者の権限で動き、この revoke の影響を受けない。
 revoke execute on function so7_ranked_apply_delta(uuid, int) from public;
+revoke execute on function so7_ranked_apply_delta(uuid, int) from anon, authenticated;
 -- ★authenticatedへのgrantはしない（内部専用）
 
 -- 呼び出し元自身の現シーズンのランクを取得する（表示用）。行が無い/シーズンが古い時だけ
@@ -1909,6 +1916,8 @@ begin
 end;
 $$;
 revoke execute on function so7_ranked_admin_apply_delta(uuid, int) from public;
+-- 🔴 ここは anon / authenticated から外さない。すぐ下の grant が意図（管理者用RPC）で、
+--    関数の中でメールを検めている。外すと管理者の手動補正が使えなくなる（続き862）。
 grant execute on function so7_ranked_admin_apply_delta(uuid, int) to authenticated;
 
 -- 【検算用メモ（SQL Editorで手動実行して確認できる）】
@@ -2075,7 +2084,9 @@ exception when others then
   return 'remake';
 end;
 $$;
+-- ⚠ 理由は so7_ranked_apply_delta の所に書いた（続き862）。
 revoke execute on function so7_ranked_decide_card_set(uuid[]) from public;
+revoke execute on function so7_ranked_decide_card_set(uuid[]) from anon, authenticated;
 create or replace function so7_ranked_create_game(p_players uuid[])
 returns text
 language plpgsql
@@ -2112,7 +2123,9 @@ begin
   return v_game;
 end;
 $$;
+-- ⚠ 理由は so7_ranked_apply_delta の所に書いた（続き862）。
 revoke execute on function so7_ranked_create_game(uuid[]) from public;
+revoke execute on function so7_ranked_create_game(uuid[]) from anon, authenticated;
 
 -- 待機中に数秒ごとに呼ぶ。①ハートビート ②掃除 ③グループ成立試行 ④自分の状態＋待機人数を返す。
 -- #variable_conflict use_column: OUT列名(match_id/game_id等)と同名のテーブル列を、SQL内では

@@ -48,6 +48,8 @@ jobs:
         run: node tools/check-cards.mjs
       - name: SQL の全文再実行が安全か
         run: node tools/check-sql-rerun.mjs
+      - name: SQL の関数が「閉じたつもりで開いていない」か
+        run: node tools/check-sql-grants.mjs
       - name: CSS（ブレースの平衡・max-height の vh）
         run: node tools/check-css.mjs
       - name: お知らせ（日本語と英語の件数）

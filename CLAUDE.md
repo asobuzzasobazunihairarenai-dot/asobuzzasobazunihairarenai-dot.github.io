@@ -8201,3 +8201,102 @@ PC 1360x820 ／ スマホ横 932x430（**クラスで**スマホの見え方を�
 - ⓘ 「第一候補・第二候補」の画面は**まだ**（ユーザー「将来的に！」）。**持ち方は既に順番付きの
   配列**で、サーバーも重み付けで数えているので、**画面だけ足せばよい**。
 - ⚠ **実機では見ていない**（ヘッドレスの実測まで）。
+
+### 2026-11-26（続き862）：🔴🔴 `revoke ... from public` は**anon を1つも止めていなかった**／差分を読んで4つ目を取り消した
+
+続き860・861 の SQL を本番へ流したあと、権限を見ていて**前から在る穴**が出た。
+
+#### 🔴🔴 ① `revoke execute ... from public` は、このプロジェクトでは**何も守っていなかった**
+
+| | |
+|---|---|
+| このファイルに在る `revoke ... from public` | **58か所** |
+| それが止めている役 | 🔴 **1つも無い** |
+| なぜ | Supabase は新しい関数へ**既定で `anon` / `authenticated` に EXECUTE を付ける**（`anon=X/postgres,authenticated=X/postgres`）。`public` から revoke しても、明示の grant は残る |
+
+いちばん重かったのは **`so7_ranked_apply_delta(p_user_id uuid, p_delta int)`**:
+**security definer** で、**引数に他人の uuid とポイントを取る**のに、**誰かを確かめる守りが1行も無い**。
+⇒ **公開されている anon キーだけで、誰のランクでも書き換えられる**状態だった。
+ⓘ `so7_ranked_admin_apply_delta` の方は**自分で管理者チェック（メール）を持っている**ので安全。
+
+#### 🔴🔴 ② 4つ目は外してはいけなかった（**差分を読んで気づいた**）
+
+道具は「`src/*.js` でその名前が呼ばれていない＝内部専用」としか見ていなかったので、
+`so7_ranked_admin_apply_delta` も「閉じてよい」と出した。ところが差分を見ると:
+
+```
+revoke execute on function so7_ranked_admin_apply_delta(uuid, int) from public;
+grant execute on function so7_ranked_admin_apply_delta(uuid, int) to authenticated;   ← すぐ下
+```
+
+**明示の grant が在る＝意図して開けてある**（管理者用RPC・中でメールを検める）。外すと**管理者の手動補正が止まる**。
+⇒ 取り消して、**その場に「ここは外さない」と理由ごと書いた**。
+
+**教訓: 「クライアントから呼ばれていないか」をコードの grep だけで決めない。**
+**SQL に明示の grant が在れば、それが意図の正。**
+
+#### ③ 流したもの（**3行**）
+
+```sql
+revoke execute on function so7_ranked_apply_delta(uuid, int) from anon, authenticated;
+revoke execute on function so7_ranked_decide_card_set(uuid[]) from anon, authenticated;
+revoke execute on function so7_ranked_create_game(uuid[]) from anon, authenticated;
+```
+
+⚠ 3つとも**クライアントから1度も呼ばれていない**ことを確かめてある（rpc の呼び出し 0件）。
+⚠ 内部から呼ぶ6か所（`so7_ranked_get_self` / `_poll` / `_ready` / `_report_result` /
+`_admin_apply_delta` / `_create_game`）は**全部 security definer・所有者 postgres**。
+
+#### 🔴 ④ 本番で**両方向**測った（目録を信じない）
+
+| 測ったこと | 結果 |
+|---|---|
+| 目録 | 3つとも `anon=false / auth=false`。所有者 postgres は `execute=true` |
+| 🔴 **直に呼ぶ**（`set local role authenticated`） | **`ERROR: 42501: permission denied`** ＝本当に閉じた |
+| 🔴 **中から呼ぶ**（`so7_ranked_get_self()` 経由） | **関数の12行目まで入っている**（落ちたのは渡した偽 uuid の外部キー違反だけ）＝**内部からの呼び出しは生きている** |
+| 回帰 | `so7_offer_my_stack` / `so7_ranked_ready` / `so7_ranked_vote_sets` は `true` のまま |
+
+⚠ どちらの試しも **`begin; … rollback;`** で包んであるので、本番には1行も残っていない。
+🔴 **「目録が false と言う」だけでは足りない**——実際に呼んで拒まれることと、
+**内部からは通ること**の**両方**を見て初めて「閉じた・壊していない」と言える。
+
+#### 🔴 ⑤ 検査を1本足した（**29本目**・`tools/check-sql-grants.mjs`）
+
+見る決まりは1つだけ: **`revoke ... from public` が在る関数は、**
+**①`grant ... to authenticated` が在る（意図して開けてある）か、**
+**②`anon, authenticated` からも revoke 済み（本当に閉じてある）か、のどちらかでなければならない。**
+どちらも無い＝**閉じたつもりで開いている**。
+
+実測 **58件＝開けてある55・閉じた3・穴0**。A/B で3通り崩して**3通りとも名指しで落ち**、
+終わってから**指紋で元に戻ったことを照合**した。
+
+⚠ ⚠ **書き方の揺れで55件を0件と数えかけた**——`grant  execute`（**空白2つ**）が実在する。
+⇒ **母数そのものを毎回出す**ようにした（`revoke from public が在る関数: 58 件`）。
+**数え方が壊れたら母数が崩れて分かる**＝0しか出ない検査にしない。
+
+#### ⚠ 道具のミス（記録）
+
+1. 🔴 **CRLF の罠**（続き751・756 と同じ）。`supabase_setup_so7.sql` は CRLF なので、
+   行末に `\n` を付けた目印が**1つも当たらなかった**。**複数行の目印は LF にそろえてから当てる。**
+2. 🔴 **入れる文に生の二重引用符を書いて `changelog.js` を壊した**（続き809 と**同じ**）。
+   ⇒ 書く前に**二重引用符が混ざっていないかを機械で検める**行を置いた。
+3. 🔴 `node -e` と `sed` のエスケープを**この回も3回**食われた（`/^grant\s/` が `/^grants/` になり、
+   **55件を0件と数える**原因になった）。**置換は Write で書く。**
+4. ⚠ 識別子に**絵文字**を使って構文エラー（`🔴穴`）。数字で始める罠（4回）の家族。
+5. ⚠ `grep -rn` を G: ドライブ（Google Drive）に当てて**2回とも120秒で切れた**。
+   ⇒ 範囲を `src` / `supabase` に絞る。
+
+**検査**: `npm run check` **29本**とも合格（終了コード0）。
+🔴 **SQL を3行、本番へ流した**（ユーザーの「おねがいします！」を受けて）。
+**Edge Function の変更は無い＝再デプロイ不要。**
+ⓘ お知らせは **devItems だけ**（閉じた3つはクライアントが1度も呼んでいない＝**プレイヤーの画面は1ミリも変わらない**）。
+
+#### ⚠ 申し送り
+
+- 🔴 **残り4つの `revoke ... from public` が在る関数のうち、開けてある55件は検めていない。**
+  あれらは `grant to authenticated` が在る＝意図して開けてあるが、**中で誰かを確かめているかは別の話**。
+  `so7_ranked_apply_delta` と同じ形（security definer・引数で他人を指せる・守りが無い）が
+  他にも無いかは、**別に数える価値がある**。
+- ⚠ **実機では見ていない**（本番のSQLと目録まで）。**ランク戦を1回通してほしい**
+  ——内部からの呼び出しは本番で測ったが、**本物の対局で作られるところ**は見ていない。
+- 🔴 debug の残り10件（墜落8・#798 観戦・#808）は続き852 のまま。
