@@ -20,6 +20,7 @@ import {
   leaveGameById,
   getRoomName,
   getRoomIsRanked,
+  getRankedCardSet, // 🔴【続き861】ランク戦の投票で決まったセットを読む
   getMemberCount,
   getRoomHostInfo,
   getCurrentGameId,
@@ -1253,7 +1254,9 @@ async function renderRoomStatus(gameId, myGeneration) {
               //   それまで cardSet を渡していなかったので、startGame は端末の設定
               //   （getCardSet()＝管理者がホームのテストモードで選んだもの）に落ちていた。
               //   ⇒ 管理者が 0th拡張 のままランク戦を始めると**そのセットで始まっていた**。
-              cardSet: CARD_SETS.REMAKE,
+              // 🔴【続き861】**サーバーが投票で決めたセット**を使う。取れなければ（SQLがまだ・
+              //   通信が失敗・投票の結果が空）**必ずリメイク**＝上の決め打ちと同じ所に落ちる。
+              cardSet: (await getRankedCardSet(gameId)) || CARD_SETS.REMAKE,
             });
             closePanel();
           } catch (err) {

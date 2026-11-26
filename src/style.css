@@ -30395,3 +30395,65 @@ body.is-tablet-device .card-pack-color-head {
     transition: none !important;
   }
 }
+
+/* ── 【続き861】ランク戦のエディション投票（rank-explain.js の中の札）──────────────
+   マイページのランク表示を押して開く「ランク戦について」の中に出る。
+   🔴 **文字色を決め打ちしてよい例外**: この札は自前の地（金のグラデ／薄い金）を持つので、
+      明暗どちらのテーマでも地が変わらない（続き780 の伏せ札と同じ扱い＝教訓15 の例外）。
+      ただし**選ばれていない札**は地が薄くて下のテーマが透けるので、明るいテーマ側で
+      文字色と枠だけ上書きする。
+   ⚠ 選ばれている印は **border-color ＋ 地**で出す（`box-shadow` は複数ルールの値を合成せず
+      後勝ちで丸ごと上書きになる＝教訓10）。
+   ⚠ 指で押す端末では字と余白を大きくする——このアプリは body ごと縮むので、rem のままだと
+      実画面では半分以下になる（#453・#569・#721・#796・#822 の家族）。
+   ⚠ この節は**ファイルの末尾**に置く（先に書かれた規則と同じ強さなら後が勝つ＝続き857）。 */
+.ranked-vote-box {
+  margin-bottom: 0.9rem;
+}
+.ranked-vote-row {
+  display: flex;
+  flex-wrap: wrap; /* 版が増えても横に溢れない */
+  gap: 0.4rem;
+  margin: 0.2rem 0 0.4rem;
+}
+.ranked-vote-btn {
+  padding: 0.4rem 0.8rem;
+  min-height: 2rem;
+  border: 1px solid rgba(255, 215, 122, 0.45);
+  border-radius: 0.5rem;
+  background: rgba(255, 215, 122, 0.08);
+  color: #f1f5f9;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ranked-vote-btn:hover {
+  background: rgba(255, 215, 122, 0.18);
+}
+.ranked-vote-btn.is-selected {
+  border-color: #ffd77a;
+  background: linear-gradient(160deg, #ffd77a, #f0a93a);
+  color: #241a08;
+}
+.rank-explain-paragraph.is-ranked-vote-note {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+body.theme-light .ranked-vote-btn {
+  color: #3a2d12;
+  border-color: rgba(176, 141, 63, 0.5);
+  background: rgba(176, 141, 63, 0.1);
+}
+body.theme-light .ranked-vote-btn:hover {
+  background: rgba(176, 141, 63, 0.2);
+}
+body.theme-light .ranked-vote-btn.is-selected {
+  color: #241a08;
+}
+body.is-phone-device .ranked-vote-btn,
+body.is-tablet-device .ranked-vote-btn {
+  font-size: 1.5rem;
+  padding: 0.8rem 1.3rem;
+  min-height: 3.4rem;
+  border-radius: 0.8rem;
+}

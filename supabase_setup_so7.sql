@@ -2015,6 +2015,67 @@ grant execute on function so7_ranked_enqueue(jsonb, int) to authenticated;
 -- レディチェック締め切りで押した人だけで開始する(so7_ranked_pollの2-2)の両方から呼ぶ。
 -- SECURITY DEFINER 同士の内部呼び出し専用（authenticated へは grant しない＝クライアントから
 -- 直接叩けない。呼び出し元の DEFINER 権限で実行される）。
+-- ============================================================================
+-- 【続き861】ランク戦のエディション投票（ユーザー判断「投票は事前にマイページから
+--   決めておけるようにしよう！第一候補第二候補など重味付けで複数選べるといいかも！」）
+--
+-- 🔴 なぜ事前なのか: レディチェックの窓は **62秒しかなく**（下の so7_ranked_poll の
+--   locked_at から62秒で締め切り、押さなかった人はキューから外れる）、そこに投票を
+--   入れると考える時間が無い。⇒ **待っている間に決めておく**形にして、窓は1行も触らない。
+--
+-- 🔴 希望は so7_user_profiles.extra_prefs の 'rankedEditionVotes'（**順番付きの配列**）。
+--   列を増やさない（extra_prefs は汎用の設定置き場＝SQLの追加が要らない仕組み）。
+--   いまクライアントは1件だけ入れるが、**将来 第一候補・第二候補… に増やしても
+--   サーバーは直さなくてよい**ように、最初から重み付けで数える（1位3・2位2・3位1）。
+-- ============================================================================
+alter table so7_games add column if not exists ranked_card_set text;
+
+-- 🔴 **投票の選択肢になるのはここに在る版だけ。**
+--   ⚠ **公開されている版だけ**を書く——管理者だけのテスト用セットを書くと、
+--     1人の管理者の票で**みんなのランク戦が未公開の版になる**。
+--   ⚠ 版を公開したら、**ここに1つ足すだけ**で投票が働き出す（他は直さなくてよい）。
+--   いまは公開済みがリメイクだけなので1件＝投票は常にリメイクに決まる（＝今までと同じ）。
+create or replace function so7_ranked_vote_sets()
+returns text[]
+language sql
+immutable
+as $$
+  select array['remake']::text[];
+$$;
+grant execute on function so7_ranked_vote_sets() to authenticated;
+
+-- 集まった人の希望から1つ選ぶ。**票が多いほど選ばれやすい**（票を1行ずつに展開して
+-- ランダムに1つ取る＝それ自体が重み付き抽選）。
+--   ⚠ 希望が配列でない・空・知らない版しか無い等、**何が起きても 'remake' に落ちる**。
+--     ここはランク戦が始まる道の上なので、**失敗しても対局が作れなくならない**ことが最優先。
+create or replace function so7_ranked_decide_card_set(p_players uuid[])
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_set text;
+begin
+  select e.v into v_set
+  from so7_user_profiles p,
+       lateral jsonb_array_elements_text(
+         case when jsonb_typeof(p.extra_prefs -> 'rankedEditionVotes') = 'array'
+              then p.extra_prefs -> 'rankedEditionVotes'
+              else '[]'::jsonb end
+       ) with ordinality as e(v, ord),
+       -- 1位は3行・2位は2行・3位以降は1行ぶん（＝重み付け）。
+       lateral generate_series(1, greatest(1, 4 - e.ord::int)) as g(i)
+  where p.user_id = any(p_players)
+    and e.v = any(so7_ranked_vote_sets())
+  order by random()
+  limit 1;
+  return coalesce(v_set, 'remake');
+exception when others then
+  return 'remake';
+end;
+$$;
+revoke execute on function so7_ranked_decide_card_set(uuid[]) from public;
 create or replace function so7_ranked_create_game(p_players uuid[])
 returns text
 language plpgsql
@@ -2024,11 +2085,19 @@ as $$
 declare
   v_game text;
   v_p uuid; v_deck jsonb; v_prof record;
+  v_set text := 'remake';
 begin
   v_game := 'r_' || replace(gen_random_uuid()::text, '-', '');
-  insert into so7_games (id, name, status, is_ranked, my_deck_mode, timer_config)
+  -- 🔴【続き861】投票で決めたセット。**ここで転んでも対局は作る**（落ちる先は 'remake'）
+  --   ——ランク戦が始まる道の上なので、決め方の不具合で対局が作れなくなってはいけない。
+  begin
+    v_set := coalesce(so7_ranked_decide_card_set(p_players), 'remake');
+  exception when others then
+    v_set := 'remake';
+  end;
+  insert into so7_games (id, name, status, is_ranked, my_deck_mode, timer_config, ranked_card_set)
   values (v_game, 'ランク戦', 'open', true, true,
-          '{"enabled": true, "pseudoCpuModeEnabled": false}'::jsonb);
+          '{"enabled": true, "pseudoCpuModeEnabled": false}'::jsonb, v_set);
   foreach v_p in array p_players
   loop
     select display_name, avatar, piece_skin_index, pet_index into v_prof

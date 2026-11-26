@@ -1276,6 +1276,28 @@ export async function getSelfRank() {
   return data?.[0] ?? null;
 }
 
+// 🔴【続き861】ランク戦の投票に出せる版（＝**公開されている版**）。
+//   サーバーの so7_ranked_vote_sets() が**唯一の持ち主**（クライアントに写しを持つと
+//   必ず食い違う）。SQL がまだのサーバーでは null を返すので、呼び出し側が
+//   「リメイクだけ」に落とす＝今までと同じ振る舞いになる。
+export async function getRankedVoteSets() {
+  if (!client) return null;
+  const { data, error } = await client.rpc("so7_ranked_vote_sets");
+  if (error) return null;
+  return Array.isArray(data) ? data.filter((x) => typeof x === "string" && x) : null;
+}
+
+// 🔴【続き861】この対局でサーバーが決めたセット（投票の結果）。無ければ null。
+//   ⚠ 呼び出し側は **null なら必ずリメイク**に落とすこと（決め打ちを外した所の安全網）。
+//   so7_games は using(true) で読めるので専用RPCは要らない（getRoomIsRanked と同じ）。
+export async function getRankedCardSet(gameId) {
+  if (!client || !gameId) return null;
+  const { data, error } = await client.from("so7_games").select("ranked_card_set").eq("id", gameId).maybeSingle();
+  if (error || !data) return null;
+  const v = data.ranked_card_set;
+  return typeof v === "string" && v ? v : null;
+}
+
 // 【続き496】対戦の参加者ぶんの段位をまとめて取る（対戦開始前の「今回のメンバー」用）。
 // ★SQLの追加は要らない——so7_ranked_players は作った時から
 //   「ランクは公開情報（相手のランク表示・ランキング）なのでSELECTは全員可」という
