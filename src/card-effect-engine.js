@@ -976,6 +976,18 @@ function getHandTokens(player) {
   );
 }
 
+// 「捨てる／渡す／奪う」の**対象にできる手札だけ**を返す（続き864・#829 の総点検）。
+// 🔴 ユーザー裁定（2026-11-26）: 他のカードの効果の対象にならない札も、
+//    **手札の枚数としては数える**。数えない形にすると「２枚以下になるように捨てる」で
+//    残りが実質1枚になってしまう。⇒ **枚数は getHandTokens（全部）のまま**で、
+//    **どれを捨てるか選ぶ一覧だけ**をこちらで絞る。
+// ⚠ 平時はファースト／エターナルは**ロックに居て手札に来ない**（ユーザー確認済み・
+//    エターナルの山は7色各1枚なので、同じ色のスロットに2枚目が来ることもない）。
+//    実際に効くのは **我忘れの白き龍**（0th拡張の通常カード・★で対象にならない）。
+function 捨てられる手札(player) {
+  return getHandTokens(player).filter((t) => isTargetableByOtherCardEffects(t.cardId));
+}
+
 // ───────────────────────── 1st EDITION の【財力】 ─────────────────────────
 // 財力＝そのプレイヤーの**手札の枚数**（＋修正値）。考え方は src/wealth.js の冒頭に全部書いた。
 // 🔴 リメイクの【追色】と違い**何も捨てない**（条件を見るだけ）。
@@ -2784,7 +2796,7 @@ async function runAction(action, ctx, helpers) {
             return token.cardId === "rainbow-shard" || getCardDefinition(token.cardId)?.color === "orange";
           });
       if (hasOrange) {
-        const handTokens = getHandTokens(ctx.player);
+        const handTokens = 捨てられる手札(ctx.player);
         // 【#357】2枚以上まとめて捨てる時は、本人に順番を選んでもらう（ユーザー要望「複数枚捨てる時は
         // 順番を指定できるように。総点検を！」）。捨て場は一番上から使われる（山札切れの補充は捨て場を
         // そのまま裏返す＝シャッフルしない）ので、どの順で積むかがそのまま次の一手の価値を変える。
@@ -3428,7 +3440,7 @@ async function runAction(action, ctx, helpers) {
         // 「手札を全て捨てる」というルールは必ず守る（残っていればここで捨てる。通常は空振り）。
         // 【#711】その人のぶんを**1つのミニモーダル**にまとめる（1枚ごとに出すと上書きし合う）。
         const 捨てた = [];
-        for (const token of getHandTokens(p)) {
+        for (const token of 捨てられる手札(p)) {
           捨てた.push(token.cardId);
           await helpers.discardAndSync(token.id, { batchNotice: true });
         }
@@ -3459,7 +3471,7 @@ async function runAction(action, ctx, helpers) {
       //   ② action.random ＝「**無作為に**捨てる」（路地裏のスラム街・飛空艇アルヴァ）。
       //      選ばせずにこちらで引く＝本人も何が捨てられるか選べない。
       // ⚠ action.keep（今までの形＝「N枚になるように捨てる」）はそのまま。
-      const handTokens2 = getHandTokens(ctx.player).filter((tk) => !action.exceptSelf || tk.id !== ctx.cardTokenId);
+      const handTokens2 = 捨てられる手札(ctx.player).filter((tk) => !action.exceptSelf || tk.id !== ctx.cardTokenId);
       const discardCount2 =
         action.count != null
           ? Math.min(await amountOf(action, ctx, helpers), handTokens2.length)
@@ -3518,7 +3530,7 @@ async function runAction(action, ctx, helpers) {
       // 選べる罠専用: 手札の半分（端数切り捨て、docs/rulebook.md「手札の半分」の
       // 定義通り）を、自分で選んで捨てる（ゲート侵攻ボーナスの「無作為に奪う」とは
       // 違い、これは自分自身の手札を自分で選ぶ効果のため隠し情報の抽選は不要）。
-      const handTokens = getHandTokens(ctx.player);
+      const handTokens = 捨てられる手札(ctx.player);
       const discardCount = Math.floor(handTokens.length / 2);
       if (discardCount === 0) return false;
       const discardedNames = [];
@@ -4528,7 +4540,7 @@ async function runAction(action, ctx, helpers) {
       // 作りは DISCARD_ANY_OWN_LOCKED_DRAW_PER（色落ちキャットの手札効果）と同じ考え方:
       //   まとめて選べるモーダルがあればそれで、無ければ（CPU等）1枚ずつ聞く。
       // ⓘ 0枚でもよい効果なので、0枚なら不発（＝このカードが手札に加わるだけ）。
-      const handNow = getHandTokens(ctx.player);
+      const handNow = 捨てられる手札(ctx.player);
       if (handNow.length === 0) return false;
       let 捨てた = 0;
       if (helpers.pickHandCardsOrdered) {
@@ -4558,7 +4570,7 @@ async function runAction(action, ctx, helpers) {
       }
       // まとめて選べない呼び出し元（CPU等）: 1枚ずつ聞く。手札の枚数を上限にする。
       for (let i = 0; i < handNow.length; i++) {
-        const のこり = getHandTokens(ctx.player);
+        const のこり = 捨てられる手札(ctx.player);
         if (のこり.length === 0) break;
         const chosen = await helpers.pickHandCard(
           ctx.player,
@@ -4775,7 +4787,7 @@ async function runAction(action, ctx, helpers) {
         return false;
       }
       await helpers.announceEffectReason?.(ctx.cardId, t("ce.gambleHit", { name: gambleName }));
-      const toDiscard = getHandTokens(ctx.player);
+      const toDiscard = 捨てられる手札(ctx.player);
       // ユーザー報告「宣言色が出た時に手札がすべて捨てられず止まってしまっている」への
       // 対応。1枚ごとのdiscardAndSyncのどこかで例外が起きると（オンライン中の通信
       // エラー等）、そこでこのループ自体が中断し、残りのカードが手札に残ったまま
@@ -5074,7 +5086,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.DISCARD_OWN_HAND: {
       // 色落ちキャットの手札効果専用: 全員対象のALL_PLAYERS_DISCARD_HAND_AND_DRAWと
       // 違い、自分の手札だけを全て捨てる。
-      const handTokens = getHandTokens(ctx.player);
+      const handTokens = 捨てられる手札(ctx.player);
       if (handTokens.length === 0) return false;
       // 🔴【#769・続き800】**捨てる順を本人に選ばせる。**
       //   報告「強欲なパレットは複数枚捨てる効果です。捨てる順を選べるようにしよう！」
@@ -5259,7 +5271,7 @@ async function runAction(action, ctx, helpers) {
       let 何かした = false;
       for (const p of rotatedActivePlayersFrom(ctx.player)) {
         if (p === ctx.player) continue; // 「相手全員」
-        const 手札 = getHandTokens(p);
+        const 手札 = 捨てられる手札(p);
         if (手札.length === 0) continue; // 何も起きない（善処の原則）
         const 同色 = 手札.filter((tk) => getCardDefinition(tk.cardId)?.color === 色);
         const 返事 = await helpers.delegateToPlayer?.(p, "greedy-palette", {
@@ -5277,7 +5289,7 @@ async function runAction(action, ctx, helpers) {
         // 3枚捨てる（3枚未満ならあるだけ＝補足どおり）。
         const 捨てる数 = Math.min(action.discardCount ?? 3, getHandTokens(p).length);
         for (let i = 0; i < 捨てる数; i++) {
-          const 残り = getHandTokens(p);
+          const 残り = 捨てられる手札(p);
           if (残り.length === 0) break;
           await helpers.discardAndSync(残り[0].id, { batchNotice: true });
           何かした = true;
@@ -5445,7 +5457,7 @@ async function runAction(action, ctx, helpers) {
       // 🔴 exceptSelf（0th拡張・バスストップ）: **これ自身を候補から外す**。あちらは
       //   keepsCardOnUse でこのカードを盤面へ置くので、自分を捨ててしまうと置けなくなる
       //   （ザ・ギャンブルは先に自分を捨てる作りなので、そもそも候補に入らなかった）。
-      const handTokens = getHandTokens(ctx.player).filter((tk) => !action.exceptSelf || tk.id !== ctx.cardTokenId);
+      const handTokens = 捨てられる手札(ctx.player).filter((tk) => !action.exceptSelf || tk.id !== ctx.cardTokenId);
       if (handTokens.length === 0) return false;
       const chosen = await helpers.pickHandCard(ctx.player, t("ce.L1880"), new Set(handTokens.map((tk) => tk.id)));
       if (!chosen) return false;
@@ -5592,7 +5604,7 @@ async function runAction(action, ctx, helpers) {
         return false;
       }
       // 渡せるのは自分自身（効果カード）以外の手札。
-      const 渡せる = () => getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+      const 渡せる = () => 捨てられる手札(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
       const 上限 = action.count === "any" ? 渡せる().length : (action.count ?? 1);
       let 渡した = 0;
       for (let i = 0; i < 上限; i++) {
@@ -5869,7 +5881,7 @@ async function runAction(action, ctx, helpers) {
       helpers.onCardAcquiredToHand?.(対象札.id, 対象札.cardId, true, ctx.player);
       // 「あなたの手札から１枚、その相手の手札に加える。」
       // ⚠ いま奪った札も含めて選べる（印字に除外が書かれていない）。
-      const 残り2 = getHandTokens(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
+      const 残り2 = 捨てられる手札(ctx.player).filter((tk) => tk.id !== ctx.cardTokenId);
       if (残り2.length > 0) {
         const 渡す = 残り2.length === 1 && !ctx.forcePrompt
           ? 残り2[0]

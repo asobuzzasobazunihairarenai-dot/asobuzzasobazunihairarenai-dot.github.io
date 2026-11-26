@@ -614,6 +614,40 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#829・続き864】「他のカードの効果の対象にならない」札は捨てられない。
+    //   ユーザー裁定（2026-11-26）: **枚数としては数える**が、捨てる対象にはならない。
+    //   ⚠ ファースト／エターナルは手札に来ない（ユーザー確認済み）ので、実際に効くのは
+    //     **我忘れの白き龍**（0th拡張の通常カード・★「これは他のカードの効果の対象にならない。」）。
+    name: "我忘れの白き龍: 全員が手札をすべて捨てる効果でも、龍だけは捨てられない",
+    kind: "arrival",
+    cardId: "0th-black-faded-frog",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 1, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-black-faded-frog", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "dragon", kind: "card", cardId: "ex0-white-dragon", location: { zone: "hand", player: "A" } },
+        { id: "a1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "C" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-black-faded-frog", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["C"] },
+    expect: [
+      // 🔴 本体: 龍は手札に残っている。
+      { kind: "tokenZone", id: "dragon", zone: "hand" },
+      // 🔴 対: 同じ場面で**ふつうの札はちゃんと捨てられている**（これが無いと、
+      //   何も捨てていなくても上の行は通る＝0しか出ない検査になる）。
+      // ⚠ 捨てた札は**トークンごと消える**（捨て場には card id が積まれる）ので、
+      //   zone:"discard" では見られない（続き799 で踏んだのと同じ）。tokenGone で見る。
+      { kind: "tokenGone", id: "a1" },
+      // 龍が1枚残るので、Aの手札は 0 ではなく 1。
+      { kind: "handCount", player: "A", n: 1 },
+    ],
+  },
+  {
     name: "旧0th 神鳴(到達): 自分のゲートへ強制移動し、移動先のカードはオープンしない",
     kind: "arrival",
     cardId: "0th-yellow-thunder",

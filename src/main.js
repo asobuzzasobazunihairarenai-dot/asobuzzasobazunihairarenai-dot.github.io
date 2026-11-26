@@ -2448,7 +2448,9 @@ async function swapPiecesForEffect(pieceTokenId, fromLocation, targetLocation) {
 function requestOpponentHandRitualPick(targetPlayer, hint, excludeTokenIds, revealLabels = { takes: t("game.label.took"), loses: t("game.label.wasTaken") }, options = {}) {
   return new Promise((resolve) => {
     const theirHand = getState().tokens.filter(
-      (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === targetPlayer && !excludeTokenIds?.has(t.id)
+      (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === targetPlayer && !excludeTokenIds?.has(t.id) &&
+            // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+            isTargetableByOtherCardEffects(t.cardId)
     );
     if (theirHand.length === 0) {
       resolve(null);
@@ -3068,7 +3070,9 @@ async function swapHandCardWithOpponentForEffect(player, targetPlayer) {
     (t) =>
       t.kind === "card" &&
       t.location.player === player &&
-      (t.location.zone === "hand" || t.location.zone === "publicDraw")
+      (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
+            // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+            isTargetableByOtherCardEffects(t.cardId)
   );
   let myCard;
   if (isCpuBrainDriving(player)) {
@@ -3333,7 +3337,9 @@ function playKonohanaPull(fromLocation, toLocation) {
 function requestOpponentHandRitualMultiPick(targetPlayer, count, options = {}) {
   return new Promise((resolve) => {
     const theirHand = getState().tokens.filter(
-      (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === targetPlayer
+      (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === targetPlayer &&
+            // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+            isTargetableByOtherCardEffects(t.cardId)
     );
     if (theirHand.length === 0) {
       resolve([]);
@@ -4728,7 +4734,9 @@ async function runSlumOfficialDiscardTask(player) {
   const handIdsNow = () =>
     getState()
       .tokens.filter(
-        (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+        (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
+              // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+              isTargetableByOtherCardEffects(t.cardId)
       )
       .map((t) => t.id);
   const ids = handIdsNow();
@@ -5019,7 +5027,9 @@ async function runDiscardDownToTask(player, taskArg) {
   const handIdsNow = () =>
     getState()
       .tokens.filter(
-        (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+        (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
+              // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+              isTargetableByOtherCardEffects(t.cardId)
       )
       .map((t) => t.id);
   const ids = handIdsNow();
@@ -5064,7 +5074,9 @@ async function runMayLockOneTask(player) {
 async function runYaezaOptionTask(player) {
   const 手札 = () =>
     getState().tokens.filter(
-      (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+      (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
+            // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+            isTargetableByOtherCardEffects(t.cardId)
     );
   // 🔴【#829】ファースト／エターナル／我忘れの白き龍は**他のカードの効果の対象にならない**
   //   （docs/rulebook.md「奪われたり捨てることはできない」）。ここはエンジンの外なので、
@@ -5232,7 +5244,9 @@ async function runChooseCellTask(player, taskArg) {
 // ここで人間かどうかを気にしなくてよい。
 async function runDiscardWholeHandOrderedTask(player) {
   const handTokens = getState().tokens.filter(
-    (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
+    (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
+          // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
+          isTargetableByOtherCardEffects(t.cardId)
   );
   if (handTokens.length === 0) return false;
   let ordered = handTokens;

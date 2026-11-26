@@ -64,9 +64,11 @@ export const CHANGELOG = [
     ],
     fixes: [
       "ヤエザなどの効果で、ファーストカードを捨てられてしまうことがあったのを直しました。",
+      "我忘れの白き龍が、ほかのカードの効果で手札から捨てられてしまうことがあったのを直しました。",
     ],
     fixesEn: [
       "Fixed First cards being discardable by effects such as Yaeza's.",
+      "Fixed the White Dragon being discardable from your hand by another card's effect.",
     ],
     itemsEn: [
       "In a friendly match's deck lineup, each player can now offer one custom deck instead of up to four. With four players that could fill the list with a dozen candidates, and the host could no longer read it. You can still swap: offering another deck replaces the one you had out. The list marks the deck you are offering with a check and starts out with it selected.",
@@ -94,6 +96,10 @@ export const CHANGELOG = [
       "🔴 **実測は本物の対局で、本物の委任タスクを呼んだ**（`scratchpad/_p863.mjs`・OK 11・例外0・404 0）。対局直後、Aのロックは**ファーストカード1枚だけ**なので、ヤエザは**何も聞かずに終わる**のが正しい。対照: 盤面のふつうの札を1枚ロックすると**選ばせる側になる**。🔴 **A/B で直す前に戻すと、実測が5件落ち**——ヤエザが札を出して待ちに入り、③では**ファーストカードがロックから消えて `[]`** ＝ **報告そのものを再現した**。",
       "⚠ 測り方で2つつまずいた（どちらもこちら側）: ①**Aの側は `south` ではなく `bottom`**（思い込みで書いた）。⇒ `SEAT_TO_SIDE` から引く形に直した。②`state.js` の `dispatch` は **export されていない**（続き802 と同じ）。⇒ `moveToken` / `sendTokenToPile` を使う。⚠ 実測から委任タスクを呼べる棚（`debugRunDelegatedTask`）を足した（`debugOpenPlayerPick` と同じ扱い。アプリ側のどこからも呼んでいない）。",
       "⚠ **手札側はまだ**（申し送り）。ゲート侵攻で押し出された**エターナルカードは手札へ行く**（`state.js` の実装）ので、「手札をすべて捨てる」等で捨てられうる。ただし「手札が２枚以下になるように捨てる」で**対象にならない札を枚数に数えるか**は読み方が割れるため、こちらで決めずに聞くことにした。",
+      "🔴 **手札側にも守りを当てた（#829 の総点検の続き・ユーザー裁定）。** 裁定は2つ: ①**ファースト／エターナルが手札に来ることは無い**（こちらの見立て違いを正していただいた——エターナルの山は**7色各1枚**なので、同じ色のスロットに2枚目が来ることがなく、押し出される道が存在しない）②対象にならない札も**手札の枚数としては数える**。⇒ **枚数を見る所は `getHandTokens`（全部）のまま**、**どれを捨てるか選ぶ一覧だけ**を新しい `捨てられる手札()` に替えた（エンジン13か所・main.js 6か所）。",
+      "ⓘ **実際に効くのは我忘れの白き龍だけ**（0th拡張の通常カード・★「これは他のカードの効果の対象にならない。」）。手札をすべて捨てる／N枚以下に捨てる／半分捨てる／ザ・ギャンブル／禁断の果実／強欲なパレット／裏貴族の賄賂／盗賊の技の入れ替え — どれでも龍だけ残る。⚠ **「置く」には当てていない**（ルールの言葉は「奪われたり捨てることはできない」で、置くことは禁じていない）。判断が要るので聞く。",
+      "🔴 **回帰テストを1本足した**（「全員が手札をすべて捨てる」で龍だけ残る）。🔴 **対を入れた**——同じ場面で**ふつうの札はちゃんと消えている**ことも見る（これが無いと、何も捨てていなくても通る）。A/B で直す前に戻すと **`discard dragon` が記録に出て**落ちる。⚠ 期待値を1つ間違えた: **捨てた札はトークンごと消える**ので `zone: discard` では見られない（続き799 で踏んだのと同じ）⇒ `tokenGone` で見る。",
+      "🔴 **検査（30本目）に手札側の節を足した**: `捨てられる手札()` が判定を通していること・**13か所以上で使われていること**・🔴 **枚数は今までどおり全部の手札で数えていること**（裁定どおり。ここを一緒に絞ると「２枚以下に捨てる」で残りが実質1枚になる）・main.js の6か所が判定を通していること。A/B で2通り崩して**2通りとも名指しで落ちる**。",
     ],
     devItemsEn: [
       "Server: the four-per-player cap in so7_offer_my_stack is gone; the function now deletes the caller's other rows before inserting. The primary key still carries stack_key: dropping it would mean cleaning up rows already stacked, and this file is checked for being safe to re-run whole, so guarding inside the function is cheaper. One function is one transaction, so nothing slips in between the delete and the insert.",
@@ -118,6 +124,10 @@ export const CHANGELOG = [
       "Measured in a real match by calling the real delegated tasks: eleven assertions, no exceptions, no 404s. Right after setup the only locked card is the player's First card, so Yaeza must finish without asking; the control locks an ordinary board card and the task starts asking instead. Reverting the fix makes five assertions fail, with Yaeza waiting on a prompt and the First card gone from the lock area, which reproduces the report exactly.",
       "Two stumbles, both in the measurement: the seat side is bottom, not south, which was written from assumption, so it now reads the real seat table; and state.js does not export dispatch, so the measurement moves tokens through the exported helpers. A debug shelf was added so measurements can call a delegated task directly, in the same style as the existing picker shelves and called from nowhere in the app.",
       "The hand side is still open. Gate invasion pushes a displaced Eternal card into the attacker's hand, so a discard-your-whole-hand effect could still take it. Whether an untargetable card counts toward a discard-down-to-two is a reading question, so it is being asked rather than decided here.",
+      "The hand side is now guarded too, following two rulings. First, First and Eternal cards never reach a hand: the eternal pile holds exactly one card per colour, so a second one can never displace the first, and the author corrected my earlier guess on this. Second, an untargetable card still counts toward hand size. So every place that counts a hand keeps counting all of it, and only the lists of which cards to discard were switched to a new discardable-hand helper, in thirteen places in the engine and six in main.js.",
+      "In practice this only affects the White Dragon, an ordinary 0th-expansion card whose star text says it is never targeted by another card's effect. Discard your whole hand, discard down to N, discard half, the gamble, the forbidden fruit, the greedy palette, the bribe, the thief's swap: the dragon stays in every one of them. Placing a card on the board was left alone, since the rule's wording forbids being taken or discarded, not being placed; that one is a question for the author.",
+      "A regression test covers it, paired with a control that an ordinary card in the same hand really is discarded, because otherwise the test would pass even if nothing were discarded at all. Reverting the fix makes the log show the dragon being discarded, and the test fails. One expectation was wrong at first: a discarded card's token is removed entirely rather than moved to a discard zone, the same trap as before, so the test asserts the token is gone.",
+      "The check gained a hand-side section: the helper exists and goes through the predicate, it is used in at least thirteen places, hand sizes are still counted over the whole hand as ruled, and the six main.js sites go through the predicate. An A/B pass breaks it two ways and both are named.",
     ],
   },
   {

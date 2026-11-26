@@ -147,6 +147,49 @@ for (const f of 穴) NG("src/main.js:" + (f.始 + 1) + " " + f.名 + " が判定
   }
 }
 
+// ── 🔴 ⑥ 手札側（続き864・ユーザー裁定 2026-11-26）──────────────────
+// 「枚数としては数える」＝枚数を見る所は getHandTokens（全部）のまま。
+// 「捨てられない／奪われない」＝**どれを捨てるか選ぶ一覧**だけを絞る ⇒ 捨てられる手札()。
+// ⚠ 実際に効くのは我忘れの白き龍だけ（ファースト／エターナルは手札に来ない）。
+{
+  const eng = 読む("src/card-effect-engine.js");
+  const 定義 = /function 捨てられる手札\(player\) \{\s*\n\s*return getHandTokens\(player\)\.filter\(\(t\) => isTargetableByOtherCardEffects\(t\.cardId\)\);/;
+  if (定義.test(eng)) OK("エンジンに『捨てられる手札』が在り、判定を通している");
+  else NG("エンジンの『捨てられる手札』が無い／判定を通していない");
+  const 使用 = (eng.match(/捨てられる手札\(/g) || []).length - 1; // 定義そのものを引く
+  console.log("  ⓘ エンジンで『捨てられる手札』を使っている所: " + 使用 + " か所");
+  if (使用 >= 13) OK("捨てる／渡す動詞が、全部そこを通っている（13 か所以上）");
+  else NG("『捨てられる手札』が " + 使用 + " か所でしか使われていない（13 か所以上のはず）");
+  // 🔴 枚数を数える所は**全部の手札**のまま（裁定どおり）。1つも残っていなければ数え方が壊れている。
+  const 数える = (eng.match(/getHandTokens\([^)]*\)\.length/g) || []).length;
+  console.log("  ⓘ 枚数を『全部の手札』で数えている所: " + 数える + " か所");
+  if (数える >= 5) OK("枚数は今までどおり全部の手札で数えている（裁定: 枚数としては数える）");
+  else NG("枚数を全部の手札で数えている所が " + 数える + " か所しかない（裁定と食い違う）");
+}
+
+// ── 🔴 ⑦ main.js の「手札から捨てる／奪う」も判定を通す ──────────────
+{
+  const 的 = [
+    ["requestOpponentHandRitualPick", "相手の手札から1枚奪う"],
+    ["requestOpponentHandRitualMultiPick", "相手の手札から複数奪う"],
+    ["swapHandCardWithOpponentForEffect", "手札の入れ替えで渡す札"],
+    ["runSlumOfficialDiscardTask", "スラム上がりの役人"],
+    ["runDiscardDownToTask", "N枚以下になるように捨てる"],
+    ["runDiscardWholeHandOrderedTask", "手札をすべて捨てる（順を選ぶ）"],
+  ];
+  const 行2 = main.split("\n");
+  let 穴2 = 0;
+  for (const [名, 説明] of 的) {
+    const i = 行2.findIndex((l) => new RegExp("^(?:async )?function " + 名 + "\\s*\\(").test(l));
+    if (i < 0) { NG(名 + " が見つからない（名前が変わった？）"); 穴2++; continue; }
+    let j = i + 1;
+    for (; j < 行2.length; j++) if (/^(?:async )?function [A-Za-z0-9_]+\s*\(/.test(行2[j])) break;
+    const 本体 = 行2.slice(i, j).join("\n");
+    if (!/isTargetableByOtherCardEffects/.test(本体)) { NG("src/main.js:" + (i + 1) + " " + 名 + "（" + 説明 + "）が判定を通していない"); 穴2++; }
+  }
+  if (穴2 === 0) OK("手札から捨てる／奪う " + 的.length + " か所とも判定を通している");
+}
+
 if (落ちた > 0) {
   console.error("\n🔴 " + 落ちた + " 件。`src/untargetable-cards.js` の判定を通してください。");
   process.exit(1);
