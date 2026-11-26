@@ -4457,11 +4457,16 @@ begin
   if not so7_stack_recipe_is_sane(p_recipe) then
     raise exception 'bad_recipe';
   end if;
-  -- 1人が出せるのは4つまで（ラインナップが読めない長さにならないように）
-  if (select count(*) from so7_game_stack_offers
-      where game_id = p_game_id and user_id = v_uid and stack_key <> p_stack_key) >= 4 then
-    raise exception 'too_many_offers';
-  end if;
+  -- 🔴【続き860】1人が出せるのは**1つだけ**（ユーザー判断「マイ山札は1人一つだけ
+  --   そこに並べれる」）。それまでは4つまで積めたので、4人が3つずつ出すと12個並んで
+  --   部屋主が選べなかった。出し直すと**差し替わる**。
+  --   ⚠ 表の主キーは (game_id, user_id, stack_key) のまま——**出す前に自分の他の行を消す**
+  --     ので、データとしては1人1行になる。主キーを削る形にすると、既に積まれている行を
+  --     消す後始末が要るうえ、このファイルは**全文を流し直しても落ちない**ことを検査して
+  --     いる（check-sql-rerun）ので、関数の中で守る方が安い。
+  --   ⚠ 1つの関数＝1つのトランザクションなので、消してから入れる間に割り込まれない。
+  delete from so7_game_stack_offers
+  where game_id = p_game_id and user_id = v_uid and stack_key <> p_stack_key;
   -- 🔴 箱の絵は**他の人の画面で使う値**なので、カードの id に使える形だけ通す。
   --   外れた時は拒まずに null（＝無地の箱）にする——絵が出ないだけで対局には関係ないので、
   --   ここで例外にすると「山札を出せない」という重い失敗に化ける。

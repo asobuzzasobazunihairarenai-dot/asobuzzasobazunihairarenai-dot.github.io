@@ -52,6 +52,35 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-26",
+    summary: [
+      "フレンドリーマッチに出すマイ山札は、1人1つになりました",
+    ],
+    items: [
+      "フレンドリーマッチの「この対局の山札」で、**1人が出せるマイ山札は1つだけ**になりました。それまでは1人で最大4つ出せたので、4人そろうと候補が十数個並んで、部屋を立てた人が選びにくくなっていました。⚠ 出したあとも**別のものに出し直せます**（出し直すと差し替わります）。候補の一覧では、いま出しているものに ✓ が付いて、最初からそれが選ばれています。",
+    ],
+    summaryEn: [
+      "Each player now offers one custom deck to a friendly match, not several",
+    ],
+    itemsEn: [
+      "In a friendly match's deck lineup, each player can now offer one custom deck instead of up to four. With four players that could fill the list with a dozen candidates, and the host could no longer read it. You can still swap: offering another deck replaces the one you had out. The list marks the deck you are offering with a check and starts out with it selected.",
+    ],
+    devItems: [
+      "🔴 サーバー: `so7_offer_my_stack` の「1人4つまで」（`too_many_offers`）を外し、**出す前に自分の他の行を消す**形にした。⚠ 表の主キーは `(game_id, user_id, stack_key)` のまま——主キーを削ると**既に積まれている行の後始末**が要るうえ、このファイルは**全文を流し直しても落ちない**ことを検査している（`check-sql-rerun`）ので、関数の中で守る方が安い。1つの関数＝1つのトランザクションなので、消してから入れる間に割り込まれない。",
+      "画面側（`deck-choice-ui.js`）: 候補には**自分の山札を全部**並べ、出しているものに ✓ と既定選択を付け、ボタンの文を「この部屋に出す」／「別のに出し直す」で出し分ける。⚠ 「すべて出してある」という**行き止まり**（`deckChoice.allOffered`）は消した——1つに絞ったので、出した後も「別のに替える」がいつでもできる（押せない画面を残さない＝#729 の家族）。印は ✓ だけにして**文言の鍵を増やさない**（言葉に依らないので）。",
+      "⚠ **SQL を流すまでの間**: 画面は1つしか出さないが、**別の山札を選んで出し直すと古いサーバーは2行とも残す**（古い制限は4つまでなので弾かれない）。流せば、次に誰かが出した時に片付く。",
+      "⚠ 実測22項目（`scratchpad/_p860.mjs`）。配る側で online.js の通信だけを差し替えた（**リポジトリのファイルは1バイトも触らない**＝続き823・836 と同じ手）ので、測っているのは本物の画面そのもの。A/B も取った（`_p860ab.mjs`）——配る側で古い形に戻すと**3通りとも落ちる**（候補が3つではなく2つ・印0・ボタンの文）。⚠ サーバー側の delete は**この端末では走らせられない**（Docker 無し）。",
+      "🔴 測り方で3回つまずいた（全部こちら側）: ①案内文は `if (!iamHost)` の中＝**部屋主には出ない**ので「無い」と出た（本体は正しく描いていた）②`#deck-chooser` が取れていない時、0件の行が**偽の理由で通りかけた**⇒**根が在ることを毎回測る** ③🔴 **山札0個は作りとして起き得ない**（`deleteMyStack` は「最後の1つは消させない」）——「まだありません」が出るのは**組み方が空のとき**だった。",
+    ],
+    devItemsEn: [
+      "Server: the four-per-player cap in so7_offer_my_stack is gone; the function now deletes the caller's other rows before inserting. The primary key still carries stack_key: dropping it would mean cleaning up rows already stacked, and this file is checked for being safe to re-run whole, so guarding inside the function is cheaper. One function is one transaction, so nothing slips in between the delete and the insert.",
+      "Client: the picker now lists all of your own decks, marks the one you are offering with a check and preselects it, and the button reads either offer or offer-a-different-one. The old all-offered dead end is gone, since with one slot you can always swap. The mark is a check glyph so no new text key was needed.",
+      "Until the SQL is applied, the screen offers only one deck, but an older server will keep both rows if you pick a different deck, because its own limit was four. Applying it clears that the next time anyone offers.",
+      "Twenty-two assertions, with only online.js's transport swapped at serve time, so the measured screen is the real one and no repository file was touched. An A/B pass serves the old shape and all three key assertions fail as expected. The server-side delete cannot be exercised on this machine (no Docker).",
+      "Three stumbles, all in the measurement: the hint text only renders for non-hosts, so it read as missing; a null root let the zero-case assertion pass for the wrong reason, so the root is now asserted every time; and zero decks is unreachable by design, since the last deck cannot be deleted, so the empty hint really appears when the only deck has an empty recipe.",
+    ],
+  },
+  {
     date: "2026-11-25",
     summary: [
       "対局をしていると、セヴルが少しずつたまるようになりました",

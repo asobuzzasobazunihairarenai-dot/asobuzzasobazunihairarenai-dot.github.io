@@ -389,8 +389,13 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
 
     // 自分のマイ山札を出す
     const 手持ち = getMyStacks().filter((s) => Object.keys(s.recipe || {}).length > 0);
+    // 🔴【続き860】出せるのは**1人1つだけ**（ユーザー判断）。それまでは4つまで積めたので、
+    //   4人が3つずつ出すと12個並んで部屋主が選べなかった。⇒ 候補には**自分の山札を全部**
+    //   並べ、いま出しているものに印を付けて**選び直せる**ようにする（出し直すと差し替わる）。
+    //   ⚠ 「すべて出してある」という行き止まりは消えた——1つに絞ったので、出した後も
+    //     「別のに替える」がいつでもできる（押せない画面を残さない＝#729 の家族）。
     const 出し済み = new Set(offers.filter((o) => o.mine).map((o) => o.stackKey));
-    const まだ = 手持ち.map((s, i) => ({ ...s, 表示名: 名前(s, i) })).filter((s) => !出し済み.has(s.id));
+    const 候補 = 手持ち.map((s, i) => ({ ...s, 表示名: 名前(s, i) }));
     const offerBox = document.createElement("div");
     offerBox.className = "deck-chooser-offer";
     if (手持ち.length === 0) {
@@ -398,26 +403,23 @@ export function openDeckChooser(gameId, { onCardSetPick = null, onChanged = null
       hint.className = "deck-chooser-empty";
       hint.textContent = t("deckChoice.noMyStack");
       offerBox.appendChild(hint);
-    } else if (まだ.length === 0) {
-      const hint = document.createElement("div");
-      hint.className = "deck-chooser-empty";
-      hint.textContent = t("deckChoice.allOffered");
-      offerBox.appendChild(hint);
     } else {
       const sel = document.createElement("select");
       sel.className = "deck-chooser-select";
-      for (const s of まだ) {
+      for (const s of 候補) {
         const op = document.createElement("option");
         op.value = s.id;
-        op.textContent = s.表示名;
+        // ⚠ 印は ✓ だけにする（言葉に依らないので、文言の鍵を増やさない）。
+        op.textContent = (出し済み.has(s.id) ? "\u2713 " : "") + s.表示名;
+        if (出し済み.has(s.id)) op.selected = true;
         sel.appendChild(op);
       }
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "deck-chooser-mini-btn";
-      btn.textContent = t("deckChoice.offer");
+      btn.textContent = t(出し済み.size > 0 ? "deckChoice.reoffer" : "deckChoice.offer");
       btn.addEventListener("click", async () => {
-        const s = まだ.find((x) => x.id === sel.value);
+        const s = 候補.find((x) => x.id === sel.value);
         if (!s) return;
         btn.disabled = true;
         // 🔴【続き836】箱の絵も一緒に送る（送らないと他の人の画面で無地になる）。
