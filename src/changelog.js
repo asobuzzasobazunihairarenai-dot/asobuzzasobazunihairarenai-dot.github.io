@@ -64,11 +64,11 @@ export const CHANGELOG = [
     ],
     fixes: [
       "ヤエザなどの効果で、ファーストカードを捨てられてしまうことがあったのを直しました。",
-      "我忘れの白き龍が、ほかのカードの効果で手札から捨てられてしまうことがあったのを直しました。",
+      "裏向きのカードを捨てる効果で、1マスだけ捨てられずに「そこに特別なカードがある」と分かってしまうことがあったのを直しました。",
     ],
     fixesEn: [
       "Fixed First cards being discardable by effects such as Yaeza's.",
-      "Fixed the White Dragon being discardable from your hand by another card's effect.",
+      "Fixed an effect that discards face-down cards skipping one square, which revealed that something special was hidden there.",
     ],
     itemsEn: [
       "In a friendly match's deck lineup, each player can now offer one custom deck instead of up to four. With four players that could fill the list with a dozen candidates, and the host could no longer read it. You can still swap: offering another deck replaces the one you had out. The list marks the deck you are offering with a check and starts out with it selected.",
@@ -100,6 +100,12 @@ export const CHANGELOG = [
       "ⓘ **実際に効くのは我忘れの白き龍だけ**（0th拡張の通常カード・★「これは他のカードの効果の対象にならない。」）。手札をすべて捨てる／N枚以下に捨てる／半分捨てる／ザ・ギャンブル／禁断の果実／強欲なパレット／裏貴族の賄賂／盗賊の技の入れ替え — どれでも龍だけ残る。⚠ **「置く」には当てていない**（ルールの言葉は「奪われたり捨てることはできない」で、置くことは禁じていない）。判断が要るので聞く。",
       "🔴 **回帰テストを1本足した**（「全員が手札をすべて捨てる」で龍だけ残る）。🔴 **対を入れた**——同じ場面で**ふつうの札はちゃんと消えている**ことも見る（これが無いと、何も捨てていなくても通る）。A/B で直す前に戻すと **`discard dragon` が記録に出て**落ちる。⚠ 期待値を1つ間違えた: **捨てた札はトークンごと消える**ので `zone: discard` では見られない（続き799 で踏んだのと同じ）⇒ `tokenGone` で見る。",
       "🔴 **検査（30本目）に手札側の節を足した**: `捨てられる手札()` が判定を通していること・**13か所以上で使われていること**・🔴 **枚数は今までどおり全部の手札で数えていること**（裁定どおり。ここを一緒に絞ると「２枚以下に捨てる」で残りが実質1枚になる）・main.js の6か所が判定を通していること。A/B で2通り崩して**2通りとも名指しで落ちる**。",
+      "🔴 **「他のカードの効果の対象にならない」の決まりを、ユーザー裁定で入れ替えた（案A）。** 新しい決まりは一文: **公開されている札は対象にできない。秘匿の札は対象にできる。** ユーザーの理屈「白龍が裏向きで場にあった時、そのマスのカードを破壊する効果で破壊できる。**あくまで効果が対象にしたのは『白龍』ではなく『そのマスの裏向きのカード』だから**」。⇒ ロックエリア／表向きのマス／公開ドローは守られ、**裏向きのマスと手札は触れる**。",
+      "🔴🔴 **入れ替えた一番の理由は、前の作りが秘匿情報を漏らしていたこと。** 迷いの森（隣のカードを捨てる）が**裏向きの龍のマスだけ黙って飛ばして**いたので、「なぜかこの1マスだけ捨てられない」＝**そこが龍だと全員に分かった**。しかも盤面に出得る「対象にならない札」は**龍だけ**（ファースト／エターナルは山に入らず必ずロックエリア）なので、飛ばした時点で正体が確定していた。",
+      "⚠ **続き864 の手札側の直し（龍だけ残る）は取り消し。** 手札は秘匿なので龍も捨てられるのが正。⚠ それでも `捨てられる手札()` は残した——`getHandTokens` は**公開ドローエリア**も返し、あちらは全員に見える＝公開なので、そこに居る龍は守られる。素の `getHandTokens` に戻すとその1点だけ決まりから外れる。",
+      "🔴 作りは**判定の引数をカード名からトークンへ替えるだけ**で済んだ（エンジン11か所・main.js 10か所）。一覧を組んでいる所はどれも元からトークンを持っていたため。`isTargetableToken(トークン)` が新しい入口で、`isCardIdentityPublic` が「いま公開されているか」を見る。⚠ **手札の `faceUp` は見ない**——あれは「自分の画面で見えるか」でしかない（`faceUpForLocation` が hand で `player === 'A'` を返すだけ）。居る所で決める。",
+      "⚠ **古い名前（`isTargetableByOtherCardEffects`）は消していない。** 続き863 で公開済みなので、端末のキャッシュに残った古い main.js がまだ import している（公開済みの src/*.js から export を消さない＝続き423 の家族）。検査が「残してあること」も見る。",
+      "🔴 **テストは3本の対**にした: 手札からは捨てられる／**裏向きのマスなら捨てられる**／**表向きのマスなら捨てられない**。3本目が無いと「全部捨てられる」実装でも2本目が通る（0しか出ない検査）。検査（30本目）も決まりごと書き直し、判定を**8例**で動かす（公開4・秘匿2・ふつう2）。A/B で3通り崩して**3通りとも名指しで落ちる**。",
     ],
     devItemsEn: [
       "Server: the four-per-player cap in so7_offer_my_stack is gone; the function now deletes the caller's other rows before inserting. The primary key still carries stack_key: dropping it would mean cleaning up rows already stacked, and this file is checked for being safe to re-run whole, so guarding inside the function is cheaper. One function is one transaction, so nothing slips in between the delete and the insert.",
@@ -128,6 +134,12 @@ export const CHANGELOG = [
       "In practice this only affects the White Dragon, an ordinary 0th-expansion card whose star text says it is never targeted by another card's effect. Discard your whole hand, discard down to N, discard half, the gamble, the forbidden fruit, the greedy palette, the bribe, the thief's swap: the dragon stays in every one of them. Placing a card on the board was left alone, since the rule's wording forbids being taken or discarded, not being placed; that one is a question for the author.",
       "A regression test covers it, paired with a control that an ordinary card in the same hand really is discarded, because otherwise the test would pass even if nothing were discarded at all. Reverting the fix makes the log show the dragon being discarded, and the test fails. One expectation was wrong at first: a discarded card's token is removed entirely rather than moved to a discard zone, the same trap as before, so the test asserts the token is gone.",
       "The check gained a hand-side section: the helper exists and goes through the predicate, it is used in at least thirteen places, hand sizes are still counted over the whole hand as ruled, and the six main.js sites go through the predicate. An A/B pass breaks it two ways and both are named.",
+      "The rule for cards that are never targeted by another card's effect was replaced on the author's ruling. It is now one sentence: a card whose identity is public cannot be targeted, and a hidden card can. The reasoning: when the White Dragon sits face-down on the board, an effect that destroys the card on that square may destroy it, because what the effect targeted was not the Dragon but the face-down card on that square. Lock areas, face-up squares and the public-draw area are protected; face-down squares and hands are not.",
+      "The decisive reason to change was that the old rule leaked hidden information. The forest effect, which discards adjacent cards, silently skipped the square holding a face-down Dragon, so everyone could see that one square was untouched and deduce what was there. The Dragon is the only protected card that can ever sit on the board, since First and Eternal cards never enter the deck, so skipping it identified it exactly.",
+      "Yesterday's hand-side protection is therefore withdrawn: a hand is hidden, so the Dragon can be discarded from it. The discardable-hand helper stays anyway, because the hand accessor also returns public-draw cards, which everyone can see; dropping the helper would leave that one case outside the rule.",
+      "The change amounted to passing the token instead of the card id, in eleven engine places and ten in main.js, since every list already had the token in hand. The new entry point takes a token and asks whether the card is currently public. Hand cards deliberately ignore the face-up flag, which only says whether the local player can see it, and are judged by their zone instead.",
+      "The old predicate name is kept rather than removed, because it shipped earlier today and a cached copy of main.js on someone's device still imports it. The check asserts that it is still exported.",
+      "The tests are a triple: discardable from hand, discardable face-down on the board, and protected face-up on the board. Without the third, an implementation that discards everything would still pass the second. The check was rewritten around the new rule and exercises the predicate on eight cases; an A/B pass breaks it three ways and all three are named.",
     ],
   },
   {

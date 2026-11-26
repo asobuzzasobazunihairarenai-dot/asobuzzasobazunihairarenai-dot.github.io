@@ -521,7 +521,7 @@ import { onLangChange } from "./i18n.js";
 //   クラスを付けるだけ（admin.js の applyThemeMode と同じ作法）。既定は今までの見た目。
 import "./ui-v2.js";
 import { t } from "./ui-text.js";
-import { isTargetableByOtherCardEffects } from "./untargetable-cards.js";
+import { isTargetableToken } from "./untargetable-cards.js";
 import {
   COLORS,
   GATE_POSITIONS,
@@ -2450,7 +2450,7 @@ function requestOpponentHandRitualPick(targetPlayer, hint, excludeTokenIds, reve
     const theirHand = getState().tokens.filter(
       (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === targetPlayer && !excludeTokenIds?.has(t.id) &&
             // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-            isTargetableByOtherCardEffects(t.cardId)
+            isTargetableToken(t)
     );
     if (theirHand.length === 0) {
       resolve(null);
@@ -3072,7 +3072,7 @@ async function swapHandCardWithOpponentForEffect(player, targetPlayer) {
       t.location.player === player &&
       (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
             // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-            isTargetableByOtherCardEffects(t.cardId)
+            isTargetableToken(t)
   );
   let myCard;
   if (isCpuBrainDriving(player)) {
@@ -3339,7 +3339,7 @@ function requestOpponentHandRitualMultiPick(targetPlayer, count, options = {}) {
     const theirHand = getState().tokens.filter(
       (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === targetPlayer &&
             // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-            isTargetableByOtherCardEffects(t.cardId)
+            isTargetableToken(t)
     );
     if (theirHand.length === 0) {
       resolve([]);
@@ -4736,7 +4736,7 @@ async function runSlumOfficialDiscardTask(player) {
       .tokens.filter(
         (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
               // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-              isTargetableByOtherCardEffects(t.cardId)
+              isTargetableToken(t)
       )
       .map((t) => t.id);
   const ids = handIdsNow();
@@ -5011,7 +5011,7 @@ async function runDiscardOneLockedTask(player) {
       t.kind === "card" &&
       t.location.zone === "lock" &&
       SIDE_TO_SEAT[t.location.side] === player &&
-      isTargetableByOtherCardEffects(t.cardId)
+      isTargetableToken(t)
   );
   if (札.length === 0) return false;
   const ordered = await requestLockCardsOrderedForEffect(player, t("ce.0thFrogDiscardLocked"), 札.map((t2) => t2.id), { limit: 1 });
@@ -5029,7 +5029,7 @@ async function runDiscardDownToTask(player, taskArg) {
       .tokens.filter(
         (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
               // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-              isTargetableByOtherCardEffects(t.cardId)
+              isTargetableToken(t)
       )
       .map((t) => t.id);
   const ids = handIdsNow();
@@ -5076,7 +5076,7 @@ async function runYaezaOptionTask(player) {
     getState().tokens.filter(
       (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
             // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-            isTargetableByOtherCardEffects(t.cardId)
+            isTargetableToken(t)
     );
   // 🔴【#829】ファースト／エターナル／我忘れの白き龍は**他のカードの効果の対象にならない**
   //   （docs/rulebook.md「奪われたり捨てることはできない」）。ここはエンジンの外なので、
@@ -5088,7 +5088,7 @@ async function runYaezaOptionTask(player) {
         t.location.zone === "lock" &&
         t.location.side === SEAT_TO_SIDE[player] &&
         !t.placed &&
-        isTargetableByOtherCardEffects(t.cardId)
+        isTargetableToken(t)
     );
   const options = [
     { id: "ex0-yaeza-discard-all", label: t("cef.opt.ex0YaezaDiscardAll"), usable: 手札().length > 0 },
@@ -5246,7 +5246,7 @@ async function runDiscardWholeHandOrderedTask(player) {
   const handTokens = getState().tokens.filter(
     (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw") &&
           // 🔴【#829・続き864】他のカードの効果の対象にならない札（我忘れの白き龍）は捨てられない・奪われない。
-          isTargetableByOtherCardEffects(t.cardId)
+          isTargetableToken(t)
   );
   if (handTokens.length === 0) return false;
   let ordered = handTokens;
@@ -18929,7 +18929,7 @@ function findGomennasaiEligibility(seat) {
           t.location.zone === "lock" &&
           t.location.side === attackerSide &&
           // 🔴【#829】以前はここに書き写した条件があり、**我忘れの白き龍が抜けていた**。
-          isTargetableByOtherCardEffects(t.cardId)
+          isTargetableToken(t)
       )
     : [];
   if (stealableLocks.length === 0) return null;
@@ -19193,7 +19193,7 @@ async function cpuUseGomennasaiOnFinalLock(seat, eligibility, attacker) {
 // 通常の承認と同じ扱いで進める（card-effects.jsのpurple-sorryコメント参照——相手の
 // 新しいロック自体はその後成立するが、既存の1枚を失うため結局7色揃わない）。
 // ファースト/エターナルカードは他のカードの効果の対象にならないため候補から除外する
-// （docs/rulebook.md、card-effect-engine.jsのisTargetableByOtherCardEffectsと同じ判定）。
+// （docs/rulebook.md、untargetable-cards.js の isTargetableToken と同じ判定）。
 async function useGomennasaiOnFinalLock() {
   const pending = getState().pendingFinalLock;
   if (!pending) return;

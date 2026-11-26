@@ -37,7 +37,7 @@ import { logAction } from "./action-log.js";
 // card-effect-engine.jsを（直接にも間接にも）importしていないため循環参照の
 // 心配はない。
 import { wouldCompleteLockWithNewIndex, getLockedCardCount } from "./victory.js";
-import { isTargetableByOtherCardEffects } from "./untargetable-cards.js";
+import { isTargetableToken } from "./untargetable-cards.js";
 
 // ユーザー確認済み「効果自動処理は基本設定でON/OFFを選べるように」。他の「アニメーションを
 // 減らす」設定（motion-prefs.js）と同じくセッション限りの設定（ページ再読み込みで
@@ -976,16 +976,20 @@ function getHandTokens(player) {
   );
 }
 
-// 「捨てる／渡す／奪う」の**対象にできる手札だけ**を返す（続き864・#829 の総点検）。
-// 🔴 ユーザー裁定（2026-11-26）: 他のカードの効果の対象にならない札も、
-//    **手札の枚数としては数える**。数えない形にすると「２枚以下になるように捨てる」で
-//    残りが実質1枚になってしまう。⇒ **枚数は getHandTokens（全部）のまま**で、
-//    **どれを捨てるか選ぶ一覧だけ**をこちらで絞る。
-// ⚠ 平時はファースト／エターナルは**ロックに居て手札に来ない**（ユーザー確認済み・
-//    エターナルの山は7色各1枚なので、同じ色のスロットに2枚目が来ることもない）。
-//    実際に効くのは **我忘れの白き龍**（0th拡張の通常カード・★で対象にならない）。
+// 「捨てる／渡す／奪う」の**対象にできる手札だけ**を返す（続き864で新設・続き865で意味が変わった）。
+//
+// 🔴 ユーザー裁定（2026-11-26・案A）: **公開されている札は対象にできない。秘匿なら対象にできる。**
+//   ⇒ **手札は秘匿情報なので、龍も捨てられる**（続き864 の「龍だけ残る」は取り消し）。
+//   ⚠ それでもこの関数は要る——`getHandTokens` は**公開ドローエリア**も手札として返し、
+//     あちらは**全員に見える＝公開**なので、そこに居る龍は対象にできない。
+//     ここを素の getHandTokens に戻すと、その1点だけ決まりから外れる。
+//
+// ⚠ **枚数は getHandTokens（全部）のまま**数える（裁定「枚数としては数える」）。
+//   枚数まで絞ると「２枚以下になるように捨てる」で残りが実質1枚になる。
+// ⓘ ファースト／エターナルは**必ずロックエリアに表向き**で在るので、この決まりでも今までどおり
+//   守られる。挙動が変わるのは**我忘れの白き龍だけ**。
 function 捨てられる手札(player) {
-  return getHandTokens(player).filter((t) => isTargetableByOtherCardEffects(t.cardId));
+  return getHandTokens(player).filter((t) => isTargetableToken(t));
 }
 
 // ───────────────────────── 1st EDITION の【財力】 ─────────────────────────
@@ -1112,7 +1116,7 @@ function isArrivalOptionUsable(player, pieceLocation, option, cardId) {
     // カード」の有無で判定する。
     const side = SEAT_TO_SIDE[player];
     const hasLocked = getState().tokens.some(
-      (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableByOtherCardEffects(t.cardId)
+      (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableToken(t)
     );
     if (!hasLocked) return false;
   }
@@ -2117,7 +2121,7 @@ async function runAction(action, ctx, helpers) {
           if (tk.location.row !== row || tk.location.col !== col) continue;
           // ファースト/エターナルは他のカードの効果の対象にならない（盤面に出ることは
           // 普通は無いが、念のため既存の判定を通す）。
-          if (!isTargetableByOtherCardEffects(tk.cardId)) continue;
+          if (!isTargetableToken(tk)) continue;
           対象.push(tk.id);
         }
       }
@@ -2455,7 +2459,7 @@ async function runAction(action, ctx, helpers) {
         if (p === ctx.player) continue;
         // ⚠ ファースト／エターナル等「他のカードの効果の対象にならない」札は出せない。
         const 候補 = getHandTokens(p).filter(
-          (tk) => getCardDefinition(tk.cardId)?.color === 色 && isTargetableByOtherCardEffects(tk.cardId)
+          (tk) => getCardDefinition(tk.cardId)?.color === 色 && isTargetableToken(tk)
         );
         if (候補.length === 0) continue; // 出せる札が無い人には聞かない（善処の原則）
         const 返事 = await helpers.delegateToPlayer?.(p, "may-discard-color-draw", {
@@ -3608,7 +3612,7 @@ async function runAction(action, ctx, helpers) {
       // （docs/rulebook.md、isArrivalOptionUsableのrequiresHasLockedCard判定と揃える）。
       const side = SEAT_TO_SIDE[ctx.player];
       const lockedTokens = getState().tokens.filter(
-        (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableByOtherCardEffects(t.cardId)
+        (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableToken(t)
       );
       if (lockedTokens.length === 0) return false;
       const candidates = lockedTokens.map((t) => t.location);
@@ -4604,7 +4608,7 @@ async function runAction(action, ctx, helpers) {
       // 1枚ずつ聞く下のループへ落ちる（CPUの選び方をこの変更で変えないため）。
       if (helpers.pickLockCardsOrdered) {
         const lockedNow = getState().tokens.filter(
-          (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableByOtherCardEffects(t.cardId)
+          (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableToken(t)
         );
         if (lockedNow.length > 0) {
           const chosen = await helpers.pickLockCardsOrdered(
@@ -4635,7 +4639,7 @@ async function runAction(action, ctx, helpers) {
       }
       for (let i = 0; i < 7; i++) {
         const lockedTokens = getState().tokens.filter(
-          (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableByOtherCardEffects(t.cardId)
+          (t) => t.kind === "card" && t.location.zone === "lock" && t.location.side === side && isTargetableToken(t)
         );
         if (lockedTokens.length === 0) break;
         const candidates = lockedTokens.map((t) => t.location);
@@ -5632,7 +5636,7 @@ async function runAction(action, ctx, helpers) {
       // ⚠ ファースト／エターナルは他のカードの効果の対象外（DISCARD_ONE_LOCKED_CARD と同じ絞り込み）。
       const side = SEAT_TO_SIDE[ctx.player];
       const locked = getState().tokens.filter(
-        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side && isTargetableByOtherCardEffects(tk.cardId)
+        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side && isTargetableToken(tk)
       );
       if (locked.length === 0) return false;
       const cands = locked.map((tk) => tk.location);
@@ -5825,7 +5829,7 @@ async function runAction(action, ctx, helpers) {
       }
       const side2 = SEAT_TO_SIDE[target2];
       const locked2 = getState().tokens.filter(
-        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side2 && isTargetableByOtherCardEffects(tk.cardId)
+        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === side2 && isTargetableToken(tk)
       );
       if (locked2.length === 0) return false;
       const cells2 = locked2.map((tk) => tk.location);
@@ -5929,7 +5933,7 @@ async function runAction(action, ctx, helpers) {
         if (p === ctx.player) continue;
         const sideP = SEAT_TO_SIDE[p];
         const lockedP = getState().tokens.filter(
-          (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === sideP && isTargetableByOtherCardEffects(tk.cardId)
+          (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === sideP && isTargetableToken(tk)
         );
         if (lockedP.length > 0) {
           let 捨てる = lockedP[0];
@@ -6117,7 +6121,7 @@ async function runAction(action, ctx, helpers) {
       if (相手候補11.length === 0) return false;
       const 相手11 = 相手候補11.length === 1 && !ctx.forcePrompt ? 相手候補11[0] : await helpers.pickPlayer(相手候補11, t("ce.fePickSwapTarget"));
       if (!相手11) return false;
-      const 動かせる = (p) => getHandTokens(p).filter((tk) => tk.id !== ctx.cardTokenId && isTargetableByOtherCardEffects(tk.cardId));
+      const 動かせる = (p) => getHandTokens(p).filter((tk) => tk.id !== ctx.cardTokenId && isTargetableToken(tk));
       const 自分の札 = 動かせる(ctx.player);
       const 相手の札 = 動かせる(相手11);
       if (自分の札.length === 0 && 相手の札.length === 0) return false;

@@ -1,22 +1,20 @@
 #!/usr/bin/env node
-// 「他のカードの効果の対象にならない」札（ファースト／エターナル／我忘れの白き龍）の守りが、
-// **エンジンの外でも**効いているかを見張る（続き863・検査30本目）。
+// 「他のカードの効果の対象にならない」の守りを見張る（続き863で新設・続き865で決まりが変わった）。
 //
-// 🔴 なぜ要るか（#829 の実害）
-//   この決まりは card-effect-engine.js の **private 関数**にしか無く、export もされて
-//   いなかった。だから「誰かの札を捨てる一覧」をエンジンの外（main.js の委任タスク）で
-//   組む人は、条件を**手で書き写す**ことになり、書き写すたびに1つずつ欠けていった:
-//     - ヤエザ②「自分のロックしている１枚を捨てる」      … 守りが丸ごと無い ⇒ **ファーストを捨てられた**
-//     - いろ落ちガエル■「ロックしている１枚を捨てる」    … 同上
-//     - ゴメンナサイッ！の「奪えるロック」               … 我忘れの白き龍が抜けていた
-//   ⇒ 判定を `src/untargetable-cards.js` 1か所に集めた。ここが**唯一の持ち主**。
+// ─────────────────── いまの決まり（ユーザー裁定 2026-11-26・案A）───────────────────
+// 🔴 **公開されている札は対象にできない。秘匿の札は対象にできる。**
+//   ロックエリア／表向きのマス／公開ドロー → 対象にできない
+//   裏向きのマス／手札                     → **対象にできる**
 //
-// 見るもの:
-//   ① 葉（untargetable-cards.js）が在り、2つを export していて、龍が名簿に居る
-//   ② エンジンが**写しを持たず**、葉から読んでいる
-//   ③ main.js が葉から読んでいる
-//   🔴 ④ **委任タスク**（run*Task）が lock の一覧を組むなら、必ず判定を通している
-//   🔴 ⑤ ゴメンナサイッ！の「奪えるロック」が、手写しではなく判定を通している
+// ⓘ ファースト／エターナルは必ずロックエリアに表向きで在るので、今までどおり常に守られる。
+//   挙動が変わるのは **我忘れの白き龍** だけ。
+//
+// 🔴 なぜ検査が要るか（#829 の実害）
+//   判定が card-effect-engine.js の private 関数にしか無く export されていなかったので、
+//   エンジンの外で同じ一覧を組む人は条件を**手で書き写し**、写すたびに1つずつ欠けた
+//   （ヤエザ②といろ落ちガエル■では丸ごと抜け、ゴメンナサイッ！では龍が抜けていた）。
+//   さらに前の決まり（cardId だけを見る）は**秘匿情報を漏らしていた**——迷いの森が
+//   裏向きの龍のマスだけ黙って飛ばすので、そこが龍だと全員に分かった。
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,81 +33,98 @@ if (!fs.existsSync(path.join(ROOT, 葉道))) {
   process.exit(1);
 }
 const 葉 = 読む(葉道);
-for (const 名 of ["isTargetableByOtherCardEffects", "filterTargetableTokens", "NOT_TARGETABLE_CARD_IDS"]) {
+for (const 名 of ["isTargetableToken", "isCardIdentityPublic", "isProtectedCardKind", "filterTargetableTokens", "NOT_TARGETABLE_CARD_IDS"]) {
   if (new RegExp("export (const|function) " + 名 + "\\b").test(葉)) OK("葉が " + 名 + " を export している");
   else NG("葉が " + 名 + " を export していない");
 }
+// ⚠ 古い名前は**消さない**（端末のキャッシュに残った古い main.js が import している
+//   ＝公開済みの src/*.js から export を消さない。続き423 の実害と同じ家族）。
+if (/export function isTargetableByOtherCardEffects\b/.test(葉)) OK("古い名前も残してある（キャッシュの古い端末のため）");
+else NG("古い名前（isTargetableByOtherCardEffects）を消している——キャッシュの古い端末が壊れる");
 if (/"ex0-white-dragon"/.test(葉)) OK("名簿に我忘れの白き龍が居る");
 else NG("名簿に我忘れの白き龍が居ない（★「これは他のカードの効果の対象にならない。」）");
-// 葉は何も import しない（どこから読んでも輪にならない）
 if (/^import\s/m.test(葉)) NG("葉が何かを import している（葉のままにすること）");
 else OK("葉は何も import していない");
 
-// ── 🔴 ①-2 判定そのものを動かす（決め打ちの6例）────────────────────────
+// ── 🔴 ② 判定そのものを動かす（決め打ちの8例）────────────────────────
 // 名簿や export が在るだけでは「正しく判定する」証拠にならない。
+let 対になっている = false;
 {
   const mod = await import("file://" + path.join(ROOT, 葉道).replace(/\\/g, "/"));
   const 例 = [
-    ["first-red", false, "ファーストカード"],
-    ["eternal-blue", false, "エターナルカード"],
-    ["eternal-1st-yellow", false, "1st EDITION の Eカード"],
-    ["ex0-white-dragon", false, "我忘れの白き龍（★で対象にならない）"],
-    ["red-dash", true, "ふつうの通常カード"],
-    [null, true, "id が無い時は触れる側に倒す"],
+    [{ cardId: "first-red", location: { zone: "lock" } }, false, "ファースト（ロック＝常に公開）"],
+    [{ cardId: "eternal-blue", location: { zone: "lock" } }, false, "エターナル（ロック＝常に公開）"],
+    [{ cardId: "ex0-white-dragon", location: { zone: "lock" } }, false, "龍（ロック）"],
+    [{ cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: true }, false, "龍（表向きのマス＝公開）"],
+    [{ cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: false }, true, "龍（裏向きのマス＝秘匿）"],
+    [{ cardId: "ex0-white-dragon", location: { zone: "hand", player: "A" } }, true, "龍（手札＝秘匿）"],
+    [{ cardId: "ex0-white-dragon", location: { zone: "publicDraw", player: "A" } }, false, "龍（公開ドロー＝公開）"],
+    [{ cardId: "red-dash", location: { zone: "cell" }, faceUp: true }, true, "ふつうの札はどこでも触れる"],
   ];
   let 合 = 0;
-  for (const [id, 期待, 説明] of 例) {
-    const 実 = mod.isTargetableByOtherCardEffects(id);
+  for (const [tok, 期待, 説明] of 例) {
+    const 実 = mod.isTargetableToken(tok);
     if (実 === 期待) 合++;
-    else NG("判定が違う: " + 説明 + "（" + id + "）→ " + 実 + "（期待 " + 期待 + "）");
+    else NG("判定が違う: " + 説明 + " → " + 実 + "（期待 " + 期待 + "）");
   }
-  if (合 === 例.length) OK("判定が6例とも合っている（奪えない4・奪える2）");
-  // 一覧を絞る方も動かす
+  if (合 === 例.length) OK("判定が8例とも合っている（公開4は触れない・秘匿2とふつう2は触れる）");
+
+  // 🔴 「裏向きなら触れる」と「表向きなら触れない」が**両方**成り立って初めて意味がある。
+  const 裏 = mod.isTargetableToken({ cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: false });
+  const 表 = mod.isTargetableToken({ cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: true });
+  対になっている = 裏 === true && 表 === false;
+  if (対になっている) OK("同じ札でも、裏向きなら触れて表向きなら触れない（対になっている）");
+  else NG("裏/表の対になっていない（裏=" + 裏 + " 表=" + 表 + "）");
+
+  // ⚠ 手札の faceUp は「自分の画面で見えるか」でしかない。そこを見ていないことを確かめる。
+  const 手表 = mod.isTargetableToken({ cardId: "ex0-white-dragon", location: { zone: "hand", player: "A" }, faceUp: true });
+  if (手表 === true) OK("手札は faceUp を見ずに秘匿として扱う（faceUp は自分の画面の話）");
+  else NG("手札の faceUp を見てしまっている（state.js の faceUpForLocation は hand で player==='A' を返すだけ）");
+
   const 絞った = mod.filterTargetableTokens([
-    { cardId: "first-red" }, { cardId: "red-dash" }, { cardId: "ex0-white-dragon" }, { cardId: "blue-jump" },
+    { cardId: "first-red", location: { zone: "lock" } },
+    { cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: true },
+    { cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: false },
+    { cardId: "red-dash", location: { zone: "hand" } },
   ]);
-  if (絞った.length === 2 && 絞った.every((t) => t.cardId === "red-dash" || t.cardId === "blue-jump")) {
-    OK("一覧を絞る方も、守るべき2枚だけを落とす");
-  } else {
-    NG("filterTargetableTokens が " + 絞った.length + " 件を返した（期待 2）");
-  }
+  if (絞った.length === 2) OK("一覧を絞る方も、公開されている2枚だけを落とす");
+  else NG("filterTargetableTokens が " + 絞った.length + " 件を返した（期待 2）");
 }
 
-// ── ②③ 読む側 ──────────────────────────────────────────────────
+// ── ③ 読む側 ────────────────────────────────────────────────────
 for (const f of ["src/card-effect-engine.js", "src/main.js"]) {
   const s = 読む(f);
-  if (/import\s*\{[^}]*isTargetableByOtherCardEffects[^}]*\}\s*from\s*"\.\/untargetable-cards\.js"/.test(s)) {
-    OK(f + " が葉から読んでいる");
+  if (/import\s*\{[^}]*isTargetableToken[^}]*\}\s*from\s*"\.\/untargetable-cards\.js"/.test(s)) {
+    OK(f + " が葉から isTargetableToken を読んでいる");
   } else {
-    NG(f + " が葉から読んでいない（判定を写していないか？）");
+    NG(f + " が葉から isTargetableToken を読んでいない");
   }
-  if (/^\s*function isTargetableByOtherCardEffects\s*\(/m.test(s)) {
+  if (/^\s*function (isTargetableToken|isProtectedCardKind)\s*\(/m.test(s)) {
     NG(f + " が判定の写しを持っている（葉1か所に集めること）");
   }
+  // 🔴 古い判定（cardId だけ）を targeting に使っていないか。
+  const 古 = (s.match(/isTargetableByOtherCardEffects\s*\(/g) || []).length;
+  if (古 > 0) NG(f + " が古い判定（isTargetableByOtherCardEffects）を " + 古 + " か所で呼んでいる——公開されているかを見ていない");
+  // 🔴 トークンではなく cardId を渡していないか。
+  const 誤 = (s.match(/isTargetableToken\s*\(\s*\w+\.cardId\s*\)/g) || []).length;
+  if (誤 > 0) NG(f + " が isTargetableToken に cardId を渡している（" + 誤 + " か所）——トークンを渡すこと");
 }
 
 // ── 🔴 ④ 委任タスクが lock の一覧を組むなら、判定を通す ──────────────────
 const main = 読む("src/main.js");
 const 行 = main.split("\n");
-// run*Task（委任で呼ばれる）の本体を切り出す
 const 関数 = [];
 {
   let 名 = null, 始 = 0;
   for (let i = 0; i < 行.length; i++) {
     const m = 行[i].match(/^(?:async )?function (run[A-Za-z0-9_]*Task)\s*\(/);
     if (!m) continue;
-    if (名) 関数.push({ 名, 始, 終: i });
+    if (名) 関数.push({ 名, 始 });
     名 = m[1];
     始 = i;
   }
-  if (名) {
-    // 次の関数定義までを本体とする
-    let j = 始 + 1;
-    for (; j < 行.length; j++) if (/^(?:async )?function [A-Za-z0-9_]+\s*\(/.test(行[j])) break;
-    関数.push({ 名, 始, 終: j });
-  }
+  if (名) 関数.push({ 名, 始 });
 }
-// 始まりが分かっている分は、次の関数定義までを終わりにし直す
 for (const f of 関数) {
   let j = f.始 + 1;
   for (; j < 行.length; j++) if (/^(?:async )?function [A-Za-z0-9_]+\s*\(/.test(行[j])) break;
@@ -122,12 +137,12 @@ for (const f of 関数) {
   const 本体 = 行.slice(f.始, f.終).join("\n");
   if (!/zone === "lock"/.test(本体)) continue;
   見た++;
-  if (!/isTargetableByOtherCardEffects/.test(本体)) 穴.push(f);
+  if (!/isTargetableToken/.test(本体)) 穴.push(f);
 }
 console.log("  ⓘ 委任タスク " + 関数.length + " 個のうち、ロックの一覧を組むのは " + 見た + " 個");
 if (見た < 2) NG("ロックの一覧を組む委任タスクが " + 見た + " 個しか見つからない（数え方が壊れている）");
 if (穴.length === 0) OK("ロックの一覧を組む委任タスクは、全部 判定を通している");
-for (const f of 穴) NG("src/main.js:" + (f.始 + 1) + " " + f.名 + " が判定を通していない（他のカードの効果の対象にならない札を捨てられる）");
+for (const f of 穴) NG("src/main.js:" + (f.始 + 1) + " " + f.名 + " が判定を通していない（公開されている札を捨てられる）");
 
 // ── 🔴 ⑤ ゴメンナサイッ！の奪えるロック ──────────────────────────────
 {
@@ -139,7 +154,7 @@ for (const f of 穴) NG("src/main.js:" + (f.始 + 1) + " " + f.名 + " が判定
     const 本体 = main.slice(i, j < 0 ? main.length : j);
     if (/startsWith\("first-"\)|startsWith\("eternal-"\)/.test(本体)) {
       NG("ゴメンナサイッ！が条件を手で書き写している（龍が抜ける）。判定を通すこと");
-    } else if (/isTargetableByOtherCardEffects/.test(本体)) {
+    } else if (/isTargetableToken/.test(本体)) {
       OK("ゴメンナサイッ！の奪えるロックが判定を通している");
     } else {
       NG("ゴメンナサイッ！の奪えるロックに守りが無い");
@@ -147,20 +162,16 @@ for (const f of 穴) NG("src/main.js:" + (f.始 + 1) + " " + f.名 + " が判定
   }
 }
 
-// ── 🔴 ⑥ 手札側（続き864・ユーザー裁定 2026-11-26）──────────────────
-// 「枚数としては数える」＝枚数を見る所は getHandTokens（全部）のまま。
-// 「捨てられない／奪われない」＝**どれを捨てるか選ぶ一覧**だけを絞る ⇒ 捨てられる手札()。
-// ⚠ 実際に効くのは我忘れの白き龍だけ（ファースト／エターナルは手札に来ない）。
+// ── 🔴 ⑥ 手札側（公開ドローだけは守る）────────────────────────────
 {
   const eng = 読む("src/card-effect-engine.js");
-  const 定義 = /function 捨てられる手札\(player\) \{\s*\n\s*return getHandTokens\(player\)\.filter\(\(t\) => isTargetableByOtherCardEffects\(t\.cardId\)\);/;
-  if (定義.test(eng)) OK("エンジンに『捨てられる手札』が在り、判定を通している");
-  else NG("エンジンの『捨てられる手札』が無い／判定を通していない");
-  const 使用 = (eng.match(/捨てられる手札\(/g) || []).length - 1; // 定義そのものを引く
+  const 定義 = /function 捨てられる手札\(player\) \{\s*\n\s*return getHandTokens\(player\)\.filter\(\(t\) => isTargetableToken\(t\)\);/;
+  if (定義.test(eng)) OK("エンジンの『捨てられる手札』がトークンで判定している");
+  else NG("エンジンの『捨てられる手札』が無い／トークンで判定していない");
+  const 使用 = (eng.match(/捨てられる手札\(/g) || []).length - 1;
   console.log("  ⓘ エンジンで『捨てられる手札』を使っている所: " + 使用 + " か所");
   if (使用 >= 13) OK("捨てる／渡す動詞が、全部そこを通っている（13 か所以上）");
   else NG("『捨てられる手札』が " + 使用 + " か所でしか使われていない（13 か所以上のはず）");
-  // 🔴 枚数を数える所は**全部の手札**のまま（裁定どおり）。1つも残っていなければ数え方が壊れている。
   const 数える = (eng.match(/getHandTokens\([^)]*\)\.length/g) || []).length;
   console.log("  ⓘ 枚数を『全部の手札』で数えている所: " + 数える + " か所");
   if (数える >= 5) OK("枚数は今までどおり全部の手札で数えている（裁定: 枚数としては数える）");
@@ -177,21 +188,20 @@ for (const f of 穴) NG("src/main.js:" + (f.始 + 1) + " " + f.名 + " が判定
     ["runDiscardDownToTask", "N枚以下になるように捨てる"],
     ["runDiscardWholeHandOrderedTask", "手札をすべて捨てる（順を選ぶ）"],
   ];
-  const 行2 = main.split("\n");
   let 穴2 = 0;
   for (const [名, 説明] of 的) {
-    const i = 行2.findIndex((l) => new RegExp("^(?:async )?function " + 名 + "\\s*\\(").test(l));
+    const i = 行.findIndex((l) => new RegExp("^(?:async )?function " + 名 + "\\s*\\(").test(l));
     if (i < 0) { NG(名 + " が見つからない（名前が変わった？）"); 穴2++; continue; }
     let j = i + 1;
-    for (; j < 行2.length; j++) if (/^(?:async )?function [A-Za-z0-9_]+\s*\(/.test(行2[j])) break;
-    const 本体 = 行2.slice(i, j).join("\n");
-    if (!/isTargetableByOtherCardEffects/.test(本体)) { NG("src/main.js:" + (i + 1) + " " + 名 + "（" + 説明 + "）が判定を通していない"); 穴2++; }
+    for (; j < 行.length; j++) if (/^(?:async )?function [A-Za-z0-9_]+\s*\(/.test(行[j])) break;
+    const 本体 = 行.slice(i, j).join("\n");
+    if (!/isTargetableToken/.test(本体)) { NG("src/main.js:" + (i + 1) + " " + 名 + "（" + 説明 + "）が判定を通していない"); 穴2++; }
   }
   if (穴2 === 0) OK("手札から捨てる／奪う " + 的.length + " か所とも判定を通している");
 }
 
 if (落ちた > 0) {
-  console.error("\n🔴 " + 落ちた + " 件。`src/untargetable-cards.js` の判定を通してください。");
+  console.error("\n🔴 " + 落ちた + " 件。`src/untargetable-cards.js` の isTargetableToken(トークン) を通してください。");
   process.exit(1);
 }
 console.log("✅ 問題なし（判定の持ち主は1つ・読む側2ファイル・委任タスク " + 見た + " 個とも守られている）");

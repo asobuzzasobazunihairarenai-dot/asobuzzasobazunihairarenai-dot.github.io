@@ -614,11 +614,10 @@ export const CASES = [
     ],
   },
   {
-    // 🔴【#829・続き864】「他のカードの効果の対象にならない」札は捨てられない。
-    //   ユーザー裁定（2026-11-26）: **枚数としては数える**が、捨てる対象にはならない。
-    //   ⚠ ファースト／エターナルは手札に来ない（ユーザー確認済み）ので、実際に効くのは
-    //     **我忘れの白き龍**（0th拡張の通常カード・★「これは他のカードの効果の対象にならない。」）。
-    name: "我忘れの白き龍: 全員が手札をすべて捨てる効果でも、龍だけは捨てられない",
+    // 🔴【#829・続き865】ユーザー裁定（案A）: **公開されている札は対象にできない。秘匿なら対象にできる。**
+    //   手札は秘匿情報なので、**龍も捨てられる**（続き864 の「龍だけ残る」は取り消し）。
+    //   理屈: 効果が指したのは「白龍」ではなく「あなたの手札」だから。
+    name: "我忘れの白き龍: 手札は秘匿なので、手札をすべて捨てる効果では龍も捨てられる",
     kind: "arrival",
     cardId: "0th-black-faded-frog",
     state: {
@@ -636,15 +635,63 @@ export const CASES = [
     ctx: { player: "A", cardId: "0th-black-faded-frog", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
     picks: { player: ["C"] },
     expect: [
-      // 🔴 本体: 龍は手札に残っている。
-      { kind: "tokenZone", id: "dragon", zone: "hand" },
-      // 🔴 対: 同じ場面で**ふつうの札はちゃんと捨てられている**（これが無いと、
-      //   何も捨てていなくても上の行は通る＝0しか出ない検査になる）。
-      // ⚠ 捨てた札は**トークンごと消える**（捨て場には card id が積まれる）ので、
-      //   zone:"discard" では見られない（続き799 で踏んだのと同じ）。tokenGone で見る。
+      // 🔴 本体: 龍も捨てられる（トークンごと消える＝続き799）。
+      { kind: "tokenGone", id: "dragon" },
+      { kind: "pileContains", pile: "discard", cardId: "ex0-white-dragon" },
+      // 対: ふつうの札も今までどおり捨てられている。
       { kind: "tokenGone", id: "a1" },
-      // 龍が1枚残るので、Aの手札は 0 ではなく 1。
-      { kind: "handCount", player: "A", n: 1 },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  {
+    // 🔴【#829・続き865】**裏向きのマスなら壊せる。**
+    //   前の作りは裏向きの龍のマスだけ黙って飛ばしていたので、「なぜかこの1マスだけ
+    //   捨てられない」＝**そこが龍だと全員に分かった**（秘匿情報の漏れ）。
+    name: "我忘れの白き龍: 裏向きで場に在るなら、隣を捨てる効果で捨てられる",
+    kind: "arrival",
+    cardId: "ex0-green-lost-forest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-lost-forest", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 🔴 隣の**裏向きの**龍 ⇒ 捨てられる。
+        { id: "dragon", kind: "card", cardId: "ex0-white-dragon", faceUp: false, location: { zone: "cell", row: 2, col: 3 } },
+        // 対: ふつうの裏向きの札も捨てられる（龍だけ特別扱いしていないことを見る）。
+        { id: "nb2", kind: "card", cardId: "pink-present", faceUp: false, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change", "yellow-gamble", "pink-party"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-lost-forest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 5, col: 5 }] },
+    expect: [
+      { kind: "pileContains", pile: "discard", cardId: "ex0-white-dragon" },
+      { kind: "pileContains", pile: "discard", cardId: "pink-present" },
+    ],
+  },
+  {
+    // 🔴【#829・続き865】**表向きなら守られる。** 上の裏向きのケースとの対。
+    //   これが無いと「全部壊せる」実装でも上のケースは通ってしまう（0しか出ない検査）。
+    name: "我忘れの白き龍: 表向きで場に在るなら、隣を捨てる効果でも捨てられない",
+    kind: "arrival",
+    cardId: "ex0-green-lost-forest",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "ex0-green-lost-forest", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 🔴 隣の**表向きの**龍 ⇒ 捨てられない（公開されている）。
+        { id: "dragon", kind: "card", cardId: "ex0-white-dragon", faceUp: true, location: { zone: "cell", row: 2, col: 3 } },
+        // 対: 同じ隣のふつうの札は捨てられる（効果そのものは働いている）。
+        { id: "nb2", kind: "card", cardId: "pink-present", faceUp: false, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-counter-lock", "orange-mass-change", "yellow-gamble", "pink-party"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "ex0-green-lost-forest", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 5, col: 5 }] },
+    expect: [
+      { kind: "tokenZone", id: "dragon", zone: "cell" },
+      { kind: "pileContains", pile: "discard", cardId: "pink-present" },
     ],
   },
   {
