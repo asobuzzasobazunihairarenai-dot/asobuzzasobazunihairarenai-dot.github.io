@@ -10116,11 +10116,29 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
       }
     }
     if (hint) showEffectPickerHint(hint, pickerOwner(options.owner));
-    activeEffectPicker = {
+    // 🔴🔴【#837 #841・続き869】**自分で現役を降りる。**
+    //   それまでこの resolve は **`activeEffectPicker` を null に戻していなかった**
+    //   ——戻していたのは**盤面のアバターを押した時の道だけ**（findDraggableAt の側で
+    //   `activeEffectPicker = null` を書いていた）。ところが #461 のモーダルのボタンは
+    //   `activeEffectPicker?.resolve?.(player)` を呼ぶだけなので、**そこから選ぶと登録が
+    //   残った**。残ると `pointerdown` の先頭の `if (activeEffectPicker) return;` に
+    //   全部食われ、**盤面も手札もタップが丸ごと死ぬ**（報告「なんか止まってしまってます」。
+    //   行動ログに `diag-picker-leak-blocked {type:"player"}` がそのまま残っていた）。
+    //   🔴 **自分の盤面アバターは既定で出ない**（#720）ので、**自分を選ぶ時は必ずこの
+    //     モーダル経路**になる＝リトルマウス・貴族の特権・賄賂のように「自分も候補」の
+    //     効果で、自分を選ぶと**ほぼ必ず**踏んでいた。
+    //   ⇒ **呼ぶ側が忘れても漏れない形**にした（他の picker は finish の中で自分で
+    //     降りている＝colors / opponentHand / option。**ここだけが外任せだった**）。
+    //   ⚠ `settled` も付けた（二重解決で後始末が2回走らない。他の picker と同じ作法）。
+    let settled = false;
+    const 私 = {
       type: "player",
       owner: pickerOwner(options.owner) ?? null,
       players: new Set(candidates),
       resolve: (player) => {
+        if (settled) return;
+        settled = true;
+        if (activeEffectPicker === 私) activeEffectPicker = null;
         for (const entry of entries) entry.el?.classList.remove("card-effect-target-avatar");
         modal?.remove(); // 【#461】CPUの自動解決・持ち時間切れの代行で閉じる経路もここを通る
         modal = null;
@@ -10128,6 +10146,7 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
         resolve(player);
       },
     };
+    activeEffectPicker = 私;
   });
 }
 
@@ -10668,6 +10687,14 @@ export function getStallDiagnostics() {
 export function debugOpenPlayerPick(candidates, hint, options) {
   // 【続き814】options も渡す（盤面で選ぶ／モーダルで選ぶの切り分けを実測するため）。
   return requestPlayerChoiceForEffect(candidates, hint, options);
+}
+
+// 🔴 検証用（#837・続き869）。**読むだけ。** いま選択の登録が残っているかを外から見る。
+//   これが無いと「picker が片付いたか」を実測できない（モジュールの中の変数なので）。
+//   ⚠ 片付け漏れは**画面に何も出ないまま全部のタップが死ぬ**形で表に出るので、
+//     「出ていない」ではなく「登録が消えたか」で測るしかない。
+export function debugActivePickerType() {
+  return activeEffectPicker ? activeEffectPicker.type : null;
 }
 
 // 【続き754】同じ棚: マスと手札の選択も実測から呼べるようにする（どちらも main.js の
@@ -23052,10 +23079,34 @@ function 押せる物を探す() {
     // 本物の選択モーダルには**必ず押せる子が1つ以上ある**（はい／いいえ・選択肢・閉じる）。
     // 飾りの帯や残骸には1つも無い＝それは人が答えられる合図ではない。
     if (!el.querySelector('button, [role="button"], input, select, textarea, a[href]')) continue;
+    // 🔴🔴【#837・続き869】**不具合報告の窓は数えない。**
+    //   報告 #837 の行動ログに `diag-picker-leak-blocked { 理由:"modal", 要素:"div#bug-…" }`
+    //   が残っていた——**ユーザーが「止まった」を報告するために開いたフォームそのもの**を
+    //   「人がまだ選んでいる合図」と数えて、掃除役が降り続けていた。
+    //   🔴 **いちばん掃除役が働くべき瞬間に、黙らせていた**（止まった時にこそ開かれる窓）。
+    //   ⚠ あれは効果の選択とは無関係で、**いつでも開けられる独立したフォーム**。
+    //     選択を待っている証拠にはならない。
+    if (選択と無関係な窓か(el)) continue;
     return { 理由: "modal", 名: 要素の名(el) };
   }
   return null;
 }
+// 🔴【#837・続き869】効果の選択とは**無関係**に、いつでも開けられる窓。
+//   これが出ていても「人が選択に答えている最中」ではないので、掃除役は降りない。
+//   ⚠ **足す時は「効果の選択を待っている可能性が1%でもあるか」で決める。** 迷ったら足さない
+//     ——多めに数える方が安全（遅れるだけ）で、少なすぎると**人の選択を取り上げる**（#778）。
+const 選択と無関係な窓のid = [
+  "bug-report-modal",       // 不具合報告のフォーム（止まった時にこそ開かれる＝#837 の実害）
+  "bug-report-intro-modal", // 同・初回の案内
+  "bug-thanks-modal",       // 同・送ったあとのお礼
+];
+function 選択と無関係な窓か(el) {
+  if (!el) return false;
+  if (選択と無関係な窓のid.includes(el.id)) return true;
+  // 覆い（backdrop）が親なら、その中身で見る。
+  return 選択と無関係な窓のid.some((id) => !!el.querySelector("#" + id));
+}
+
 // 「人が本当に押せる形」か（画面の中に在る／8px以上／透けていない／pointer-events が効く）。
 function 押せる形か(el) {
   if (!el || !el.isConnected) return false;
