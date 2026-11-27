@@ -127,5 +127,16 @@ jobs:
       #   （ユーザー報告「ポヨンの体の下半分が消える」の再発防止）。
       - name: ペットのアニメ（体の一部が消えるコマ）
         run: node tools/check-pet-sprites.mjs
+      # 🔴【続き875】全画面のページを実際に開いて、置き場所と大きさを見る。
+      #   「rem で書いたのに実画面では縮む」はこのアプリでいちばん多い不具合の家族
+      #   （#453 #569 #721 #731 #741 #760 #796 #822 … 23回）で、**片方の端末では通る**ので
+      #   手では見つからない。スマホ横とPCの両方で開くので、ここ（browser ジョブ）に置く。
+      - name: 画面の置き場所と大きさ（帯との重なり・押す物の大きさ）
+        run: node tools/check-screen-layout.mjs || (echo '1回目が転んだのでやり直す' && node tools/check-screen-layout.mjs)
+      # 🔴【続き875】CPU の値踏みが「名前が無い」例外で静かに転ぶのを見張る（#745）。
+      #   静的検査3本では捕まらず（引数は呼び出しでも代入でもない）、スモークでも捕まらない
+      #   （その山に出ない札の分岐は一度も通らない）。**全部の札を1枚ずつ**値踏みさせる。
+      - name: CPU の値踏み（名前が無い例外で対局が止まらないか）
+        run: node tools/check-cpu-value.mjs || (echo '1回目が転んだのでやり直す' && node tools/check-cpu-value.mjs)
       - name: スモーク（2人CPU戦を8ターン回す）
         run: node test/smoke.mjs 2 || (echo '1回目が転んだのでやり直す' && node test/smoke.mjs 2)

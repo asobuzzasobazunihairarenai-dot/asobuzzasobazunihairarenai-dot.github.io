@@ -22553,6 +22553,18 @@ body.is-tablet-device .modal-close-x {
   font-size: 1.6rem;
 }
 
+/* 【続き875】ランキングの題の横にある ⓘ（ランク戦の決まりを開く）。
+   🔴 実測で **10.7px**（1.4rem＝ステージの22.4px を、縮む画面で打ち消していなかった）。
+   隣の「← 戻る」は 32.7px なので、**同じ行にあるのに3倍の差**があった＝#453・#569 の家族。
+   ⚠ ✕ と同じ 2.6rem にそろえる（実画面20px）。transform で拡大しないのは、この ⓘ が
+   **題の行の中に流れている**から——見た目だけ大きくすると題の字に被る（場所は変わらない）。 */
+body.is-phone-device #ranking-page-info-btn,
+body.is-tablet-device #ranking-page-info-btn {
+  width: 2.6rem;
+  height: 2.6rem;
+  font-size: 1.6rem;
+}
+
 /* 【続き575・第3弾】「今回のメンバー」と「スタートプレイヤー決定」。 */
 
 /* 「あなた／対戦相手」。実測6.5px。管理者モードのつまみ（--match-intro-seat-size）は
