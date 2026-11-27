@@ -3626,7 +3626,8 @@ async function runAction(action, ctx, helpers) {
       //   という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。
       //   同じ一文を持つ札は4枚（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、
       //   **貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形にそろえた。
-      else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
+      // 🔴【#836・続き869】到達は**このカードを手札に加えたあと**（605.2 と同じ順）。
+      else await 到達は回収のあとに(ctx, helpers, dest, ctx.player, false);
       return true;
     }
     case VERBS.DISCARD_ONE_LOCKED_CARD: {
@@ -3825,7 +3826,8 @@ async function runAction(action, ctx, helpers) {
       //   という意味で、**既に表向きなら到達する**（#559 で貧民の行進について確定した読み）。
       //   同じ一文を持つ札は4枚（厳重警戒・マックール・貧民の行進・偉大なる大号令）あり、
       //   **貧民の行進だけ直して残り3枚を見落としていた**。⇒ 3枚とも同じ形にそろえた。
-      else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
+      // 🔴【#836・続き869】到達は**このカードを手札に加えたあと**（605.2 と同じ順）。
+      else await 到達は回収のあとに(ctx, helpers, dest, ctx.player, false);
       return true;
     }
     case VERBS.STEAL_RANDOM_FROM_MOST_LOCKED: {
@@ -4529,7 +4531,8 @@ async function runAction(action, ctx, helpers) {
       ctx.pieceLocation = dest;
       if (追い出された元) ctx.強制移動で追い出されたマス = 追い出された元;
       if (!action.noArrival) ctx.arrivedAt = dest; // 強制移動は「移動」なので、戻った先のカードに到達する
-      else await helpers.triggerArrivalAtIfFaceUp?.(dest, ctx.player);
+      // 🔴【#836・続き869】到達は**このカードを手札に加えたあと**（605.2 と同じ順）。
+      else await 到達は回収のあとに(ctx, helpers, dest, ctx.player, false);
       return true;
     }
     case VERBS.GATE_CHARGE_PLACE_OR_RETURN: {
@@ -5744,16 +5747,17 @@ async function runAction(action, ctx, helpers) {
       helpers.recordMoveVisited?.(dest);
       if (相手 === ctx.player) {
         ctx.pieceLocation = dest;
-        // 🔴【#748・続き793】**その場で到達させる。**
-        //   それまでは `ctx.arrivedAt` を立てて呼び出し元に任せていたが、到達効果は
-        //   最後に**このカード自身を手札へ回収する**ので、呼び出し元に戻る頃には
-        //   **マスが空**＝何も起きなかった（報告「ちょっと待ったへ再度移動した時、
-        //   再度到達効果が起きなかった」）。相手を動かした時と**同じ扱い**にそろえる。
-        //   ⚠ その場で処理したら `ctx.arrivedAt` は**立てない**（立てると二重になる）。
+        // 🔴【#836・続き869】到達は**このカードを手札に加えたあと**（605.2 と同じ順。
+        //   ユーザー裁定2026-11-27「『１マス移動する』の部分が終わったら回収される」）。
+        //   ⚠ ここは続き793 で**その場で**到達させていた所。理由は「回収のあとだと
+        //     マスが空＝何も起きない」（#748）だったが、**それはちょっと待った！の
+        //     マスへ戻った時だけ**の話で、その札は今回
+        //     「これをあなたの手札に加える。」を先頭に持ったので**戻る先が無くなった**
+        //     （カードの無いマスには移動できない＝506.2／609.1）。
+        //     ⇒ 一般の「１マス移動する」は、605.2 どおりの順に戻してよい。
         //   ⚠ 繰り返しは上の「無意味なループ禁止」が止める（CPU は1回・人間は10回）。
-        if (helpers.handleArrivalDestination) await helpers.handleArrivalDestination(dest);
-        else if (helpers.triggerArrivalAtIfFaceUp) await helpers.triggerArrivalAtIfFaceUp(dest, 相手);
-        else ctx.arrivedAt = dest; // 口が無い所（テストの土台）では今までどおり呼び出し元に任せる
+        //   ⚠ `開ける: true` ＝「移動」なので裏向きならオープンしてから到達（506.4・#532）。
+        await 到達は回収のあとに(ctx, helpers, dest, 相手, true);
       } else {
         // 🔴【#532・2026-11-09】他の人の移動先も**裏向きならオープンしてから**到達させる。
         //   報告「貴族の特権の移動させる効果について、『移動』にオープンと到達が伴うけど、
@@ -6236,7 +6240,58 @@ async function runAction(action, ctx, helpers) {
 // 画面には何も表示されない）。1つのアクションの失敗が後続を道連れにしないよう、
 // runAction/runActionSafelyを呼ぶ4箇所全て（runArrivalEffect・runHandEffectOption・
 // runArrivalOptionsEffect・INHERIT_ARRIVAL_ACTIONS）でこちらを使う。
+// 🔴【#836・続き869】**到達は、このカードを手札に加えたあとに起こす。**
+//   総合ルール 605.2（露出到達）が、入れ子の到達について**唯一の明記された順序**を与えている:
+//     ①カードAの到達効果を処理する ②**カードAを手札に加える** ③駒がカードBに到達する
+//     ④カードBの到達効果を処理する ⑤カードBを手札に加える
+//   605 は「下から現れた札」の話しか書いていないが、ユーザー裁定（2026-11-27）で
+//   **効果の中の移動で別のマスへ到達した時も同じ順**に決まった
+//   （「『１マス移動する』の部分が終わったら回収される」）。604.2「到達効果の処理後、
+//   原則としてそのカードを自分の手札に加える」とも素直に読み合う。
+//
+//   ⚠ **待つのは「このカードがまだ盤面に在る時」だけ。** 自分の処遇を先に済ませた札
+//     （`addsCardToHandFirst` ＝ 文が「これをあなたの手札に加える。」で始まる札）や
+//     手札効果では、待つ相手が居ないので**その場で**起こす。この条件があるので、
+//     呼ぶ側は「この札は先に回収するか」を知らなくてよい。
+//   ⚠ **次の行動が始まる前に必ず流す**（112.3「前の文の処理が終わるまで、次の文の処理は
+//     始まらない」）。溜めたまま次の文へ進むと、順番が入れ替わる＝`runActionSafely` の
+//     先頭で流しているのがそれ。
+//   ⚠ `開ける` は呼ぶ側が決める。false ＝「移動先のカードはオープンしない」の札で、
+//     **裏はめくらないが既に表向きなら到達する**（#577 で確定した読み）。
+async function 到達は回収のあとに(ctx, helpers, dest, player, 開ける) {
+  const 札 = getState().tokens.find((t) => t.id === ctx.cardTokenId);
+  if (札 && 札.location.zone === "cell") {
+    ctx.回収後の到達 = { dest, player, 開ける };
+    return;
+  }
+  await 到達を起こす(ctx, helpers, { dest, player, 開ける });
+}
+
+async function 到達を起こす(ctx, helpers, 待ち) {
+  if (!待ち) return;
+  const { dest, player, 開ける } = 待ち;
+  if (開ける && helpers.handleArrivalDestination) {
+    await helpers.handleArrivalDestination(dest);
+    return;
+  }
+  if (helpers.triggerArrivalAtIfFaceUp) {
+    await helpers.triggerArrivalAtIfFaceUp(dest, player);
+    return;
+  }
+  // 口が無い所（テストの土台）では、今までどおり呼び出し元に任せる。
+  ctx.arrivedAt = dest;
+}
+
+async function 溜めた到達を流す(ctx, helpers) {
+  const 待ち = ctx.回収後の到達;
+  if (!待ち) return;
+  ctx.回収後の到達 = null;
+  await 到達を起こす(ctx, helpers, 待ち);
+}
+
 async function runActionSafely(action, ctx, helpers) {
+  // 🔴【#836・続き869】前の行動が溜めた到達を、次の行動の前に必ず流す（112.3）。
+  await 溜めた到達を流す(ctx, helpers);
   try {
     const result = await runAction(action, ctx, helpers);
     logAction("effect-verb", { verb: action.verb, cardId: ctx.cardId, player: ctx.player, result });
@@ -6367,6 +6422,8 @@ async function runArrivalOptionsEffect(ctx, options, helpers) {
   if (currentToken && currentToken.location.zone === "cell" && !選んだ選択肢?.keepsCardOnBoard) {
     await helpers.moveAndSync(ctx.cardTokenId, { zone: "hand", player: ctx.player });
   }
+  // 🔴【#836・続き869】溜めた到達は**回収のあと**に起こす（605.2 の②→③）。
+  await 溜めた到達を流す(runCtx, helpers);
   return runCtx.arrivedAt;
 }
 
@@ -6520,6 +6577,10 @@ export async function runArrivalEffect(ctx, helpers) {
       helpers.announceCardAddedToHand?.(addedCardId, 宛先, wasFaceUp);
     }
   }
+  // 🔴【#836・続き869】溜めた到達は**回収のあと**に起こす（605.2 の②→③）。
+  //   ⚠ 露出到達（下の selfDiscardedFrom）より**前**。あちらは「駒がまだそのマスに
+  //     いる時」だけ起きるので、移動で離れていれば自然に起きない。
+  await 溜めた到達を流す(runCtx, wrappedHelpers);
   // 【#353】自分で自分を捨てたカードの下から現れたカードへの到達（上の selfDiscardedFrom の説明）。
   // 駒がまだそのマスにいて、下のカードが表向きの時だけ起きる（判定は呼び出し側の関数が持つ）。
   // 待つのは収穫と種まき（#85）と同じ理由——下のカードの効果（ジャンプ台なら移動）が済む前に

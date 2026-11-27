@@ -319,6 +319,129 @@ export const CASES = [
     ],
   },
   {
+    // 🔴🔴【#836・続き869】**ユーザー裁定2026-11-27: 回収は「移動」の文が終わった時点。**
+    //   総合ルール 605.2（露出到達）が、入れ子の到達について唯一の明記された順序を与えている:
+    //     ①カードAの到達効果を処理する ②**カードAを手札に加える** ③駒がカードBに到達する
+    //   ⇒ 「１マス移動する。」で別の札へ到達する時も、**この札が先に手札へ入る**。
+    //   ⚠ **順でしか違いが出ない**（どちらも必ず起きるので回数では見分けられない）。
+    //     だから `callOrder` で見る。続き793 はここを**その場で到達**にしていたので、
+    //     この行は**直す前なら落ちる**（arrivalAt が回収より前に来る）。
+    //   ⓘ 財力（＝手札の枚数）を見る札へ到達した時に、**対象になる人が変わる**
+    //     （#631 で貧民の行進について確定した話と同じ理屈）＝ただの順番の話ではない。
+    name: "旧0th ダッシュ(到達): #836 到達は「このカードを手札に加えたあと」（605.2 の順）",
+    kind: "arrival",
+    cardId: "0th-red-dash",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-red-dash", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "next", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 3, col: 4 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-red-dash", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 3, col: 4 }] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 3, col: 4 },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+      // 🔴 ここが本当の検査。**回収 → 到達**の順。
+      { kind: "callOrder", first: { name: "moveAndSync", arg: "self" }, then: { name: "arrivalAt" } },
+    ],
+  },
+  {
+    // 🔴【#836・続き869】「移動先のカードはオープンしない」の札でも同じ順。
+    //   #577 の読み——**裏はめくらないが、既に表向きなら到達する**——で到達は起きるので、
+    //   その到達も**回収のあと**（605.2）。⚠ ゲート(6,3)に**表向き**の札を置いて測る。
+    name: "旧0th 神鳴(到達): #836 オープンしない移動でも、到達は回収のあと",
+    kind: "arrival",
+    cardId: "0th-yellow-thunder",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-yellow-thunder", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // Aのゲートは bottom = (6,3)。**表向き**なので到達が起きる。
+        { id: "gate", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "0th-yellow-thunder", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 6, col: 3 },
+      // オープンしない印は立つ（main.js が見る印＝#577）
+      { kind: "tokenFlag", id: "pieceA", flag: "arrivalSuppressed", value: true },
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+      { kind: "callOrder", first: { name: "moveAndSync", arg: "self" }, then: { name: "arrivalAt" } },
+    ],
+  },
+  {
+    // 🔴🔴【#836・続き869】**ちょっと待った！は「これをあなたの手札に加える。」が先頭。**
+    //   ユーザー判断2026-11-27。印字には無い一文で、デジタル版だけで足した。
+    //   根拠: 604.3「カード自身の処遇が記載されている場合は 604.2 ではなくその記載に従う」
+    //        ＋ 112.1「効果文は句点ごとに順に処理する」⇒ 先頭に書けば効果より先に手札へ入る。
+    //   ⇒ **効果の最初の一手が『回収』**になる。だから強制移動より前に手札へ入る。
+    //   ⚠ **順でしか違いが出ない**（効果が終われば、どちらにせよ手札に在る）＝callOrder で見る。
+    name: "旧0th ちょっと待った！(到達): #836 まず手札に加える（強制移動より前）",
+    kind: "arrival",
+    cardId: "0th-purple-wait",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-wait", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "back", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 3, col: 2 } },
+        { id: "next", kind: "card", cardId: "green-growing-trees", faceUp: false, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    movedFrom: { A: { row: 3, col: 2 } },
+    ctx: { player: "A", cardId: "0th-purple-wait", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+      // 🔴 ここが本当の検査。**回収が、駒が動くより前**。
+      { kind: "callOrder", first: { name: "moveAndSync", arg: "self" }, then: { name: "moveAndSync", arg: "pieceA" } },
+      // 回帰: 効果そのものは今までどおり（戻って、１マス進む）
+      { kind: "pieceAt", player: "A", row: 2, col: 2 },
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 2 },
+    ],
+  },
+  {
+    // 🔴【#836・続き869】**先に回収するので、その札のマスは空になる。**
+    //   ⇒ 続く「１マス移動する」で**そのマスへは戻れない**（506.2「カードの無いマスには
+    //     移動できない」／609.1）。報告 #835「ちょっと待ったに何度も乗れる」が、
+    //     歯止めではなく**ルールとして**起きなくなる。
+    //   ⚠ **守りは2枚重なっている**（これと、続き866 の「強制移動で追い出されたマスは
+    //     選べない」）。だからこの検査は**どちらが効いても通る**——ここで固定したいのは
+    //     「裁定どおりの結果」なので、片方を外しても通ることは承知のうえで置いている。
+    //   盤面は (3,2) も空（強制移動はカードの無いマスへも行ける＝609.2）にして、
+    //   行ける先が**1つも無い**ことを測る。
+    name: "旧0th ちょっと待った！(到達): #835/#836 空になったマスへは戻れない（行き先が無い）",
+    kind: "arrival",
+    cardId: "0th-purple-wait",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "0th-purple-wait", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    movedFrom: { A: { row: 3, col: 2 } },
+    ctx: { player: "A", cardId: "0th-purple-wait", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    expect: [
+      { kind: "tokenZone", id: "self", zone: "hand", player: "A" },
+      // 🔴 そのマスは**空**（カードが1枚も無い）
+      { kind: "cellStackOrder", row: 3, col: 3, cards: [] },
+      // 戻った先に留まる＝「１マス移動する」は行き先が無くて不発
+      { kind: "pieceAt", player: "A", row: 3, col: 2 },
+      { kind: "called", name: "pickLocation", n: 0 },
+      // 駒が動いたのは強制移動の1回だけ
+      { kind: "called", name: "moveAndSync", arg: "pieceA", n: 1 },
+    ],
+  },
+  {
     name: "旧0th 富裕層の気まぐれ(到達): #756 手札3枚以上の人だけに、手札専用の委任で聞く",
     kind: "arrival",
     cardId: "0th-green-rich-whim",
@@ -7032,6 +7155,21 @@ export function checkExpect(res, exp) {
       const hits = (res.calls || []).filter((c) => c[0] === exp.name && (exp.arg == null || c.slice(1).includes(exp.arg)));
       if (exp.n != null) { if (hits.length !== exp.n) return `${exp.name}${exp.arg != null ? "(" + exp.arg + ")" : ""} の呼び出しが ${hits.length}回（期待 ${exp.n}）`; return null; }
       if (hits.length < 1) return `${exp.name}${exp.arg != null ? "(" + exp.arg + ")" : ""} が呼ばれていない`;
+      return null;
+    }
+    // 🔴【#836・続き869】**呼ばれた順**を見る。605.2 の「②カードを手札に加える →
+    //   ③駒が次のカードに到達する」のように、**どちらが先か**でしか違いが出ないものがある
+    //   ——どちらも必ず起きるので、`called` の**回数では見分けられない**。
+    //   first / then は { name, arg } （arg は任意。callLog の [名前, ...引数] に当てる）。
+    case "callOrder": {
+      const 位置 = (指定) =>
+        (res.calls || []).findIndex((c) => c[0] === 指定.name && (指定.arg == null || c.slice(1).includes(指定.arg)));
+      const 名 = (指定) => 指定.name + (指定.arg != null ? "(" + 指定.arg + ")" : "");
+      const i = 位置(exp.first);
+      const j = 位置(exp.then);
+      if (i < 0) return `${名(exp.first)} が呼ばれていない（順を見られない）`;
+      if (j < 0) return `${名(exp.then)} が呼ばれていない（順を見られない）`;
+      if (i >= j) return `${名(exp.first)} が ${名(exp.then)} より後（${i} ≧ ${j}）＝順が逆`;
       return null;
     }
     default:

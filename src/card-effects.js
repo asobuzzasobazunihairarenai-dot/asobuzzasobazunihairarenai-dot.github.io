@@ -2570,6 +2570,14 @@ export const CARD_EFFECTS = {
   "0th-purple-wait": {
     handEffectReactiveOnly: true,
     arrival: {
+      // 🔴【#836・続き869】**デジタル版だけ、文の先頭に「これをあなたの手札に加える。」を足した**
+      //   （ユーザー判断2026-11-27）。604.3「カード自身の処遇が記載されている場合は 604.2 では
+      //   なくその記載に従う」＋112.1「句点ごとに順に処理する」＝**先頭に書けば効果より先に
+      //   手札へ入る**（先例は1st 貧民の行進）。⇒ 先に抜けるのでこの札のマスが**空になり**、
+      //   続く「１マス移動する」で**戻れなくなる**（506.2「カードの無いマスには移動できない」）。
+      //   ＝#835「ちょっと待ったに何度も乗れる」が、歯止めではなく**ルールとして**起きなくなる。
+      //   ⚠ 印字には無い一文。**消すと #835 が戻る。**
+      addsCardToHandFirst: true,
       actions: [
         { verb: VERBS.FORCED_MOVE_TO_PREVIOUS_CELL, noArrival: true },
         { verb: VERBS.MOVE_CHOSEN_PLAYER_ONE_CELL, self: true },
