@@ -5213,7 +5213,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.PLACE_SELF_AROUND_MOST_LOCKED: {
       const 候補 = 最多ロックの候補();
       if (候補.length === 0) return false;
-      const target = await helpers.pickPlayer(候補, t("ce.ex0PickMostLocked"), { 盤面で選ぶ: true });
+      const target = await helpers.pickPlayer(候補, t("ce.ex0PickMostLocked"), { 駒で選ぶ: true });
       if (!target) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
       if (!piece || piece.location.zone !== "cell") return false;
@@ -5410,7 +5410,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.MOVE_CHOSEN_OPPONENT_TO_ANY_CARD_CELL: {
       const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
       if (相手.length === 0) return false;
-      const target = await helpers.pickPlayer(相手, t("ce.0thForcePickPlayer"), { 盤面で選ぶ: true });
+      const target = await helpers.pickPlayer(相手, t("ce.0thForcePickPlayer"), { 駒で選ぶ: true });
       if (!target) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
       if (!piece || piece.location.zone !== "cell") return false;
@@ -5487,7 +5487,14 @@ async function runAction(action, ctx, helpers) {
     case VERBS.PLACE_SELF_AT_CHOSEN_OPPONENT_GATE: {
       const 相手 = getState().activePlayers.filter((p) => p !== ctx.player);
       if (相手.length === 0) return false;
-      const target = await helpers.pickPlayer(相手, t("ce.0thLostItemPick"), { 盤面で選ぶ: true });
+      // 🔴【#840・続き870】**ここはモーダルで聞く**（駒タップにしない）。
+      //   ユーザー裁定2026-11-27: 「**相手のゲートは場所が決まっています！駒を起点に
+      //   ◯マスとかではありません。なのでモーダルでいいです！**」
+      //   ⇒ 行き先は相手の**ゲート**＝盤面を見ても選ぶ助けにならないので、名前で選ぶ方が早い。
+      //   ⚠ 続き814 でここに `盤面で選ぶ` を付けたのは取り違えだった（**駒が的の効果と
+      //     混ぜていた**）。報告「プレイヤー選択モーダルが出てこなかった」はこれ。
+      //   ⚠ アバターは**今までどおり押せる**（保険。requestPlayerChoiceForEffect 参照）。
+      const target = await helpers.pickPlayer(相手, t("ce.0thLostItemPick"));
       if (!target) return false;
       const gate = GATE_POSITIONS[SEAT_TO_SIDE[target]];
       if (!gate) return false;
@@ -5705,7 +5712,7 @@ async function runAction(action, ctx, helpers) {
         ? ctx.player
         : 全員.length === 1 && !ctx.forcePrompt
           ? 全員[0]
-          : await helpers.pickPlayer(全員, t("ce.fePickMover"), { 盤面で選ぶ: true });
+          : await helpers.pickPlayer(全員, t("ce.fePickMover"), { 駒で選ぶ: true });
       if (!相手) return false;
       const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === 相手);
       // 🔴【#748・続き793】**ジャンプ台と同じ「無意味なループ禁止」を当てる。**

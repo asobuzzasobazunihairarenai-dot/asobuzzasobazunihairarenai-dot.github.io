@@ -6559,8 +6559,24 @@ document.addEventListener(
       }
     }
     if (picker.type === "player") {
-      // 手品師の技（ユーザー要望「駒ではなくアバターを選択して相手を選ぶ」）用。
+      // 🔴【#840・続き870】**ユーザー裁定2026-11-27: 相手選択は「駒タップ」か「モーダル」の2択。**
+      //   「**保険でアバターも押せるようにしましょう**」。⇒ どちらの形でもアバターは押せる。
+      //   ⚠ **駒を先に見る**——駒とアバターが画面で重なった時、駒が的の効果なら駒を押した
+      //     つもりのはず（どちらに当たっても同じ相手に解決するので、実害は出ない順番）。
       for (const el of elements) {
+        // ① 盤面の駒（`駒で選ぶ` の効果。相手の駒そのもの／駒を起点にしたマスが的）
+        const pieceEl = el.closest(".piece");
+        if (pieceEl) {
+          const owner = picker.pieceOwners?.get(pieceEl.dataset.tokenId);
+          if (owner && picker.players.has(owner)) {
+            activeEffectPicker = null;
+            picker.resolve(owner);
+            return;
+          }
+          // 候補でない駒なら、下のアバター判定へは落とさない（取り違え防止）。
+        }
+        // ② アバター（手品師の技の元々の形＝ユーザー要望「駒ではなくアバターを選択して
+        //    相手を選ぶ」。いまは**どの形でも押せる保険**）
         const avatarEl = el.closest(".player-avatar");
         if (!avatarEl) continue;
         const player = avatarEl.dataset.player;
@@ -10095,19 +10111,34 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
     // owner（選ぶ主体）を渡せる（#33、ゴメンナサイ等の人間リアクション対応）。
     const 人が選ぶ = !isCpuSelectingNow(pickerOwner(options.owner));
     let modal = null;
+    // 🔴【#840・続き870】**ユーザー裁定2026-11-27: 相手選択は「駒タップ」か「モーダル」の2択。**
+    //   「相手のゲートは場所が決まっています！駒を起点に◯マスとかではありません。なのでモーダルで
+    //     いいです！相手選択は『駒タップ』か『モーダル』かの2択でいいです！**保険でアバターも
+    //     押せるようにしましょう**」。
+    //   ⇒ `駒で選ぶ` の効果は**盤面の駒を光らせて押させる**（続き814 はアバターだけを光らせて
+     //     いたので、**駒が的なのに駒が押せない**という食い違いがあった＝#840 の訴えの半分）。
+    //   ⚠ 駒のハイライトは**token id を覚えて描き直しのたびに付け直す**形
+    //     （`setEffectTargetPieces`。`.piece` は render ごとに作り直されるので、クラスを
+    //      直接付けるだけでは次の描き直しで消える＝#375 で実測済み）。
+    const 駒たち = new Map(); // token id → 持ち主
+    for (const tk of getState().tokens) {
+      if (tk.kind !== "piece" || tk.location?.zone !== "cell") continue;
+      if (candidates.includes(tk.player)) 駒たち.set(tk.id, tk.player);
+    }
+    // 🔴 **#720 を復活させない条件つき**: **候補全員が盤面に駒を持っている時だけ**モーダルを省く。
+    //   1人でも駒が無い候補が居ればモーダルを出す（押せる道が必ず1つ残る）。
+    const 駒だけで足りる = !!options.駒で選ぶ && candidates.every((p) => [...駒たち.values()].includes(p));
     // 🔴【#779 #780・続き814】**駒（＝盤面の場所）が的の効果は、モーダルを出さない。**
     //   ユーザー判断「盤面の駒または駒を起点にしたマスを選択する場合と、純粋に相手
     //   （相手の手札など）を対象に選ぶ場合とで分けましょう」。
-    //   ⚠ 盤面で選ぶ効果でモーダルを重ねると、**見たい盤面をそのモーダルが隠す**
-    //     （報告そのもの）。逆に手札が的なら盤面を見ても分からないのでモーダルが要る。
-    //   🔴 **#720 を復活させない条件つき**: **候補全員が盤面で押せる時だけ**省く。
-    //     自分の盤面アバターは既定で出ない設定があり（#720）、その時にモーダルまで
-    //     消すと**自分を選べなくなる**。1人でも押せない候補が居ればモーダルを出す。
-    const 盤面だけで足りる = !!options.盤面で選ぶ && entries.every((e) => !!e.el);
+    //   ⚠ 駒で選ぶ効果でモーダルを重ねると、**見たい盤面をそのモーダルが隠す**
+    //     （報告そのもの）。逆に手札やゲートが的なら盤面を見ても分からないのでモーダルが要る。
     if (人が選ぶ) {
       for (const entry of entries) entry.el?.classList.add("card-effect-target-avatar");
+      // 🔴【続き870】駒タップの形では**駒も光らせる**（押せる物が盤面に在ることを示す）。
+      if (駒だけで足りる) setEffectTargetPieces([...駒たち.keys()]);
       // 【#461】アバターのハイライトに加えて、名前を並べたモーダルからも選べるようにする。
-      if (!盤面だけで足りる) {
+      if (!駒だけで足りる) {
         modal = buildPlayerPickModal(entries, hint, (player) => {
           // 盤面のアバターを押した時とまったく同じ道を通す（後始末を二重に書かない）。
           activeEffectPicker?.resolve?.(player);
@@ -10135,11 +10166,14 @@ function requestPlayerChoiceForEffect(candidates, hint, options = {}) {
       type: "player",
       owner: pickerOwner(options.owner) ?? null,
       players: new Set(candidates),
+      // 🔴【続き870】駒タップ用（token id → 持ち主）。pointerdown の側がこれで引く。
+      pieceOwners: 駒たち,
       resolve: (player) => {
         if (settled) return;
         settled = true;
         if (activeEffectPicker === 私) activeEffectPicker = null;
         for (const entry of entries) entry.el?.classList.remove("card-effect-target-avatar");
+        setEffectTargetPieces([]); // 駒の光を消す（付けていなくても安全）
         modal?.remove(); // 【#461】CPUの自動解決・持ち時間切れの代行で閉じる経路もここを通る
         modal = null;
         hideEffectPickerHint();
@@ -10685,7 +10719,7 @@ export function getStallDiagnostics() {
 // ⚠ 読むだけの口ではないが、**呼ばれない限り何も起きない**（board-3d.js の
 //   debugImageTextures と同じ「検証用」の棚）。アプリ側のどこからも呼んでいない。
 export function debugOpenPlayerPick(candidates, hint, options) {
-  // 【続き814】options も渡す（盤面で選ぶ／モーダルで選ぶの切り分けを実測するため）。
+  // 【続き814・870】options も渡す（駒タップ／モーダルの切り分けを実測するため）。
   return requestPlayerChoiceForEffect(candidates, hint, options);
 }
 

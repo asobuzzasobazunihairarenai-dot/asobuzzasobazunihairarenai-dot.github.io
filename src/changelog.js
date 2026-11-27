@@ -56,26 +56,32 @@ export const CHANGELOG = [
     summary: [
       "CPUが、あなたのゲート侵攻を止めに来ます",
       "マスを順番に選ぶ時、確認は最後に1回だけ",
+      "相手を選ぶとき、盤面の駒を直接タップできます",
     ],
     items: [
       "**あと一歩でゲート侵攻できる所まで来ると、CPUが体当たり（接触）で止めに来る**ようになりました。接触された駒は自分のゲートへ戻されるので、侵攻はふりだしに戻ります。これまでCPUは、カウンターロックを持っていない時は**むやみに相手の隣へ行かない**という考え方で動いていたので、ゲートの目前まで来られても見ているだけでした。⚠ 止めに来るのは**自分のゲートが目前（1〜2マス）の時だけ**です。それ以外の場面での動きは今までと変わりません。",
       "**カードの効果で複数のマスへ順番に置く時、「このマスでいいですか？」が毎回出なくなりました。**代わりに、順番を決め終わってから**1回だけ**「この◯マスに、この順で置きますか？」と聞きます。「いいえ」を押せば最初から選び直せます。偉大なる大号令・増殖する木々で効きます。⚠ 「おまかせ」を押した後は確認も出ません（もう聞かないで、という意味なので）。",
+      "**相手を選ぶ効果で、盤面の相手の駒を直接タップできる**ようになりました。駒が光るので、どれを押せばよいか見て分かります。相手の駒そのもの（や、その駒のまわり）が的になる効果——フォース・貴族の特権・誰かの好きな花——がこの形です。⚠ **アバターも今までどおり押せます**（保険）。⚠ 的が「相手のゲート」のように**場所が決まっている**効果（誰かの落とし物）は、盤面を見ても選ぶ助けにならないので、**名前が並ぶ画面**で選びます。",
     ],
     summaryEn: [
       "The CPU now moves to stop your gate invasion",
       "Picking several squares in order asks once at the end",
+      "Pick an opponent by tapping their piece on the board",
     ],
     itemsEn: [
       "When you get within one step of a gate invasion, the CPU now body-checks you to stop it. A piece that gets contacted is sent back to its own gate, so the invasion starts over. Until now the CPU followed the rule of not wandering next to an opponent without a Counter Lock in hand, so it would watch you walk right up to its gate. It only steps in when its own gate is one or two squares away; everywhere else it plays as before.",
       "When a card effect places cards on several squares in turn, it no longer asks about every single square. Instead it asks once, after the order is settled: place on these N squares in this order? Answer no and you start the order over. This applies to the Great Decree and Growing Trees. Pressing the leave-it-to-me button skips the final question too, since that means stop asking.",
+      "You can now pick an opponent by tapping their piece on the board. The piece lights up, so it is clear what to press. Effects whose target is the opponent's piece itself, or the squares around it, work this way: Force, the Noble's Privilege and Someone's Favourite Flower. Avatars remain tappable as before, as a fallback. Effects aimed at a fixed place instead, such as an opponent's gate in Someone's Lost Property, ask with a list of names, since looking at the board does not help you choose.",
     ],
     fixes: [
       "迷いの森で捨てる順を選んだ時の確認に、「表面を見ます」と出ていたのを直しました。",
       "相手を選んだあと、画面のどこを押しても反応しなくなることがあったのを直しました。",
+      "誰かの落とし物を手札から使ったとき、相手を選ぶ画面が出なかったのを直しました。",
     ],
     fixesEn: [
       "The confirmation for the order you discard in with Forest of Delusion no longer says you will look at the cards' faces.",
       "Fixed the game becoming unresponsive to every tap after you chose a player.",
+      "Fixed the player-selection screen not appearing when Someone's Lost Property was used from hand.",
     ],
     devItems: [
       "🔴 **#830: 相手があと一歩でゲート侵攻できる時は、カウンターロックが無くても接触して止める**（ユーザー判断2026-11-27「そうしよう！」）。報告「あと一歩でゲート侵攻できる位置に私がいるのにCPUが接触してこなかった」。⇒ 調べたら**方針どおりに動いていた**——`cpu-brain.js` に「接触狙いで相手に近づくのは**カウンターロック所持時のみ**（2026-08-08 のユーザー方針: 持たずに近づくと接触の主導権を相手に渡して危険）」と書いてある。⇒ **方針は変えず、守りの非常事態の例外**を1つ足した。接触すると相手は**自分のゲートへ強制移動**される（`state.js` の RESPOND_CONTACT）ので脅威がその場で消える。重みは自ゲート占有（`onMyGateHere`）とそろえた＝**距離1で+9・距離2で+5**（前進は1マス+3）。⚠ **名指しで測る**——`oppPieceCells` に `player` を持たせ、`gateThreatDistance(ctx, player)` でその相手だけの距離を見る。自ゲートを脅かしていない別の相手へ体当たりしても守りにならない。",
@@ -99,6 +105,14 @@ export const CHANGELOG = [
       "⚠ 実測13項目（本物のアプリで本物のプレイヤー選択を開き、**モーダルから答えて登録が消えるか**を見る。対照は**本物のマウス**で盤面のアバターを押す道）。🔴 **A/B**: 1行戻すと「答えたあと、選択の登録が消えている」が **player のまま**で落ち、**報告のログと同じ形**を再現した（指紋も元に戻したことを照合）。⚠ 対照（盤面を押す道）は**崩しても通る**——あちらは `pointerdown` 側に自前の後始末があるため。そこも実測のコメントに書いた。",
       "⚠ 実測の段取りで1つ踏んだ（**こちらの測り方**）: 盤面のアバターを本物のマウスで押しても答えが返らず、`elementsFromPoint` を見たら **`div.so7-modal-backdrop.so7-modal-nonblocking`（準備画面の案内）がアバターの真上**に居た。**「押しても何も起きない」と出たら、まず盤の上に何か乗っていないかを見る**（続き790 で2回踏んだ所。これで3回目）。",
       "⚠ 検証用の覗き穴を1つ足した（`debugActivePickerType`・**読むだけ**）。片付け漏れは**画面に何も出ないまま全部のタップが死ぬ**形で表に出るので、「出ていない」ではなく「**登録が消えたか**」で測るしかない。`debugOpenPlayerPick` と同じ棚（アプリ側からは呼んでいない）。",
+      "🔴🔴 **#840【ユーザー裁定】相手選択は「駒タップ」か「モーダル」の2択。保険でアバターも押せる。** 2026-11-27「**相手のゲートは場所が決まっています！駒を起点に◯マスとかではありません。なのでモーダルでいいです！相手選択は『駒タップ』か『モーダル』かの2択でいいです！保険でアバターも押せるようにしましょう**」。⇒ 続き814 の `盤面で選ぶ` を **`駒で選ぶ`** に作り直した。",
+      "🔴 **続き814 には取り違えが2つあった。** ①**駒が的なのに、光って押せるのはアバターだけ**だった（駒そのものは押せない）②**誰かの落とし物■（相手のゲートへ）を駒が的の側に入れていた**——ゲートは場所が決まっているので盤面を見ても選ぶ助けにならない。⇒ ①駒を光らせて押せるようにし、②落とし物はモーダルへ戻した。報告「プレイヤー選択モーダルが出てこなかった」は②そのもの（**モーダルも出ず、駒も押せない**状態だった）。",
+      "⚠ 振り分け（**4か所を数えて決めた**）: **駒タップ** ＝ 誰かの好きな花■（相手の**周囲**へ置く）／フォース■（相手の駒を動かす）／貴族の特権②（選んだ人が1マス移動）。**モーダル** ＝ 誰かの落とし物■（相手の**ゲート**へ）。⇒ **駒を起点にしているか**で決まる。",
+      "🔴 駒のハイライトは**既にある仕組みに乗せた**（`setEffectTargetPieces`。**token id を覚えて描き直しのたびに付け直す**形——`.piece` は render ごとに作り直されるので、クラスを直接付けるだけでは次の描き直しで消える＝#375 で実測済み）。新しい仕組みは作っていない。",
+      "⚠ **#720 を復活させない条件は残した**: **候補全員が盤面に駒を持っている時だけ**モーダルを省く。1人でも駒が無い候補が居ればモーダルを出す＝**押せる道が必ず1つ残る**。",
+      "⚠ `pointerdown` では**駒を先に見る**。駒とアバターが画面で重なった時、駒が的の効果なら駒を押したつもりのはず——**どちらに当たっても同じ相手に解決する**ので実害は出ない順番。⚠ 候補でない駒を押した時は、下のアバター判定へ**落とさない**（取り違え防止）。",
+      "⚠ 実測21項目（本物の2人CPU戦で、**本物のマウス**で駒とアバターの両方を押す）。🔴 **A/B**: 駒タップの道を外すと**4件が落ち**、**モーダルも出ず駒も押せない**＝報告 #840 の状態を再現した（指紋も元に戻したことを照合）。",
+      "⚠ 実測の段取りで2回つまずいた（どちらも**こちらの測り方**）: ①`startCpuBattle` だけでは**駒が1つも置かれない**（`runCpuBattleSetup` まで呼ぶのが本物の手順）——駒が0個だと「モーダルを出さない」が**0しか出ない検査**になる。②「落とし物はオプションを渡していない」を語で探したら、**自分が書いたコメント（『駒タップにしない』）に当たって**落ちた ⇒ **本物の呼び出しの形**で見る。",
     ],
     devItemsEn: [
       "The CPU now body-checks an opponent who is one step from invading its gate, even without a Counter Lock in hand. Investigation showed the CPU was following its own standing policy: approach for contact only while holding a Counter Lock, set by the user in August, because approaching without one hands the initiative to the opponent. Rather than change that policy, a narrow defensive exception was added. Contact force-moves the opponent back to their own gate, so the threat disappears at once. The weight matches occupying one's own gate: nine at distance one, five at distance two, against three per square of advance. The distance is measured for the named opponent only, so body-checking some other player who is not threatening the gate gains nothing.",
@@ -122,6 +136,14 @@ export const CHANGELOG = [
       "Thirteen checks run against the real app, opening a real player picker and verifying the registration clears after answering from the modal, with a control that drives the board avatar with a real mouse. Reverting the single line reproduces the report's log exactly, and the file hash was verified restored. The control passes even when broken, because that path has its own cleanup; the measurement says so in a comment.",
       "One measurement mistake, mine: a real mouse press on the board avatar got no answer, and the hit test showed the setup screen's non-blocking overlay sitting directly on top of it. When a press does nothing, first check whether something is covering the board.",
       "A read-only debug accessor for the active picker type was added. A cleanup leak shows up as every tap dying with nothing on screen, so it can only be measured by asking whether the registration cleared, not by looking for something visible.",
+      "User ruling: picking an opponent is one of two forms, tapping their piece or a list of names, with the avatar tappable in both as a fallback. The board-pick option added earlier was reworked into an explicit piece-pick option.",
+      "The earlier change had two mistakes. First, for effects aimed at a piece, only the avatar lit up and could be pressed; the piece itself could not. Second, Someone's Lost Property, which moves you to an opponent's gate, was classed as piece-aimed, but a gate is a fixed place, so looking at the board does not help you choose. Pieces are now lit and tappable, and that card asks with the name list again. The report that no player-selection screen appeared was exactly the second mistake: no modal and no tappable piece.",
+      "The four call sites were counted and sorted. Piece-tap: Someone's Favourite Flower, which places around the opponent; Force, which moves the opponent's piece; and the Noble's Privilege, where the chosen player moves one square. Name list: Someone's Lost Property, aimed at a gate. The test is whether the piece's position is the origin of the target.",
+      "Piece highlighting reuses the existing mechanism, which remembers token ids and re-applies the class on every redraw, because piece elements are rebuilt each render and a directly added class would vanish. No new mechanism was written.",
+      "The earlier safeguard is kept: the name list is only skipped when every candidate has a piece on the board. If any candidate has none, the list appears, so there is always at least one way to answer.",
+      "The pointer handler checks pieces before avatars. If the two overlap on screen and the effect is piece-aimed, the player most likely meant the piece; either way it resolves to the same opponent, so the order is harmless. Pressing a piece that is not a candidate does not fall through to the avatar check, to avoid picking the wrong player.",
+      "Twenty-one checks run against a real two-player CPU match, driving both the piece and the avatar with a real mouse. Removing the piece-tap path makes four of them fail and reproduces the reported state exactly, with the file hash verified restored.",
+      "Two measurement mistakes, both mine. Starting a CPU battle does not place any pieces unless the setup call follows, and with no pieces on the board the check for the list being skipped could only ever pass. And searching for the absence of an option by keyword matched a comment I had just written saying the card does not use piece-tap; the check now looks at the actual call.",
     ],
   },
   {
