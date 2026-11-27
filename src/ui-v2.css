@@ -615,7 +615,14 @@ body.ui-v2 .home-screen-tile.is-wide .home-screen-tile-label {
 
 /* ④ はじめての人の「次にやること」。在る時だけ右の列の上に入る。 */
 body.ui-v2 #home-first-step.is-v2 {
-  position: static;
+  /* 🔴🔴【続き876】**`static` にしてはいけない。** 中の「✕」は `position: absolute` なので、
+     ここが static だと**位置の基準が `#home-v2-main`（本文の列ぜんぶ）へ飛ぶ**。
+     実測（スマホ横932x430）: 札は (593,101) なのに ✕ は **(835,25)＝画面の右上**に居て、
+     しかもその点の最前面が**上の帯のアイコン**＝**押せない**（＝札を閉じられない）。
+     基本の規則は元から `relative` で、それが ✕ の支えだった。ここは `margin` と
+     `transform` を打ち消すのが目的なので、**`position` は relative のままでよい**
+     （relative は位置をずらす指定が無ければレイアウトを1pxも動かさない）。 */
+  position: relative;
   margin: 0;
   transform: none;
   flex: none;

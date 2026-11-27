@@ -997,11 +997,11 @@ export const CARD_EFFECTS = {
   //   オープンしても到達は起きない（到達＝表向きのカードの上に駒が置かれたタイミング）。
   "ex0-green-creation": {
     arrival: {
-      actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoCard: true, requireNoPiece: true, reveal: true }],
+      actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoPiece: true, reveal: true }],
     },
     handEffect: {
       inheritsArrival: true,
-      actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoCard: true, requireNoPiece: true, reveal: true }],
+      actions: [{ verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoPiece: true, reveal: true }],
     },
   },
 
@@ -1014,7 +1014,7 @@ export const CARD_EFFECTS = {
     arrival: {
       actions: [
         { verb: VERBS.DRAW, count: 1 },
-        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoCard: true, requireNoPiece: false, reveal: false },
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 4, requireNoPiece: false, reveal: false },
         { verb: VERBS.DISCARD_ALL_ADJACENT_CARDS },
       ],
     },
@@ -1835,7 +1835,7 @@ export const CARD_EFFECTS = {
       wealth: { variable: true },
       keepsCardOnUse: true,
       actions: [
-        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: "wealth", requireNoCard: true, requireNoPiece: false, reveal: false },
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: "wealth", requireNoPiece: false, reveal: false },
         { verb: VERBS.DISCARD_SELF },
       ],
     },
@@ -2031,7 +2031,7 @@ export const CARD_EFFECTS = {
   "1st-green-bubble": {
     situation: {
       actions: [
-        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 2, requireNoCard: true, requireNoPiece: false, allowHand: true },
+        { verb: VERBS.PLACE_DECK_CARDS_IN_CHOSEN_CELLS, count: 2, requireNoPiece: false, allowHand: true },
       ],
     },
     arrival: {
@@ -2203,7 +2203,11 @@ export const CARD_EFFECTS = {
   "eternal-1st-red": {
     handEffect: {
       wealth: { eq: 0 },
-      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, plain: true }],
+      // ⚠ noOpen も atOnce も付けない＝ふつうの「２マス移動する」（1マスずつ2回）。
+      //   🔴 以前ここに `plain: true` と書いてあったが、**エンジンも文の生成も読んでいない**
+      //     （どちらも noOpen / atOnce が無いことで判断する）＝書き換えても何も変わらない
+      //     印だったので外した（続き876）。
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN }],
     },
   },
 
@@ -2553,7 +2557,11 @@ export const CARD_EFFECTS = {
     //   ⚠ **接触で終えたターンは歩数を使わない**ので、「通常の移動をしたなら」の条件は
     //     この形でもそのまま守られる（接触しただけでは1マス多く歩けない）。
     handEffect: {
-      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN, plain: true }],
+      // ⚠ noOpen も atOnce も付けない＝ふつうの「２マス移動する」（1マスずつ2回）。
+      //   🔴 以前ここに `plain: true` と書いてあったが、**エンジンも文の生成も読んでいない**
+      //     （どちらも noOpen / atOnce が無いことで判断する）＝書き換えても何も変わらない
+      //     印だったので外した（続き876）。
+      actions: [{ verb: VERBS.ANNOUNCE_MOVEMENT_BOOST_THIS_TURN }],
     },
   },
 

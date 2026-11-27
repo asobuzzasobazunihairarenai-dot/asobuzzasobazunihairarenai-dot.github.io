@@ -46,8 +46,12 @@ const MIME = {
   ".woff2": "font/woff2", ".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".ico": "image/x-icon", ".txt": "text/plain",
 };
 
-// 開く全画面ページ（名前・選び方・モジュール・関数・引数）
+// 開く全画面ページ（名前・選び方・モジュール・関数・引数・先に呼ぶ「閉じる」）
+// 🔴【続き876】**ホームを入れた。** 続き817 で新しい見た目（v2）を既定にしたので、
+//   **いま全員が最初に見る画面**なのに一度も測っていなかった。
+//   ⚠ ホームは**先に閉じてから開く**（既に開いていると `openHomeScreen` は早返りする）。
 const ページ = [
+  ["ホーム", "#home-screen", "/src/home-screen.js", "openHomeScreen", [], "closeHomeScreen"],
   ["パックを開ける", "#card-pack-panel", "/src/card-pack-ui.js", "openCardPackPanel", [true]],
   ["マイ山札", "#my-stack-panel", "/src/my-stack-editor.js", "openMyStackEditor", []],
   ["図鑑", "#codex-page", "/src/codex-page.js", "openCodexPage", []],
@@ -108,12 +112,22 @@ const 測る = async (ラベル, W, H, スマホ) => {
   await page.waitForTimeout(600);
 
   const 全部の選 = ページ.map(([, s]) => s);
-  for (const [名, 選, mod, fn, 引数] of ページ) {
-    const r = await page.evaluate(async ([選, mod, fn, 引数, 全部の選, 下限]) => {
+  for (const [名, 選, mod, fn, 引数, 閉じる] of ページ) {
+    const r = await page.evaluate(async ([選, mod, fn, 引数, 全部の選, 下限, 閉じる]) => {
       for (const s of 全部の選) { const e = document.querySelector(s); if (e) e.style.display = "none"; }
       let 開けた = true;
-      try { const m = await import(mod); await m[fn](...引数); } catch (e) { 開けた = false; }
+      try {
+        const m = await import(mod);
+        if (閉じる) { try { m[閉じる]?.(); } catch (e) {} }
+        await m[fn](...引数);
+      } catch (e) { 開けた = false; }
       await new Promise((x) => setTimeout(x, 900));
+      // ⚠ ホームでは α版のお知らせが画面を覆うことがある。**本物の道で閉じる**
+      //   （要素を消すだけだと、モジュールは「もう出した」と思ったままになる）。
+      for (const b of document.querySelectorAll("button")) {
+        if ((b.textContent || "").includes("わかりました")) { b.click(); break; }
+      }
+      await new Promise((x) => setTimeout(x, 400));
       const 画面 = document.querySelector(選);
       if (!画面 || getComputedStyle(画面).display === "none") return { 開けた, 出た: false };
 
@@ -136,14 +150,46 @@ const 測る = async (ラベル, W, H, スマホ) => {
       const 名前 = (e) => e.tagName.toLowerCase() + (e.id ? "#" + e.id : "")
         + (e.className && typeof e.className === "string" ? "." + e.className.trim().split(/\s+/)[0] : "");
 
-      // 帯の下端（#option-area のアイコン列。地は擬似要素なので要素としては拾えない
-      // ＝**幅いっぱいの帯**として「下端より上か」で見る＝続き857 の教訓）。
+      // 🔴🔴【続き876】**帯は2つある。** 「いちばん背の高いアイコンの下端より上か」で見ると、
+      //   **地の下に在って何とも重なっていない物まで**重なり扱いになる（ホームの「HOME」と
+      //   デイリーの輪で実際にそうなった。絵では重なっていなかった）。
+      //     ① **地**（`#option-area::before`・**幅いっぱい**・実測で 48px × その場の倍率）
+      //        ⚠ 地は擬似要素なので**要素としては拾えない**（続き857 の教訓）。
+      //        ⚠ `#option-area` は `pointer-events: none` なので `elementsFromPoint` にも出ない。
+      //     ② **アイコンそのもの**（オンラインの札・コインの箱など。地より下へ伸びる）
+      const 箱 = [];
       let 帯下 = 0;
-      for (const e of document.querySelectorAll("#option-area *")) {
-        if (!見えているか(e)) continue;
-        const b = e.getBoundingClientRect();
-        if (b.width > 2 && b.height > 2 && b.top < 120 && b.bottom > 帯下) 帯下 = b.bottom;
+      const oa = document.querySelector("#option-area");
+      if (oa) {
+        const oar = oa.getBoundingClientRect();
+        const bf = getComputedStyle(oa, "::before");
+        const 倍 = oa.offsetHeight > 0 ? oar.height / oa.offsetHeight : 1;
+        const h = bf.content !== "none" ? (parseFloat(bf.height) || 0) * 倍 : 0;
+        if (h > 0) { 箱.push({ 名: "帯の地", left: oar.left, right: oar.right, top: oar.top, bottom: oar.top + h }); 帯下 = oar.top + h; }
+        for (const e of oa.querySelectorAll("*")) {
+          if (!見えているか(e)) continue;
+          const b2 = e.getBoundingClientRect();
+          if (b2.width > 2 && b2.height > 2 && b2.top < 120) {
+            箱.push({ 名: "アイコン", left: b2.left, right: b2.right, top: b2.top, bottom: b2.bottom });
+            if (b2.bottom > 帯下) 帯下 = b2.bottom;
+          }
+        }
       }
+      // 🔴 **「少しでも触れたら」では落とさない。** 字の箱は行の余白ぶん上に伸びるので、
+      //   インク（字そのもの）が掛かっていなくても箱は帯に触れる。実測の内訳:
+      //     ホームの「HOME」 3.4px（高さの27%）／デイリーの輪 9.7px（18%）… 絵では無事
+      //     閉じる ✕ 10.3px（**高さの100%**）… 本当に埋まっている
+      //   ⇒ **高さの半分以上 か 12px 以上**を「隠れている」とする。
+      const 重なり量 = (b2) => {
+        let 最大 = 0, 誰 = null;
+        for (const k of 箱) {
+          const w = Math.min(b2.right, k.right) - Math.max(b2.left, k.left);
+          const h2 = Math.min(b2.bottom, k.bottom) - Math.max(b2.top, k.top);
+          if (w > 0.5 && h2 > 最大) { 最大 = h2; 誰 = k.名; }
+        }
+        return { h: 最大, 誰, 割合: b2.height > 0 ? 最大 / b2.height : 0 };
+      };
+      const 隠れている = (b2) => { const q = 重なり量(b2); return q.h > 0 && (q.割合 >= 0.5 || q.h >= 12); };
 
       const 重なり = [], 小さい = [];
       let 数えた = 0, いちばん小さい = Infinity, いちばん小さいの = null;
@@ -158,9 +204,11 @@ const 測る = async (ラベル, W, H, スマホ) => {
         if (!押す物 && !直の字) continue;
         数えた++;
 
-        // ① 帯と重なる（子が押す物を抱えている入れ物は、子の方で数える）
-        if (b.top < 帯下 && (押す物 || !e.querySelector("button, a"))) {
-          重なり.push(名前(e) + "「" + 直の字.slice(0, 18) + "」 y" + Math.round(b.y) + " < 帯 " + Math.round(帯下));
+        // ① 帯に隠れている（子が押す物を抱えている入れ物は、子の方で数える）
+        if (隠れている(b) && (押す物 || !e.querySelector("button, a"))) {
+          const q = 重なり量(b);
+          重なり.push(名前(e) + "「" + 直の字.slice(0, 18) + "」 " + q.誰 + "と "
+            + (Math.round(q.h * 10) / 10) + "px（高さの " + Math.round(q.割合 * 100) + "%）");
         }
         // ② 押す物の大きさ（実画面px。getBoundingClientRect は縮めた**後**の矩形）
         if (押す物) {
@@ -173,7 +221,7 @@ const 測る = async (ラベル, W, H, スマホ) => {
         開けた, 出た: true, 数えた, 重なり, 小さい,
         最小: Number.isFinite(いちばん小さい) ? Math.round(いちばん小さい * 10) / 10 : null, 最小の: いちばん小さいの,
       };
-    }, [選, mod, fn, 引数, 全部の選, 押す物の下限]);
+    }, [選, mod, fn, 引数, 全部の選, 押す物の下限, 閉じる || null]);
 
     if (!r.出た) { console.log("  ⓘ " + ラベル + " / " + 名 + " … この土台では開けない（検査しない）"); continue; }
     開けたページ++;
@@ -198,8 +246,8 @@ srv.close();
 
 if (process.exitCode !== 2) {
   // 🔴 **空振りを合格にしない。** 開けないページばかり／要素を1つも見ていない時は 2。
-  if (開けたページ < 8) {
-    console.error("❌ 開けたページが " + 開けたページ + " 枚しか無い（2機種 × 7枚＝14枚のはず）。土台が壊れている");
+  if (開けたページ < ページ.length * 2 - 2) {
+    console.error("❌ 開けたページが " + 開けたページ + " 枚しか無い（2機種 × " + ページ.length + "枚のはず）。土台が壊れている");
     process.exitCode = 2;
   } else if (見た要素 < 200) {
     console.error("❌ 見た要素が " + 見た要素 + " 個しか無い（数え方が壊れている）");

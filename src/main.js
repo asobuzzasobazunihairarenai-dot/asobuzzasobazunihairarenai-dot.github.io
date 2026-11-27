@@ -5535,7 +5535,10 @@ async function resolvePeaceWishesAtTurnStart(player) {
     const token = getState().tokens.find((tk) => tk.id === info.cardTokenId);
     if (!token) continue; // 盤面から消えていた（誰かが拾った等）＝何もしない
     if (isPeaceWishConditionMet(info)) {
-      for (const p of getState().activePlayers) await drawCardsForEffect(p, 2);
+      // ⚠【続き876】引く枚数は**カードのデータ**（card-effects.js の `count`）から来る。
+      //   以前はここに 2 を直書きしていたので、データを書き換えても何も変わらなかった。
+      const 枚数 = Number(info.count) > 0 ? Number(info.count) : 2;
+      for (const p of getState().activePlayers) await drawCardsForEffect(p, 枚数);
       // 「これを裏向きにする」。flipToFaceUpForEffect は表裏を**反転**する（名前に反して
       // トグル。PLACE_CARD のコメント参照）ので、表向きの時だけ呼ぶ。
       const now = getState().tokens.find((tk) => tk.id === info.cardTokenId);

@@ -49,14 +49,20 @@ const 外す = {
   "MOVE_TO_CELL_WITH_NAMED_FACEUP_CARD.targetName": "文の生成だけが読む（「『バスストップ』のあるマスに移動する。」）",
   "PICKUP_NAMED_CARD_AT_OWN_CELL.targetName": "同上",
   "LOCK_ONE_HAND_CARD_EXCEPT_FINAL.lockArea": "文の生成だけが読む（印字「あなたのロックエリアに」）",
+  // 🔴【続き876・分類の訂正】これは**効いていない印ではない**。続き804 で「効いていない」と
+  //   書いたのは私の数え間違いで、`card-effects.js` の文の生成が `renderWealthCondition(action.wealth)`
+  //   として**読んでいる**（財閥の威光は【財力＝S】が**2文目の頭**に付くので、効果全体ではなく
+  //   行動に付けるのが正しい——カードのコメントにもそう書いてある）。
+  "FLIP_UP_TO_N_WITHIN_RANGE.wealth": "文の生成が読む（renderWealthCondition(action.wealth)＝【財力＝S】を句の頭に出す）",
 
   // ③ 🔴 **効いていない印**（いまは無害だが、データを変えても挙動は変わらない）。
   //   ⚠ 直す時は「挙動をデータから決める」か「印を消す」かのどちらか。**放っておくと、
   //     次に誰かがここを書き換えて『変えたのに効かない』で時間を使う。**
-  "ANNOUNCE_MOVEMENT_BOOST_THIS_TURN.plain": "🔴 効いていない。エンジンは noOpen / atOnce が無い時を既定で「plain」として扱う（結果は合っている）",
-  "PLACE_DECK_CARDS_IN_CHOSEN_CELLS.requireNoCard": "🔴 効いていない。候補は getEmptyCellCandidates ＝**常にカードの無いマス**なので、この印は常に真と同じ",
-  "FLIP_UP_TO_N_WITHIN_RANGE.wealth": "🔴 効いていない。meetsWealth が読むのは**効果や選択肢**の wealth で、行動の wealth ではない（【財力＝S】の表示は選択肢側が出す）",
-  "REGISTER_PEACE_WISH.count": "🔴 効いていない。引く枚数は main.js の resolvePeaceWishesAtTurnStart が **2 を直書き**している",
+  //   ⓘ【続き876】ここに在った3件は片付けた:
+  //     ・`ANNOUNCE_MOVEMENT_BOOST_THIS_TURN.plain` … **印を消した**（既定が plain）
+  //     ・`PLACE_DECK_CARDS_IN_CHOSEN_CELLS.requireNoCard` … **印を消した**（候補は常にカードの無いマス）
+  //     ・`REGISTER_PEACE_WISH.count` … **挙動をデータから決めるようにした**（main.js の 2 の直書きをやめた）
+  //   ⇒ **いまここは空**。新しく足す時は、理由を必ず書くこと。
 };
 
 const データ = stripJs(読む("src/card-effects.js"));

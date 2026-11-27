@@ -136,7 +136,10 @@ for (const f of files) {
     // 🔴【続き791】**大文字だけの名前（定数の表）は、使った所も見る。**
     //   `SEAT_TO_SIDE[player]` のような表引きは呼び出しではないので上の輪では拾えない。
     //   ⚠ `NAME:`（物の名前・ラベル）は見ない。⚠ `x.NAME` も見ない（持ち物の名前なので）。
-    for (const m of line.matchAll(/(^|[^\w$.?])([A-Z][A-Z0-9_]*)(?!\s*:)/g)) {
+    // 🔴【続き876】`(?![\w$])` を足した。**先読みは後戻りする**ので、これが無いと
+    //   `SEAT_ORDERS:` のような名前で**1文字短い `SEAT_ORDER` に当たって**嘘になる
+    //   （小文字版を作った時に `rankNames()` が `rankName` として当たって見つかった）。
+    for (const m of line.matchAll(/(^|[^\w$.?])([A-Z][A-Z0-9_]*)(?![\w$])(?!\s*:)/g)) {
       const name = m[2];
       if (name.length < 4) continue; // 1〜3文字は略号のことが多い（PI・URL 等）
       if (GLOBALS.has(name)) continue;
@@ -147,6 +150,28 @@ for (const f of files) {
       問題.push(
         `${f}:${k + 1}  ${name} を import していない（${どこ} が export している）  | ${String(生行[k] ?? "").trim().slice(0, 90)}`
       );
+    }
+    // 🔴【続き876】**小文字で始まる名前も、使った所を見る。**
+    //   続き791 の申し送り「小文字で始まる定数の import 漏れはまだ検査できていない」を片付けた。
+    //   ⚠ 続き788 で一度あきらめたのは**誤検知が2012件**出たからだが、その後
+    //     `js-strip`（文字列とコメントを状態機械で剥がす）と `見える名前`（引数・分割代入・
+    //     短縮形まで拾う）が入ったので、**いま測ったら誤検知は0件**だった。
+    //   ⚠ 見ないもの: ①`import` / `export` の行と「x as y」を含む行
+    //     （**別名の元の名前**を「import していない」と誤って拾う）
+    //     ②`name(` は上の輪が見ている ③`name:` は物の名前 ④`x.name` は持ち物。
+    if (!/^\s*(import|export)\b/.test(line) && !/\bas\s+[A-Za-z_$]/.test(line)) {
+      for (const m of line.matchAll(/(^|[^\w$.?])([a-z_$][\w$]*)(?![\w$])(?!\s*[:(])/g)) {
+        const name = m[2];
+        if (name.length < 4) continue; // 短い名前は局所の変数のことが多い
+        if (GLOBALS.has(name)) continue;
+        const どこ = 公開.get(name);
+        if (!どこ || どこ === f) continue;
+        調べた++;
+        if (ある.has(name)) continue;
+        問題.push(
+          `${f}:${k + 1}  ${name} を import していない（${どこ} が export している）  | ${String(生行[k] ?? "").trim().slice(0, 90)}`
+        );
+      }
     }
   });
 }

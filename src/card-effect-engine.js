@@ -215,9 +215,16 @@ function getSameColorHandEffectWindow(viewer, color) {
 //   記録が消えたら「札が盤面に残るだけ」＝安全側に倒れる。
 let handEffectSerial = 0;
 const peaceWishPending = new Map(); // cardTokenId -> { player, turnNumber, serial }
-export function registerPeaceWish(cardTokenId, player) {
+// ⚠【続き876】`count` は**引く枚数**（平和への願いは2枚）。以前は main.js が **2 を直書き**
+//   していて、データの `count: 2` を**誰も読んでいなかった**（書き換えても何も変わらない印）。
+//   ⇒ ここで預かって、解決する時に渡す。
+export function registerPeaceWish(cardTokenId, player, count) {
   if (!cardTokenId) return;
-  peaceWishPending.set(cardTokenId, { player, turnNumber: getState().turnNumber, serial: handEffectSerial });
+  const n = Number(count);
+  peaceWishPending.set(cardTokenId, {
+    player, turnNumber: getState().turnNumber, serial: handEffectSerial,
+    count: Number.isFinite(n) && n > 0 ? n : 2,
+  });
 }
 // そのプレイヤーの「次のターンの開始時」に解決するぶんを取り出す（取り出したら消える）。
 export function takePeaceWishesToResolve(player, turnNumber) {
@@ -226,7 +233,7 @@ export function takePeaceWishesToResolve(player, turnNumber) {
     if (info.player !== player) continue;
     if (!(turnNumber > info.turnNumber)) continue; // 置いたのと同じターンでは判定しない
     peaceWishPending.delete(id);
-    out.push({ cardTokenId: id, player: info.player, turnNumber: info.turnNumber, serial: info.serial });
+    out.push({ cardTokenId: id, player: info.player, turnNumber: info.turnNumber, serial: info.serial, count: info.count });
   }
   return out;
 }
@@ -1990,6 +1997,10 @@ async function runAction(action, ctx, helpers) {
       //    ⚠ **置くのは全部選び終わってから**（途中で置くと、まとめて聞く前に盤面が変わる）。
       //    ⚠ 1マスだけの時は今までどおり（1マスずつの確認が出て、まとめては聞かない）。
       // 🔴 1st EDITION（大盤振舞）: count: "wealth" ＝【財力＝S】。
+      // ⚠【続き876】**候補は常に「カードの置かれていないマス」**（getEmptyCellCandidates）。
+      //   `requireNoPiece` は「駒も居ないこと」まで要るかの切り替えで、カードの有無は
+      //   いつでも見ている。以前データに `requireNoCard: true` と書いてあったが、
+      //   **ここで読んでいなかった**（書き換えても何も変わらない印）ので外した。
       const 欲しい枚数 = await amountOf(action, ctx, helpers);
       const 置ける枚数 = Math.min(欲しい枚数, getState().piles.deck.length);
       // 🔴【#528・2026-11-07】ユーザー判断「**山札からか手札からか選ぶときで複数マスの時は
@@ -3739,7 +3750,7 @@ async function runAction(action, ctx, helpers) {
     case VERBS.REGISTER_PEACE_WISH: {
       // 平和への願い（0th拡張）到達効果。ここでは**印を付けるだけ**。
       // 実際の判定は main.js の resolvePeaceWishesAtTurnStart（ターンが切り替わった瞬間）。
-      registerPeaceWish(ctx.cardTokenId, ctx.player);
+      registerPeaceWish(ctx.cardTokenId, ctx.player, action.count);
       await helpers.announceEffectNotice?.(ctx.cardId, t("ce.ex0PeaceWishRegistered"));
       return true;
     }

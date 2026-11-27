@@ -22565,6 +22565,14 @@ body.is-tablet-device #ranking-page-info-btn {
   font-size: 1.6rem;
 }
 
+/* 【続き876】ホームの「次にやること」の札を閉じる ✕。実測 **11x10px**（0.85rem＋小さい余白）。
+   ⚠ 位置の基準が外れていた件は ui-v2.css で直した（あちらに経緯を書いた）。ここは**大きさ**だけ。 */
+body.is-phone-device .home-first-step-close,
+body.is-tablet-device .home-first-step-close {
+  font-size: 1.6rem;
+  padding: 0.45rem 0.6rem;
+}
+
 /* 【続き575・第3弾】「今回のメンバー」と「スタートプレイヤー決定」。 */
 
 /* 「あなた／対戦相手」。実測6.5px。管理者モードのつまみ（--match-intro-seat-size）は
