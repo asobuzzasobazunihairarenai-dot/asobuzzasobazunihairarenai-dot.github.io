@@ -10201,10 +10201,12 @@ function clearEffectPlacementTargets() {
 // ⚠ 基本設定の「マスを選んだ後に『このマスでいいですか？』と確認する」を切っている人には
 //   聞かない（1マスずつの確認と同じ設定に従う＝設定が2つに割れないように）。
 // ⚠ CPU・自動代行には出さない（常に「はい」）。
-async function confirmPickedCellsForEffect(cardId, player, n) {
+// 🔴【#833・続き868】第4引数で**文言の鍵**を差し替えられる（既定は今までどおり覗き見の文）。
+//   置く順をまとめて聞く時に「表面を見ます」と出ると、していることと食い違う。
+async function confirmPickedCellsForEffect(cardId, player, n, messageKey) {
   if (isCpuSelectingNow(pickerOwner(player))) return true;
   if (!isCellConfirmEnabled()) return true;
-  return !!(await confirmGenericYesNo(t("ce.ex0PeekConfirmAll", { n }), {
+  return !!(await confirmGenericYesNo(t(messageKey || "ce.ex0PeekConfirmAll", { n }), {
     owner: player,
     cardId,
     cpuAutoResolveId: "yes",

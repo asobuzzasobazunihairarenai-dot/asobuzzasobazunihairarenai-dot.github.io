@@ -52,6 +52,47 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-27",
+    summary: [
+      "CPUが、あなたのゲート侵攻を止めに来ます",
+      "マスを順番に選ぶ時、確認は最後に1回だけ",
+    ],
+    items: [
+      "**あと一歩でゲート侵攻できる所まで来ると、CPUが体当たり（接触）で止めに来る**ようになりました。接触された駒は自分のゲートへ戻されるので、侵攻はふりだしに戻ります。これまでCPUは、カウンターロックを持っていない時は**むやみに相手の隣へ行かない**という考え方で動いていたので、ゲートの目前まで来られても見ているだけでした。⚠ 止めに来るのは**自分のゲートが目前（1〜2マス）の時だけ**です。それ以外の場面での動きは今までと変わりません。",
+      "**カードの効果で複数のマスへ順番に置く時、「このマスでいいですか？」が毎回出なくなりました。**代わりに、順番を決め終わってから**1回だけ**「この◯マスに、この順で置きますか？」と聞きます。「いいえ」を押せば最初から選び直せます。偉大なる大号令・増殖する木々で効きます。⚠ 「おまかせ」を押した後は確認も出ません（もう聞かないで、という意味なので）。",
+    ],
+    summaryEn: [
+      "The CPU now moves to stop your gate invasion",
+      "Picking several squares in order asks once at the end",
+    ],
+    itemsEn: [
+      "When you get within one step of a gate invasion, the CPU now body-checks you to stop it. A piece that gets contacted is sent back to its own gate, so the invasion starts over. Until now the CPU followed the rule of not wandering next to an opponent without a Counter Lock in hand, so it would watch you walk right up to its gate. It only steps in when its own gate is one or two squares away; everywhere else it plays as before.",
+      "When a card effect places cards on several squares in turn, it no longer asks about every single square. Instead it asks once, after the order is settled: place on these N squares in this order? Answer no and you start the order over. This applies to the Great Decree and Growing Trees. Pressing the leave-it-to-me button skips the final question too, since that means stop asking.",
+    ],
+    fixes: [
+      "迷いの森で捨てる順を選んだ時の確認に、「表面を見ます」と出ていたのを直しました。",
+    ],
+    fixesEn: [
+      "The confirmation for the order you discard in with Forest of Delusion no longer says you will look at the cards' faces.",
+    ],
+    devItems: [
+      "🔴 **#830: 相手があと一歩でゲート侵攻できる時は、カウンターロックが無くても接触して止める**（ユーザー判断2026-11-27「そうしよう！」）。報告「あと一歩でゲート侵攻できる位置に私がいるのにCPUが接触してこなかった」。⇒ 調べたら**方針どおりに動いていた**——`cpu-brain.js` に「接触狙いで相手に近づくのは**カウンターロック所持時のみ**（2026-08-08 のユーザー方針: 持たずに近づくと接触の主導権を相手に渡して危険）」と書いてある。⇒ **方針は変えず、守りの非常事態の例外**を1つ足した。接触すると相手は**自分のゲートへ強制移動**される（`state.js` の RESPOND_CONTACT）ので脅威がその場で消える。重みは自ゲート占有（`onMyGateHere`）とそろえた＝**距離1で+9・距離2で+5**（前進は1マス+3）。⚠ **名指しで測る**——`oppPieceCells` に `player` を持たせ、`gateThreatDistance(ctx, player)` でその相手だけの距離を見る。自ゲートを脅かしていない別の相手へ体当たりしても守りにならない。",
+      "🔴 **#833: 複数マスに置く効果は、1マスずつ確認せず、最後に1回だけ**（ユーザー判断2026-11-27「置く順は選べるように！『このマスでいいですか？』の確認を毎回ではなく最後に一回だけ『これらのマスでいいですか？』に」）。#481（ジェイク）・#514（大地創造）でユーザーが決めた流れと**同じ形**にそろえた＝①確認なしで順を決める →②まとめて1回確認 →③置く。当てたのは**増殖する木々の到達**（`PLACE_CARD` / ALL_WITHIN_RANGE）と**偉大なる大号令**。⚠ **おまかせを押した後は確認も出さない**（「もう聞かないで」という意思と食い違う）。⚠ 1マスだけの時も聞かない。",
+      "🔴 **偉大なる大号令は作りを変える必要があった**——あれは**順を聞きながらその場で置いていた**ので、まとめて聞く前に盤面が変わってしまう（#514 のコメントに「置くのは全部選び終わってから」とある、まさにその理由）。⇒ **先に順を全部決めて、1回だけ確認してから置く**形へ。⚠ 山札の枚数は選んでいる間は変わらないので**置ける枚数を先に決めてよい**（ついでに見出しが「1/8」ではなく**実際に置ける数**で数えられるようになった）。",
+      "⚠ **確認の文言を鍵で差し替えられるようにした**（`confirmPickedCellsForEffect` の第4引数）。それまで**覗き見用の文を使い回していた**ので、迷いの森で**捨てる順**を確認する時にも「選んだ順に1枚ずつ**表面を見ます**」と出ていた＝していることと食い違っていた。⇒ 置く用（`ce.confirmPlaceOrder`）・捨てる用（`ce.confirmDiscardOrder`）を足した。既定は今までどおりなので、他の呼び出しは1文字も変わらない。",
+      "⚠ **テストの土台に `pickLocationSkipConfirm` の記録を足した**（`options.skipConfirm` が立った時だけ）。でないと「1マスずつ聞いていない」を**テストから見る手段が無い**（確認を出さないことは callLog に現れない）。立った時だけ残すので、既存の台本の期待値は動かない。",
+      "⚠ 道具のミス（記録）: **`cpu-brain.js` が CRLF なのを `head -c 4000` で「LF」と誤判定した**——このリポジトリは**1つのファイルの中で混在する**ので、先頭だけ見て決めてはいけない。A/B の置換が「目印が0個」で空振りし、原因を探して初めて気づいた。⇒ **複数行の目印は LF にそろえてから当て、書く時に戻す**（続き751・756 で自分が書いた教訓と同じ）。",
+    ],
+    devItemsEn: [
+      "The CPU now body-checks an opponent who is one step from invading its gate, even without a Counter Lock in hand. Investigation showed the CPU was following its own standing policy: approach for contact only while holding a Counter Lock, set by the user in August, because approaching without one hands the initiative to the opponent. Rather than change that policy, a narrow defensive exception was added. Contact force-moves the opponent back to their own gate, so the threat disappears at once. The weight matches occupying one's own gate: nine at distance one, five at distance two, against three per square of advance. The distance is measured for the named opponent only, so body-checking some other player who is not threatening the gate gains nothing.",
+      "Effects that place cards on several squares in turn no longer confirm each square. They now follow the flow the user set for Jake and Land Creation: pick the order with no prompts, confirm once, then place. This covers Growing Trees' arrival effect and the Great Decree. Pressing leave-it-to-me skips the final confirmation as well, and a single square is never confirmed.",
+      "The Great Decree needed restructuring: it used to place each card as it asked for the next square, so the board would change before the batch question could be asked. The order is now decided in full, confirmed once, and only then placed. The deck size cannot change while the player is choosing, so the number of placeable cards is fixed up front, which also makes the prompt count the cards that will actually be placed rather than always eight.",
+      "The confirmation text can now be swapped by key. The peek wording was being reused, so confirming the discard order for Forest of Delusion claimed the player would look at the cards' faces. Separate keys for placing and discarding were added; the default is unchanged, so every other caller reads exactly as before.",
+      "The test harness now records when a pick suppressed its per-square confirmation, because otherwise a test has no way to observe that the per-square question was skipped. It is recorded only when the flag is set, so existing expectations are untouched.",
+      "A tooling note: checking only the first four kilobytes reported one source file as LF when it is CRLF. This repository mixes both inside a single file, so the beginning does not settle it. The A/B patch silently matched nothing until that was traced. Normalise to LF before matching across lines, and restore the original endings when writing.",
+    ],
+  },
+  {
     date: "2026-11-26",
     summary: [
       "フレンドリーマッチに出すマイ山札は、1人1つになりました",

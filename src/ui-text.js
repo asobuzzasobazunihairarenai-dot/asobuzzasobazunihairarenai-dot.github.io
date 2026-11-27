@@ -1232,6 +1232,12 @@ const UI = {
     "ce.ex0PickAddColorS": "追色コストを何枚払いますか？（奪えるのはその２倍）",
     // 【#481】ジェイク等で何マスも選んだ後に、まとめて1回だけ聞く確認。
     "ce.ex0PeekConfirmAll": "この{n}マスでいいですか？（選んだ順に1枚ずつ表面を見ます）",
+    // 🔴【#833・続き868】置く順をまとめて1回だけ確認する時の文（ユーザー判断2026-11-27
+    //   「『このマスでいいですか？』の確認を毎回ではなく最後に一回だけ」）。
+    "ce.confirmPlaceOrder": "この{n}マスに、この順で置きますか？（山札の上から順に置きます）",
+    // ⚠ 捨てる順をまとめて確認する時（迷いの森）。それまで覗き見用の文を使い回していて
+    //   「表面を見ます」と出ていた＝していることと食い違っていた。
+    "ce.confirmDiscardOrder": "この{n}マスでいいですか？（選んだ順に捨てます）",
     // 【#461】相手を選ぶモーダルの見出し（効果側が案内文を渡さなかった時だけ使う）。
     "ce.pickPlayerTitle": "相手を選んでください",
     // 【#437】CPU戦の細かい設定を畳むボタンと、既定と違う時の1行。
@@ -3819,6 +3825,8 @@ const UI = {
     "ce.ex0PickDeckOrHand": "Place from where?",
     "ce.ex0PickAddColorS": "How many cards for the colour cost? (you steal twice that many)",
     "ce.ex0PeekConfirmAll": "Look at these {n} squares? (you will see them one at a time, in the order you picked)",
+    "ce.confirmPlaceOrder": "Place on these {n} squares in this order? (cards come off the top of the deck in turn)",
+    "ce.confirmDiscardOrder": "Discard from these {n} squares? (in the order you picked)",
     "ce.pickPlayerTitle": "Choose a player",
     "home.matchChoice.detailsOpen": "⚙ Set up the details",
     "home.matchChoice.detailsClose": "⚙ Close the details",

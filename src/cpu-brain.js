@@ -183,11 +183,18 @@ function chooseMoveDestinationCell(cells, driveSeat) {
   return list.find((c) => c.row === chosen.row && c.col === chosen.col) ?? null;
 }
 
-function gateThreatDistance(ctx) {
+// 自ゲートへ、相手の駒がどれだけ近づいているか（マンハッタン距離。遠い/居ないなら Infinity）。
+// 🔴【#830・続き868】`player` を渡すと**その相手だけ**を測る（接触の相手を名指しで測るため）。
+//   渡さなければ今までどおり「いちばん近い相手」の距離。
+function gateThreatDistance(ctx, player) {
   if (!ctx.myGate || ctx.oppPieceCells.length === 0) return Infinity;
-  return Math.min(
-    ...ctx.oppPieceCells.map((p) => Math.abs(p.row - ctx.myGate.row) + Math.abs(p.col - ctx.myGate.col))
-  );
+  let m = Infinity;
+  for (const p of ctx.oppPieceCells) {
+    if (player && p.player !== player) continue;
+    const d = Math.abs(p.row - ctx.myGate.row) + Math.abs(p.col - ctx.myGate.col);
+    if (d < m) m = d;
+  }
+  return m;
 }
 function gateThreatened(ctx) {
   return gateThreatDistance(ctx) <= 2;
@@ -280,6 +287,18 @@ function scoreMove(c, seat, ctx) {
     // ユーザー方針2026-08-08）。上級以上は相手が自分以上に進んでいれば高評価。
     // ※「自ゲート上の侵入者への体当たり」は、相手のターン終了時に侵攻が既に解決しているため
     //   そもそも発生しない“手遅れ”の状況（ユーザー指摘）。ここでは特別扱いしない。
+    // 🔴【#830・続き868】**相手があと一歩でゲート侵攻できる時は、カウンターロックが無くても
+    //   接触して止める。** ユーザー判断2026-11-27。報告「あと一歩でゲート侵攻できる位置に
+    //   私がいるのにCPUが接触してこなかった」。
+    //   ⚠ 2026-08-08 の方針（攻めの接触はカウンターロック所持時のみ）そのものは変えていない。
+    //     これは**守りの非常事態の例外**。接触すると相手は**自分のゲートへ強制移動**される
+    //     （state.js の RESPOND_CONTACT ＋ ゲート侵攻③の帰還と同じ形）ので、脅威がその場で消える。
+    //   重みは自ゲート占有（上の onMyGateHere）とそろえた＝距離1で+9・距離2で+5。距離1は
+    //   「次の相手のターンに乗られて確定で侵攻される」緊急事態なので、どんな前進(+3/マス)より優先。
+    //   ⚠ 名指しで測る——**自ゲートを脅かしていない別の相手**へ体当たりしても守りにならない。
+    const 自ゲートへの脅かし = gateThreatDistance(ctx, c.occupantPlayer);
+    if (自ゲートへの脅かし <= 1) score += 9;
+    else if (自ゲートへの脅かし <= 2) score += 5;
     if (ctx.hasCounterLock) {
       const theirLocks = ctx.locks[c.occupantPlayer] ?? 0;
       const myLocks = ctx.locks[seat] ?? 0;
@@ -308,7 +327,9 @@ export function chooseMoveCandidate(candidates, driveSeat) {
   const active = state.activePlayers ?? [];
   const oppPieceCells = state.tokens
     .filter((t) => t.kind === "piece" && t.player !== driveSeat && active.includes(t.player) && t.location.zone === "cell")
-    .map((t) => ({ row: t.location.row, col: t.location.col }));
+    // 🔴【#830・続き868】`player` も持たせる。接触の相手を**名指しで**「自ゲートをどれだけ
+    //   脅かしているか」測るのに要る（row/col しか読まない所には影響しない）。
+    .map((t) => ({ row: t.location.row, col: t.location.col, player: t.player }));
   const myGatePos = GATE_POSITIONS[SEAT_TO_SIDE[driveSeat]] || null;
   const ctx = {
     peek: isCpuPeekAllowed(),

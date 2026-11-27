@@ -2161,7 +2161,9 @@ async function runAction(action, ctx, helpers) {
             highlight: true,
           });
           if (順.length === 0) break; // 選ばなかった＝今までどおりの並びで捨てる
-          if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 順.length)) {
+          // ⚠【続き868】文言は**捨てる**用（それまで覗き見の文を使い回して「表面を見ます」と
+          //   出ていた＝していることと食い違っていた）。
+          if (await helpers.confirmPickedCells(ctx.cardId, ctx.player, 順.length, "ce.confirmDiscardOrder")) {
             const 済 = new Set();
             const 新 = [];
             for (const c of 順) {
@@ -3100,28 +3102,48 @@ async function runAction(action, ctx, helpers) {
         (isDeckOrderKnown() || !!ctx.forcePrompt) &&
         helpers.pickLocation
       ) {
-        const 残り = [...destinations];
-        const 並べた = [];
-        const 全 = 残り.length;
-        let 聞く2 = true;
-        while (残り.length > 0) {
-          const 選 =
-            !聞く2 || (残り.length === 1 && !ctx.forcePrompt)
-              ? 残り[0]
-              : await helpers.pickLocation(残り, t("ce.pickPlaceOrder", { i: 並べた.length + 1, n: 全 }), { purpose: "place", allowAuto: true });
-          // 「おまかせ」＝ここから先は聞かず、残りを並び順で片付ける。
-          if (選 && 選.auto) { 聞く2 = false; continue; }
-          if (!選) break;
-          const k = 残り.findIndex((c) => c.row === 選.row && c.col === 選.col);
-          if (k < 0) break;
-          並べた.push(残り[k]);
-          残り.splice(k, 1);
-          // ⚠ 番号の印は**聞いている間だけ**（偉大なる大号令と同じ決まり＝#725）。
-          //   自動で置いた分に番号が光ると、選んでいないのに選んだように見える。
-          if (聞く2) helpers.markPlacementTarget?.(選);
+        // 🔴【#833・続き868】ユーザー判断2026-11-27「**置く順は選べるように！**『このマスで
+        //   いいですか？』の確認を毎回ではなく**最後に一回だけ**『これらのマスでいいですか？』に」。
+        //   ⇒ 1マスごとの確認は出さず（`skipConfirm`）、**順が決まってから1回だけ**聞く。
+        //     #481（ジェイク）・#514（大地創造）でユーザーが決めた流れと同じ形にそろえた。
+        //   ⚠ 「いいえ」＝**最初から選び直し**（印を消して、順をもう一度決める）。
+        //   ⚠ **おまかせを押した後は聞かない**——あれは「もう聞かないで」という意思なので、
+        //     最後にだけ確認を出すと言っていることと食い違う。
+        //   ⚠ 1マスだけの時も聞かない（選ぶ余地が無い＝他の効果と同じ作法）。
+        const 全 = destinations.length;
+        for (;;) {
+          const 残り = [...destinations];
+          const 並べた = [];
+          let 聞く2 = true;
+          while (残り.length > 0) {
+            const 選 =
+              !聞く2 || (残り.length === 1 && !ctx.forcePrompt)
+                ? 残り[0]
+                : await helpers.pickLocation(残り, t("ce.pickPlaceOrder", { i: 並べた.length + 1, n: 全 }), { purpose: "place", allowAuto: true, skipConfirm: true });
+            // 「おまかせ」＝ここから先は聞かず、残りを並び順で片付ける。
+            if (選 && 選.auto) { 聞く2 = false; continue; }
+            if (!選) break;
+            const k = 残り.findIndex((c) => c.row === 選.row && c.col === 選.col);
+            if (k < 0) break;
+            並べた.push(残り[k]);
+            残り.splice(k, 1);
+            // ⚠ 番号の印は**聞いている間だけ**（偉大なる大号令と同じ決まり＝#725）。
+            //   自動で置いた分に番号が光ると、選んでいないのに選んだように見える。
+            if (聞く2) helpers.markPlacementTarget?.(選);
+          }
+          // 選び残しがあっても**1マスも落とさない**（残りは元の並びのまま後ろへ）。
+          const 新しい順 = [...並べた, ...残り];
+          if (!聞く2 || 並べた.length < 2) { destinations = 新しい順; break; }
+          // ⚠ 確認の口が無い所（テストの土台）では**聞けたものとして進む**（止めない）。
+          const 返事 = helpers.confirmPickedCells
+            ? await helpers.confirmPickedCells(ctx.cardId, ctx.player, 並べた.length, "ce.confirmPlaceOrder")
+            : true;
+          if (返事) {
+            destinations = 新しい順;
+            break;
+          }
+          helpers.clearPlacementTargets?.(); // 「いいえ」＝選び直し
         }
-        // 選び残しがあっても**1マスも落とさない**（残りは元の並びのまま後ろへ）。
-        destinations = [...並べた, ...残り];
       }
       for (const dest of destinations) {
         if (action.source === "self") {
@@ -6038,7 +6060,6 @@ async function runAction(action, ctx, helpers) {
         const col = BOARD_CENTER.col + dc;
         if (inBounds(row, col)) 残り8.push({ zone: "cell", row, col });
       }
-      const 全部 = 残り8.length;
       // 🔴【続き791・ユーザー判断】**山札の並びが分からないなら聞かない。**
       //   「山札の中の順番が全くわからない状態の時は、置く順番を選ぶ必要はないので
       //     自動でいいと思います！」
@@ -6046,23 +6067,47 @@ async function runAction(action, ctx, helpers) {
       //   （捨て場は誰でも順番を見られる）。将来「山札の中身を見る」効果が増えたら、
       //   deck-order-known.js の方へ足せばここは触らなくてよい。
       //   ⚠ 聞かない時は**元の挙動そのまま**（決まった順に置くだけ・印も付けない）。
-      let 順を聞く = isDeckOrderKnown() || !!ctx.forcePrompt;
-      while (残り8.length > 0) {
-        if (getState().piles.deck.length === 0) break;
-        const 選 =
-          !順を聞く || (残り8.length === 1 && !ctx.forcePrompt)
-            ? 残り8[0]
-            : await helpers.pickLocation(残り8, t("ce.pickPlaceOrder", { i: 置いた8 + 1, n: 全部 }), { purpose: "place", allowAuto: true });
-        // 🔴【#744・続き801】「おまかせ」＝ここから先は聞かず、残りを並び順で片付ける。
-        if (選 && 選.auto) { 順を聞く = false; continue; }
-        if (!選) break;
-        const k = 残り8.findIndex((c) => c.row === 選.row && c.col === 選.col);
-        if (k < 0) break;
-        残り8.splice(k, 1);
-        // 🔴【#725】選んだ順に番号が出る。**聞いた時だけ**付ける
-        //   （自動で置いた時に 1〜8 が光ると、選んでいないのに選んだように見える）。
-        if (順を聞く) helpers.markPlacementTarget?.(選);
-        await helpers.placeFromDeck(選);
+      const 順を聞く = isDeckOrderKnown() || !!ctx.forcePrompt;
+      // 🔴【#833・続き868】ユーザー判断2026-11-27「確認を毎回ではなく**最後に一回だけ**」。
+      //   ⇒ **先に順を全部決めて、1回だけ確認してから置く。** 途中で置くと、まとめて聞く前に
+      //     盤面が変わってしまう（#514 でも同じ理由でこの形にした）。
+      //   ⚠ 山札の枚数は選んでいる間は変わらないので、**置ける枚数を先に決めてよい**
+      //     （ついでに「1/8」ではなく実際に置ける数で数えられるようになった）。
+      const 置ける8 = Math.min(残り8.length, getState().piles.deck.length);
+      if (置ける8 === 0) return false;
+      let 並び8 = [];
+      for (;;) {
+        const 残り = [...残り8];
+        並び8 = [];
+        let 聞く = 順を聞く;
+        while (並び8.length < 置ける8 && 残り.length > 0) {
+          const 選 =
+            !聞く || (残り.length === 1 && !ctx.forcePrompt)
+              ? 残り[0]
+              : await helpers.pickLocation(残り, t("ce.pickPlaceOrder", { i: 並び8.length + 1, n: 置ける8 }), { purpose: "place", allowAuto: true, skipConfirm: true });
+          // 🔴【#744・続き801】「おまかせ」＝ここから先は聞かず、残りを並び順で片付ける。
+          if (選 && 選.auto) { 聞く = false; continue; }
+          if (!選) break;
+          const k = 残り.findIndex((c) => c.row === 選.row && c.col === 選.col);
+          if (k < 0) break;
+          並び8.push(残り[k]);
+          残り.splice(k, 1);
+          // 🔴【#725】選んだ順に番号が出る。**聞いた時だけ**付ける
+          //   （自動で置いた時に 1〜8 が光ると、選んでいないのに選んだように見える）。
+          if (聞く) helpers.markPlacementTarget?.(選);
+        }
+        if (並び8.length === 0) break;
+        // ⚠ おまかせを押した後・聞かない時は確認も出さない（言っていることと食い違う）。
+        if (!聞く || 並び8.length < 2) break;
+        const 返事 = helpers.confirmPickedCells
+          ? await helpers.confirmPickedCells(ctx.cardId, ctx.player, 並び8.length, "ce.confirmPlaceOrder")
+          : true;
+        if (返事) break;
+        helpers.clearPlacementTargets?.(); // 「いいえ」＝選び直し
+      }
+      for (const dest of 並び8) {
+        if (getState().piles.deck.length === 0) break; // 山札が尽きたらそこまで（善処の原則）
+        await helpers.placeFromDeck(dest);
         置いた8++;
       }
       if (置いた8 === 0) return false;

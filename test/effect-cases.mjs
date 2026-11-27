@@ -6121,6 +6121,71 @@ export const CASES = [
       { kind: "deckLen", n: 0 }, // 8マスぶん置いた
       { kind: "cellStackOrder", row: 4, col: 4, cards: ["blue-slum-official"] }, // 1枚目＝最初に選んだマス
       { kind: "cellStackOrder", row: 2, col: 2, cards: ["pink-present"] }, // 2枚目＝2番目に選んだマス
+      // 🔴【#833・続き868】ユーザー判断2026-11-27「確認を毎回ではなく**最後に一回だけ**」。
+      //   1マスずつの「このマスでいいですか？」は出さず（skipConfirm）、順が決まってから1回だけ聞く。
+      { kind: "called", name: "pickLocationSkipConfirm", arg: "1", n: 7 },
+      { kind: "called", name: "confirmPickedCells", arg: "8", n: 1 },
+    ],
+  },
+  {
+    // 🔴【#833・続き868】まとめ確認で「いいえ」＝**最初から順を選び直す**。
+    //   ⚠ 置くのは順が決まってから（途中で置くと、聞く前に盤面が変わってしまう）。
+    name: "偉大なる大号令(到達): #833 まとめ確認で「いいえ」なら順を選び直す",
+    kind: "arrival",
+    deckOrderKnown: true,
+    cardId: "1st-black-great-order",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "1st-black-great-order", faceUp: true, location: { zone: "cell", row: 6, col: 3 } },
+      ],
+      piles: {
+        deck: [
+          "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad",
+          "yellow-sleight-of-hand", "pink-present", "blue-slum-official",
+        ],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "1st-black-great-order", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    // 1回目の確認は「いいえ」。2回目は台本に無いので「はい」。
+    picks: { location: [{ row: 4, col: 4 }], confirmCells: [false] },
+    expect: [
+      { kind: "called", name: "confirmPickedCells", n: 2 }, // いいえ → もう一度
+      { kind: "called", name: "clearPlacementTargets" }, // 印を消して選び直し
+      { kind: "called", name: "pickLocation", n: 14 }, // 7回 × 2周（最後の1マスは聞かない）
+      { kind: "deckLen", n: 0 }, // 🔴 選び直しても8マスとも置く（1マスも落とさない）
+    ],
+  },
+  {
+    // 🔴【#833・続き868】増殖する木々も同じ流れ（1マスずつ聞かず、最後に1回だけ）。
+    name: "増殖する木々(到達): #833 1マスずつ確認せず、最後に1回だけ聞く",
+    kind: "arrival",
+    cardId: "green-growing-trees",
+    deckOrderKnown: true,
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 0, col: 0 } },
+      ],
+      // 🔴 末尾が一番上。2マス以内の空きマスは (0,1)(0,2)(1,0)(1,1)(2,0) の**5マス**。
+      piles: {
+        deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "pink-present", "blue-slum-official"],
+        eternal: [], first: [], discard: [],
+      },
+    },
+    ctx: { player: "A", cardId: "green-growing-trees", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 0, col: 0 } },
+    // 4マスを自分で決める（5マス目は残り1つなので聞かれない）
+    picks: { location: [{ row: 0, col: 2 }, { row: 2, col: 0 }, { row: 1, col: 1 }, { row: 0, col: 1 }] },
+    expect: [
+      { kind: "called", name: "pickLocation", n: 4 },
+      { kind: "called", name: "pickLocationSkipConfirm", arg: "1", n: 4 }, // 毎回は聞かない
+      { kind: "called", name: "confirmPickedCells", arg: "5", n: 1 }, // 🔴 最後に1回だけ
+      { kind: "cellStackOrder", row: 0, col: 2, cards: ["blue-slum-official"] }, // 一番上の札が最初のマスへ
+      { kind: "cellStackOrder", row: 2, col: 0, cards: ["pink-present"] },
     ],
   },
   {

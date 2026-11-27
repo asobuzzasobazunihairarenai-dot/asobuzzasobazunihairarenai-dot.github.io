@@ -214,6 +214,9 @@ export async function runOneCase(spec) {
       //   見たいのは「絞り込みで何マス外したか」であって、選び済みの数ではない）。
       callLog.push(["pickLocationCandidates", String(未選択.length)]);
       callLog.push(["pickLocationPurpose", options?.purpose ?? null]);
+      // 🔴【#833・続き868】1マスずつの「このマスでいいですか？」を省いたか（＝まとめて1回だけ
+      //   聞く流れに乗っているか）。**立った時だけ**残す（既存の台本の期待値を動かさない）。
+      if (options?.skipConfirm) callLog.push(["pickLocationSkipConfirm", "1"]);
       if (options?.avoidCells) for (const a of options.avoidCells) callLog.push(["pickLocationAvoidCell", a.row + "," + a.col]);
       return r;
     },
