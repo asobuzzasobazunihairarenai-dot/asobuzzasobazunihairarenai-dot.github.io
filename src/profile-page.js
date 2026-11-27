@@ -226,7 +226,14 @@ function fitProfilePageContent() {
   const cardH = card.offsetHeight;
   if (!clientH || !cardH || scrollH <= clientH) return; // 収まっているなら何もしない
   const nonCard = scrollH - cardH; // カード以外（余白・戻る・見出し）が使っている高さ
-  const k = Math.max(0.55, Math.min(1, (clientH - nonCard) / cardH));
+  // 🔴【#843・続き874】**縮めすぎない。** 下限を 0.55 → **0.82** に上げた。
+  //   ユーザー指摘「マイページですが**ギュッと少し全体が縮小されてる**ように見えます」。
+  //   0.55 倍は、スマホでステージごと縮む（実測 0.478）のと**掛け算**になるので、
+  //   字が読める大きさを割る。「1画面に収める」ために読めなくなるのは本末転倒。
+  //   ⚠ 下限に当たって入り切らない時は**縦にスクロール**する（`#profile-page` は
+  //     `overflow-y: auto`。入り切る時は今までどおりスクロールバーは出ない）。
+  //   ⚠ 入り切る時の見た目は**1ミリも変わらない**（k は 1 のまま＝この関数は早返りする）。
+  const k = Math.max(0.82, Math.min(1, (clientH - nonCard) / cardH));
   if (k >= 0.999) return;
   card.style.transformOrigin = "top center";
   card.style.transform = `scale(${k})`;

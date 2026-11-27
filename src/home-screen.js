@@ -736,6 +736,34 @@ function openMatchChoiceModal(opts = {}) {
     details.appendChild(setBox);
   }
 
+  // 🔴【#850・続き874】**「使うカード」と「山札」を隣どうしにする。**
+  //   ユーザー指摘「使うカードと山札の項目ってあわせたほうがよくない？」。
+  //   どちらも「**何のカードで遊ぶか**」なので、離れていると2回考えることになる。
+  //   ⚠ 格子（続き848 の auto-fit 2列）は**DOM の順に行で詰める**ので、
+  //     「使うカード」を「山札」の**直前**へ動かすだけで**同じ行に並ぶ**:
+  //       1行目 強さ ｜ 人数   2行目 **使うカード ｜ 山札**   3行目 対戦ルール
+  //   ⚠ 片方しか無い時（管理者でない／マイ山札が無い）は**並べ替えない**＝今までどおり。
+  //   ⚠ 作る順は変えていない（作る所は条件が入り組んでいるので、**できあがってから並べ替える**）。
+  {
+    const 使うカード = details.querySelector(".home-match-choice-testmode");
+    // 山札の組は「組み方を編集」ボタンを持つ組（`.home-match-choice-stack-edit`）。
+    const 山札 = details.querySelector(".home-match-choice-stack-edit")?.closest(".home-match-choice-difficulty") || null;
+    // 対戦ルールの組は「ルールのボタン」を持つ組。
+    const ルール = details.querySelector(".home-match-choice-rule-btn")?.closest(".home-match-choice-difficulty") || null;
+    if (使うカード && 山札) {
+      // 🔴🔴 **DOM で隣どうしにするだけでは足りない。** 2列の格子は**行で詰める**ので、
+      //   対（使うカード・山札）が**偶数番目から始まらないと斜めに割れる**
+      //   （実測: 強さ0・人数1・ルール2・使うカード3・山札4 ⇒ 使うカードは1行目の右、
+      //    山札は2行目の左＝**同じ行に並ばない**。最初これで通してしまった）。
+      //   ⇒ 対を**3番目と4番目**（0から数えて2・3）に置く＝人数のすぐ後ろへ。
+      //     あわせて**対戦ルールは最後へ**（いちばん背が高いので、最後の行に置くと収まりもよい）。
+      //   並びは「強さ｜人数」「**使うカード｜山札**」「対戦ルール」になる。
+      //   ⚠ 1列になる狭い端末では、そのまま縦に並ぶだけ（対は隣どうしのまま）。
+      details.insertBefore(使うカード, 山札);
+      if (ルール) details.appendChild(ルール);
+    }
+  }
+
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "home-match-choice-cancel";

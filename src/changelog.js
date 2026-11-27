@@ -86,6 +86,7 @@ export const CHANGELOG = [
       "画面の上に出る案内の文が、スマホでものすごく大きくなって左右が切れていたのを直しました。",
       "CPU戦の設定で、題が画面上部の帯に隠れていたのを直しました。",
       "マイページの中身が右に寄って、左側が大きく空いていたのを直しました。",
+      "マイページが縦に入り切らない時、中身が小さくなりすぎていたのを直しました（入り切らない分は縦にスクロールします）。",
     ],
     fixesEn: [
       "The confirmation for the order you discard in with Forest of Delusion no longer says you will look at the cards' faces.",
@@ -96,6 +97,7 @@ export const CHANGELOG = [
       "Fixed the guidance bar at the top of the screen becoming enormous on phones with its ends cut off.",
       "Fixed the CPU match settings title hiding behind the bar at the top of the screen.",
       "Fixed the my page content sitting to the right with a large gap on the left.",
+      "Fixed my page shrinking its contents too far when they did not fit; it now scrolls instead.",
     ],
     devItems: [
       "🔴 **#830: 相手があと一歩でゲート侵攻できる時は、カウンターロックが無くても接触して止める**（ユーザー判断2026-11-27「そうしよう！」）。報告「あと一歩でゲート侵攻できる位置に私がいるのにCPUが接触してこなかった」。⇒ 調べたら**方針どおりに動いていた**——`cpu-brain.js` に「接触狙いで相手に近づくのは**カウンターロック所持時のみ**（2026-08-08 のユーザー方針: 持たずに近づくと接触の主導権を相手に渡して危険）」と書いてある。⇒ **方針は変えず、守りの非常事態の例外**を1つ足した。接触すると相手は**自分のゲートへ強制移動**される（`state.js` の RESPOND_CONTACT）ので脅威がその場で消える。重みは自ゲート占有（`onMyGateHere`）とそろえた＝**距離1で+9・距離2で+5**（前進は1マス+3）。⚠ **名指しで測る**——`oppPieceCells` に `player` を持たせ、`gateThreatDistance(ctx, player)` でその相手だけの距離を見る。自ゲートを脅かしていない別の相手へ体当たりしても守りにならない。",
@@ -146,6 +148,12 @@ export const CHANGELOG = [
       "⚠ **寄せ幅は「いまの寄せ幅＋ずれ」で決める**（引き算だけだと、揃った次の回に 0 へ戻って**毎回揺れる**）。実測で**2回そろえ直しても値が動かない**ことを見ている。⚠ 右へは寄せない（列にぶつかる）／左へ行きすぎない歯止めつき。",
       "⚠ 実測（`scratchpad/_p873.mjs` OK 10 / NG 0・スマホ横とPCの両方）。🔴 **A/B**: 寄せを外すと **左101／右31**（スマホ）・**左169／右51**（PC）で落ち、**報告どおりの偏りを再現**した。",
       "🔴 ⚠ 道具のミス（記録）: A/B の「戻す」目印を `left: 0;` にしたら **10か所に当たって戻せず**、**ファイルを崩したまま**になった（`npm run check` が 2 で気づいた）。⇒ 前後の行まで含めた目印で復元。**A/B の目印は、崩す側だけでなく戻す側も一意か確かめる。** ⚠ 識別子を数字で始めて構文エラー（`1回目`）——これで**5回目**。",
+      "🔴 **#850【ユーザー判断】「使うカード」と「山札」を同じ行に並べた。** どちらも「**何のカードで遊ぶか**」なので、離れていると2回考えることになる。⇒ 並びを「強さ｜人数」「**使うカード｜山札**」「対戦ルール」にした（対戦ルールはいちばん背が高いので最後の行が収まりもよい）。⚠ 管理者でない時は「使うカード」が出ないので**並べ替えない**＝今までどおり。",
+      "🔴🔴 **DOM で隣どうしにするだけでは足りなかった。** 2列の格子（続き848 の auto-fit）は**行で詰める**ので、対が**偶数番目から始まらないと斜めに割れる**——最初の実装は 強さ0・人数1・ルール2・**使うカード3**・**山札4** になり、使うカードは1行目の右／山札は2行目の左で**同じ行に並んでいなかった**。⚠ **しかも検査が `nextElementSibling` で見ていたので通ってしまった。** ⇒ 対を2・3番目へ（ルールを最後へ）＋**検査を『画面で同じ行か』（矩形の天面）に直した**。**「隣に見える」は DOM の隣ではなく、描かれた位置で測る。**",
+      "⚠ **2列になるのはスマホ**（札がステージの縮小を打ち消して広がる＝続き848）。PC は1列なので、同じ行の検査は**2列になる所で測らないと意味がない**（PC で測って『列数1』で落ちて気づいた）。⇒ スマホで同じ行・PC で1列の**両方**を測っている。",
+      "🔴 **マイページの縦の縮小の下限を 0.55 → 0.82 に上げた。** ユーザー指摘「ギュッと少し全体が縮小されてるように見えます」。0.55 倍は、スマホでステージごと縮む（実測 0.478）のと**掛け算**になるので字が読める大きさを割る。**「1画面に収める」ために読めなくなるのは本末転倒。** ⚠ 下限に当たって入り切らない時は**縦にスクロール**する（`#profile-page` は元から `overflow-y: auto`）。⚠ **入り切る時の見た目は1ミリも変わらない**（早返りするので k は 1 のまま）。",
+      "🔴🔴 **CPU の「手札」の数え方を、ルールの定義にそろえた（9か所）。** #839 の調べで見つけたズレ: ルール上の手札には**公開ドローエリアも含まれる**（`card-effect-engine.js` の `getHandTokens`／docs/cards.md 補足「公開ドローで駐機しているカードも**あなたの手札**であることに変わりはない」）のに、`cpu-brain.js` は**全部 `手札のゾーン` だけ**で数えていた ⇒ **公開ドロー中の札を数え落としていた**。手札の枚数は「撃つか」「誰を狙うか」に直に効く。⇒ 条件を**2つの関数（`手札か` / `手札の札`）だけ**が持つ形にして、9か所をそこへ寄せた。**写しを増やさない。**",
+      "⚠ 実測（`scratchpad/_p874.mjs` OK 15 / NG 0）。🔴 ③は**本物の2人CPU戦**で、相手の札を**公開ドローだけ**に置いて（手札は0枚）**それでも CPU が強欲なパレットを選ぶ**ことを見た（直す前は 0 点で選ばない）。①は**配る側で `isAdminUser` だけを差し替えて**管理者の画面を測った（リポジトリのファイルは1バイトも触っていない）。回帰: `_p871` 14・`_p872` 9・`_p873` 10 とも NG 0。",
     ],
     devItemsEn: [
       "The CPU now body-checks an opponent who is one step from invading its gate, even without a Counter Lock in hand. Investigation showed the CPU was following its own standing policy: approach for contact only while holding a Counter Lock, set by the user in August, because approaching without one hands the initiative to the opponent. Rather than change that policy, a narrow defensive exception was added. Contact force-moves the opponent back to their own gate, so the threat disappears at once. The weight matches occupying one's own gate: nine at distance one, five at distance two, against three per square of advance. The distance is measured for the named opponent only, so body-checking some other player who is not threatening the gate gains nothing.",
@@ -196,6 +204,12 @@ export const CHANGELOG = [
       "The shift is computed as the current shift plus the measured difference, because subtracting alone would reset to zero once balanced and oscillate every pass. Running the alignment twice leaves the value unchanged. It never shifts right, which would collide with the column, and is clamped against running off the left edge.",
       "Ten checks pass across phone and desktop sizes. Removing the shift reproduces the reported imbalance exactly.",
       "A tooling note: the A/B restore anchor matched ten places in the stylesheet and left the file broken, caught by the check suite exiting non-zero. The restore used a wider anchor. An identifier beginning with a digit also caused a syntax error, for the fifth time.",
+      "The deck edition and deck choices are now on the same row, since both answer the same question about what cards the match uses. The order is difficulty and player count, then edition and deck, then match rules, which are the tallest group and sit best last. Players who are not administrators never see the edition group, so nothing is reordered for them.",
+      "Making them adjacent in the document was not enough. The two-column grid fills by row, so a pair that does not start on an even index splits diagonally; the first attempt left one at the end of a row and the other at the start of the next. Worse, the check looked at sibling order and passed anyway. The pair was moved to the third and fourth positions and the check now compares rendered positions instead.",
+      "Two columns only appear on phones, where the panel is widened to cancel the stage shrink; desktop stays at one column. A same-row check is therefore meaningless unless it runs at the size where two columns occur, which is how the mistake surfaced. Both sizes are now measured.",
+      "My page no longer shrinks its contents below 0.82. On a phone the stage itself is already scaled to under half size, so the old floor of 0.55 multiplied into text too small to read. Fitting everything on one screen is not worth making it unreadable; beyond the floor the page scrolls, which it was already able to do. When the contents fit, nothing changes at all.",
+      "The CPU's notion of a hand now matches the rules in all nine places it counts one. The rules count cards parked in the public draw area as part of your hand, but the CPU only ever looked at the hand zone, so it undercounted whenever cards sat there, and hand size feeds directly into whether it plays a card and whom it targets. The condition now lives in two small functions that every site calls.",
+      "Fifteen checks pass. The hand-counting change was verified in a real two-player CPU match with the opponent's cards placed only in the public draw area, where the CPU still reaches for the card that keys off hand size; before the change it scored zero. The administrator layout was measured by patching one function as it was served, leaving the repository untouched. Earlier measurements still pass.",
     ],
   },
   {

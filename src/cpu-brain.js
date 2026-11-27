@@ -344,7 +344,7 @@ export function chooseMoveCandidate(candidates, driveSeat) {
     myGate: myGatePos ? { row: myGatePos.row, col: myGatePos.col } : null,
     // カウンターロックを手札に持っているか（接触の攻め/守りの判断に使う。ユーザー方針2026-08-08）。
     hasCounterLock: state.tokens.some(
-      (t) => t.kind === "card" && t.cardId === "red-counter-lock" && t.location.zone === "hand" && t.location.player === driveSeat
+      (t) => 手札か(t, driveSeat) && t.cardId === "red-counter-lock"
     ),
   };
   let best = -Infinity;
@@ -877,7 +877,7 @@ function boardHasPickableCardWithin(state, seat, withinCells) {
 function anyOpponentHandAtLeast(state, seat, min) {
   const opps = (state.activePlayers || []).filter((p) => p !== seat);
   return opps.some(
-    (p) => state.tokens.filter((t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === p).length >= min
+    (p) => 手札の札(state, p).length >= min
   );
 }
 function manhattan(a, b) {
@@ -952,8 +952,23 @@ function distinctLockedColorCount(state, seat) {
   }
   return idxs.size;
 }
+// 🔴🔴【続き874】**ルール上の「手札」には公開ドローエリアも含まれる。**
+//   card-effect-engine.js の `getHandTokens` と同じ定義（docs/cards.md の補足:
+//   「公開ドローで駐機しているカードも**あなたの手札**であることに変わりはない」）。
+//   🔴 cpu-brain は長らく **`zone === "hand"` だけ**で数えていたので、**公開ドロー中の札を
+//     数え落としていた**（#839 の調べで見つけた・**9か所**）。手札の枚数は
+//     「撃つか」「誰を狙うか」の判断に直に効くので、ここで1つにそろえる。
+//   ⚠ **写しを増やさない**——engine の `getHandTokens` は export されていないので、
+//     同じ条件を**この2つの関数だけ**が持つ。新しく数える所を足す時もここを呼ぶこと。
+function 手札か(t, p) {
+  return t.kind === "card" && t.location.player === p
+    && (t.location.zone === "hand" || t.location.zone === "publicDraw");
+}
+function 手札の札(state, p) {
+  return (state.tokens || []).filter((t) => 手札か(t, p));
+}
 function cpuHandHas(state, seat, cardId) {
-  return state.tokens.some((t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === seat && t.cardId === cardId);
+  return 手札の札(state, seat).some((t) => t.cardId === cardId);
 }
 // 相手が「7色目リーチ(6色ロック)で、かつ欠けている色のカード（または虹）を手札に実際に持っている
 // ＝次ターン勝てる」ことが“分かる”か。相手の手札は非公開なので、のぞき見できる最強(isCpuPeekAllowed)の
@@ -971,7 +986,7 @@ function opponentCanWinNextTurn(state, seat) {
       }
     }
     const missing = COLORS.filter((c) => !locked.has(c));
-    const hand = state.tokens.filter((t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === p);
+    const hand = 手札の札(state, p);
     if (hand.some((t) => t.cardId === "rainbow-shard" || missing.includes(getCardDefinition(t.cardId)?.color))) return true;
   }
   return false;
@@ -1087,9 +1102,7 @@ function handEffectValueFor(card, seat, state, handCount) {
     }
     case "black-faded-cat": { // 色落ちキャット(手札): 手札を全捨てして1枚ドロー。捨てて損する札（まだ要る色・貴重札）が
       // 他に1枚も無い＝手札が全部“不要札”の時だけ、入れ替えのために使う。
-      const others = state.tokens.filter(
-        (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === seat && t.id !== card.id
-      );
+      const others = 手札の札(state, seat).filter((t) => t.id !== card.id);
       if (others.length === 0) return 0; // 捨てる他札が無い＝ただの自己捨て+1ドローで無意味
       const needed = neededColors(state, seat);
       const allJunk = others.every((t) => {
@@ -1108,9 +1121,7 @@ function handEffectValueFor(card, seat, state, handCount) {
       return opponentCanWinNextTurn(state, seat) && !cpuHandHas(state, seat, "purple-sorry") ? 3 : 0;
     case "rainbow-shard": { // なないろの欠片: 貴重札なので通常は温存(0)。2枚揃った時だけ「2枚ロック＋2枚ドロー」で使う
       // （lock-pairはOPTION_RANKで優先。単体温存は追色コスト/セレナーデのロック対象として手動で活かす想定）。
-      const shardCount = state.tokens.filter(
-        (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === seat && t.cardId === "rainbow-shard"
-      ).length;
+      const shardCount = 手札の札(state, seat).filter((t) => t.cardId === "rainbow-shard").length;
       return shardCount >= 2 ? 2 : 0;
     }
     case "first-purple": // ディメンション: 【追色1】このターン2マス移動。1マスでは届かない距離2のマスが相手ゲート/表向きの
@@ -1172,7 +1183,7 @@ function handEffectValueFor(card, seat, state, handCount) {
     case "0th-black-greedy-palette": {
       const 相手の手札 = (state.activePlayers || [])
         .filter((x) => x !== seat)
-        .map((p) => (state.tokens || []).filter((t2) => t2.kind === "card" && t2.location.zone === "hand" && t2.location.player === p).length);
+        .map((p) => 手札の札(state, p).length);
       const 最大手札 = Math.max(0, ...相手の手札);
       if (最大手札 === 0) return 0; // 誰も手札を持っていない＝何も起きない
       if (最大手札 >= 4) return 3; // たっぷり持っている相手に刺さる
@@ -1214,9 +1225,7 @@ function cf志炎の値(seat, state, handCount) {
 export function chooseHandEffectCard(usableCards, driveSeat) {
   if (!usableCards || usableCards.length === 0) return null;
   const state = getState();
-  const handCount = state.tokens.filter(
-    (t) => t.kind === "card" && t.location.zone === "hand" && t.location.player === driveSeat
-  ).length;
+  const handCount = 手札の札(state, driveSeat).length;
   let best = null;
   let bestScore = 0; // 0以下（未対応／今は使うべきでない）は採用しない
   for (const t of usableCards) {
@@ -1392,7 +1401,7 @@ export function chooseTargetPlayer(players, driveSeat) {
   const locks = lockCountBySeat(state);
   const handCount = {};
   for (const t of state.tokens) {
-    if (t.kind === "card" && t.location.zone === "hand") {
+    if (t.kind === "card" && (t.location.zone === "hand" || t.location.zone === "publicDraw")) {
       handCount[t.location.player] = (handCount[t.location.player] ?? 0) + 1;
     }
   }
