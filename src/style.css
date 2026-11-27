@@ -13491,10 +13491,16 @@ body.victory-celebration-active #option-area {
   color: #f0fdf4;
   animation: currency-award-modal-pop-in 0.4s ease-out;
 }
+/* 🔴【#844・続き871】絵文字（💰）をやめて**本物のセヴルアイコンの絵**にした。
+   ⚠ img になったので、font-size ではなく width/height で大きさを決める
+     （font-size のままだと 0 になって見えなくなる）。
+   ⚠ `display: block` ＋ 自動の左右マージンで中央に置く（元は div の文字で中央だった）。 */
 .currency-award-modal-coin {
-  font-size: 3.4rem;
-  line-height: 1;
-  margin-bottom: 0.6rem;
+  display: block;
+  width: 3.4rem;
+  height: 3.4rem;
+  object-fit: contain;
+  margin: 0 auto 0.6rem;
   animation: currency-award-modal-coin-bounce 1s ease-in-out infinite;
 }
 .currency-award-modal-title {

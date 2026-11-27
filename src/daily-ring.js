@@ -385,19 +385,12 @@ function 札を組む() {
     );
   }
 
-  // 🔴【#831・続き867】絞っている時は、戻る道を必ず出す（押せない行き止まりを作らない）。
-  if (絞り !== null) {
-    const 全部 = document.createElement("button");
-    全部.type = "button";
-    全部.className = "daily-ring-showall";
-    全部.textContent = t("packs.ch.showAll");
-    全部.addEventListener("click", (e) => {
-      e.stopPropagation();
-      絞り = null;
-      描き直す();
-    });
-    el.appendChild(全部);
-  }
+  // 🔴【#847・続き871】**「ぜんぶ見る」ボタンは出さない**（ユーザー指示2026-11-27
+  //   「**全部見るボタンも不要です！**」）。
+  //   ⚠ 続き867 で「押せない行き止まりを作らない」ために足したものだが、数えたら
+  //     **戻る道は元から3つある**: 同じ輪をもう一度押す（閉じる）／別の輪を押す（切り替わる）／
+  //     札の外を押す（閉じて絞りも忘れる）。⇒ 行き止まりにはならない。
+  //   ⚠ 文言の鍵（`packs.ch.showAll`）は**消していない**（よそで使う余地を残す）。
 
   const note = document.createElement("div");
   note.className = "daily-ring-note";
@@ -449,9 +442,22 @@ export function buildDailyRing() {
   ringEl.tabIndex = 0;
   ringEl.setAttribute("role", "button");
 
-  // ホバー（PC）: 開く。離すと閉じる。
-  // ⚠ ホバー（PC）は今までどおり**ぜんぶ**出す（流し見のため。絞りは押した時だけ）。
-  ringEl.addEventListener("mouseenter", () => { 絞り = null; 開く(true); });
+  // 🔴🔴【#847・続き871】**開く道が3つあって、2つが絞りを捨てていた**のが
+  //   「**タップするとたまに全部表示される時がある**」の正体。
+  //     ①ホバー（`mouseenter`）── 絞り = null。**触る端末でもタップで合成されて飛ぶ**
+  //     ②長押し（420ms）── 絞りを触らずに開く＝その時の絞り（null）のまま＝**全部**
+  //     ③押す（`click`）── 押された輪で絞る（これが狙いの道）
+  //   ⇒ 少し長いタップ（420ms超）だと、②が先に**全部**を開いてしまう。
+  //   ⇒ **①は本物のホバーが在る端末だけ**にし、②は**押された輪を見る**ようにした。
+  const 本物のホバー = (() => {
+    try { return window.matchMedia("(hover: hover) and (pointer: fine)").matches; } catch (e) { return false; }
+  })();
+  // ホバー（PC）: 開く。離すと閉じる。⚠ ぜんぶ出す（流し見のため）。
+  ringEl.addEventListener("mouseenter", () => {
+    if (!本物のホバー) return; // 触る端末では使わない（タップの合成イベントで飛ぶ）
+    絞り = null;
+    開く(true);
+  });
   ringEl.addEventListener("mouseleave", () => {
     // 札の上にマウスが載っている時は閉じない。
     setTimeout(() => {
@@ -476,9 +482,14 @@ export function buildDailyRing() {
     開く(!開いている);
   });
   // 長押し（スマホ）: 開く。
-  ringEl.addEventListener("pointerdown", () => {
+  // 🔴【#847・続き871】**押された輪を見る。** それまで絞りを触らずに開いていたので、
+  //   少し長いタップ（420ms超）で**全部**が開いていた（報告「たまに全部表示される」）。
+  //   ⚠ 輪の外（札の外側の余白）を長押しした時は、今までどおり**ぜんぶ**出す。
+  ringEl.addEventListener("pointerdown", (e) => {
     clearTimeout(長押しタイマー);
-    長押しタイマー = setTimeout(() => 開く(true), 420);
+    const 輪 = e.target instanceof Element ? e.target.closest(".daily-ring-ring") : null;
+    const 押された = 輪 ? (輪.dataset.slot === "weekly" ? "weekly" : Number(輪.dataset.slot) || 0) : null;
+    長押しタイマー = setTimeout(() => { 絞り = 押された; 開く(true); }, 420);
   });
   for (const ev of ["pointerup", "pointercancel", "pointerleave"]) {
     ringEl.addEventListener(ev, () => clearTimeout(長押しタイマー));

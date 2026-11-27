@@ -28,7 +28,7 @@ export function initCurrencyDisplay() {
   // フォールバックとして残さず、この画像に一本化した。
   const icon = document.createElement("img");
   icon.id = "currency-display-icon";
-  icon.src = "assets/icons/currency.png";
+  icon.src = CURRENCY_ICON; // 【続き871】パスを直書きしない（ui-helpers が唯一の持ち主）
   icon.alt = "";
   el.appendChild(icon);
 

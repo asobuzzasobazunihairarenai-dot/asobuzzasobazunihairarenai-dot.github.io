@@ -94,6 +94,8 @@ jobs:
         run: node tools/check-ui-text.mjs
       - name: ランク戦のエディション投票の配線が繋がっているか
         run: node tools/check-ranked-vote.mjs
+      - name: セヴルのアイコンが1か所から出ているか（絵文字に戻っていないか）
+        run: node tools/check-currency-icon.mjs
       # 🔴 これ自身が「手元とCIのズレ」を見張る（続き711）。ここが抜けるとまた静かに離れる。
       - name: 手元の検査とCIの検査がズレていないか
         run: node tools/check-ci-steps.mjs

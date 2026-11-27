@@ -4,7 +4,7 @@
 // 通貨自体はサーバー側（so7_ranked_apply_delta のシーズン切替）で付与済みなので、この画面は
 // 表示に徹し、閉じたら呼び出し側が so7_ranked_claim_reward で未受取記録をクリアする。
 
-import { createBackdrop } from "./ui-helpers.js";
+import { createBackdrop, CURRENCY_ICON } from "./ui-helpers.js";
 import { buildRankBadgeImage, rankName } from "./rank-badge.js";
 import { isContinuousGlowDisabled } from "./motion-prefs.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -56,7 +56,7 @@ export function showSeasonRewardModal({ season, rank, amount }) {
     reward.className = "season-reward-amount";
     const coin = document.createElement("img");
     coin.className = "season-reward-coin";
-    coin.src = "assets/icons/currency.png";
+    coin.src = CURRENCY_ICON; // 【続き871】パスを直書きしない
   coin.alt = t("rsr.coinAlt");
     reward.appendChild(coin);
     const amt = document.createElement("span");

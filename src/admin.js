@@ -100,7 +100,7 @@ function renderAdminOnlySectionContent(content) {
     "width: 5.5rem; background: #0f1520; color: #f1f5f9; border: 1px solid rgba(148,163,184,0.4); border-radius: 0.25rem; padding: 0.15rem 0.3rem;";
   const grantBtn = document.createElement("button");
   grantBtn.type = "button";
-  grantBtn.textContent = "🪙 自分に付与";
+  grantBtn.textContent = "セヴルを自分に付与"; // 【続き871】絵文字をやめた（総点検）
   grantBtn.style.cssText =
     "padding: 0.3rem 0.7rem; background: linear-gradient(160deg, #f59e0b, #b45309); color: #fff; border: none; border-radius: 0.3rem; cursor: pointer;";
   const grantStatus = document.createElement("span");

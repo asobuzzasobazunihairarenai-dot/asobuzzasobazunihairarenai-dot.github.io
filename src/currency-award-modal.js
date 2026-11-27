@@ -5,7 +5,7 @@
 // 返した「このクライアントが実際に受け取った額」が1以上の時だけ呼ばれる
 // （0の場合＝他クライアントが先に付与済み、は今まで通り何も出さない）。
 
-import { createBackdrop } from "./ui-helpers.js";
+import { createBackdrop, CURRENCY_ICON } from "./ui-helpers.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
 const AUTO_CLOSE_MS = 3200;
@@ -27,9 +27,11 @@ export function showCurrencyAwardModal(amount) {
     };
     const backdrop = createBackdrop(close, { dim: true, zIndex: 10520 });
 
-    const coin = document.createElement("div");
+    // 🔴【#844・続き871】絵文字ではなく本物のセヴルアイコン（総点検）。
+    const coin = document.createElement("img");
     coin.className = "currency-award-modal-coin";
-    coin.textContent = "💰";
+    coin.src = CURRENCY_ICON;
+    coin.alt = "";
     modal.appendChild(coin);
 
     const title = document.createElement("div");

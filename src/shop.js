@@ -245,7 +245,11 @@ function buildItemCard(item) {
     const buyBtn = document.createElement("button");
     buyBtn.type = "button";
     buyBtn.className = "shop-item-buy";
-    buyBtn.textContent = `🪙 ${item.cost}`;
+    // 🔴【#844 #846・続き871】**絵文字ではなく本物のセヴルアイコン**にそろえる
+    //   （ユーザー指摘「購入金額のとこの通貨のアイコンが違う！**金色で真ん中が
+    //   四角くくり抜かれているのがセヴルアイコン**です！総点検を！」）。
+    //   ⚠ 並びは**アイコン → 金額**（#846「セヴルアイコンの横に金額がいいかも」）。
+    setTextWithCoin(buyBtn, t("shop.buyPrice", { n: item.cost }));
     buyBtn.addEventListener("click", async () => {
       if (!getCachedUser()) {
         setStatus(t("shop.alert.buyLoginNeeded"), true);

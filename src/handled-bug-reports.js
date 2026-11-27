@@ -610,6 +610,11 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   841, // 同上（同じ指紋: 理由"picker"・光っている物ゼロ・covered 空）
   // 2026-11-27（続き870）。ユーザー裁定「相手選択は駒タップかモーダルの2択＋保険でアバター」。
   840, // 誰かの落とし物■はモーダルで聞く／駒が的の効果は駒そのものを押せるようにした
+  // 2026-11-27（続き871）。
+  838, // 貴族の特権が不発の理由を画面に出す（財力ではなく「ロックできる手札が無い」）
+  844, // セヴルのアイコンの総点検（絵文字5か所・パスの直書き2か所）
+  846, // 金額はアイコンの横（アイコン → 金額）
+  847, // 輪の長押しで全部出ていたのを直す／「ぜんぶ見る」ボタンをやめた
 ]);
 
 // ── 【続き603・2026-10-20】報告してくれた人へ伝える「直した内容」 ───────────────────
@@ -1278,6 +1283,10 @@ export const BUG_REPORT_FIX_NOTES = {
   829: {
     ja: "直しました。おっしゃるとおりで、ファーストカード・エターナルカード（と我忘れの白き龍）は他のカードの効果の対象になりません。ヤエザの「自分のロックしている１枚を捨てる」と、いろ落ちガエルの同じ選択肢で、この守りが**丸ごと抜けていました**。総点検したところ、守りの判定がカード効果の内側にしか無く、外から使えない形だったため、同じ一覧を組む所が条件を手で書き写していて、書き写すたびに1つずつ欠けていました（ゴメンナサイッ！では白き龍だけが抜けていました）。判定を1か所にまとめ、3か所とも通るようにしたうえで、今後よそで書き写されたら公開前に止まる検査も足しました。",
     en: "Fixed. You are right: First and Eternal cards (and the White Dragon) are never targeted by another card's effect. Yaeza's discard-a-locked-card option and the same option on the colour-fading frog had no such guard at all. Auditing it showed why: the rule lived inside the card-effect engine and was not exported, so every other place that built the same list copied the condition by hand, and each copy lost a piece (the Sorry card's version was missing the White Dragon). The rule now lives in one place, all three go through it, and a new check stops any future hand-written copy before release.",
+  },
+  839: {
+    ja: "測ってみたところ、CPU はちゃんと使います。本物の2人CPU戦で、この札が『使える』と判定され、CPU がこれを選ぶことを確かめました。ただし**撃つかどうかは場面で決まります**——相手が手札を1枚も持っていない時は撃たず（何も起きないため）、相手の手札が多いほど優先して撃ちます（4枚以上で強め）。また、その時もっと価値の高い札が手にあれば、そちらが先になります。ですので『たまたま』で合っています。⚠ 強さの加減はゲームバランスの話なので、ご指示なしには変えていません。『もっと積極的に使ってほしい』ようでしたら調整します。",
+    en: "Measured, and the CPU does use it. In a real two-player CPU match the card is judged usable and the CPU picks it. Whether it fires depends on the situation: it holds back when no opponent has any cards in hand, since nothing would happen, and prefers it more the more cards opponents hold, strongly from four upwards. If a more valuable card is in hand at that moment, that one goes first. So it was indeed chance. The aggressiveness is a balance decision and was not changed without being asked; say the word if you want it to reach for this card more often.",
   },
   720: {
     ja: "直しました。おっしゃるとおり「任意のプレイヤー」は自分も含みます。カードの文も処理も自分を含んでいたのですが、**選ぶ画面を組む所で自分の席だけが落ちて**いました。自分の盤面アバターは既定で表示されない設定（左下の大きいアバターと重複するため）で、選ぶ画面が「盤面にアバターがある人」だけを並べていたのが原因です。これからは自分も必ず並び、「（自分）」と添えて分かるようにしました。あわせて、候補が自分ひとりだけの効果（リトルマウス等）がこの穴で黙って不発になっていたのも直っています。",

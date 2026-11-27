@@ -357,6 +357,7 @@ import { maybeShowFirstRunBgmModal } from "./first-run-bgm.js";
 import { maybeShowOpeningSetupModal } from "./opening-setup-modal.js";
 import { isTrialEntry } from "./trial-entry.js";
 import { applyStoredCardPreviewSize, applyStoredCardArrivalSize, getCardPreviewSide } from "./card-preview-size.js";
+import { setTextWithCoin } from "./ui-helpers.js"; // 【#844・続き871】通貨アイコンを文の中へ
 import { onBlockingBackdropOpen } from "./ui-helpers.js"; // 🔴【#784・続き812】モーダルが開いたら拡大を消す
 import { isFixedHandEnabled, applyStoredFixedHand } from "./fixed-hand.js";
 import {
@@ -24492,7 +24493,8 @@ function showDailyBonusToast(amount) {
   title.textContent = t("game.loginBonus.title");
   const amountEl = document.createElement("div");
   amountEl.className = "daily-bonus-modal-amount";
-  amountEl.textContent = `🪙 +${amount}`;
+  // 🔴【#844 #846・続き871】絵文字ではなく本物のセヴルアイコン＋金額（総点検）。
+  setTextWithCoin(amountEl, t("game.loginBonus.amount", { n: amount }));
   const note = document.createElement("div");
   note.className = "daily-bonus-modal-note";
   note.textContent = t("game.loginBonus.body");
