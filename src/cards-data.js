@@ -239,13 +239,17 @@ function 標準の山札() {
   if (set === CARD_SETS.MIXED) {
     return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS, OLD0TH_NORMAL_CARDS);
   }
-  // 🔴【続き782】リメイク ＋ 志炎者（**各1枚**）。管理者のテスト用。
-  //   ⚠ 志炎者の count は 7（山札に入れられる枚数）だが、ここでは **1枚ずつ**に上書きする
-  //     （ユーザー指示「この時志炎者は１枚ずつでいいです」）。
+  // 🔴【続き782】リメイク ＋ 志炎者。管理者のテスト用。
+  //   🔴【続き878】**各2枚**（ユーザー指示 2026-11-28「しえんしゃとリメイクを混ぜる版では
+  //     しえんしゃは2枚ずつにしよう！」）。続き782 は各1枚だった。
+  //   ⚠ 志炎者の count は 7（山札に入れられる枚数）だが、ここでは **2枚ずつ**に上書きする。
   //   ⚠ 元の定義を書き換えない（**写しを作る**）——同じ配列を他所も見ているので、
-  //     ここで count を書き換えると図鑑やマイ山札の表示まで 1 になる。
+  //     ここで count を書き換えると図鑑やマイ山札の表示まで 2 になる。
+  //   🔴 **サーバー（supabase/functions/so7-apply-action.ts）にも同じ枝と同じ枚数が要る。**
+  //     片方だけ直すと、CPU戦とオンラインのフレンドリーマッチで山札が食い違う
+  //     （続き840 で旧0thがまさにそうなっていた）。`check-cards` が両方を照合する。
   if (set === CARD_SETS.REMAKE_CF) {
-    return [...NORMAL_CARDS, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 1 }))];
+    return [...NORMAL_CARDS, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 2 }))];
   }
   return NORMAL_CARDS;
 }

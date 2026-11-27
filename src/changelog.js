@@ -52,6 +52,27 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-28",
+    // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
+    //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
+    devItems: [
+      "🔴 **【続き878】「リメイク＋志炎者」の志炎者を各2枚にした**（ユーザー指示 2026-11-28「しえんしゃとリメイクを混ぜる版ではしえんしゃは2枚ずつにしよう！」。続き782 は各1枚）。山札は **26種・126枚**（7色とも 14+2＝**16枚**／虹7・白4・黒3 は変わらない）。⚠ **元の定義（count: 7）は書き換えず写しを作る**——同じ配列を図鑑やマイ山札も見ているので、ここで書き換えると表示まで2になる。",
+      "🔴🔴 **直すついでに、前からの不具合が1つ出た: サーバーが `remake+cf` を知らなかった。** `so7-apply-action.ts` の `deckPoolForCardSet` にこの枝が無く、**知らない値としてリメイクの山札に落ちていた**＝**オンラインのフレンドリーマッチでは志炎者が1枚も入らず**、CPU戦と中身が食い違っていた（CPU戦はクライアントが山札を組むので正しかった）。**続き840 で旧0thについて見つけたのと同じ形。** ⇒ サーバーに表（7種）と枝を足し、**枚数も 2 でそろえた**。",
+      "🔴 **同じ形で3回目なので、機械で見張るようにした**（`check-cards` に志炎者の節を追加）。見るのは**①表の写し ②枝そのもの ③枚数が両側でそろっているか**の3つ。**表だけ写して枝を足し忘れると、黙ってリメイクの山になる**（いちばん分かりにくい形）。🔴 **A/B 4通り**（枝を外す／サーバーだけ枚数を戻す／指示と違う枚数にする／表から1件消す）とも落ちた——4つ目は「**検査そのものが怪しい**」で終了コード2＝**通さない**正しい振る舞い。",
+      "⚠ 実測8項目（**本物のアプリで山札を組んで**数えた）。26種・126枚・7色とも16枚・志炎者が各2枚・**元の定義は7のまま**・**対照: リメイク単体は今までどおり19種112枚**。",
+      "🔴 **Edge Function を変えた＝デプロイが要る。** 流すまでは、**オンラインのフレンドリーマッチだけ**が今までどおり（志炎者が入らない）。**CPU戦は今すぐ効く**（山札をクライアントが組むため）。どちらも管理者だけが選べるセット。",
+      "⚠ 道具のミス（記録）: **A/B の「戻す」目印に空文字列を使って、ファイルを壊したまま**にした（空の文字列で割ると1文字ずつに割れるので、復元の検めが落ちる）。続き873 で「**A/B の目印は、崩す側だけでなく戻す側も一意か確かめる**」と自分で書いた、その形をまた踏んだ。⇒ 消した行は手で戻し、**指紋が A/B 前と一致する**ことを照合した。",
+    ],
+    devItemsEn: [
+      "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
+      "Fixing that surfaced an older bug: the server did not know this set at all, so online friendly matches silently fell back to the plain remake deck and contained no Shien cards, while CPU games were correct because the client builds that deck. The same thing had happened with the old 0th set.",
+      "Since this is the third time, a watchdog now checks the server copy, the branch itself and that both sides use the same count. Four separate sabotage runs each failed as intended, including one that refuses to pass at all when the copied table is incomplete.",
+      "Verified by building the deck in the real app: 26 kinds, 126 cards, sixteen per colour, two of each Shien card, with the plain remake deck unchanged as a control.",
+      "The edge function changed, so it needs deploying. Until then online friendly matches behave as before; CPU games already have the new deck.",
+      "Tooling note: an empty restore anchor left a file broken after a sabotage run. The deleted line was restored by hand and the file hash checked against the one taken before the run.",
+    ],
+  },
+  {
     date: "2026-11-27",
     summary: [
       "CPUが、あなたのゲート侵攻を止めに来ます",

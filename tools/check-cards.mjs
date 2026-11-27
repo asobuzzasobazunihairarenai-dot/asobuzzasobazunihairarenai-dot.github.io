@@ -643,6 +643,48 @@ if (cfSrc) {
   if (!集める || !集める.includes("CF_NORMAL_CARDS")) note("志炎者: コレクションに並ばない（getCollectionPool）");
   const 袋 = packUi.slice(packUi.indexOf("export function getPackPool"), packUi.indexOf("export function getCollectionPool"));
   if (袋.includes("CF_NORMAL_CARDS")) note("志炎者: パック（getPackPool）に混ざっている。限定報酬なのでパックからは出ない（サーバーの写しとも食い違う）");
+  // 🔴🔴【続き878】**「リメイク＋志炎者」はサーバーにも同じ枝と同じ枚数が要る。**
+  //   続き878 まで**サーバーにこの枝が無く**、オンラインのフレンドリーマッチでは
+  //   知らない値としてリメイクの山札に落ちていた（＝志炎者が1枚も入らない）。
+  //   旧0thでまったく同じことが起きている（続き840）ので、ここも機械で見張る。
+  //   ⚠ 見るのは**表の写し**と**枝そのもの**と**枚数（2枚ずつ）**の3つ。
+  //     表だけ写して枝を足し忘れると、**黙ってリメイクの山になる**（いちばん分かりにくい形）。
+  let edgeCf = null;
+  try {
+    edgeCf = read("supabase/functions/so7-apply-action.ts");
+  } catch (e) {
+    edgeCf = null;
+  }
+  if (edgeCf) {
+    const 写し = 表を読む(edgeCf, "const CF_NORMAL_CARDS", "cf-");
+    const 正 = 表を読む(cfSrc, "export const CF_NORMAL_CARDS", "cf-");
+    if (!写し || !正 || 写し.size !== 7 || 正.size !== 7) {
+      console.error(
+        "❌ 検査そのものが怪しい: 志炎者の表が 正" + (正 ? 正.size : "読めず") +
+          " / 写し" + (写し ? 写し.size : "読めず") + " しか取れなかった（7種のはず）"
+      );
+      process.exit(2);
+    }
+    for (const [id, v] of 正) {
+      if (!写し.has(id)) note("志炎者: サーバー側の写しに無い: " + id + " → supabase/functions/so7-apply-action.ts の CF_NORMAL_CARDS");
+      else if (写し.get(id) !== v) note("志炎者: 色か枚数がサーバー側とズレている: " + id + "（正 " + v + " / 写し " + 写し.get(id) + "）");
+    }
+    for (const id of 写し.keys()) if (!正.has(id)) note("志炎者: サーバー側にだけ在る: " + id + "（消し忘れ？）");
+    if (!edgeCf.includes('cardSet === "remake+cf"')) {
+      note("リメイク＋志炎者: サーバーにこの枝が無い（知らない値としてリメイクの山札に落ち、志炎者が1枚も入らない） → deckPoolForCardSet");
+    }
+    // 🔴 枚数（各2枚）が**両側でそろっている**こと。片方だけ直すと山札の中身が食い違う。
+    const 枝の枚数 = (本文) => {
+      const m = /CF_NORMAL_CARDS\.map\(\(c\) => \(\{ \.\.\.c, count: (\d+) \}\)\)/.exec(本文);
+      return m ? Number(m[1]) : null;
+    };
+    const 客 = 枝の枚数(cardsData);
+    const 鯖 = 枝の枚数(edgeCf);
+    if (客 === null) note("リメイク＋志炎者: クライアントの枝で枚数を読めない（src/cards-data.js の REMAKE_CF）");
+    else if (鯖 === null) note("リメイク＋志炎者: サーバーの枝で枚数を読めない（so7-apply-action.ts の deckPoolForCardSet）");
+    else if (客 !== 鯖) note("リメイク＋志炎者: 志炎者の枚数が食い違う（クライアント " + 客 + "枚 / サーバー " + 鯖 + "枚）");
+    else if (客 !== 2) note("リメイク＋志炎者: 志炎者は**各2枚**のはず（ユーザー指示 2026-11-28）。いま " + 客 + "枚");
+  }
   cfLine =
     `ⓘ 志炎者 ${cf.length} 種（0thリメイクの限定カード・パックではなく限定報酬）: 文(日英)と絵2種は上で検査済み。` +
     `名義 ${名義}・山札 ${枚数[0]}枚・効果データ ${効果あり}/${cf.length}・テスト ${テストあり}/${cf.length}` +

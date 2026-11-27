@@ -175,6 +175,23 @@ const OLD0TH_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
   { id: "0th-black-rainbow-curse", color: "black", count: 1 },
 ];
 
+// 🔴🔴【続き878】**0thリメイクの限定カード（志炎者7枚）の写し**（正は src/cards-data-cf.js）。
+//   ⚠ `remake+cf`（リメイク＋志炎者。管理者のテスト用）の枝が**今まで無かった**ので、
+//     オンラインのフレンドリーマッチでは**知らない値としてリメイクの山札に落ちていた**
+//     ＝志炎者が1枚も入らず、CPU戦と中身が食い違っていた（続き840 の旧0thと同じ形）。
+//   ⚠ ここの count は**山札に入れられる枚数の上限（7）**。`remake+cf` では下の枝で
+//     **2枚ずつ**に上書きする（ユーザー指示 2026-11-28）。クライアント側（cards-data.js）と
+//     **同じ数**であること——ズレると山札の中身が食い違う。`check-cards` が照合する。
+const CF_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
+  { id: "cf-yellow-scintilla", color: "yellow", count: 7 },
+  { id: "cf-pink-flamma", color: "pink", count: 7 },
+  { id: "cf-red-ignis", color: "red", count: 7 },
+  { id: "cf-orange-brand", color: "orange", count: 7 },
+  { id: "cf-blue-candela", color: "blue", count: 7 },
+  { id: "cf-green-ember", color: "green", count: 7 },
+  { id: "cf-purple-favilla", color: "purple", count: 7 },
+];
+
 // どのカードセットで山札を組むか。クライアント（src/card-set.js）と同じ文字列。
 // 「まぜる」の山札を、通常のエディションと同じ内訳（7色×14枚・虹7・白4・黒3＝112枚）で組む。
 // 🔴【続き840】混ぜる相手は **リメイク＋0th拡張＋1st＋旧0th の4セット**（ユーザー指示
@@ -257,6 +274,12 @@ function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; coun
   }
   if (cardSet === "mixed") {
     return buildMixedNormalCards(NORMAL_CARDS, EX0_NORMAL_CARDS, FIRST_ED_NORMAL_CARDS, OLD0TH_NORMAL_CARDS);
+  }
+  // 🔴【続き878】リメイク ＋ 志炎者（**各2枚**）。管理者のテスト用。
+  //   ⚠ クライアントは src/cards-data.js の同じ枝。**枚数も同じ 2** でなければ、
+  //     CPU戦とオンラインで山札の中身が食い違う。
+  if (cardSet === "remake+cf") {
+    return [...NORMAL_CARDS, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 2 }))];
   }
   return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
 }
