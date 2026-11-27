@@ -17419,6 +17419,12 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
   max-height: calc(100% - 3rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 🔴【#849・続き872】**題が上の帯に隠れていた。** 報告「上のタイトルと上部の帯が
+     かぶってます」。この札は画面の真ん中に置かれるが、**中身が増えて背が高くなると
+     上端が画面のてっぺんまで伸びる**（続き848 で2列にして縦も詰めた＝そこまで伸びるようになった）。
+     ⇒ 上の余白を**帯をよけるぶんまで広げる**（他の全画面ページと同じ `--page-top-safe`。
+     あれは `body.is-phone-device` で自動的に 1.65 倍になる＝続き857）。
+     ⚠ `max()` なので、背が低くて真ん中に収まっている時は**今までどおり 2rem**。 */
   padding: 2rem 1.6rem 1.6rem;
   background: radial-gradient(1000px 300px at 50% -10%, rgba(var(--so7-accent), 0.12), transparent 60%),
     linear-gradient(160deg, rgba(20, 28, 40, 0.98), rgba(8, 12, 20, 0.99));
@@ -23907,15 +23913,29 @@ body.theme-light #update-progress {
    （縮小）が掛かっているため、0.9rem の文字がスマホ実機では7px程度まで縮んでいた。
    他の中央モーダルと同じ --center-modal-scale-phone に乗せて拡大する。上端を起点に拡大
    すれば画面外へはみ出さない。横に長い文言は折り返す（nowrapのままだと画面幅を超える）。 */
-body.is-phone-device #card-effect-picker-hint {
-  transform-origin: top center;
-  transform: translate(-50%, -0.6rem) scale(var(--center-modal-scale-phone, 1));
+/* 🔴🔴【#848 #849・続き872】**この上書きは、もう拡大も横ずらしもしない。**
+   報告「上の文がものすごく巨大です！」「上のタイトルと上部の帯がかぶってます」。
+   正体は**二重に掛かっていた**こと:
+     ・続き866 で案内の帯を入れ物（#card-effect-top-stack）へ移し、**そこで
+       ステージの縮小を打ち消す拡大**（最大2.4倍）を掛けるようにした
+     ・ところが**ここの古い上書きが残っていて**、さらに `--center-modal-scale-phone`（＝2）を
+       掛けていた ⇒ **約2.1 × 2 ＝ 4倍**。
+   🔴 しかも `translateX(-50%)` も残っていた——帯はもう `position: static` で**入れ物が
+     中央に置いている**ので、ここで半分ずらすと**軸からずれて、両端が切れる**
+     （報告の絵がまさにそれ：文の頭と尻が画面の外）。
+   ⇒ **大きさと位置は入れ物に任せ、ここは「折り返す・広がりすぎない・中央そろえ」だけ。**
+   ⚠ 幅は**実画面のピクセル**で考える（入れ物が縮小を打ち消しているので 1rem ≒ 16実px）。
+     46rem ＝ 736px で、横向きのスマホ（932px）に収まる。 */
+body.is-phone-device #card-effect-picker-hint,
+body.is-tablet-device #card-effect-picker-hint {
+  transform: translateY(-0.6rem);
   white-space: normal;
   max-width: 46rem;
   text-align: center;
 }
-body.is-phone-device #card-effect-picker-hint.show {
-  transform: translateX(-50%) scale(var(--center-modal-scale-phone, 1));
+body.is-phone-device #card-effect-picker-hint.show,
+body.is-tablet-device #card-effect-picker-hint.show {
+  transform: translateY(0);
 }
 
 /* ロックの出来事だけ、隅のバッジの代わりに「鎖」をカード画像の上に重ねる
@@ -26600,7 +26620,15 @@ body.is-tablet-device .home-match-choice-panel {
    ⚠ 詰めるのは**すき間だけ**（押す物の大きさは #822 で決めた値のまま触らない）。 */
 body.is-phone-device .home-match-choice-panel,
 body.is-tablet-device .home-match-choice-panel {
-  padding: 1.4rem 1.6rem 1.2rem;
+  /* 🔴【#849・続き872】**上だけは詰めない。** 報告「上のタイトルと上部の帯がかぶってます」。
+     この札は画面の真ん中に置かれるが、**中身が増えて背が高くなると上端が画面のてっぺんまで
+     伸びる**（管理者はエディションの組が増えて5組＝上の #824 の注のとおり）。
+     ⇒ 上の余白を**帯をよけるぶん**まで広げる（他の全画面ページと同じ `--page-top-safe`。
+     `body.is-phone-device` では自動で 1.65 倍になる＝続き857）。
+     ⚠ 左右と下は今までどおり詰めたまま（#824 の意図＝縦を縮めるのは守る）。
+     ⚠ 🔴 **直す所はここ。** 根の `.home-match-choice-panel` に書いても、**この上書きが
+       後ろに在って勝つ**ので効かない（実測で paddingTop が 22.4px のまま動かず分かった）。 */
+  padding: max(1.4rem, var(--page-top-safe, 3.4rem)) 1.6rem 1.2rem;
 }
 body.is-phone-device .home-match-choice-title,
 body.is-tablet-device .home-match-choice-title {

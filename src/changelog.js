@@ -83,6 +83,8 @@ export const CHANGELOG = [
       "誰かの落とし物を手札から使ったとき、相手を選ぶ画面が出なかったのを直しました。",
       "カードの効果で「ロックしてもよい」とき、ロックできる手札が無いと理由が出ずに不発になっていたのを、理由を出すようにしました。",
       "デイリーチャレンジの輪を長めにタップすると、押した輪ではなく全部が出ることがあったのを直しました。あわせて「ぜんぶ見る」ボタンをやめました。",
+      "画面の上に出る案内の文が、スマホでものすごく大きくなって左右が切れていたのを直しました。",
+      "CPU戦の設定で、題が画面上部の帯に隠れていたのを直しました。",
     ],
     fixesEn: [
       "The confirmation for the order you discard in with Forest of Delusion no longer says you will look at the cards' faces.",
@@ -90,6 +92,8 @@ export const CHANGELOG = [
       "Fixed the player-selection screen not appearing when Someone's Lost Property was used from hand.",
       "When a card lets you lock a card but nothing in hand can be locked, the game now says why instead of silently doing nothing.",
       "Fixed a slightly long press on a daily challenge ring showing every goal instead of that ring's. The show-all button has been removed.",
+      "Fixed the guidance bar at the top of the screen becoming enormous on phones with its ends cut off.",
+      "Fixed the CPU match settings title hiding behind the bar at the top of the screen.",
     ],
     devItems: [
       "🔴 **#830: 相手があと一歩でゲート侵攻できる時は、カウンターロックが無くても接触して止める**（ユーザー判断2026-11-27「そうしよう！」）。報告「あと一歩でゲート侵攻できる位置に私がいるのにCPUが接触してこなかった」。⇒ 調べたら**方針どおりに動いていた**——`cpu-brain.js` に「接触狙いで相手に近づくのは**カウンターロック所持時のみ**（2026-08-08 のユーザー方針: 持たずに近づくと接触の主導権を相手に渡して危険）」と書いてある。⇒ **方針は変えず、守りの非常事態の例外**を1つ足した。接触すると相手は**自分のゲートへ強制移動**される（`state.js` の RESPOND_CONTACT）ので脅威がその場で消える。重みは自ゲート占有（`onMyGateHere`）とそろえた＝**距離1で+9・距離2で+5**（前進は1マス+3）。⚠ **名指しで測る**——`oppPieceCells` に `player` を持たせ、`gateThreatDistance(ctx, player)` でその相手だけの距離を見る。自ゲートを脅かしていない別の相手へ体当たりしても守りにならない。",
@@ -129,6 +133,11 @@ export const CHANGELOG = [
       "🔴 **#844 #846 セヴルのアイコンの総点検（2回目）。** ユーザー指摘「**金色で真ん中が四角くくり抜かれているのがセヴルアイコン**です！総点検を！」「セヴルアイコンの横に金額がいいかも」。⇒ **絵文字が5か所残っていた**（ショップの購入金額 🪙／もらうモーダル 💰／ログインボーナス 🪙／「セヴルについて」の見出し2つ 💰／管理者の付与ボタン 🪙）＋**パスの直書きが2か所**。続き732 で `CURRENCY_ICON` を1か所に寄せたのに、**人の目で数える約束では守れていなかった**。",
       "🔴 ⇒ **検査を1本足した（31本目・`tools/check-currency-icon.mjs`）。** ①コインの絵文字がコードに残っていないか（コメントと経緯の記録は数えない）②パスを直書きしていないか③絵の実体が在るか④金額の文が**アイコン → 金額**の並びか（#846）⑤購入金額とログインボーナスがその文を使っているか⑥もらうモーダルのコインが **img** で、**width/height** で大きさが決まっているか（font-size のままだと**0 になって消える**）。**A/B で3通り崩して3通りとも名指しで落ち**、3ファイルとも指紋で元に戻したことを照合した。",
       "⚠ 実測（`scratchpad/_p871.mjs` OK 14 / NG 0）。🔴 **撮って確かめた**——絵が 0px に潰れていないか・金額より前に在るかは数字だけでは足りない（購入 12px・もらうモーダル 49px）。⚠ #838 の**場面は作り直していない**（**現場のログの方が強い証拠**）。盤面を再現しようとして5件落とした——**山札は `piles.deck` ＝ id の配列**でトークンが無く、手札に移せる無色の札が盤面に居るとは限らない。",
+      "🔴🔴 **#848「上の文がものすごく巨大です！」── 拡大が二重に掛かっていた。** 続き866 で案内の帯を入れ物（`#card-effect-top-stack`）へ移し、**そこでステージの縮小を打ち消す拡大**（最大2.4倍）を掛けるようにした。ところが**スマホ用の古い上書きが残っていて**、さらに `--center-modal-scale-phone`（＝2）を掛けていた ⇒ **約2.1 × 2 ＝ 4倍**。しかも `translateX(-50%)` も残っていた——帯はもう `position: static` で**入れ物が中央に置いている**ので、ここで半分ずらすと**軸からずれて両端が切れる**（報告の絵がまさにそれ）。⇒ 大きさと位置は入れ物に任せ、上書きは「折り返す・広がりすぎない・中央そろえ」だけにした。",
+      "🔴 **#849「上のタイトルと上部の帯がかぶってます」── 直す所は『後ろに在って勝つ上書き』の方だった。** CPU戦の設定の札は画面の真ん中に置かれるが、**中身が増えて背が高くなると上端が画面のてっぺんまで伸びる**（管理者はエディションの組が増えて5組）。⇒ 上の余白を**帯をよけるぶん**（`--page-top-safe`）まで広げた。⚠ **最初は根の規則に書いて、何も変わらなかった**——続き848 で足したスマホ用の上書き（`padding: 1.4rem …`）が後ろに在って勝っていた。**実測で paddingTop が 22.4px のまま動かないのを見て気づいた。**",
+      "ⓘ **#842「これ以上開かない が上部の案内に被ってる」は、すでに直っていた。** 報告は 11-26 22:38（JST）、直し（続き866 で案内・スキップ・おまかせを縦に積んだ）は **22:43**＝**5分後**。名簿には入れた。",
+      "⚠ 実測（`scratchpad/_p872.mjs` OK 9 / NG 0）。🔴 **A/B で3症状とも再現した**: 左端 **-577px**（切れている）・実際に見える字 **60.3px**（直した後は 30.1px）・題の天 **23px**（直した後は 55px）。",
+      "🔴 **実測の作り直しで3回つまずいた（全部こちらの測り方）。** ①**A/B が通ってしまった**——`.show` の規則の方が詳細度で勝つので、**base だけ崩しても identity のまま**で再現しない。**両側を崩す。** ②`getComputedStyle().fontSize` は**拡大を含まない**ので、それだけ見ると崩しても同じ値＝**0しか出ない検査**。**字 × 重なった拡大**で見る。③#849 は**管理者（5組）でないと札の背が足りず**、札が真ん中に収まってしまう ⇒ 中身を1つ足して同じ状態を作った。",
     ],
     devItemsEn: [
       "The CPU now body-checks an opponent who is one step from invading its gate, even without a Counter Lock in hand. Investigation showed the CPU was following its own standing policy: approach for contact only while holding a Counter Lock, set by the user in August, because approaching without one hands the initiative to the opponent. Rather than change that policy, a narrow defensive exception was added. Contact force-moves the opponent back to their own gate, so the threat disappears at once. The weight matches occupying one's own gate: nine at distance one, five at distance two, against three per square of advance. The distance is measured for the named opponent only, so body-checking some other player who is not threatening the gate gains nothing.",
@@ -168,6 +177,11 @@ export const CHANGELOG = [
       "A second audit of the Sevre currency icon found five places still drawing an emoji and two hard-coding the image path, even though the icon was centralised once before. The shop price, the reward panel, the login bonus, two headings and an admin button all used emoji.",
       "A new check was added so this cannot drift again. It verifies that no coin emoji remains in code, that nobody hard-codes the path, that the image exists, that the amount strings put the icon before the number, that the shop and login bonus use those strings, and that the reward panel's coin is an image sized in rem rather than by font size, which would collapse it to nothing. Breaking it three ways makes it fail by name each time, and the files were verified restored by hash.",
       "Fourteen checks pass. Screenshots confirm the icon actually renders and is not collapsed, which numbers alone would not show. The board state for the first report was not recreated: the field log is stronger evidence, and an attempt to rebuild it failed because the deck is a list of card ids with no tokens.",
+      "The guidance bar was being scaled twice. A recent change moved it into a container that cancels the stage shrink, scaling by up to 2.4, but the older phone override was left in place and multiplied by another factor of two, giving roughly four times the intended size. That override also still shifted the element half its width to the left, which no longer makes sense now that the container centres it, so the text drifted off axis and both ends were clipped. Size and position are now left to the container, and the override only wraps, limits width and centres text.",
+      "For the settings title, the rule that needed changing was the later override, not the base rule. The panel is centred but grows to the top of the screen when it has more content, which it does for administrators with an extra group. Its top padding now clears the top bar. The first attempt edited the base rule and changed nothing, because a later phone override won; measuring the computed padding and seeing it unchanged is what revealed this.",
+      "A third report, about a button overlapping the guidance bar, was already fixed: it was filed five minutes before that fix shipped. It is recorded as handled.",
+      "Nine checks pass, and breaking the change reproduces all three reported symptoms: the left edge off screen, the visible text at double the intended size, and the title behind the bar.",
+      "Three measurement mistakes, all mine. The A/B passed at first because only the base rule was reverted while the more specific show rule still won, so nothing reproduced; both must be broken. The computed font size excludes transforms, so checking it alone could never fail. And the settings panel is only tall enough to reach the top for administrators, so the condition had to be recreated by adding content.",
     ],
   },
   {
