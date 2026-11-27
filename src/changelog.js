@@ -178,6 +178,11 @@ export const CHANGELOG = [
       "🔴 **【続き876】小文字で始まる定数の import 漏れを見るようにした**（続き791 の申し送り。あの回の教訓は「**申し送りに書いた穴は、書いた本人が次に踏む**」）。続き788 で一度あきらめた時は誤検知が**2012件**だったが、その後 `js-strip`（文字列とコメントを状態機械で剥がす）と `見える名前`（引数・分割代入・短縮形まで拾う）が入ったので、**いま測ったら誤検知は0件**だった。見る箇所は **7763 → 8546**。",
       "🔴🔴 **その試作が、本体の既存の穴を見つけた: 先読みは後戻りする。** `([A-Z][A-Z0-9_]*)(?!\s*:)` は、`SEAT_ORDERS:` のような名前に当たると**1文字短い `SEAT_ORDER` まで後戻りして一致**する（小文字版で `rankNames()` が `rankName` として当たって気づいた）。⇒ **`(?![\w$])` を足して**大文字の側も塞いだ。⚠ 見ない所も決めた: `import` / `export` の行と「x as y」を含む行（**別名の元の名前**を誤って拾う）。🔴 **A/B 2通り**（小文字・大文字）とも名指しで落ちた。",
       "⚠ 道具のミス（記録）: **`node -e` にバックスラッシュを食われて `[^\w$.?]` が `[^w$.?]` になり**、試作が**何も見つけない検査**になっていた（A/B を取らなければ「誤検知0件」と喜んで本体に入れていた）。**置換は Write / Edit で書く**——作業ルールに書いてあるのに、この回も踏んだ。",
+      "🔴 **【続き877】志炎者7枚のフレーバーを入れた。** ユーザーの「アーティファクトでタップした気がするけど、してなかったかな？」→ **押してあった**。私の記録（続き850）は「考えよう」で止まっていたが、**2026-11-25 の別の回**で作られたアーティファクト「志炎者のフレーバー」の `db`（`picks/shienja`）に**7枚とも残っていた**。**教訓: 選んでもらった結果はアーティファクトの db に残る。こちらの記録に無くても、db を見る。**",
+      "ⓘ 選ばれたのは**7枚とも「火の一生」の案**（1枚ずつの思いつきではなく、**7枚そろえると物語になる方**）。黄=はじまりはいつも、小さく、まばゆい。／桃=編むたびに、炎は少しだけ大きくなる。／赤=火はもう、誰の許しも待たない。／橙=抱えた実が熱いのは、まだ燃えているからだ。／青=一本の燭が照らせるのは、手の届く範囲だけだ。／緑=灰の下で、まだ何かが動いている。／紫=灰になってようやく、火は土へ還る。",
+      "⚠ 書いたのは**元データ**（`tools/cf-text-source.json`）。生成物に直に書くと、次に `gen-cf-text.mjs` を走らせた人が**黙って巻き戻す**（続き810 の実害）。差分は**狙った7行だけ**（`card-text-cf.ja.js` が 7行・`.en.js` と `cards-data-cf.js` は **0行**）であることを確かめた。⚠ 入れる前に「7枚とも空か」「id が食い違っていないか」を検め、**7件ちょうどでなければ何も書かずに止まる**形にした。",
+      "⚠ 実測26項目（**本物の描画**で7枚を並べ、**選ばれた文と一字一句同じ**か・枠からはみ出さないか・読める大きさか）＋**対照**（フレーバーの枠を持たない札には行が出ない。ただし**その札は描けている**ことも一緒に見る）。🔴 **撮って確かめた。** ⚠ 実測の数え方を1つ間違えた: 対照の題を `.card-face-name` で探して落ちたが、本物は **`.card-face-title`**。**「無い」と出たら、まず自分の数え方を疑う。**",
+      "ⓘ **画面に出るのは管理者だけ**（志炎者は限定報酬で、続き851 から図鑑のカード一覧にも出ない）。配る仕組みができた日に、そのまま出る。",
     ],
     devItemsEn: [
       "The CPU now body-checks an opponent who is one step from invading its gate, even without a Counter Lock in hand. Investigation showed the CPU was following its own standing policy: approach for contact only while holding a Counter Lock, set by the user in August, because approaching without one hands the initiative to the opponent. Rather than change that policy, a narrow defensive exception was added. Contact force-moves the opponent back to their own gate, so the threat disappears at once. The weight matches occupying one's own gate: nine at distance one, five at distance two, against three per square of advance. The distance is measured for the named opponent only, so body-checking some other player who is not threatening the gate gains nothing.",
@@ -254,6 +259,11 @@ export const CHANGELOG = [
       "[Continuation 876] The import check now also covers lowercase constants, closing a gap noted months ago. An earlier attempt produced 2012 false positives, but after the string and comment stripper and the declaration scanner were improved, the same approach now produces none. The number of places examined rose from 7763 to 8546.",
       "Building it exposed an existing hole: a negative lookahead backtracks, so an uppercase name followed by a colon could match one character short and be reported under a truncated name. Both paths now require a word boundary, and import lines with aliases are skipped.",
       "Tooling note: a shell command ate the backslashes in the prototype regex, so it silently matched nothing. Without the sabotage run it would have been shipped as a check that can never fail. Replacements must be written with the file tools.",
+      "[Continuation 877] Added the flavour text for the seven Shien cards. The user remembered tapping through an artifact, and they had: the choices were still in the database of an artifact built on 25 November, in a session this one had no record of. Selections live in the artifact database, so look there even when the notes say otherwise.",
+      "All seven picks were the life-of-fire line rather than a one-off image, so the set reads as a single story from the first spark to the ash returning to the earth.",
+      "The text went into the source data, not the generated files, so running the generator again cannot silently undo it. The diff is exactly the seven intended lines, and the writer refuses to write at all unless all seven slots are empty and every id matches.",
+      "Verified by rendering the seven real card faces and comparing each line character for character, with a control card that has no flavour slot, and a screenshot.",
+      "Only administrators can see these cards today, since they are a limited reward and were removed from the codex list for everyone else. They will appear as soon as a way to hand them out exists.",
     ],
   },
   {
