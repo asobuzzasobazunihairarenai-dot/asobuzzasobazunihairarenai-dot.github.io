@@ -53,6 +53,12 @@ import { markChangelogRead } from "./changelog-signature.js";
 export const CHANGELOG = [
   {
     date: "2026-11-28",
+    fixes: [
+      "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
+    ],
+    fixesEn: [
+      "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
+    ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
     devItems: [
@@ -62,6 +68,10 @@ export const CHANGELOG = [
       "⚠ 実測8項目（**本物のアプリで山札を組んで**数えた）。26種・126枚・7色とも16枚・志炎者が各2枚・**元の定義は7のまま**・**対照: リメイク単体は今までどおり19種112枚**。",
       "🔴 **Edge Function を変えた＝デプロイが要る。** 流すまでは、**オンラインのフレンドリーマッチだけ**が今までどおり（志炎者が入らない）。**CPU戦は今すぐ効く**（山札をクライアントが組むため）。どちらも管理者だけが選べるセット。",
       "⚠ 道具のミス（記録）: **A/B の「戻す」目印に空文字列を使って、ファイルを壊したまま**にした（空の文字列で割ると1文字ずつに割れるので、復元の検めが落ちる）。続き873 で「**A/B の目印は、崩す側だけでなく戻す側も一意か確かめる**」と自分で書いた、その形をまた踏んだ。⇒ 消した行は手で戻し、**指紋が A/B 前と一致する**ことを照合した。",
+      "🔴🔴 **【#853・続き879】拡大したカードで色者の円盤が巨大化していた（#727 と同じ形で2回目）。** `#mdb-preview img { width:100%; height:100%; object-fit:cover }` が、**カードの面の中に重ねてある円盤（`<img class=card-face-dial>`）まで掴んで**いた。⚠ **要素名だけのセレクタ（`X img`）は、後から中に入れた部品を黙って掴む。** クラスを足して逃げるのではなく、**範囲（`>`）で閉じる**。",
+      "🔴 **「総点検を！」の指示どおり機械で数えた。** CSS から「子孫で img を掴む規則」の入れ物を取り出すと **26個**あり、1つずつ作って本物のカードの面を入れて測ったら 23個で円盤が狙いから外れた。⚠ **ただしそれは噪しい数**——**実際にカードの面を入れるのは2つだけ**（`#mdb-preview` と `.my-stack-card-face`）で、残りはペットの絵やショップの札など**カードを入れない箱**だった（JS 側も数えて確かめた）。⇒ **その2つを `>` で閉じた。**",
+      "⚠ 実測6項目＋**A/B**（配る側で `>` を外すと**両方とも 100%** に戻り、直すと **28.3%**＝続き774 で本物のカードに合わせた値）。リポジトリのファイルは1バイトも触っていない。",
+      "🔴 **【続き879】Edge Function（so7-apply-action）を本番へ流した**（続き878 の「リメイク＋志炎者」）。流す前 `b68b0906245e8074`／91,666バイト／remake+cf **無し** → 流した後 **`b3ff97142cfb8b74`／93,372バイト／remake+cf あり・cf 7件・各2枚**。手元・GitHub の raw と**3つとも一致**。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -70,6 +80,10 @@ export const CHANGELOG = [
       "Verified by building the deck in the real app: 26 kinds, 126 cards, sixteen per colour, two of each Shien card, with the plain remake deck unchanged as a control.",
       "The edge function changed, so it needs deploying. Until then online friendly matches behave as before; CPU games already have the new deck.",
       "Tooling note: an empty restore anchor left a file broken after a sabotage run. The deleted line was restored by hand and the file hash checked against the one taken before the run.",
+      "[#853, continuation 879] The colour dial on the Nox Aether card was being blown up to fill the card, because a rule written for a container's own thumbnail image also matched the dial image layered inside the card face. The same mistake as an earlier report; the fix is to close the rule to direct children rather than adding another class.",
+      "The audit asked for was done by machine: 26 containers in the CSS use a descendant image rule, and building each one with a real card face showed 23 of them would distort the dial. Only two of those ever actually receive a card face, so only those two were changed.",
+      "Verified with a sabotage run: reverting the change in the served copy puts both back to full width, and the fix returns them to the intended proportion.",
+      "[Continuation 879] The edge function was deployed. Its fingerprint before, the local file and the live copy afterwards were compared and all match.",
     ],
   },
   {

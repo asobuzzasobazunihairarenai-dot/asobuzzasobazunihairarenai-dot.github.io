@@ -19855,8 +19855,14 @@ body.theme-light .mdl-deck-count {
   display: block;
   opacity: 1;
 }
-#mdb-preview img,
-#mdb-preview .mdb-preview-face {
+/* 🔴🔴【#853・続き879】**`>` で直の子だけに絞る。** これが無いと、カードの面の中に
+   重ねてある**色者の円盤（`<img class="card-face-dial">`）まで掴んで**、
+   `width:100%; height:100%; object-fit:cover` を当ててしまう（報告「拡大カードの
+   色者アイコンがバカでかくなってる！」）。#727（続き790）とまったく同じ形で**2回目**。
+   ⚠ **要素名だけのセレクタ（`X img`）は、後から中に入れた部品を黙って掴む。**
+   クラスを足して逃げるのではなく、**範囲（`>`）で閉じる**こと。 */
+#mdb-preview > img,
+#mdb-preview > .mdb-preview-face {
   position: relative;
   width: 100%;
   height: 100%;
@@ -27035,7 +27041,12 @@ body.theme-light .my-stack-rail-btn.is-on {
   border-radius: 0.2rem;
   overflow: hidden;
 }
-.my-stack-card-face img {
+/* 🔴【#853・続き879】ここも `>` で直の子だけに絞る。この箱は **showCardFace でカードの面を
+   組み立てて入れる**（my-stack-editor.js。文字を焼き込んだ絵を持たない札＝0th拡張・1st・旧0th）
+   ので、絞らないと**面の中の色者の円盤まで掴んで巨大になる**（#mdb-preview と同じ形）。
+   ⚠ CSS の「子孫で img を掴む規則」は他にも在るが、**カードの面を実際に入れるのはここと
+   `#mdb-preview` の2つだけ**（続き879 で26個の入れ物を1つずつ作って測り、JS 側も数えた）。 */
+.my-stack-card-face > img {
   width: 100%;
   height: 100%;
   object-fit: cover;
