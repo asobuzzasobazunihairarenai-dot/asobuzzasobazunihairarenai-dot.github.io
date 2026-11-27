@@ -2107,6 +2107,13 @@ body.ui-v2 #shop-panel-empty {
       触るのは「どこに置くか」と「紙の額装」だけ。
    ──────────────────────────────────────────────────────────────────────── */
 body.ui-v2 .profile-v2 {
+  /* 🔴【#843・続き873】**塊ごと中央に置くための寄せ幅**（profile-page.js が測って入れる）。
+     メインデッキの列は**カードの外**で画面の右端から置かれる（`right: 4rem`）ので、
+     カードだけ中央にすると**列がはみ出すぶん塊が右へ寄る**（実測 31px）。
+     ⚠ `transform` は使わない——カードの `transform` は縦に入り切らない時の縮小
+       （`fitProfilePageContent`）が使っているので、上書きすると縮小が消える。 */
+  position: relative;
+  left: calc(-1 * var(--profile-grid-shift, 0px));
   display: grid;
   grid-template-columns: 23rem minmax(0, 1fr);
   grid-template-rows: auto auto auto 1fr;

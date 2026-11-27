@@ -85,6 +85,7 @@ export const CHANGELOG = [
       "デイリーチャレンジの輪を長めにタップすると、押した輪ではなく全部が出ることがあったのを直しました。あわせて「ぜんぶ見る」ボタンをやめました。",
       "画面の上に出る案内の文が、スマホでものすごく大きくなって左右が切れていたのを直しました。",
       "CPU戦の設定で、題が画面上部の帯に隠れていたのを直しました。",
+      "マイページの中身が右に寄って、左側が大きく空いていたのを直しました。",
     ],
     fixesEn: [
       "The confirmation for the order you discard in with Forest of Delusion no longer says you will look at the cards' faces.",
@@ -94,6 +95,7 @@ export const CHANGELOG = [
       "Fixed a slightly long press on a daily challenge ring showing every goal instead of that ring's. The show-all button has been removed.",
       "Fixed the guidance bar at the top of the screen becoming enormous on phones with its ends cut off.",
       "Fixed the CPU match settings title hiding behind the bar at the top of the screen.",
+      "Fixed the my page content sitting to the right with a large gap on the left.",
     ],
     devItems: [
       "🔴 **#830: 相手があと一歩でゲート侵攻できる時は、カウンターロックが無くても接触して止める**（ユーザー判断2026-11-27「そうしよう！」）。報告「あと一歩でゲート侵攻できる位置に私がいるのにCPUが接触してこなかった」。⇒ 調べたら**方針どおりに動いていた**——`cpu-brain.js` に「接触狙いで相手に近づくのは**カウンターロック所持時のみ**（2026-08-08 のユーザー方針: 持たずに近づくと接触の主導権を相手に渡して危険）」と書いてある。⇒ **方針は変えず、守りの非常事態の例外**を1つ足した。接触すると相手は**自分のゲートへ強制移動**される（`state.js` の RESPOND_CONTACT）ので脅威がその場で消える。重みは自ゲート占有（`onMyGateHere`）とそろえた＝**距離1で+9・距離2で+5**（前進は1マス+3）。⚠ **名指しで測る**——`oppPieceCells` に `player` を持たせ、`gateThreatDistance(ctx, player)` でその相手だけの距離を見る。自ゲートを脅かしていない別の相手へ体当たりしても守りにならない。",
@@ -138,6 +140,12 @@ export const CHANGELOG = [
       "ⓘ **#842「これ以上開かない が上部の案内に被ってる」は、すでに直っていた。** 報告は 11-26 22:38（JST）、直し（続き866 で案内・スキップ・おまかせを縦に積んだ）は **22:43**＝**5分後**。名簿には入れた。",
       "⚠ 実測（`scratchpad/_p872.mjs` OK 9 / NG 0）。🔴 **A/B で3症状とも再現した**: 左端 **-577px**（切れている）・実際に見える字 **60.3px**（直した後は 30.1px）・題の天 **23px**（直した後は 55px）。",
       "🔴 **実測の作り直しで3回つまずいた（全部こちらの測り方）。** ①**A/B が通ってしまった**——`.show` の規則の方が詳細度で勝つので、**base だけ崩しても identity のまま**で再現しない。**両側を崩す。** ②`getComputedStyle().fontSize` は**拡大を含まない**ので、それだけ見ると崩しても同じ値＝**0しか出ない検査**。**字 × 重なった拡大**で見る。③#849 は**管理者（5組）でないと札の背が足りず**、札が真ん中に収まってしまう ⇒ 中身を1つ足して同じ状態を作った。",
+      "🔴🔴 **#843「マイページですが右下に向かってギュッと少し全体が縮小されてるように見えます！」── 縮小ではなく、左右の空きが揃っていなかった。** 実測（932x430）で **左 101px ／ 右 31px** ＝ 塊の中心が画面の中心より **31px 右**。正体は、**メインデッキ／マイ山札の列がカードの外に在って画面の右端から置かれる**こと（`right: 4rem`）——**カードだけ見れば中央**なのに、列がはみ出すぶん塊が右へ寄る。⇒ **格子を左へ寄せて、塊ごと中央**にした（列は動かさない）。実測で **左31／右31**（PC は 51／51）にそろった。",
+      "⚠ **続き816 の調整とは別の話だった。** あちらは `--profile-card-pad-right` で**列とぶつからない幅**を測るもので、**左右の空きを揃えるものではない**。両方必要だった。",
+      "🔴 **`transform` は使わなかった。** カードの `transform` は「縦に入り切らない時の縮小」（`fitProfilePageContent`・最小0.55倍）が使っているので、上書きすると**縮小が消える**。⇒ `position: relative` + `left` で寄せる（互いに干渉しない）。ⓘ ユーザーが言う「縮小」はこの仕組みのことでもあり、**中身が縦に入り切る時は発動しない**（実測で `transform: none`）。今回は①だけを直した（ユーザー判断「おすすめで！」）。",
+      "⚠ **寄せ幅は「いまの寄せ幅＋ずれ」で決める**（引き算だけだと、揃った次の回に 0 へ戻って**毎回揺れる**）。実測で**2回そろえ直しても値が動かない**ことを見ている。⚠ 右へは寄せない（列にぶつかる）／左へ行きすぎない歯止めつき。",
+      "⚠ 実測（`scratchpad/_p873.mjs` OK 10 / NG 0・スマホ横とPCの両方）。🔴 **A/B**: 寄せを外すと **左101／右31**（スマホ）・**左169／右51**（PC）で落ち、**報告どおりの偏りを再現**した。",
+      "🔴 ⚠ 道具のミス（記録）: A/B の「戻す」目印を `left: 0;` にしたら **10か所に当たって戻せず**、**ファイルを崩したまま**になった（`npm run check` が 2 で気づいた）。⇒ 前後の行まで含めた目印で復元。**A/B の目印は、崩す側だけでなく戻す側も一意か確かめる。** ⚠ 識別子を数字で始めて構文エラー（`1回目`）——これで**5回目**。",
     ],
     devItemsEn: [
       "The CPU now body-checks an opponent who is one step from invading its gate, even without a Counter Lock in hand. Investigation showed the CPU was following its own standing policy: approach for contact only while holding a Counter Lock, set by the user in August, because approaching without one hands the initiative to the opponent. Rather than change that policy, a narrow defensive exception was added. Contact force-moves the opponent back to their own gate, so the threat disappears at once. The weight matches occupying one's own gate: nine at distance one, five at distance two, against three per square of advance. The distance is measured for the named opponent only, so body-checking some other player who is not threatening the gate gains nothing.",
@@ -182,6 +190,12 @@ export const CHANGELOG = [
       "A third report, about a button overlapping the guidance bar, was already fixed: it was filed five minutes before that fix shipped. It is recorded as handled.",
       "Nine checks pass, and breaking the change reproduces all three reported symptoms: the left edge off screen, the visible text at double the intended size, and the title behind the bar.",
       "Three measurement mistakes, all mine. The A/B passed at first because only the base rule was reverted while the more specific show rule still won, so nothing reproduced; both must be broken. The computed font size excludes transforms, so checking it alone could never fail. And the settings panel is only tall enough to reach the top for administrators, so the condition had to be recreated by adding content.",
+      "The report described the my page content as slightly shrunk toward the bottom right. Measuring showed it was not a shrink but unequal gutters: 101 pixels on the left against 31 on the right, putting the block 31 pixels right of centre. The cause is that the main deck column lives outside the card and is pinned to the right edge of the page, so the card alone is centred while the column pushes the visible block rightwards. The grid is now shifted left so the whole block is centred, leaving the column where it is; the gutters measure equal on both phone and desktop.",
+      "This is separate from the earlier spacing work, which measured the width needed to avoid colliding with the column rather than balancing the gutters. Both are needed.",
+      "Transforms were avoided deliberately: the card's transform is used by the fit-to-height shrink, and overwriting it would remove that shrink. Relative positioning is used instead so the two do not interfere. The shrink the report mentions is that same mechanism, and it only engages when the content is too tall; only the centring was changed, as chosen.",
+      "The shift is computed as the current shift plus the measured difference, because subtracting alone would reset to zero once balanced and oscillate every pass. Running the alignment twice leaves the value unchanged. It never shifts right, which would collide with the column, and is clamped against running off the left edge.",
+      "Ten checks pass across phone and desktop sizes. Removing the shift reproduces the reported imbalance exactly.",
+      "A tooling note: the A/B restore anchor matched ten places in the stylesheet and left the file broken, caught by the check suite exiting non-zero. The restore used a wider anchor. An identifier beginning with a digit also caused a syntax error, for the fifth time.",
     ],
   },
   {

@@ -179,6 +179,36 @@ function alignProfileSideColumn() {
       const すきま = 18; // 列と中身がくっつかないぶん（ステージpx）
       const 要る = Math.max(0, ステージpx(cr.right - dr.left)) + すきま;
       overlayEl.style.setProperty("--profile-card-pad-right", Math.round(要る) + "px");
+
+      // 🔴🔴【#843・続き873】**塊ごと中央に置く。**
+      //   ユーザー指摘「マイページですが**右下に向かってギュッと少し全体が縮小されてる**
+      //   ように見えます！」。測ったら縮小ではなく**左右の空きが揃っていなかった**
+      //   （実測: 左 185px ／ 右 114px ＝ 塊の中心が画面の中心より 31px 右）。
+      //   🔴 正体は、**メインデッキの列がカードの外に在って画面の右端から置かれる**こと
+      //     （`right: 4rem`）。カードだけ見れば中央なのに、**列がはみ出すぶん塊が右へ寄る**。
+      //     続き816 で入れた `--profile-card-pad-right` は**ぶつからない幅**を測るもので、
+      //     **左右の空きを揃えるものではなかった**。
+      //   ⇒ **格子を左へ寄せる**（列は動かさない）。これだけで塊の中心が画面の中心に来る。
+      //   ⚠ **`transform` は使わない**——カードの `transform` は `fitProfilePageContent` の
+      //     縮小が使っている（上書きすると縮小が消える）。`position: relative` + `left` なら喧嘩しない。
+      //   ⚠ **いまの寄せ幅を足して決める**ので、1回で決まってそれ以上動かない
+      //     （測った空きには寄せた分が入っているため。引き算だけだと毎回0に戻って揺れる）。
+      const 格子 = overlayEl.querySelector(".profile-v2");
+      if (格子) {
+        const pr = overlayEl.getBoundingClientRect();
+        const gr = 格子.getBoundingClientRect();
+        if (gr.width > 0) {
+          const いま = parseFloat(overlayEl.style.getPropertyValue("--profile-grid-shift")) || 0;
+          const 左の空き = ステージpx(gr.left - pr.left);
+          const 右の空き = ステージpx(pr.right - dr.right);
+          let 寄せ = いま + (左の空き - 右の空き);
+          // ⚠ 右へは寄せない（列にぶつかる）。左へ行きすぎて画面から出ないよう歯止め。
+          寄せ = Math.max(0, Math.min(寄せ, 左の空き + いま - 8));
+          if (Math.abs(寄せ - いま) > 2) {
+            overlayEl.style.setProperty("--profile-grid-shift", Math.round(寄せ) + "px");
+          }
+        }
+      }
     } catch { /* 空きの調整のためにマイページを壊さない */ }
   });
 }
