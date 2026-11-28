@@ -25,6 +25,7 @@ import { setThumbSrc } from "./image-thumbs.js"; // #505: 小さく出す絵は�
 // 🔴【続き882】【色者】の表（どのカードが色者か・白黒の効果）。色者が2枚になったので決め打ちをやめた。
 import { hasShikijaDial, shikijaRuleOf } from "./shikija-dial.js";
 import { openShikijaShow } from "./shikija-show.js"; // 【#869・続き896】色者の見せ場（画面いっぱいの4拍）
+import { noirLockColorForSeat } from "./noir-lock-color.js"; // 【続き899】ノワールが置かれた色スロットの色
 import { isAutoPaySingleExtraColorEnabled } from "./auto-pay-single-cost.js"; // #489
 import { logAction, initActionLogPanel, getActionLogText, getActionLogEntries } from "./action-log.js";
 import { initDeckViewer, openDeckViewer } from "./deck-viewer.js";
@@ -8866,10 +8867,9 @@ export function performPriorityTimeoutAutoAction() {
     // ボーナスを捨ててしまう。ハンドフェイズでノワール効果を使う方が常に得——下のline 3828〜で
     // CPUは既にそれを最優先で使う）。ノワールの置かれた色スロットを予約し、その色の手札は
     // ロックフェイズの自動ロック候補から除外する（ノワール効果側が同じスロットを埋める）。
-    const noirTok = getState().tokens.find(
-      (t) => t.cardId === "first-noir" && t.location.zone === "lock" && SIDE_TO_SEAT[t.location.side] === player && t.placed
-    );
-    const noirReservedColor = noirTok ? COLORS[noirTok.location.index] ?? null : null;
+    // 🔴【続き899】同じ計算を写さない（駒の塗り分け・アバターも同じ色を見る）。
+    //   持ち主は src/noir-lock-color.js。
+    const noirReservedColor = noirLockColorForSeat(player);
     const lockable = isTarget
       ? hand.filter((t) => isCardLockable(t, player) && getCardDefinition(t.cardId)?.color !== noirReservedColor)
       : [];

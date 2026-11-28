@@ -62,6 +62,7 @@ export const CHANGELOG = [
       "志炎者のカードが英語でも読めるようになりました",
       "色者が動く時の見せ場を作り直しました",
       "拡張カードも英語で読めるようになりました",
+      "ノワールの駒が色で見分けられるようになりました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
@@ -72,6 +73,7 @@ export const CHANGELOG = [
       "The Shien cards can now be read in English",
       "The Shikija move has a new sequence",
       "The expansion cards can now be read in English",
+      "Noir pieces can now be told apart by color",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
@@ -82,6 +84,7 @@ export const CHANGELOG = [
       "志炎者のカードに**英語の効果文**が入りました（これまでは名前だけで、英語でも効果文は日本語のまま出ていました）。",
       "**色者が動く時の見せ場**を作り直しました。**色者の円盤が大きく出て → 捨て色のカードを確認 → その色の棘が光って → 色者のカードがアップになって移動する**、という流れになります（動きを控える設定にしている方には今までどおり出ません）。",
       "**0th拡張・1st EDITION・旧0th のカード85種**に、**英語の効果文**が入りました。英語表示にしても、カードの文が日本語のまま出ることはもうありません。",
+      "**ノワールの駒が、その人の色で塗り分けられる**ようになりました（白い線と輪が、ノワールを置いているロックエリアの色になります）。全員がノワールでも、どれが誰の駒か分かります。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
@@ -92,6 +95,7 @@ export const CHANGELOG = [
       "The Shien cards now have English effect text; until now only their names were translated and the effects stayed in Japanese.",
       "The Shikija move now plays as a proper sequence: the dial appears large, the discarded colour card is shown, the matching spike lights up, and the Shikija card zooms in and flies to its new space. Nothing changes if you have animations turned down.",
       "English effect text has been added for 85 cards across the 0th Expansion, 1st EDITION and old 0th, so card text no longer falls back to Japanese when you play in English.",
+      "Noir pieces are now tinted: the white lines and ring take the color of the Lock Area the noir card sits in, so you can tell the pieces apart even when everyone is playing noir.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -117,6 +121,7 @@ export const CHANGELOG = [
       "カードの補足を開いた時、スマホで札が大きくなりすぎて画面からはみ出していたのを直しました。",
       "志炎者のカードの補足に、開発用のメモがそのまま出ていたのを直しました。",
       "色者が動く時に出る円盤が、**そのカードの向きと合っていなかった**のを直しました（カードを置いた人によっては、矢の向きと実際に動く向きが食い違っていました）。",
+      "ノワールで遊ぶ時、アバターが勝手に別の絵に変わっていたのをやめました（設定しているアバターのまま出ます）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -142,6 +147,7 @@ export const CHANGELOG = [
       "Fixed the card notes being blown up past the edge of the screen on phones.",
       "Fixed the Shien cards showing internal development memos as their card notes.",
       "Fixed the Shikija dial not matching the orientation of the card on the board, which made its arrow point a different way than the card actually moved.",
+      "Playing as noir no longer replaces your avatar with a different picture; your own avatar is kept.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -246,6 +252,9 @@ export const CHANGELOG = [
       "🔴 **【続き898】ユーザー指示「英語用意しよう！」。聞かれた2つ（0th拡張・旧0th）を直す前に全部数えたら、3つ目（1st EDITION）も同じ穴だった。** いま: リメイク 34/34（残り7は**ブーストの白紙**＝日本語も空なので穴ではない）／0th拡張 33/33／**1st 33/33**／旧0th 19/19／志炎者 7/7。⚠ **card-text.js は「英語の欄が空なら日本語で出す」作り**なので、書き忘れても何も壊れない——**英語で遊ぶ人の画面に日本語が出るだけ**。だから報告 #880 まで誰も気づかなかった。",
       "🔴 **言い方は自分で発明しない**——用語は `src/card-text.en.js` の頭の対応表と用語集から写した（オープンする=flip face-up／強制移動=forced to move／**財力=Wealth**／**【状況】=【Situation】**／**【色者】=【Shikija】**／【追色N】=【Color Cost N】）。⚠ 隣も周囲も adjacent（リメイクの英語がそう訳してあるので**こちらで区別を作らない**）。⚠ {白}{黒} は絵の印なので英語でもそのまま。英語は**カードの id を鍵にした別ファイル**（tools/*-text-en.json）に置き、**日本語の出どころは1文字も触らない**（あちらは `no` が鍵で、色寄せの笛のように1件を複数の札が共有するため）。",
       "🔴 **同じ忘れ方を次のセットでしないよう検査を1本（33本目 check-card-text-en.mjs）**: 日本語に効果文があるカードは英語にもあること。白紙カードは日本語も空なので自動で外れる（名簿を持たない）。A/B で名指しで落ちることと、戻したあと生成し直して指紋が一致することを照合。⚠ 実測で2回つまずいた（どちらもこちらの測り方）: **存在しない関数**を呼んで**静かに全部空**になった（`?.()` は undefined を返す）／**「・」（中黒）をカタカナと数えていた**（リメイクの英語も同じ中黒を使う house style）。**「無い」と出たら、まず自分の数え方を疑う。**",
+      "🔴 **【続き899】ノワールの駒を7色に塗り分けた。** 見分ける手がかりは**もう state の中にあった**——ノワールは**元のファーストカードと同じ色スロット**に placed のまま残る（APPLY_SEAT_NOIR）ので、「ノワールが置かれているロックエリアの色」＝**その人が本来持っていた色**。⚠ 同じ計算が main.js に写してあり3か所目になる所だったので、**葉に1つ置いて全部そこを見る**形にした（src/noir-lock-color.js。import は state と board-layout だけ＝輪にならない）。",
+      "**駒は焼いた絵**（tools/make-noir-tint.mjs が白い所だけを色に替えて7枚）。🔴 **runtime の色変えはしない**——駒は `preserve-3d` の中なので `filter` は枝を丸ごと2Dに潰す（教訓1）し、盤面の駒は**WebGL が描く**ので**絵のURLを替えれば両方に効く**。かけ算で塗るので**線のふちのなめらかさもそのまま**。⚠ 実測で元の絵は白22.8%・黒71.4%＝塗るのは線と輪だけで黒い本体は残る。⚠ 白い所が1%未満なら焼かずに止まる。⚠ 既定の noir.webp は1バイトも触っていない。",
+      "🔴 **#875（黒＝エイドスの絵）は取り消した**（ユーザー判断）。自分で絵を選んでいる人は元から何も起きない（差し替えはセンチネルの時だけ）。残るセンチネル＋ノワールは、黒の青年も黒の色アバターも**存在しない**ので 404 で消える＝#875 そのもの ⇒ **駒と同じ手がかり**（ロックエリアの色）で出す。🔴 **ついでに #868 の残りを見つけた**——`getSkinImagePath` の**マイデッキの持ち物の枝だけ**が絵の道を直に組み立てていて、黒が来ると存在しない絵を取りに行く形が**この道だけ残っていた**。⚠ 実測の呼び方を1つ間違えた: `startCpuBattle({seatCount:4})` は**数を取る**関数なので2人戦になっていた（「4席とも」が2席で通っていた）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -348,6 +357,9 @@ export const CHANGELOG = [
       "[Continuation 898] Counting every set before starting turned up a third gap beyond the two that were reported, because missing English silently falls back to Japanese rather than failing.",
       "Terminology was copied from the existing English glossary rather than invented, and the English lives in separate id-keyed files so the Japanese sources stay untouched.",
       "A new check fails by name if a card has Japanese effect text but no English, so a future set cannot ship half-translated.",
+      "[Continuation 899] The tint colour was already in the state: a noir card stays in the lock slot of the player's original First card, so that slot's colour identifies the player.",
+      "The seven tinted images are baked rather than tinted at runtime, because a CSS filter would flatten the 3D piece and the board pieces are drawn by WebGL from the same image URL.",
+      "The eidos avatar substitution was reverted per the user's decision, and a remaining copy of the broken path-building for colours without skin variants was found and routed through the shared helper.",
     ],
   },
   {

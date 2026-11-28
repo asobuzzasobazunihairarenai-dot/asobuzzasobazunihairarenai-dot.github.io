@@ -18,6 +18,7 @@ import { SEAT_LABELS, SEAT_ORDER } from "./board-layout.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ6（既定の座席名「プレイヤーA」→「Player A」）
 import { isOnlineMode, getSelfSeat, getSyncedIdentity, updateMyIdentity } from "./online.js";
 import { getState } from "./state.js";
+import { noirLockColorForSeat } from "./noir-lock-color.js"; // 【続き899】ノワールの席は本来の色でアバターを出す
 
 // 色ごとに正面(front)・左向き(left)・右向き(right)の3バリエーションが用意されている
 // （画像素材/アバター/アバター1参照）。「そのプレイヤーが選んだアバター」の正規の値としては
@@ -91,11 +92,21 @@ function protagonistColorForSeat(seat) {
 //     ので、そこへ振り替える。⚠ #868（駒が透明）とまったく同じ家族。
 //   ⚠ ここが**唯一の持ち主**。青年（protagonist）も色アバター（entrusted）も同じ絵にする
 //     ——黒の絵はこの1組しか無いので、2通りに分けても同じ所へ行き着く。
-const NOIR_AVATAR = "assets/avatars/eidos-noir-front.webp";
-export function protagonistPathForSeat(seat) {
+// 🔴【続き899】ユーザー判断「**ノワールを使う時、アバターはエイドスに変更しなくてもいいです！
+//   ユーザーが設定しているアバターでいいです。**」⇒ #875 で入れた「黒＝エイドスの絵」を**やめた**。
+//   ⚠ 自分で絵を選んでいる人は**元から何も起きない**（下の resolveAvatarValue は
+//     センチネル（protagonist / entrusted）の時しか触らない）。
+//   🔴 残るのは**センチネル＋ノワール**の時。駒の色は noir だが、黒の青年・黒の色アバターは
+//     **存在しない**ので、そのままだと 404 で**アバターが消える**（#875 そのもの）。
+//     ⇒ **ノワールが置かれているロックエリアの色**＝その人が本来持っていた色で出す
+//       （駒の塗り分けと同じ手がかり＝見た目もそろう）。
+function 絵の色(seat) {
   const color = protagonistColorForSeat(seat);
-  if (color === "noir") return NOIR_AVATAR;
-  return `assets/avatars/protagonist-${color}-front.webp`;
+  if (color !== "noir") return color;
+  return noirLockColorForSeat(seat) || "gray";
+}
+export function protagonistPathForSeat(seat) {
+  return `assets/avatars/protagonist-${絵の色(seat)}-front.webp`;
 }
 
 // 「（基本）託された者たち」アバター（基本7色アバター＝assets/avatars/${color}-front.webp）。
@@ -105,8 +116,7 @@ export function protagonistPathForSeat(seat) {
 // 色アバターは覚醒/激昂・左右向きのバリエーションも揃っている（avatar-render.jsが導出）。
 export const ENTRUSTED_AVATAR = "entrusted";
 export function entrustedPathForSeat(seat) {
-  const color = protagonistColorForSeat(seat); // 駒の色。駒がまだ無ければ "gray"
-  if (color === "noir") return NOIR_AVATAR; // 【#875】黒の絵は eidos-noir の1組だけ
+  const color = 絵の色(seat); // 駒の色。ノワールなら本来の色（続き899）。まだ無ければ "gray"
   if (AVATAR_COLORS.includes(color)) return `assets/avatars/${color}-front.webp`;
   // 駒がまだ配られていない（色未確定）一瞬のプレースホルダ。基本セットに gray は無いため、
   // 中立的な青年の灰色を流用する（駒が置かれ次第、上の色アバターへ解決される）。

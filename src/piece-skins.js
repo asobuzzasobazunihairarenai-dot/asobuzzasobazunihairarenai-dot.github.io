@@ -24,6 +24,7 @@ import { t } from "./ui-text.js"; // UI英語化フェーズ10
 import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
 import { getSelfSeat, isOnlineMode, getSyncedIdentity, updateMyIdentity, isItemUnlocked, openShop, isSpectatingGame } from "./online.js";
 import { COLORS, SEAT_TO_SIDE } from "./board-layout.js";
+import { noirLockColorForSeat } from "./noir-lock-color.js"; // 【続き899】ノワールの駒を7色に塗り分ける
 import { getSeatLoadout } from "./cpu-battle-state.js";
 
 // セットアップ前（自分の駒の色がまだファーストカードで決まっていない間）でも、左下の
@@ -172,6 +173,15 @@ export function isJewelPieceSeat(seat) {
 }
 
 export function getSkinImagePath(color, seat) {
+  // 🔴【続き899】ユーザー要望「**全員がノワールにすると、どれが誰の駒かわからなくなります。
+  //   ノワールの駒のスキンの白い部分を、ノワールが置かれているロックエリアの色にできる？**」
+  //   ⇒ 白い所だけをその色に塗った絵（tools/make-noir-tint.mjs が焼く）へ振り替える。
+  //   ⚠ **色が分からない時は今までどおり noir.webp**（ショップのプレビュー・配る前など）。
+  //   ⚠ ノワールは番号違いの絵を持たないので、スキンの番号より**先**に決めてよい。
+  if (color === "noir") {
+    const c = noirLockColorForSeat(seat);
+    return c ? `assets/pieces/noir-${c}.webp` : "assets/pieces/noir.webp";
+  }
   // 1st EDITION のファーストカードを持っている席は宝石の駒（上の seatUsesJewelPiece 参照）。
   // 黒(noir)は 1st にファーストカードが無いのでここには来ない。
   if (COLORS.includes(color) && seatUsesJewelPiece(seat)) return `assets/pieces/${color}-jewel.webp`;
@@ -179,8 +189,10 @@ export function getSkinImagePath(color, seat) {
   // 汚さない）。自分/同期ロスターより優先（cpu-battle.jsがsetSeatLoadoutで設定、teardownで消す）。
   const loadout = seat ? getSeatLoadout(seat) : null;
   if (loadout && typeof loadout.pieceSkinIndex === "number") {
-    const li = loadout.pieceSkinIndex;
-    return li === 0 ? `assets/pieces/${color}.webp` : `assets/pieces/${color}-${li}.webp`;
+    // 🔴【続き899】ここも **skinImagePathFor を通す**。直に組み立てていたので、
+    //   番号違いの絵を持たない色（ノワール）が来ると存在しない絵を取りに行く
+    //   ＝#868（駒が透明）と同じ形が**この道だけ残っていた**。
+    return skinImagePathFor(color, loadout.pieceSkinIndex);
   }
   // 🔴【#652・2026-11-14】観戦中は「自分の席」を持たない。getSelfSeat() は観戦中でも
   //   spectateViewSeat（実在するプレイヤーの席）を返す——盤面をどの向きで描くかに
