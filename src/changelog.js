@@ -58,24 +58,28 @@ export const CHANGELOG = [
       "ノワールで遊べます（お試し・2026-12-31 まで）",
       "カードの補足が読みやすくなりました",
       "カードの補足で色者・状況・志炎の説明も出ます",
+      "CPU戦の設定画面が読みやすくなりました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
       "Try playing as Noir (trial, until 31 Dec 2026)",
       "Card notes are easier to read",
       "Card notes now explain Shikija, Situation and Shien",
+      "The CPU battle settings are tidier",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
       "CPU戦で**ノワール（黒のキューブ）を使って遊べる**ようになりました。ファーストカードが配られたあとに「ノワールに切り替えますか？」と出るので、押すとあなたのファーストがノワールに、駒が黒になります。断れば今までどおりです。⚠ **お試しです（2026-12-31 まで）。** ノワールの効果は、遊んでみた結果で変わることがあります。感想は画面の上の「不具合報告」（虫のしるし）からお待ちしています。",
       "**カードの補足（カードを長押し・右クリックで出る画面）を作り直しました。** カードの絵が**2.7倍**の大きさになり、効果文はその絵で読めます。長い補足は3行にまとめて、続きは「もっと詳しく」で開きます。**追色や財力などの固有効果は、上に単語で並ぶ**ようになり、押すとその説明が出ます。印刷されたカードから効果を変えている札には「デジタル版で効果を変更」の印が付きます。",
       "**カードの補足で、追色や財力などの固有効果に加えて【色者】【状況】【志炎】も説明が出る**ようになりました（公式サイトの基本用語集の文をそのまま載せています）。英語でも出ます。",
+      "**CPU戦の設定画面**が読みやすくなりました。**i を押すと説明がモーダルで出る**ようになり（その場で開いて下の項目が動くことがなくなりました）、**使うカードには箱の絵**が並び、**対戦ルールの4つが同じ大きさでそろいます**。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
       "You can now play as Noir in CPU games. After the First cards are dealt you are asked whether to switch; saying yes turns your First card into the Black Cube and your piece black, and saying no leaves everything as before. This is a trial until 31 December 2026, and Noir's effect may change based on how it plays, so please send your impressions through the bug report button.",
       "The card notes screen has been rebuilt. The card picture is now about 2.7 times larger, so the effect text can be read from the card itself. A long note is shortened to three lines with a More detail button, and special effects such as Color Cost or Wealth now appear as words at the top that you can tap for an explanation. Cards whose effect differs from the printed version carry a small marker.",
       "The card notes now also explain Shikija, Situation and Shien, alongside Color Cost and Wealth, using the wording from the official basic terms page. This works in English too.",
+      "The CPU battle settings are tidier: the i buttons now open their explanation in a dialog instead of pushing the rest of the list down, the chosen edition shows its box art, and the four match rules line up at the same size.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -202,6 +206,9 @@ export const CHANGELOG = [
       "⚠ 実測で2回つまずいた（どちらも私の測り方）: ①**同じマスへ `moveToken` しても描き直されない**ので古い要素を測っていた ⇒ 本物の道（その席の手番にして裏→表にめくる）で付ける形へ。②配った直後の盤面は**全部が裏向き**／**盤面は3D変形がかかっている**ので札の矩形だけを切ると描かれている絵とずれる（教訓4 の家族）。⚠ **WebGL が本当に絵まで回すところは撮って確かめられていない**（実機で1回見てほしい）。",
       "🔴🔴 **【続き892】#863 の演出は在るのに一度も飛んでいなかった。** `flyCurrencyToBalance`（3枚飛ぶ）も呼ぶ所（#703）も既に在ったのに、実測すると**1枚も飛ばない**（控えの「光る」だけが出ていた）。正体は飛ばす関数が **`await import(...)` を挟む**こと——受け取りが通るとその場で `描き直す()` が走って**ボタンが DOM から消える**ので、import が解けた頃には出発点の矩形が**幅0**。⚠ 呼ぶ側のコメントには「**描き直す前に出発点を押さえる**」と**書いてあった**（意図は正しかったが、await を挟んだ時点で成り立たなくなっていた）。⇒ **押した瞬間に矩形を押さえる**形へ。**パックの受け取り（続き815）も同じ形だったので一緒に直った。** **教訓: 「消える前に押さえる」は、間に await が1つでも入ると成り立たない。**",
       "**#865 自動で飛ぶフェイズではスキップボタンを出さない。** 🔴🔴 ⚠ **自動送りが OFF の時は今までどおり出す**——あの設定は「ロックできる手札が無いこと等を相手に悟られません」ためのもので、ここで隠すと**隠したいことが見た目から分かってしまう**。⚠ 判定は自動スキップが実際に使っているのと同じ関数に聞く。⚠ 同じファイルの中の名前は検査が見ていないので、7つとも在ることを grep で数えてから書いた。⚠ #865 は実測していない（その場面を作る手が無い）。",
+      "🔴🔴 **【続き893】#864 の「対戦ルールの配置が整ってるといいかも」の正体は、整っていないのではなく**はみ出していた**こと。** 測ったら**箱が 115px しか無いのにボタンが 348px** あった（横並びのまま外へ出ていた）。⇒ 箱に幅を取らせて格子にした（実測: 4つとも 170px・1行）。🔴 **直す場所を間違えて1回空回りした**——同じクラスの規則が2か所あり、**後ろの `display: flex` に踏み潰されて**いた（教訓9 の家族）。後ろを直し、前に書いた方は消した。",
+      "**i を押したらモーダル**（その場で開くと下の項目が押し下げられて、読む前に並びが動く）。⚠ 説明の文はそのまま使う（モーダル用に書き直さない＝2か所に持たない）。**使うカードに箱の絵**も置いた。⚠ 箱の絵を持たない選択（マイ山札・0th拡張・まぜる等）では**何も出さない**（代わりの絵をでっち上げない。判定は箱の持ち主に聞く）。",
+      "⚠ 実測（管理者 OK 9／ふつうの人 OK 8）。段取りで1つ踏んだ: **ホームを開かずにタイルを押していた**ので「設定が開けない」と出た ⇒ `openHomeScreen()` を先に呼ぶ。**「無い」と出たら、まず自分の段取りを疑う。** ⚠ 申し送り: **#864 の『ⓘの中身の見直し』と #869（色者の演出の組み替え）は未着手**。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -286,6 +293,9 @@ export const CHANGELOG = [
       "Two measurement mistakes are recorded, including that moving a token to the same square does not trigger a redraw.",
       "[Continuation 892] The coin-flight effect for daily rewards existed but never ran: the awaited dynamic import meant the button had already been removed by the re-render, so the start rectangle was empty. The rectangle is now captured at the moment of the click, which also fixes the pack flight.",
       "The skip button is hidden for phases that will auto-skip, but only while auto-advance is on, because that setting exists precisely to hide the fact that you have nothing to play.",
+      "[Continuation 893] The match rules were not merely untidy, they overflowed their 115px container while the buttons were 348px wide; the container now takes full width and lays the four out as an even grid.",
+      "A duplicate rule for the same class later in the stylesheet had been overriding the first attempt, so the later one was fixed and the earlier removed.",
+      "The i buttons now open a dialog, and the chosen edition shows its box art where one exists.",
     ],
   },
   {

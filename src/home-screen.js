@@ -53,6 +53,7 @@ onCardPacksChange(() => {
 import { getCardSet } from "./card-set.js";
 // 🔴【続き832】エディションを選ぶ画面（画面全体・箱が並ぶ）。
 import { openEditionChooser, セットの名, いまの選択 } from "./edition-select-ui.js";
+import { showNoticeModal } from "./ui-helpers.js"; // 【#864・続き893】i の説明をモーダルで出す
 // 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
 import { isMyStackEnabled } from "./my-stack.js"; // 切り替えは使うカードの回転台が持つ（続き881）
 import { isUiV2 } from "./ui-v2.js"; // 【2026-11-14】試作のレイアウト（?ui=v2 の時だけ使う）
@@ -445,10 +446,14 @@ function openMatchChoiceModal(opts = {}) {
     info.textContent = "i";
     info.setAttribute("aria-label", t("home.matchChoice.infoLabel"));
     info.title = t("home.matchChoice.infoLabel");
+    // 🔴【#864・続き893】ユーザー要望「**i を押したらモーダルで出たほうがいいかも！**」。
+    //   その場で開くと**下の項目がいちいち押し下げられて**、読む前に並びが動く。
+    //   ⚠ 説明の文は**そのまま使う**（モーダル用に書き直さない＝2か所に持たない）。
+    //   ⚠ 見出しは**その項目の名前**（見出しの中の i の字と記号は除く）。
     info.addEventListener("click", (e) => {
       e.stopPropagation();
-      説明.hidden = !説明.hidden;
-      info.classList.toggle("is-on", !説明.hidden);
+      const 題 = (見出し.textContent || "").replace(/[i\u24d8\u2139]/g, "").trim();
+      showNoticeModal(説明.textContent || "", { 見出し: 題 || null });
     });
     見出し.appendChild(info);
   };
@@ -684,14 +689,31 @@ function openMatchChoiceModal(opts = {}) {
       m.setMyStackShowAllSets(管理者);
       m.openMyStackEditor();
     });
+    // 🔴【#864・続き893】ユーザー要望「**使うカード選択したらこの画面では箱とかの絵が
+    //   出るといいかも！**」。名前だけだと、どれを選んでいるのか一目で分からない。
+    //   ⚠ 箱の絵を持たない選択（マイ山札・0th拡張・まぜる等）では**何も出さない**
+    //     （代わりの絵をでっち上げない）。判定は箱の持ち主（deck-box-3d）に聞く。
+    //   ⚠ 動的 import（home-screen → deck-box-3d の静的 import は増やさない）。
+    const setArt = document.createElement("div");
+    setArt.className = "home-match-choice-edition-art";
+    const 箱を描く = async (sel) => {
+      setArt.innerHTML = "";
+      try {
+        const m = await import("./deck-box-3d.js");
+        if (!m.hasDeckBoxArt?.(sel)) return;
+        setArt.appendChild(m.buildDeckBox3d(sel, { size: 54, flat: true }));
+      } catch {}
+    };
     const refreshSet = () => {
-      setNow.textContent = セットの名(いまの選択());
+      const いま = いまの選択();
+      setNow.textContent = セットの名(いま);
       editBtn.hidden = !isMyStackEnabled();
+      void 箱を描く(いま);
     };
     setBtn.addEventListener("click", () => {
       openEditionChooser({ 試験も: 管理者, onChanged: () => refreshSet() });
     });
-    setRow.append(setNow, setBtn);
+    setRow.append(setArt, setNow, setBtn);
     setBox.appendChild(setRow);
     setBox.appendChild(editBtn);
     const setHint = document.createElement("div");

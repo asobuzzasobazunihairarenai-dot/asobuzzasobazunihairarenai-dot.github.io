@@ -3420,6 +3420,16 @@ body.theme-light #contact-result-modal {
   flex: 1;
   min-width: 10rem;
 }
+/* 【#864】使うカードの箱の絵（名前の左）。絵が無い選択では空＝場所も取らない。 */
+.home-match-choice-edition-art {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.home-match-choice-edition-art:empty {
+  display: none;
+}
+
 /* 🔴【続き888】固有効果の単語（追色・財力・【志炎】…）。押すと用語の説明が出る
    ——文中のリンクと**同じもの**が開く。
    ⚠ 色は決め打ちしない所と、自前の地を持つ所を分ける（教訓15）: 地は自分で持ち、
@@ -17642,11 +17652,21 @@ body.is-phone-device .home-screen-cf-cta { font-size: 0.72rem; }
 }
 /* CPU戦の「対戦ルール」4つ（続き506）。人数・強さのセグメントと違い、それぞれが独立した
    入/切なので、1つずつ枠を持たせて折り返せるようにする（スマホでは2行になる）。 */
+/* 🔴【#864・続き893】**ここが後ろなので勝つ。** 前（card-note-chips の手前）にも同じ
+   クラスの規則を書いたが、display:flex のこちらに踏み潰されて1列のままだった（教訓9 の家族）。
+   対戦ルールの4つを**同じ大きさでそろえる**ため、格子にする。 */
 .home-match-choice-rules {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.4rem;
+  /* 🔴 **箱に幅を取らせる。** 実測では箱が 115px しか無く、ボタンが**はみ出して**いた
+     （横並びだった頃は、文の長さのぶんだけ外へ出ていた＝「整っていない」の正体）。 */
+  width: 100%;
+  align-self: stretch;
+}
+.home-match-choice-rules .home-match-choice-rule-btn {
+  width: 100%;
+  text-align: center;
 }
 .home-match-choice-rule-btn {
   padding: 0.4rem 0.85rem;
