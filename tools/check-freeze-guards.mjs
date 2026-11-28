@@ -129,21 +129,35 @@ for (const m of 返事待ち) {
     "🔴 囲まないと、スモーク等の**自動で回す対局がここで永久に止まる**（続き883 の実害）"
   );
 }
-const sm道 = "test/smoke.mjs";
-const sm = fs.readFileSync(sm道, "utf8").replace(/\r\n/g, "\n");
-const 呼び出し = [...sm.matchAll(/runCpuBattleSetup\(\{([^}]*)\}/g)];
-要る(
-  "スモークが runCpuBattleSetup を呼んでいる",
-  呼び出し.length > 0,
-  "🔴 呼び出しが見つからない＝下の行が『0しか出ない検査』になっている"
-);
-for (const m of 呼び出し) {
-  要る(
-    "スモークの呼び出しが askDeck: false を渡している",
-    /askDeck\s*:\s*false/.test(m[1]),
-    "🔴 渡さないと、人の返事を待つ所が増えた日に**また CI が止まる**（続き883）"
-  );
+// 🔴🔴 **自動で回す所は「スモーク」だけではない**（続き885 の実害）。
+//   続き884 でスモークだけ直したら、**同じ CI ジョブの中で先に走る**
+//   `tools/check-cpu-value.mjs` が同じ形で止まっていて、CI は緑にならなかった（#477 の家族）。
+//   ⇒ **ファイル名を名簿に書かず**、自動で回す置き場（test/ と tools/ と
+//      src/smoke-test-runner.js）を**歩いて全部数える**。新しく足した道具も自動で入る。
+const 自動の置き場 = [
+  ...fs.readdirSync("test").filter((f) => f.endsWith(".mjs")).map((f) => "test/" + f),
+  ...fs.readdirSync("tools").filter((f) => f.endsWith(".mjs")).map((f) => "tools/" + f),
+  "src/smoke-test-runner.js",
+];
+let 自動の呼び出し = 0;
+for (const 道 of 自動の置き場) {
+  if (!fs.existsSync(道)) continue;
+  if (道 === "tools/check-freeze-guards.mjs") continue; // この検査そのものの説明文
+  const t = fs.readFileSync(道, "utf8").replace(/\r\n/g, "\n");
+  for (const m of t.matchAll(/runCpuBattleSetup\(\{([^}]*)\}/g)) {
+    自動の呼び出し++;
+    要る(
+      道 + " の呼び出しが askDeck: false を渡している",
+      /askDeck\s*:\s*false/.test(m[1]),
+      "🔴 自動で回す対局は**誰も押さない**ので、人の返事を待つ所が増えた日にここで永久に止まる（続き883・885）"
+    );
+  }
 }
+要る(
+  "自動で回す呼び出しが見つかっている",
+  自動の呼び出し > 0,
+  "🔴 1件も見つからない＝上の行が『0しか出ない検査』になっている（数え方が壊れている）"
+);
 
 if (問題.length) {
   console.log("❌ 固まり防止の歯止めが外れている " + 問題.length + " 件");

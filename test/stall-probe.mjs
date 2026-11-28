@@ -118,7 +118,7 @@ async function playOne(page) {
     admin.setPseudoCpuModeEnabled?.(true);
     await cpu.startCpuBattle(count);
     admin.setPseudoCpuIncludeSelf?.(true);
-    await cpu.runCpuBattleSetup({ count });
+    await cpu.runCpuBattleSetup({ count, askDeck: false });
     admin.setPseudoCpuIncludeSelf?.(true);
     try { const os = await import("/src/opening-screen.js"); os.forceCloseOpeningScreen?.(); } catch (e) {}
   }, PLAYER_COUNT);

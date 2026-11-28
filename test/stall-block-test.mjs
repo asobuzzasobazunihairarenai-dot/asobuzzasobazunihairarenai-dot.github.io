@@ -25,7 +25,7 @@ await page.evaluate(async () => {
   admin.setPseudoCpuModeEnabled?.(true);
   await cpu.startCpuBattle(2);
   admin.setPseudoCpuIncludeSelf?.(true);
-  await cpu.runCpuBattleSetup({ count: 2 });
+  await cpu.runCpuBattleSetup({ count: 2, askDeck: false });
   admin.setPseudoCpuIncludeSelf?.(true);
   try { const os = await import("/src/opening-screen.js"); os.forceCloseOpeningScreen?.(); } catch(e){}
 });

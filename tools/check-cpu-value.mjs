@@ -94,7 +94,7 @@ try {
     // 🔴 本物の対局を立てる（`startCpuBattle` だけでは駒が1つも置かれない＝続き870 の教訓）。
     const cpu = await import("/src/cpu-battle.js");
     await cpu.startCpuBattle(2);
-    await cpu.runCpuBattleSetup({ count: 2 });
+    await cpu.runCpuBattleSetup({ count: 2, askDeck: false });
     await new Promise((x) => setTimeout(x, 2200));
     const st = await import("/src/state.js");
     const brain = await import("/src/cpu-brain.js");

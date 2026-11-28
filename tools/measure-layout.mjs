@@ -97,7 +97,7 @@ const SCREENS = {
   options: { label: "基本設定（オプション）", open: `document.getElementById("options-menu-button")?.click();`, root: "#options-menu-panel" },
   board: {
     label: "対局中の盤面（CPU戦4人）",
-    open: `const c = await import("/src/cpu-battle.js"); await c.startCpuBattle(4); await c.runCpuBattleSetup({ count: 4 });
+    open: `const c = await import("/src/cpu-battle.js"); await c.startCpuBattle(4); await c.runCpuBattleSetup({ count: 4, askDeck: false });
            try { const o = await import("/src/opening-screen.js"); o.forceCloseOpeningScreen?.(); } catch (e) {}`,
     root: "#phase-guide-bar",
     slow: true,

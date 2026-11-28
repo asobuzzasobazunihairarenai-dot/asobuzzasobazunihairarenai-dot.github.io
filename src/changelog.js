@@ -135,6 +135,9 @@ export const CHANGELOG = [
       "🔴 **直し: 印はもう在った。** `runCpuBattleSetup` の引数 `askDeck` の注に「スモークテスト（自己対戦）は**誰も押さないので false を渡す**」と #382 の時点で書いてあった。⇒ 新しい旗を作らず**聞く所をその印で囲み**（`askDeck && shouldOfferNoir(...)`）、スモークの2か所に `askDeck: false` を渡した。**教訓: 「人が答えられる対局か」の印は1つに保つ**（聞く所が増えるたびに旗を増やすと、どれかを必ず書き忘れる）。",
       "🔴 **検査に節を足した**（`check-freeze-guards` の D・固まり防止の歯止めと同じ家族なので道具は増やさない）: `runCpuBattleSetup` の中の人の返事待ちが `askDeck` で囲まれているか／スモークの呼び出しが**全部** `askDeck: false` を渡しているか／🔴 前提2つ（関数と呼び出しが在る＝**0しか出ない検査にしない**）。**A/B 3通りとも名指しで落ち**、2ファイルとも指紋で元に戻したことを照合した。",
       "⚠ 実測: **スモークが完走**（終了コード0・8ターン・PASS）。`scratchpad/_p883.mjs` は **OK 21**（続き883 の17項目＋**対照4本**: 誰も押さなくても配り終わる／聞くモーダルを出さない／ノワールにならない／例外0）。⚠ 測り方のミス（記録）: 対照の1行が「ノワールになっている」と出たが、**`page.evaluate` の返り値に約束を入れると `{}` になる**のが原因＝私の数え方。中で await する。",
+      "🔴🔴 **【続き885】続き884 は片方だけ直していた。** スモークは完走したのに CI の同じジョブが終わらず、数えたら `runCpuBattleSetup` を**人が居ない所から**呼ぶのは6か所あった——`tools/check-cpu-value.mjs` が `askDeck` を渡さず、しかも**CIの同じジョブでスモークより前**に走るので、**そこで止まっていた**（ほかに `test/stall-block-test.mjs` / `test/stall-probe.mjs` / `tools/measure-layout.mjs` も同じ形。`src/smoke-test-runner.js` は元から渡していた）。⇒ 4か所に `askDeck: false` を渡した。**教訓: 「ここだけ直した」と思った時は、同じ形の呼び出しを数える**（#477 の家族。スモークという名前に引きずられて、検査の中の自己対戦を見落とした）。",
+      "🔴 **検査の節Dを名簿を持たない形へ作り直した。** 続き884 の節Dは `test/smoke.mjs` だけを見ていたので**この実害をすり抜けた** ⇒ 自動で回す置き場（`test/` と `tools/` と `src/smoke-test-runner.js`）を**歩いて呼び出しを全部数える**形にした（新しく足した道具も自動で入る。1件も見つからなければ名指しで落ちる＝0しか出ない検査にしない）。⚠ 人が始める入口（ホーム・オープニング・対局後パネル・練習・物語戦）は**今までどおり渡さない**。",
+      "⚠ A/B: わざと `askDeck` を外すと `tools/check-cpu-value.mjs` は**100秒で切っても終わらない**（ふだんは40秒ほどで125枚とも例外0）＝**CIが緑にならなかった理由はこれ**と再現してから直した。検査も名指しで落ち、指紋で元に戻したことを照合。実測: 値踏みの検査が完走・スモークも完走（8ターン）・歯止めは **29点**（24→自動の呼び出し6件ぶん増）・`npm run check` 31本とも合格。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -188,6 +191,9 @@ export const CHANGELOG = [
       "The fix reused the existing askDeck flag, whose own comment already said automated self-play should pass false, instead of introducing a second flag.",
       "A section was added to the freeze-guard check so the same trap cannot be dug a third time, with three A/B breakages and fingerprint-verified restores.",
       "The smoke test now completes, and the measurement grew to twenty-one checks including four controls.",
+      "[Continuation 885] The previous fix only covered the smoke test; counting every automated caller found six, and the CPU-value check ran earlier in the same CI job without the flag, which is where the job was actually hanging. Four call sites were fixed.",
+      "The guard section was rewritten to walk the automated directories instead of naming one file, so newly added tools are covered automatically, while human entry points keep asking as before.",
+      "The hang was reproduced before fixing it: with the flag removed the CPU-value check does not finish within a hundred seconds, against about forty seconds normally.",
     ],
   },
   {
