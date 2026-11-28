@@ -6995,6 +6995,171 @@ export const CASES = [
     picks: { location: ["0,0"] },
     expect: [{ kind: "handUsable", value: true }],
   },
+
+  // ── 🔴【2026-11-28・続き882】新しい無色カード3枚 ─────────────────────────────
+  {
+    // 弱者に懐く箱猫（到達）「１枚ドロー。これを１番少なくロックしているプレイヤーの隣に裏向きで置く。」
+    name: "弱者に懐く箱猫: 1枚引いて、1番少なくロックしている人の隣に裏向きで置く",
+    kind: "arrival",
+    cardId: "new-white-cubit",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 1, col: 1 } },
+        { id: "self", kind: "card", cardId: "new-white-cubit", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // A は2枚ロック・C は0枚 ⇒ 1番少ないのは C（A=bottom）
+        { id: "lockA1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+        { id: "lockA2", kind: "card", cardId: "orange-mass-change", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-cubit", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 置き先は C の隣（1,1 の上下左右）。ここでは (1,2) を選ぶ。
+    picks: { player: ["C"], location: [{ zone: "cell", row: 1, col: 2 }] },
+    expect: [
+      { kind: "handCount", player: "A", n: 1 },                          // 1枚ドロー
+      { kind: "tokenAtCell", id: "self", row: 1, col: 2 },               // C の隣へ
+      // 🔴 マス→マスの移動は表裏を変えないので、裏に返しているかを必ず見る。
+      { kind: "tokenFaceDown", id: "self" },
+    ],
+  },
+  {
+    // 🔴 対照: 1番少ないのが**自分**なら自分の隣へ（カード文が「相手」と書いていない）。
+    name: "弱者に懐く箱猫: 対照 — 1番少ないのが自分なら自分の隣へ",
+    kind: "arrival",
+    cardId: "new-white-cubit",
+    state: {
+      activePlayers: ["A", "C"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceC", kind: "piece", player: "C", location: { zone: "cell", row: 1, col: 1 } },
+        { id: "self", kind: "card", cardId: "new-white-cubit", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "lockC1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "top", index: 0 } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-cubit", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { player: ["A"], location: [{ zone: "cell", row: 2, col: 3 }] },
+    expect: [{ kind: "tokenAtCell", id: "self", row: 2, col: 3 }],
+  },
+  {
+    // 志炎を募る白塔（到達・前半）「全員は、これの直下に自分の手札から表向きで１枚置いて、２枚ドローしてもよい。」
+    //
+    // 🔴 ここで測りたいのは「**直下**」の仕掛け: 置いた札が**塔の下**に入ること。
+    //   ⚠ 札を実際に置くのは**委任された本人**（engine ではない）で、テストの土台では
+    //     delegateToPlayer は**返事を返すだけのスタブ**＝札は動かない。
+    //   ⇒ 「本人が置いた直後」を作るため、**a1 を最初から塔の上に重ねて**置いておく。
+    //     engine がそのあと**塔を一番上へ戻す**なら、a1 は「直下」に入る＝それが本体。
+    name: "志炎を募る白塔: 置いた札は塔の**下**に入り、置いた人は2枚引く",
+    kind: "arrival",
+    cardId: "new-white-tower",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "new-white-tower", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        // 「本人が置いた直後」＝塔の上に乗っている状態（配列の後ろほど上）
+        { id: "a1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "a2", kind: "card", cardId: "orange-mass-change", location: { zone: "hand", player: "A" } },
+      ],
+      piles: { deck: ["yellow-gamble", "yellow-gamble", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-tower", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 委任は「置いた（true）」。ロックが0枚なので「壊すか」は聞かれない。
+    picks: { delegate: [true] },
+    expect: [
+      // 🔴 本体: 下→上 の並びが「置いた札 → 塔」＝塔が一番上に戻っている。
+      { kind: "cellStackOrder", row: 3, col: 3, cards: ["red-jump-pad", "new-white-tower"] },
+      { kind: "handCount", player: "A", n: 3 },   // 手札1枚 ＋ 2枚ドロー
+    ],
+  },
+  {
+    // 🔴 対照: 手札が1枚も無い人には**聞かない**（善処の原則）。
+    name: "志炎を募る白塔: 対照 — 手札が無ければ誰にも聞かない",
+    kind: "arrival",
+    cardId: "new-white-tower",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "new-white-tower", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["yellow-gamble", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-tower", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "called", fn: "delegateToPlayer", n: 0 },
+      { kind: "handCount", player: "A", n: 0 },
+    ],
+  },
+  {
+    // 志炎を募る白塔（到達・後半）「あなたのロックしているカードを１枚捨てるなら、これを捨てる。」
+    name: "志炎を募る白塔: ロックを1枚捨てれば塔が捨てられる",
+    kind: "arrival",
+    cardId: "new-white-tower",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "new-white-tower", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "lockA1", kind: "card", cardId: "red-jump-pad", faceUp: true, location: { zone: "lock", side: "bottom", index: 0 } },
+      ],
+      piles: { deck: ["yellow-gamble", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-tower", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    // 手札が0枚なので前半は誰にも聞かれない。後半で break-yes。
+    // ⚠ ロック札が1枚しかないので、どれを捨てるかは聞かれない（候補1つ）。
+    picks: { choice: ["break-yes"] },
+    expect: [
+      { kind: "tokenGone", id: "lockA1" },                                 // ロックを1枚捨てた
+      { kind: "tokenGone", id: "self" },                                   // 塔も捨てた
+      { kind: "pileContains", pile: "discard", cardId: "new-white-tower" },
+    ],
+  },
+  {
+    // 🔴 対照: ロックが1枚も無ければ**聞かない**（払えない約束を出さない＝#729 の家族）。
+    name: "志炎を募る白塔: 対照 — ロックが無ければ壊すかを聞かない",
+    kind: "arrival",
+    cardId: "new-white-tower",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "new-white-tower", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+      ],
+      piles: { deck: ["yellow-gamble", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-tower", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: {},
+    expect: [
+      { kind: "tokenAtCell", id: "self", row: 3, col: 3 }, // 塔は残る
+      { kind: "called", fn: "pickChoice", n: 0 },          // 1度も聞いていない
+    ],
+  },
+  {
+    // 惑う白龍の幼体（到達）「１マス強制移動する。」
+    // ⚠ 親（我忘れの白き龍）と違い**1枚ドローが無い**。そこが「幼体」の弱さ。
+    name: "惑う白龍の幼体: 到達は強制移動だけ（親と違ってドローしない）",
+    kind: "arrival",
+    cardId: "new-white-young-dragon",
+    state: {
+      activePlayers: ["A"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "new-white-young-dragon", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "c1", kind: "card", cardId: "red-jump-pad", faceUp: false, location: { zone: "cell", row: 2, col: 3 } },
+      ],
+      piles: { deck: ["yellow-gamble", "yellow-gamble"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "new-white-young-dragon", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { location: [{ zone: "cell", row: 2, col: 3 }] },
+    expect: [
+      { kind: "pieceAt", player: "A", row: 2, col: 3 }, // 1マス強制移動した
+      { kind: "handCount", player: "A", n: 0 },         // 🔴 引いていない（親との違い）
+    ],
+  },
 ];
 
 // -------------------- アサーション（純粋関数・Node/ブラウザ共通） --------------------

@@ -19,12 +19,14 @@ import { CARD_TEXT_OLD0TH_JA } from "./card-text-0th.ja.js";
 import { CARD_TEXT_OLD0TH_EN } from "./card-text-0th.en.js";
 import { CARD_TEXT_CF_JA } from "./card-text-cf.ja.js"; // 0thリメイクの限定カード（志炎者7枚・続き779）
 import { CARD_TEXT_CF_EN } from "./card-text-cf.en.js";
+import { CARD_TEXT_NEW_JA } from "./card-text-new.ja.js"; // 🔴【続き882】新しい無色カード3枚
+import { CARD_TEXT_NEW_EN } from "./card-text-new.en.js";
 
 // 🔴 0th拡張・1st EDITION・旧0th の文は**別ファイル**で持ち、ここで混ぜる。
 //   card-text.ja.js は tools/gen-card-text.mjs が「カード効果　テキスト.txt」から
 //   **丸ごと上書きして作る**ので、あちらに書き足すと次の生成で黙って消えるため。
-const JA = { ...CARD_TEXT_JA, ...CARD_TEXT_EX0_JA, ...CARD_TEXT_1ST_JA, ...CARD_TEXT_OLD0TH_JA, ...CARD_TEXT_CF_JA };
-const EN = { ...CARD_TEXT_EN, ...CARD_TEXT_EX0_EN, ...CARD_TEXT_1ST_EN, ...CARD_TEXT_OLD0TH_EN, ...CARD_TEXT_CF_EN };
+const JA = { ...CARD_TEXT_JA, ...CARD_TEXT_EX0_JA, ...CARD_TEXT_1ST_JA, ...CARD_TEXT_OLD0TH_JA, ...CARD_TEXT_CF_JA, ...CARD_TEXT_NEW_JA };
+const EN = { ...CARD_TEXT_EN, ...CARD_TEXT_EX0_EN, ...CARD_TEXT_1ST_EN, ...CARD_TEXT_OLD0TH_EN, ...CARD_TEXT_CF_EN, ...CARD_TEXT_NEW_EN };
 const LANGS = {
   ja: JA,
   en: EN,

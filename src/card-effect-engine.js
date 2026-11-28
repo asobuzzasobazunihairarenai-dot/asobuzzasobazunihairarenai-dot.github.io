@@ -5231,6 +5231,105 @@ async function runAction(action, ctx, helpers) {
     //    プレイヤーのいないマスにこれを表向きで置く。」
     //   ⚠ 「周囲」＝斜めも含む8マス。⚠ 「プレイヤーのいないマス」＝駒がいないマス。
     //   ⚠ カードが在るかは問わない（重ねて置ける）。
+    // 🔴【続き882】弱者に懐く箱猫（到達）。
+    //   「これを１番少なくロックしているプレイヤーの隣に裏向きで置く。」
+    //   ⚠ 「隣」＝前後左右の4マス（用語集。斜めを含む「周囲」とは別）。
+    //   ⚠ **裏向き**で置く（マスの既定が裏向きなので landFaceUp を渡さない）。
+    //   ⚠ カード文が「プレイヤーのいないマス」と書いていないので、**駒がいるマスも選べる**。
+    //   ⚠ 1番少ない人が複数いる時・置ける隣が複数ある時は、そのターンのプレイヤーが決める。
+    // 🔴【続き882】志炎を募る白塔（到達）の前半。
+    //   「全員は、これの直下に自分の手札から表向きで１枚置いて、２枚ドローしてもよい。」
+    //
+    //   🔴 **「直下に置く」に新しい state の操作は要らない。**
+    //     MOVE_TOKEN は「配列から取り除いて**末尾に足し直す**」作りで、末尾ほど手前（上）。
+    //     ⇒ ①その人の札をそのマスへ置く（いったん一番上になる）
+    //       ②**塔をもう一度同じマスへ動かす**（塔が末尾＝一番上へ戻る）
+    //     結果、置いた札は**塔のすぐ下**に入る。サーバー側のリデューサーも1行も要らない。
+    //   ⚠ 置くかどうか・どの札かは**その人自身**が決める（手札は非公開情報＝#471・#506）。
+    //   ⚠ 手札が1枚も無い人には聞かない（善処の原則・押せない約束を残さない＝#729）。
+    //   ⚠ 処理順は使用者から時計回り（処理順の原則）。
+    case VERBS.ALL_PLAYERS_MAY_PLACE_UNDER_AND_DRAW: {
+      const 塔 = getState().tokens.find((x) => x.id === ctx.cardTokenId);
+      if (!塔 || 塔.location.zone !== "cell") return false;
+      const row = 塔.location.row;
+      const col = 塔.location.col;
+      const 引く枚数 = Number(action.draw) > 0 ? Number(action.draw) : 2;
+      let 誰かした = false;
+      for (const p of rotatedActivePlayersFrom(ctx.player)) {
+        const 手札 = getState().tokens.filter(
+          (tk) => tk.kind === "card" && tk.location.player === p && (tk.location.zone === "hand" || tk.location.zone === "publicDraw")
+        );
+        if (手札.length === 0) continue;
+        const 置いた = await helpers.delegateToPlayer?.(p, "place-hand-card-at-cell", { row, col, faceUp: true, optional: true });
+        if (!置いた) continue;
+        // 塔を一番上へ戻す＝さっき置いた札が「直下」に入る。
+        const いま = getState().tokens.find((x) => x.id === ctx.cardTokenId);
+        if (いま && いま.location.zone === "cell") {
+          await helpers.moveAndSync(ctx.cardTokenId, { zone: "cell", row: いま.location.row, col: いま.location.col }, undefined, undefined, false, false, { landFaceUp: true });
+        }
+        await helpers.drawCards(p, 引く枚数);
+        誰かした = true;
+      }
+      return 誰かした;
+    }
+    // 🔴【続き882】志炎を募る白塔（到達）の後半。
+    //   「あなたのロックしているカードを１枚捨てるなら、これを捨てる。」
+    //   ⚠ **到達したプレイヤー**が選ぶ（ユーザー判断 2026-11-28）。任意。
+    //   ⚠ ロックが1枚も無ければ**聞かない**（払えない約束を出さない＝#729 の家族）。
+    //   ⚠ 捨てる順は「ロックを捨てる → 塔を捨てる」。逆にすると、ロックを選んでいる途中で
+    //     塔が消えて「何のために捨てているのか」が画面から消える。
+    case VERBS.MAY_DISCARD_LOCKED_TO_DISCARD_SELF: {
+      // 🔴 ロック札は `location.player` ではなく **`location.side`** で持っている
+      //   （DISCARD_ONE_LOCKED_CARD と同じ数え方。最初 player で見て、テストが捕まえた）。
+      // ⚠ ファースト／エターナルは他のカードの効果の対象にならないので数えない
+      //   （isTargetableToken。数えると「払えるはずなのに払えない」になる）。
+      const 側 = SEAT_TO_SIDE[ctx.player];
+      const ロック = getState().tokens.filter(
+        (tk) => tk.kind === "card" && tk.location.zone === "lock" && tk.location.side === 側 && isTargetableToken(tk)
+      );
+      if (ロック.length === 0) return false;
+      const 返事 = await helpers.pickChoice?.(
+        ctx.cardId,
+        [
+          // 🔴【続き882】id を yes/no にしない。**同じ札で2つの2択**（置くか／壊すか）が
+          //   あり、CPU の優先順（OPTION_RANK）は**カードごとに1つ**なので、
+          //   同じ id を使うと「置くのは得・壊すのは損」を**1つの表で両立できない**。
+          { id: "break-yes", label: t("ce.newTowerBreakYes"), usable: true },
+          { id: "break-no", label: t("ce.newTowerBreakNo"), usable: true },
+        ],
+        t("ce.newTowerBreakAsk")
+      );
+      if (返事 !== "break-yes") return false;
+      // ロックを1枚捨てる（既にある動詞をそのまま使う＝選び方・お知らせが1か所で済む）。
+      const 払えた = await runAction({ verb: VERBS.DISCARD_ONE_LOCKED_CARD }, ctx, helpers);
+      if (!払えた) return false;
+      await helpers.discardAndSync(ctx.cardTokenId);
+      return true;
+    }
+    case VERBS.PLACE_SELF_ADJACENT_TO_FEWEST_LOCKED: {
+      const 候補 = 最少ロックの候補();
+      if (候補.length === 0) return false;
+      const target = await helpers.pickPlayer(候補, t("ce.newPickFewestLocked"), { 駒で選ぶ: true });
+      if (!target) return false;
+      const piece = getState().tokens.find((tk) => tk.kind === "piece" && tk.player === target);
+      if (!piece || piece.location.zone !== "cell") return false;
+      const マス = [];
+      for (const { dr, dc } of DIRECTIONS) {
+        const row = piece.location.row + dr;
+        const col = piece.location.col + dc;
+        if (!inBounds(row, col)) continue;
+        マス.push({ zone: "cell", row, col });
+      }
+      if (マス.length === 0) return false; // 盤の端で隣が無い（善処の原則）
+      const dest = マス.length === 1 && !ctx.forcePrompt ? マス[0] : await helpers.pickLocation(マス, t("ce.newCubitPlace"), { purpose: "place" });
+      if (!dest) return false;
+      await helpers.moveAndSync(ctx.cardTokenId, dest);
+      // 🔴 **マス→マスの移動は表裏を変えない**（state.js の MOVE_TOKEN。表向きで到達した札は
+      //   移動しても表向きのまま）。この札は「**裏向きで置く**」と書いてあるので、裏に返す。
+      const 置いた = getState().tokens.find((x) => x.id === ctx.cardTokenId);
+      if (置いた && 置いた.faceUp) await helpers.flipCard?.(ctx.cardTokenId);
+      return true;
+    }
     case VERBS.PLACE_SELF_AROUND_MOST_LOCKED: {
       const 候補 = 最多ロックの候補();
       if (候補.length === 0) return false;

@@ -22,6 +22,8 @@ import {
 } from "./admin.js";
 import { optionLabel } from "./card-effects.js"; // UI英語化フェーズ11
 import { setThumbSrc } from "./image-thumbs.js"; // #505: 小さく出す絵は小さい版を貼る
+// 🔴【続き882】【色者】の表（どのカードが色者か・白黒の効果）。色者が2枚になったので決め打ちをやめた。
+import { hasShikijaDial, shikijaRuleOf } from "./shikija-dial.js";
 import { isAutoPaySingleExtraColorEnabled } from "./auto-pay-single-cost.js"; // #489
 import { logAction, initActionLogPanel, getActionLogText, getActionLogEntries } from "./action-log.js";
 import { initDeckViewer, openDeckViewer } from "./deck-viewer.js";
@@ -2843,7 +2845,7 @@ onEffectReasonEvents(({ fromPlayer, cardId, text, shikija }) => {
   //   走らせるのは1つのクライアントだけなので、ここで残さないと
   //   「自分の画面にだけ履歴が在る」という半端な形になる（#592 の家族）。
   //   ⚠ 色者の札に限る（他の効果のお知らせは今までどおりログに残さない）。
-  if (cardId === "ex0-white-dragon") {
+  if (hasShikijaDial(cardId)) {
     try { logAction("shikija", { player: fromPlayer, cardId, text }); } catch (err) {}
   }
   // 🔴【#728・続き791】円盤の演出も同じく渡す（渡さないと相手の画面では円盤が光らない）。
@@ -5185,6 +5187,16 @@ async function runPlaceHandCardAtCellTask(player, taskArg) {
     (t) => t.kind === "card" && t.location.player === player && (t.location.zone === "hand" || t.location.zone === "publicDraw")
   );
   if (handTokens.length === 0) return false; // 善処の原則: 置く札が無ければ何もしない
+  // 🔴【続き882】白塔は「**置いてもよい**」なので、断れるようにする（optional）。
+  //   ⚠ ピュアバーガーの道は1ミリも変えない（あちらは optional を渡さない＝必ず置く）。
+  if (taskArg?.optional) {
+    const 置く = await pickOptionForEffect("new-white-tower", [
+      { id: "place-yes", label: t("ce.newTowerPlaceYes"), usable: true },
+      { id: "place-no", label: t("ce.newTowerPlaceNo"), usable: true },
+    ], t("ce.newTowerPlaceAsk"));
+    const id = typeof 置く === "string" ? 置く : 置く?.id ?? null;
+    if (id !== "place-yes" || isDelegationExpired()) return false;
+  }
   const token = await requestHandCardChoiceForEffect(player, t("ce.ex0PlaceAtCell"), new Set(handTokens.map((tk) => tk.id)));
   if (!token || isDelegationExpired()) return false;
   // 🔴【#664・2026-11-15】ユーザー報告「**ピュアバーガーの到達効果でカード置くとき
@@ -5194,6 +5206,13 @@ async function runPlaceHandCardAtCellTask(player, taskArg) {
   //   ⇒ 本人に聞く（ユーザーの期待どおり）。
   //   ⚠ CPU・持ち時間切れの代行はモーダルを出さずに自動で選ぶ（pickOptionForEffect が
   //     isCpuSelectingNow を見ている）ので、自動の席は止まらない。
+  // 🔴【続き882】白塔は**表向きと決まっている**ので向きは聞かない（聞くと押せない選択肢になる）。
+  if (taskArg?.faceUp) {
+    await moveAndSyncForEffect(token.id, { zone: "cell", row, col });
+    const 置 = getState().tokens.find((tk) => tk.id === token.id);
+    if (置 && !置.faceUp) await flipToFaceUpForEffect(token.id);
+    return true;
+  }
   const 向き = await pickOptionForEffect("ex0-white-pure-burger", [
     { id: "face-up", label: t("ce.ex0PlaceFaceUp"), usable: true },
     { id: "face-down", label: t("ce.ex0PlaceFaceDown"), usable: true },
@@ -5372,11 +5391,45 @@ function rotateOffsetForSeat(dr, dc, seat) {
 // ⚠ この札が場に表向きで無い対局（＝リメイクだけの対局の全部）では**最初の1行で戻る**。
 // ⚠ 「他の色者カードが新たに場に出たときは、これを裏向きにする。」は、0th拡張に色者が
 //   **この1枚しか無い**ので起きない（将来増えたらここに足す）。
+
+// 🔴【2026-11-28・続き882】「**他の色者カードが新たに場に出たときは、これを裏向きにする**」。
+//   色者が1枚しか無かった間は起き得なかった決まりで、2枚目（惑う白龍の幼体）が来て初めて効く。
+//   ⇒ 表向きの色者が2枚以上在ったら、**いちばん新しい1枚だけ残して他を裏向きにする**。
+//   ⚠ 「いちばん新しい」＝`state.tokens` の**配列の後ろ**（このアプリの重なり順の決まり。
+//     動かした札は末尾へ足し直される＝#18 の MOVE_TOKEN）。
+//   ⚠ 当てる所は**ターン終了時（色者が動く直前）**。色者はターン終了時にしか働かないので、
+//     ここでそろえれば結果は同じ。出た瞬間に裏返す形にすると、札が表になる道が十数か所あり、
+//     そのどれか1つを取りこぼすと「2枚とも効く」という**気づけない**壊れ方になる。
+async function flipShikijaRivals() {
+  const 表の色者 = getState().tokens.filter(
+    (tk) => tk.kind === "card" && hasShikijaDial(tk.cardId) && tk.faceUp && tk.location.zone === "cell"
+  );
+  if (表の色者.length < 2) return;
+  const 残す = 表の色者[表の色者.length - 1];
+  for (const tk of 表の色者) {
+    if (tk.id === 残す.id) continue;
+    await flipToken(tk.id);
+    try {
+      logAction("shikija-rival", { cardId: tk.cardId, by: 残す.cardId });
+    } catch (err) {
+      /* 記録に失敗しても進める */
+    }
+    await announceEffectNoticeForEffect(残す.cardId, t("ce.shikijaRival", { card: cardDisplayName(tk.cardId) }));
+  }
+  render();
+}
 async function resolveShikijaAtTurnEnd(endedPlayer) {
+  // 🔴【続き882】**表向きの色者は常に1枚**（上の注）。動かす前にそろえる。
+  await flipShikijaRivals();
+  // 🔴【続き882】**色者は2枚になった**ので、決め打ちをやめて表（shikija-dial.js）から探す。
+  //   ⚠ 「他の色者カードが新たに場に出たときは、これを裏向きにする」＝**表向きは常に1枚**。
+  //     その裏向きにする所は flipShikijaRivals()（下）。ここは1枚しか見つからない前提でよい。
   const token = getState().tokens.find(
-    (tk) => tk.kind === "card" && tk.cardId === "ex0-white-dragon" && tk.faceUp && tk.location.zone === "cell"
+    (tk) => tk.kind === "card" && hasShikijaDial(tk.cardId) && tk.faceUp && tk.location.zone === "cell"
   );
   if (!token) return;
+  const 決まり = shikijaRuleOf(token.cardId);
+  if (!決まり) return;
   // 山札から1枚捨てる。
   // ⚠ 公開エリア（publicDraw）へ出す形は**採らなかった**——あのエリアは NEXT_TURN の中で
   //   手札へ合流する（state.js の mergePublicDrawIntoHand）ので、ターンの切り替わりで動く
@@ -5413,8 +5466,8 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   //   ⚠ 他の人の画面ぶんは、お知らせが既に全員へ届いているので**受け側で同じ1行を残す**
   //     （onEffectReasonEvents の中。新しい通信路もサーバーの変更も要らない）。
   const 色者のお知らせ = async (文, 演出 = null) => {
-    try { logAction("shikija", { player: endedPlayer ?? getState().turnPlayer, cardId: "ex0-white-dragon", text: 文 }); } catch (err) {}
-    await announceEffectNoticeForEffect("ex0-white-dragon", 文, 演出);
+    try { logAction("shikija", { player: endedPlayer ?? getState().turnPlayer, cardId: token.cardId, text: 文 }); } catch (err) {}
+    await announceEffectNoticeForEffect(token.cardId, 文, 演出);
   };
   // 🔴【#728・続き791】色の CSS 値。7色は変数から、無色は明暗で出し分ける
   //   （`--color-*` を決め打ちで写さない＝表を2か所に持たない）。
@@ -5494,24 +5547,30 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
     return Math.abs(piece.location.row - here.row) + Math.abs(piece.location.col - here.col) <= 3;
   });
   if (color === "white" && 近い人.length > 0) {
-    for (const p of 近い人) await drawCardsForEffect(p, 2);
+    // 🔴【続き882】枚数は**カードごと**（親は2枚・幼体は1枚）。表は shikija-dial.js。
+    for (const p of 近い人) await drawCardsForEffect(p, Number(決まり.白?.n) || 1);
     // 🔴 第4拍「色が届く」。札から**ちょうど3マスぶん**の輪が広がり、範囲の駒が光る。
     //   ⚠ 「誰に効いたのか」は今まで画面に1つも出ていなかった。
-    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaWhite"), {
+    await announceEffectNoticeForEffect(token.cardId, t("ce.ex0ShikijaWhite"), {
       color: 色のCSS(color),
       ring: { row: here.row, col: here.col },
       touched: 近い人,
       touchKind: "up",
     });
   } else if (color === "black" && 近い人.length > 0) {
+    // 🔴【続き882】**すべて捨てる（親）か、半分捨てる（幼体）か**はカードごと。
+    //   ⚠ 「半分」は端数切り捨て（選べる罠の DISCARD_HALF_HAND と同じ数え方）。
+    //   ⚠ 捨てる札は**その人自身**が選べない（色者は相手の意思を挟まない効果なので、
+    //     ここは今までどおり engine を通さず main.js が順に捨てる）。半分の時は手札の後ろから。
     for (const p of 近い人) {
       const hand = getState().tokens.filter(
         (tk) => tk.kind === "card" && tk.location.player === p && (tk.location.zone === "hand" || tk.location.zone === "publicDraw")
       );
-      for (const tk of hand) await discardFromHandReveal(tk.id);
+      const 枚 = 決まり.黒?.kind === "discardHalf" ? Math.floor(hand.length / 2) : hand.length;
+      for (const tk of hand.slice(0, 枚)) await discardFromHandReveal(tk.id);
     }
     // 第4拍（黒）＝下へ沈む暗い波。
-    await announceEffectNoticeForEffect("ex0-white-dragon", t("ce.ex0ShikijaBlack"), {
+    await announceEffectNoticeForEffect(token.cardId, t("ce.ex0ShikijaBlack"), {
       color: 色のCSS(color),
       ring: { row: here.row, col: here.col },
       touched: 近い人,

@@ -4,6 +4,7 @@ import { EX0_NORMAL_CARDS } from "./cards-data-ex0.js"; // 0th拡張の33種
 import { FIRST_ED_NORMAL_CARDS, FIRST_ED_ETERNAL_CARDS, FIRST_ED_FIRST_CARDS } from "./cards-data-1st.js"; // 1st EDITION の19種＋E7種＋F7種
 import { OLD0TH_NORMAL_CARDS } from "./cards-data-0th.js"; // 旧0th EDITION の19種（E・Fはリメイクのものを使う）
 import { CF_NORMAL_CARDS } from "./cards-data-cf.js"; // 0thリメイクの限定カード（志炎者7枚・拡張カード／限定報酬）
+import { NEW_NORMAL_CARDS } from "./cards-data-new.js"; // 🔴【続き882】新しい無色カード3枚（いまは「リメイク＋志炎者」の山札だけ）
 import { getCardSet, CARD_SETS } from "./card-set.js"; // どのセットで山札を組むか
 import { buildMixedNormalCards } from "./mixed-deck.js";
 import { isMyStackActive, getMyStackRecipe, buildMyStackNormalCards } from "./my-stack.js"; // マイ山札（続き725） // 「まぜる」を通常のエディションと同じ枚数で組む
@@ -183,6 +184,7 @@ export const NOIR_FIRST_CARD = {
 //   （オンラインで相手が0th拡張のカードを出した時に、こちらが引けないと描けない）。
 const ALL_CARDS = [
   ...NORMAL_CARDS, ...EX0_NORMAL_CARDS, ...FIRST_ED_NORMAL_CARDS, ...OLD0TH_NORMAL_CARDS, ...CF_NORMAL_CARDS,
+  ...NEW_NORMAL_CARDS,
   ...ETERNAL_CARDS, ...FIRST_ED_ETERNAL_CARDS,
   ...FIRST_CARDS, ...FIRST_ED_FIRST_CARDS, ...BOOST_BLANK_FIRST_CARDS, NOIR_FIRST_CARD,
 ];
@@ -249,7 +251,21 @@ function 標準の山札() {
   //     片方だけ直すと、CPU戦とオンラインのフレンドリーマッチで山札が食い違う
   //     （続き840 で旧0thがまさにそうなっていた）。`check-cards` が両方を照合する。
   if (set === CARD_SETS.REMAKE_CF) {
-    return [...NORMAL_CARDS, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 2 }))];
+    // 🔴【続き882】ユーザー指示 2026-11-28: **新しい無色カード3枚をここへ混ぜる**。
+    //   112枚に収めるため、同じ山札から抜くもの（ユーザー指示そのまま）:
+    //     ・なないろの巨光(2) ／ 色落ちキャット(1) ／ 誘惑の黒の烙印(2)  … 計5枚
+    //     ・**7色とも2枚ずつ**（志炎者を2枚ずつ入れた14枚ぶんの相殺）… 計14枚
+    //   ⚠ 各色は2種あるので、**どちらも1枚ずつ**減らす（7→6・7→6）。片方だけ2枚減らすと
+    //     その札だけ薄くなる。
+    //   ⚠ 結果この山札には**黒が1枚も入らない**（抜いた3枚が黒と巨光だったため）。
+    //   算数: 7色 6×2×7=84 ＋ 虹7 ＋ 白(覚醒2＋幼体1＋箱猫1＋白塔3)=7 ＋ 志炎者14 ＝ **112**。
+    //   🔴 **サーバー（so7-apply-action.ts）にも同じ山札が要る**（check-cards が照合する）。
+    const 抜く = new Set(["white-radiance", "black-faded-cat", "black-contract-brand"]);
+    const 色を減らす = new Set(["red", "orange", "yellow", "green", "blue", "pink", "purple"]);
+    const 土台 = NORMAL_CARDS.filter((c) => !抜く.has(c.id)).map((c) =>
+      色を減らす.has(c.color) ? { ...c, count: (c.count ?? 1) - 1 } : { ...c }
+    );
+    return [...土台, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 2 })), ...NEW_NORMAL_CARDS.map((c) => ({ ...c }))];
   }
   return NORMAL_CARDS;
 }
@@ -328,7 +344,7 @@ export function hasNoPrintedFace(cardId) {
   //   `assets/cards/cf-*.webp` を取りに行って **404** になっていた
   //   （マイデッキ編集に並べた実測で出た。山札一覧・霧散演出・飛翔ゴーストでも同じ）。
   return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("0th-")
-    || cardId.startsWith("cf-")
+    || cardId.startsWith("cf-") || cardId.startsWith("new-")
     || cardId.startsWith("eternal-1st-") || cardId.startsWith("first-1st-");
 }
 

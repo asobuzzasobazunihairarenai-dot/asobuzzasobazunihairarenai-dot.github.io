@@ -1,4 +1,4 @@
-// 色者の円盤（移動先表示）の**唯一の持ち主**。
+// 色者の円盤（移動先表示）と、**どのカードが【色者】か**の唯一の持ち主。
 //
 // ■ これは何か
 //   【色者】のカードは、各プレイヤーのターン終了時に山札から1枚捨て、その色（捨色）の
@@ -20,9 +20,28 @@
 
 export const SHIKIJA_DIAL_SRC = "assets/icons/shikija-dial.svg";
 
-// 円盤が描かれているカード（＝【色者】を持つカード）。増えたらここに足す。
-export const CARDS_WITH_SHIKIJA_DIAL = new Set(["ex0-white-dragon"]);
+// 🔴【2026-11-28・続き882】**色者は2枚になった。**
+//   それまで main.js が `"ex0-white-dragon"` を**5か所で決め打ち**していた（あのファイルの
+//   注にも「将来増えたらここに足す」と書いてあった）。⇒ 表にして、こちらを唯一の持ち主にする。
+//
+//   ・白／黒の効果は**カードごとに違う**（親は2枚ドロー／すべて捨てる、幼体は1枚／半分）。
+//   ・`範囲` はマンハッタン距離（＝移動の距離）。どちらも3マス。
+//   ⚠ **増やす時はここだけに足す。** 円盤の絵・動きの表（main.js の SHIKIJA_DIRS）・
+//     お知らせの文（ce.ex0Shikija*）は全部の色者で共有している。
+export const SHIKIJA_CARDS = {
+  "ex0-white-dragon": { 範囲: 3, 白: { kind: "draw", n: 2 }, 黒: { kind: "discardAll" } },
+  // 🔴 我忘れの白き龍の**幼い姿**。親より効果が小さい（2枚→1枚／すべて→半分）。
+  "new-white-young-dragon": { 範囲: 3, 白: { kind: "draw", n: 1 }, 黒: { kind: "discardHalf" } },
+};
+
+// 円盤が描かれているカード（＝【色者】を持つカード）。
+export const CARDS_WITH_SHIKIJA_DIAL = new Set(Object.keys(SHIKIJA_CARDS));
 
 export function hasShikijaDial(cardId) {
   return CARDS_WITH_SHIKIJA_DIAL.has(cardId);
+}
+
+// その札の【色者】の決まり（持っていなければ null）。
+export function shikijaRuleOf(cardId) {
+  return SHIKIJA_CARDS[cardId] || null;
 }

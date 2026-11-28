@@ -44,7 +44,11 @@
 //   そのぶん円盤を大きくできる（本物と同じ 28.3%）。
 //   ⚠ このリストに足すだけでは駄目。**その枠を `--no-colorname` で焼き直す**こと
 //     （`tools/ex0-cards.mjs` の `noColorName: true`）。でないと色名が二重になる。
-export const CARDS_WITH_TYPESET_COLOR_NAME = new Set(["ex0-white-dragon"]);
+// 🔴【続き882】惑う白龍の幼体も**色者**なので、親と同じ見せ方にそろえた
+//   （枠の色名を抜いて組版で置く＝円盤の下に WHITE / ONLY が並ぶ）。
+//   ⚠ **焼く側（tools/make-new-art.mjs の noColorName）と対で直すこと。**
+//     片方だけだと色名が消えるか二重になる（続き774 の申し送り）。
+export const CARDS_WITH_TYPESET_COLOR_NAME = new Set(["ex0-white-dragon", "new-white-young-dragon"]);
 
 export const COLOR_WORD = {
   red: "RED", orange: "ORANGE", yellow: "YELLOW", green: "GREEN",

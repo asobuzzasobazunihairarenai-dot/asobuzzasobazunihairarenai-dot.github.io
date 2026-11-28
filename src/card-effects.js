@@ -155,6 +155,16 @@ export const VERBS = {
   // 旧0th・誰かの好きな花(手札): 1番多くロックしている人を1人選び、その人の**周囲**の
   //   駒のいないマスへ、これを表向きで置く。
   PLACE_SELF_AROUND_MOST_LOCKED: "place_self_around_most_locked",
+  // 🔴【続き882】弱者に懐く箱猫: 1番**少なく**ロックしているプレイヤーの**隣**（前後左右の4マス）に
+  //   これを**裏向き**で置く。上の PLACE_SELF_AROUND_MOST_LOCKED の裏返しだが、
+  //   ⚠ あちらは「周囲（8マス）・プレイヤーのいないマス・表向き」で、**3つとも違う**。
+  PLACE_SELF_ADJACENT_TO_FEWEST_LOCKED: "place_self_adjacent_to_fewest_locked",
+  // 🔴【続き882】志炎を募る白塔: 「全員は、これの**直下**に自分の手札から表向きで１枚置いて、
+  //   ２枚ドローしてもよい。」⚠ 「直下」＝**同じマスの、この札のすぐ下**（ユーザー判断）。
+  ALL_PLAYERS_MAY_PLACE_UNDER_AND_DRAW: "all_players_may_place_under_and_draw",
+  // 🔴【続き882】志炎を募る白塔: 「あなたのロックしているカードを１枚捨てるなら、これを捨てる。」
+  //   ＝塔を壊す代金。壊すと下に積み上がった札が表に出る（＝到達の連鎖が動き出す）。
+  MAY_DISCARD_LOCKED_TO_DISCARD_SELF: "may_discard_locked_to_discard_self",
   // 旧0th・にじいろの呪い(手札): 1番多くロックしている人を1人選び、**その人の**空いている
   //   ロックエリアへこれを表向きで置く（＝その人が上記の到達効果を得る）。
   MOST_LOCKED_GAINS_LOCK_PLACEMENT: "most_locked_gains_lock_placement",
@@ -1262,6 +1272,89 @@ export const CARD_EFFECTS = {
   //   到達: 「１枚ドロー。１マス強制移動する。」（補足「これに到達しても、これをあなたの
   //         手札に加えない。」＝ addsCardToHandAfter: false ＋ hideNoHandNote）
   //   手札: 「これを任意のマスに表向きで置く。」
+
+  // ── 🔴【2026-11-28・続き882】新しい無色カード3枚 ──────────────────────────
+  //   ユーザーから文章で届いた新作。経緯は src/cards-data-new.js の冒頭。
+
+  // 惑う白龍の幼体（白・ONLY・1枚）: **2枚目の【色者】**。
+  //   ⚠ 【色者】そのものは効果データではなく main.js の resolveShikijaAtTurnEnd が回す
+  //     （ターン終了時に働くので、到達・手札効果の仕組みには乗らない）。白黒の中身は
+  //     src/shikija-dial.js の表。ここに書くのは到達と手札効果だけ。
+  //   ⚠ 到達は親（我忘れの白き龍）から**1枚ドローが無い**＝強制移動だけ。
+  //   ⚠ `addsCardToHandAfter: false`＝「これに到達しても、これをあなたの手札に加えない」。
+  "new-white-young-dragon": {
+    arrival: {
+      addsCardToHandAfter: false,
+      hideNoHandNote: true,
+      actions: [{ verb: VERBS.FORCED_MOVE, count: 1 }],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
+  // 弱者に懐く箱猫（白・ONLY・1枚）
+  //   到達「１枚ドロー。これを１番少なくロックしているプレイヤーの隣に裏向きで置く。」
+  //   ⚠ これ自身を置くので `addsCardToHandAfter: false`（手札に加えない）。
+  "new-white-cubit": {
+    arrival: {
+      addsCardToHandAfter: false,
+      hideNoHandNote: true,
+      actions: [
+        { verb: VERBS.DRAW, count: 1 },
+        { verb: VERBS.PLACE_SELF_ADJACENT_TO_FEWEST_LOCKED },
+      ],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
+  // 志炎を募る白塔（白・3枚）
+  //   到達「これをあなたの手札に加えない。全員は、これの直下に自分の手札から表向きで１枚
+  //        置いて、２枚ドローしてもよい。あなたのロックしているカードを１枚捨てるなら、これを捨てる。」
+  //   ⚠ 2つの行は**順番どおり**（置かせてから、壊すかを聞く）。先に壊すと置く所が消える。
+  "new-white-tower": {
+    arrival: {
+      addsCardToHandAfter: false,
+      hideNoHandNote: true,
+      actions: [
+        { verb: VERBS.ALL_PLAYERS_MAY_PLACE_UNDER_AND_DRAW, draw: 2 },
+        { verb: VERBS.MAY_DISCARD_LOCKED_TO_DISCARD_SELF },
+      ],
+    },
+    handEffect: {
+      keepsCardOnUse: true,
+      actions: [
+        {
+          verb: VERBS.PLACE_CARD,
+          source: "self",
+          faceUp: true,
+          count: 1,
+          destination: { selection: TARGET_SELECTIONS.CHOOSE },
+        },
+      ],
+    },
+  },
+
   "ex0-white-dragon": {
     arrival: {
       addsCardToHandAfter: false,

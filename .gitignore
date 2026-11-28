@@ -16,6 +16,8 @@
 /.ex0-tmp/
 /.1st-tmp/
 /.0th-tmp/
+/.cf-tmp/
+/.new-tmp/
 
 # テストのログ（実行のたびに増える。共有する必要は無い）
 /test-logs/

@@ -192,6 +192,15 @@ const CF_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
   { id: "cf-purple-favilla", color: "purple", count: 7 },
 ];
 
+// 🔴🔴【続き882】**新しい無色カード3枚の写し**（正は src/cards-data-new.js）。
+//   ユーザーから 2026-11-28 に届いた新作。いまは `remake+cf`（リメイク＋志炎者）の
+//   山札にだけ混ざる。⚠ 片方だけ直すと CPU戦とオンラインで山札が食い違う。
+const NEW_NORMAL_CARDS: { id: string; color: string; count: number }[] = [
+  { id: "new-white-young-dragon", color: "white", count: 1 },
+  { id: "new-white-cubit", color: "white", count: 1 },
+  { id: "new-white-tower", color: "white", count: 3 },
+];
+
 // どのカードセットで山札を組むか。クライアント（src/card-set.js）と同じ文字列。
 // 「まぜる」の山札を、通常のエディションと同じ内訳（7色×14枚・虹7・白4・黒3＝112枚）で組む。
 // 🔴【続き840】混ぜる相手は **リメイク＋0th拡張＋1st＋旧0th の4セット**（ユーザー指示
@@ -279,7 +288,15 @@ function deckPoolForCardSet(cardSet: unknown): { id: string; color: string; coun
   //   ⚠ クライアントは src/cards-data.js の同じ枝。**枚数も同じ 2** でなければ、
   //     CPU戦とオンラインで山札の中身が食い違う。
   if (cardSet === "remake+cf") {
-    return [...NORMAL_CARDS, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 2 }))];
+    // 🔴【続き882】新しい無色カード3枚を混ぜ、そのぶん抜く（ユーザー指示 2026-11-28）。
+    //   抜くもの: なないろの巨光(2)／色落ちキャット(1)／誘惑の黒の烙印(2)／**7色とも2枚ずつ**。
+    //   ⚠ 各色は2種あるので**どちらも1枚ずつ**減らす。算数は src/cards-data.js の同じ枝に書いた。
+    const 抜く = new Set(["white-radiance", "black-faded-cat", "black-contract-brand"]);
+    const 色を減らす = new Set(["red", "orange", "yellow", "green", "blue", "pink", "purple"]);
+    const 土台 = NORMAL_CARDS.filter((c) => !抜く.has(c.id)).map((c) =>
+      色を減らす.has(c.color) ? { ...c, count: (c.count ?? 1) - 1 } : { ...c }
+    );
+    return [...土台, ...CF_NORMAL_CARDS.map((c) => ({ ...c, count: 2 })), ...NEW_NORMAL_CARDS.map((c) => ({ ...c }))];
   }
   return NORMAL_CARDS; // 既定（知らない値が来た時もここ＝安全側）
 }

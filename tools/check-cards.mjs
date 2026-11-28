@@ -110,12 +110,20 @@ const cfIdsForKnown = (() => {
     return [];
   }
 })();
+const newIdsForKnown = (() => {
+  try {
+    return [...read("src/cards-data-new.js").matchAll(/\{\s*\n?\s*id:\s*"(new-[a-z0-9-]+)"/g)].map((m) => m[1]);
+  } catch (e) {
+    return [];
+  }
+})();
 const known = new Set([
   ...cards.map((c) => c.id),
   ...ex0Ids,
   ...firstEdIds,
   ...firstEdTextIds,
   ...old0thIdsForKnown,
+  ...newIdsForKnown, // 🔴【続き882】新しい無色カード3枚
   ...cfIdsForKnown,
 ]);
 for (const [label, ids] of [["効果データ", effectIds], ["日本語の文", jaIds], ["英語の文", enIds]]) {
@@ -463,6 +471,7 @@ if (firstEdSrc) {
     "src/cards-data-ex0.js",
     "src/cards-data-0th.js",
     "src/cards-data-cf.js",
+    "src/cards-data-new.js", // 🔴【続き882】新しい無色カード3枚
   ]) {
     let src = null;
     try {
