@@ -1,0 +1,104 @@
+{
+  "_注": [
+    "旧0th EDITION 19種の効果文（英語）。cardId が鍵。tools/gen-0th-text.mjs が読む。",
+    "🔴 用語は src/card-text.en.js の頭にある対応表に合わせること（自分で言い方を発明しない）。",
+    "⚠ 隣・周囲はどちらも adjacent（リメイクの英語がそう訳してある）。",
+    "⚠ E・F・なないろの欠片はリメイクのものを使うので、ここには無い。"
+  ],
+  "0th-red-dash": {
+    "arrival": "Move 1 space.",
+    "hand": "If you made a normal move this turn, move 1 space.",
+    "flavor": "You can look for your reason to run after you have started running."
+  },
+  "0th-red-counterattack": {
+    "arrival": "If you have the fewest cards in hand, draw 2 cards and discard 1 card from your hand.",
+    "hand": "Usable when contact is declared against you. Nullify that contact. You make contact with that opponent.",
+    "flavor": "I knew you would come. (the one who waited)"
+  },
+  "0th-orange-force": {
+    "arrival": "Add 1 card adjacent to you to your hand.",
+    "hand": "【Color Cost 1】Choose 1 opponent. Move that opponent to any space with a card on it.",
+    "flavor": "A current no one can resist is what people call fate."
+  },
+  "0th-orange-lost-item": {
+    "arrival": "Draw 1 card.",
+    "hand": "Choose 1 opponent. Place this face-down on that opponent's Gate. Draw 1 card.",
+    "flavor": "This is yours, is it not? (a parcel belonging to no one)"
+  },
+  "0th-yellow-steal": {
+    "arrival": "Choose 1 player who has locked the most. Add 1 card at random from that player's hand to your hand.",
+    "hand": "Gain the Arrival Effect above.",
+    "flavor": "To stand out is, in itself, to leave an opening."
+  },
+  "0th-yellow-thunder": {
+    "arrival": "You are forced to move to your Gate; do not flip the card on the destination face-up.",
+    "hand": "Discard all cards on any 1 space.",
+    "flavor": "By the time the sound arrives, everything is already over."
+  },
+  "0th-green-peoples-road": {
+    "arrival": "Place 1 card face-down from the deck on each of any 5 spaces with no card.",
+    "hand": "Choose 2 face-down cards on any 2 spaces that are not adjacent to an opponent. Place those 2 cards, still face-down, on any 2 spaces with no card.",
+    "flavor": "Join this, and everyone can walk it. (a nameless mason)"
+  },
+  "0th-green-rich-whim": {
+    "arrival": "Each player with 3 or more cards in hand places 1 card from their hand face-down on any space with no card. A card that could not be placed is discarded.",
+    "hand": "Gain the Arrival Effect above.",
+    "flavor": "Let those with the most to spare be the first to let go."
+  },
+  "0th-blue-greedy-bridge": {
+    "arrival": "Gain one of the following effects:\n・Discard 1 card from your hand.\n・You are forced to move to the space you were on before moving; do not flip the card on the destination face-up.",
+    "hand": "Place this face-down on any space that is not adjacent to you. Choose 1 card from the cards adjacent to that space and place it directly beneath this.",
+    "flavor": "A bridge joins both banks, but only for those ready to cross."
+  },
+  "0th-blue-set-trap": {
+    "arrival": "Discard half of your hand.",
+    "hand": "Place this face-down on any space that is not adjacent to you. Choose 1 card from the cards adjacent to that space and discard it.",
+    "flavor": "In time, even the one who set it forgets his own trap."
+  },
+  "0th-pink-disclosure": {
+    "arrival": "Flip the cards on the center and the four corners of the field face-up. If there is no card to flip, flip the card on any 1 space face-up.",
+    "hand": "Draw 2 cards and reveal them. Their hand effects cannot be used this turn.",
+    "flavor": "To disclose and to expose are only a hair apart."
+  },
+  "0th-pink-favorite-flower": {
+    "arrival": "Choose 1 opponent. Add this to that opponent's hand. If this was flipped face-up this turn, draw 1 card.",
+    "hand": "Choose 1 player who has locked the most. Place this face-up on a space with no player adjacent to that player. Draw 1 card.",
+    "flavor": "This is your favorite color, is it not?"
+  },
+  "0th-purple-wait": {
+    "arrival": "Add this to your hand. You are forced to move to the space you were on before moving; do not flip the card on the destination face-up. Move 1 space.",
+    "hand": "【Color Cost 1】Usable when an opponent declares their final lock. Discard the card that opponent was going to lock. That opponent cannot lock this turn.",
+    "flavor": "It is not over yet. I will not let it end."
+  },
+  "0th-purple-apocalypse": {
+    "arrival": "Place 1 card from your hand face-down on any space adjacent to you.",
+    "hand": "Declare 2 colors. Draw 1 card and reveal it. If that card is a declared color, repeat from the beginning.",
+    "flavor": "I can see the color that comes next. (the Prophet)"
+  },
+  "0th-white-colorful-hole": {
+    "arrival": "Add all cards on any 1 space to your hand.",
+    "hand": "Choose 1 player who has locked the most. That player chooses 1 of their locked cards, and you add it to your hand.",
+    "flavor": "A bottomless hole swallows every color there is."
+  },
+  "0th-white-rainbow-rain": {
+    "arrival": "Place 1 card face-down from the deck on every space with no card.",
+    "hand": "Choose any 1 row or column of the field (7 spaces). Place 1 card face-down from the deck on each space in that line.",
+    "flavor": "The day the seven-colored rain fell, the world was leveled just once."
+  },
+  "0th-black-faded-frog": {
+    "arrival": "Each player discards their entire hand. Choose 1 player who has locked the fewest. Add this to that player's hand.",
+    "hand": "Each player who has locked the most chooses 1 of their locked cards and discards it. Discard your entire hand.",
+    "flavor": "I can no longer remember what color it was."
+  },
+  "0th-black-greedy-palette": {
+    "arrival": "Discard your entire hand.",
+    "hand": "Usable at any time. Declare 1 color. Each opponent gains one of the following effects:\n・Choose 1 card of the declared color from their hand and add it to your hand.\n・Discard 3 cards from their hand.",
+    "flavor": "Every color is mine. (the Greedy Palette)"
+  },
+  "0th-black-rainbow-curse": {
+    "basic": "Locking onto the Lock Area where this is placed requires 2 or more cards of that color (only 1 card may be placed there per turn during the Lock Phase). If you lock there, place this face-down on any space.",
+    "arrival": "Place this face-up on an empty Lock Area of yours.",
+    "hand": "Choose 1 player who has locked the most. That player gains the Arrival Effect above.",
+    "flavor": "Misfortune makes a powerful weapon."
+  }
+}

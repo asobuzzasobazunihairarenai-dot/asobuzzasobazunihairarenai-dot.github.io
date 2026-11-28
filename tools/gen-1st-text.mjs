@@ -35,6 +35,9 @@ if (!fs.existsSync(SRC)) {
   process.exit(2);
 }
 const 元 = JSON.parse(fs.readFileSync(SRC, "utf8"));
+// 🔴【続き898】英語の効果文（cardId が鍵）。無ければ空＝今までどおり日本語のまま出る。
+const EN_SRC = path.join(ROOT, "tools/1st-text-en.json");
+const EN = fs.existsSync(EN_SRC) ? JSON.parse(fs.readFileSync(EN_SRC, "utf8")) : {};
 
 // 🔴 空振りを合格にしない: 表に在るカードの文が1つでも欠けていたら止める（Fカードも含めて確かめる）。
 const 欠け = FIRST_ED_CARDS.filter((c) => !元[c.id]).map((c) => c.id);
@@ -61,9 +64,16 @@ for (const c of FIRST_ED_CARDS) {
     "  " + J(c.id) + ": { flavor: " + J(t.flavor || "") + ", titleRuby: " + J(t.titleRuby || "") + ", basic: " + J(t.basic || "") +
     ", subtitle: " + J(t.subtitle || "") + ", arrival: " + J(t.arrival || "") + ", hand: " + J(t.hand || "") + " },"
   );
+  // 🔴【続き898】効果文の英語を出す。それまで**名前だけ**で、効果文は空＝英語で遊んでいる人には
+  //   **日本語のまま**出ていた（card-text.js の設計で、空の欄は日本語に落ちる）。
+  //   ⚠ 文の出どころは tools/1st-text-en.json（cardId が鍵）。
+  //   ⚠ 用語は src/card-text.en.js の頭の対応表に合わせること（財力=Wealth・【状況】=【Situation】）。
+  const e = EN[c.id] || {};
+  if (!EN[c.id]) 問題.push("英語の効果文が無い: " + c.id + "（tools/1st-text-en.json）");
   en.push(
     "  " + J(c.id) + ": { name: " + J(FIRST_ED_NAME_EN[c.id]) +
-    ", flavor: \"\", basic: \"\", subtitle: \"\", arrival: \"\", hand: \"\" },"
+    ", flavor: " + J(e.flavor ?? "") + ", basic: " + J(e.basic ?? "") +
+    ", subtitle: " + J(e.subtitle ?? "") + ", arrival: " + J(e.arrival ?? "") + ", hand: " + J(e.hand ?? "") + " },"
   );
   // 🔴【続き783】**カードの補足**。旧0th（gen-0th-text.mjs）と同じ決まり:
   //   出どころの notes のうち**「補足:」で始まる行だけ**を採る。
@@ -158,7 +168,7 @@ fs.writeFileSync(
 
 console.log("✅ 書き出した:");
 console.log("   src/card-text-1st.ja.js   " + ja.length + " 種（通常19＋E7＋F7）");
-console.log("   src/card-text-1st.en.js   " + en.length + " 種（名前だけ）");
+console.log("   src/card-text-1st.en.js   " + en.length + " 種（名前と効果文）");
 console.log("   src/cards-data-1st.js     通常 " + data.length + " 種 / 合計 " +
   data.reduce((a, s) => a + Number(s.match(/count: (\d+)/)[1]), 0) + " 枚（＋虹7枚で112枚）" +
   "、E " + eternalData.length + " 種、F " + firstData.length + " 種");

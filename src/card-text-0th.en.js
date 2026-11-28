@@ -1,26 +1,26 @@
 // 旧0th EDITION のカード面テキスト（英語）。card-text-0th.ja.js と同じ cardId キー。
 //
-// ⚠ いまは**カード名だけ**。効果文は空にしてある。card-text.js は空のフィールドを
-//   日本語で出す作りなので、英語表示でも「名前は英語・効果文は日本語」で崩れない。
-//   訳せたら tools/gen-0th-text.mjs に足して作り直す。**手で直さない。**
+// 🔴【続き898】**名前と効果文の両方**が入っている（それまでは名前だけで、英語で遊ぶ人には
+//   効果文が日本語のまま出ていた＝報告 #880 の家族）。文の出どころは tools/0th-text-en.json。
+//   ⚠ 用語は src/card-text.en.js の頭の対応表に合わせること。**手で直さない。**
 export const CARD_TEXT_OLD0TH_EN = {
-  "0th-red-dash": { name: "Dash", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-red-counterattack": { name: "Counterattack", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-orange-force": { name: "Force", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-orange-lost-item": { name: "Someone's Lost Property", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-yellow-steal": { name: "Thief's Art -Steal-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-yellow-thunder": { name: "Thunder -Kaminari-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-green-peoples-road": { name: "Building the People's Road", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-green-rich-whim": { name: "Whim of the Wealthy", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-blue-greedy-bridge": { name: "The Greedy Suspension Bridge", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-blue-set-trap": { name: "The Set Trap", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-pink-disclosure": { name: "Disclosure", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-pink-favorite-flower": { name: "Someone's Favorite Flower", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-purple-wait": { name: "Hold On!", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-purple-apocalypse": { name: "Prophet's Art -Apocalypse-", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-white-colorful-hole": { name: "Colorful Hole", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-white-rainbow-rain": { name: "Rainbow Rain", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-black-faded-frog": { name: "The Faded Frog", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-black-greedy-palette": { name: "The Greedy Palette", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
-  "0th-black-rainbow-curse": { name: "Rainbow Curse", flavor: "", basic: "", subtitle: "", arrival: "", hand: "" },
+  "0th-red-dash": { name: "Dash", flavor: "You can look for your reason to run after you have started running.", basic: "", subtitle: "", arrival: "Move 1 space.", hand: "If you made a normal move this turn, move 1 space." },
+  "0th-red-counterattack": { name: "Counterattack", flavor: "I knew you would come. (the one who waited)", basic: "", subtitle: "", arrival: "If you have the fewest cards in hand, draw 2 cards and discard 1 card from your hand.", hand: "Usable when contact is declared against you. Nullify that contact. You make contact with that opponent." },
+  "0th-orange-force": { name: "Force", flavor: "A current no one can resist is what people call fate.", basic: "", subtitle: "", arrival: "Add 1 card adjacent to you to your hand.", hand: "【Color Cost 1】Choose 1 opponent. Move that opponent to any space with a card on it." },
+  "0th-orange-lost-item": { name: "Someone's Lost Property", flavor: "This is yours, is it not? (a parcel belonging to no one)", basic: "", subtitle: "", arrival: "Draw 1 card.", hand: "Choose 1 opponent. Place this face-down on that opponent's Gate. Draw 1 card." },
+  "0th-yellow-steal": { name: "Thief's Art -Steal-", flavor: "To stand out is, in itself, to leave an opening.", basic: "", subtitle: "", arrival: "Choose 1 player who has locked the most. Add 1 card at random from that player's hand to your hand.", hand: "Gain the Arrival Effect above." },
+  "0th-yellow-thunder": { name: "Thunder -Kaminari-", flavor: "By the time the sound arrives, everything is already over.", basic: "", subtitle: "", arrival: "You are forced to move to your Gate; do not flip the card on the destination face-up.", hand: "Discard all cards on any 1 space." },
+  "0th-green-peoples-road": { name: "Building the People's Road", flavor: "Join this, and everyone can walk it. (a nameless mason)", basic: "", subtitle: "", arrival: "Place 1 card face-down from the deck on each of any 5 spaces with no card.", hand: "Choose 2 face-down cards on any 2 spaces that are not adjacent to an opponent. Place those 2 cards, still face-down, on any 2 spaces with no card." },
+  "0th-green-rich-whim": { name: "Whim of the Wealthy", flavor: "Let those with the most to spare be the first to let go.", basic: "", subtitle: "", arrival: "Each player with 3 or more cards in hand places 1 card from their hand face-down on any space with no card. A card that could not be placed is discarded.", hand: "Gain the Arrival Effect above." },
+  "0th-blue-greedy-bridge": { name: "The Greedy Suspension Bridge", flavor: "A bridge joins both banks, but only for those ready to cross.", basic: "", subtitle: "", arrival: "Gain one of the following effects:\n・Discard 1 card from your hand.\n・You are forced to move to the space you were on before moving; do not flip the card on the destination face-up.", hand: "Place this face-down on any space that is not adjacent to you. Choose 1 card from the cards adjacent to that space and place it directly beneath this." },
+  "0th-blue-set-trap": { name: "The Set Trap", flavor: "In time, even the one who set it forgets his own trap.", basic: "", subtitle: "", arrival: "Discard half of your hand.", hand: "Place this face-down on any space that is not adjacent to you. Choose 1 card from the cards adjacent to that space and discard it." },
+  "0th-pink-disclosure": { name: "Disclosure", flavor: "To disclose and to expose are only a hair apart.", basic: "", subtitle: "", arrival: "Flip the cards on the center and the four corners of the field face-up. If there is no card to flip, flip the card on any 1 space face-up.", hand: "Draw 2 cards and reveal them. Their hand effects cannot be used this turn." },
+  "0th-pink-favorite-flower": { name: "Someone's Favorite Flower", flavor: "This is your favorite color, is it not?", basic: "", subtitle: "", arrival: "Choose 1 opponent. Add this to that opponent's hand. If this was flipped face-up this turn, draw 1 card.", hand: "Choose 1 player who has locked the most. Place this face-up on a space with no player adjacent to that player. Draw 1 card." },
+  "0th-purple-wait": { name: "Hold On!", flavor: "It is not over yet. I will not let it end.", basic: "", subtitle: "", arrival: "Add this to your hand. You are forced to move to the space you were on before moving; do not flip the card on the destination face-up. Move 1 space.", hand: "【Color Cost 1】Usable when an opponent declares their final lock. Discard the card that opponent was going to lock. That opponent cannot lock this turn." },
+  "0th-purple-apocalypse": { name: "Prophet's Art -Apocalypse-", flavor: "I can see the color that comes next. (the Prophet)", basic: "", subtitle: "", arrival: "Place 1 card from your hand face-down on any space adjacent to you.", hand: "Declare 2 colors. Draw 1 card and reveal it. If that card is a declared color, repeat from the beginning." },
+  "0th-white-colorful-hole": { name: "Colorful Hole", flavor: "A bottomless hole swallows every color there is.", basic: "", subtitle: "", arrival: "Add all cards on any 1 space to your hand.", hand: "Choose 1 player who has locked the most. That player chooses 1 of their locked cards, and you add it to your hand." },
+  "0th-white-rainbow-rain": { name: "Rainbow Rain", flavor: "The day the seven-colored rain fell, the world was leveled just once.", basic: "", subtitle: "", arrival: "Place 1 card face-down from the deck on every space with no card.", hand: "Choose any 1 row or column of the field (7 spaces). Place 1 card face-down from the deck on each space in that line." },
+  "0th-black-faded-frog": { name: "The Faded Frog", flavor: "I can no longer remember what color it was.", basic: "", subtitle: "", arrival: "Each player discards their entire hand. Choose 1 player who has locked the fewest. Add this to that player's hand.", hand: "Each player who has locked the most chooses 1 of their locked cards and discards it. Discard your entire hand." },
+  "0th-black-greedy-palette": { name: "The Greedy Palette", flavor: "Every color is mine. (the Greedy Palette)", basic: "", subtitle: "", arrival: "Discard your entire hand.", hand: "Usable at any time. Declare 1 color. Each opponent gains one of the following effects:\n・Choose 1 card of the declared color from their hand and add it to your hand.\n・Discard 3 cards from their hand." },
+  "0th-black-rainbow-curse": { name: "Rainbow Curse", flavor: "Misfortune makes a powerful weapon.", basic: "Locking onto the Lock Area where this is placed requires 2 or more cards of that color (only 1 card may be placed there per turn during the Lock Phase). If you lock there, place this face-down on any space.", subtitle: "", arrival: "Place this face-up on an empty Lock Area of yours.", hand: "Choose 1 player who has locked the most. That player gains the Arrival Effect above." },
 };

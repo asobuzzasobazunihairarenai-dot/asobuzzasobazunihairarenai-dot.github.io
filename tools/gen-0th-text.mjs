@@ -33,6 +33,9 @@ if (!fs.existsSync(SRC)) {
 }
 const 元 = JSON.parse(fs.readFileSync(SRC, "utf8"));
 const 元by = new Map(元.map((x) => [x.no, x]));
+// 🔴【続き898】英語の効果文（cardId が鍵）。無ければ空＝今までどおり日本語のまま出る。
+const EN_SRC = path.join(ROOT, "tools/0th-text-en.json");
+const EN = fs.existsSync(EN_SRC) ? JSON.parse(fs.readFileSync(EN_SRC, "utf8")) : {};
 
 // ===== 題名のふりがな（ルビ）=====
 // 🔴 出どころは**印刷カードそのもの**（カード0th の 34枚・650px角）。1枚ずつ読んだ。
@@ -108,9 +111,16 @@ for (const c of OLD0TH_CARDS) {
 
   const nameEn = OLD0TH_NAME_EN[c.id];
   if (!nameEn) 問題.push("英語名が無い: " + c.id);
+  // 🔴【続き898】効果文の英語を出す。それまで**名前だけ**で、効果文は空＝英語で遊んでいる人には
+  //   **日本語のまま**出ていた（card-text.js の設計で、空の欄は日本語に落ちる）。
+  //   ⚠ 文の出どころは tools/0th-text-en.json（cardId が鍵）。
+  //   ⚠ 用語は src/card-text.en.js の頭の対応表に合わせること（自分で言い方を発明しない）。
+  const e = EN[c.id] || {};
+  if (!EN[c.id]) 問題.push("英語の効果文が無い: " + c.id + "（tools/0th-text-en.json）");
   en.push(
     "  " + J(c.id) + ": { name: " + J(nameEn || c.name) +
-    ", flavor: \"\", basic: \"\", subtitle: \"\", arrival: \"\", hand: \"\" },"
+    ", flavor: " + J(e.flavor ?? "") + ", basic: " + J(e.basic ?? "") +
+    ", subtitle: \"\", arrival: " + J(e.arrival ?? "") + ", hand: " + J(e.hand ?? "") + " },"
   );
 
   // 補足（「補足: 」の頭は落として1本につなぐ）
@@ -149,9 +159,9 @@ const 頭ja =
 const 頭en =
   "// 旧0th EDITION のカード面テキスト（英語）。card-text-0th.ja.js と同じ cardId キー。\n" +
   "//\n" +
-  "// ⚠ いまは**カード名だけ**。効果文は空にしてある。card-text.js は空のフィールドを\n" +
-  "//   日本語で出す作りなので、英語表示でも「名前は英語・効果文は日本語」で崩れない。\n" +
-  "//   訳せたら tools/gen-0th-text.mjs に足して作り直す。**手で直さない。**\n" +
+  "// 🔴【続き898】**名前と効果文の両方**が入っている（それまでは名前だけで、英語で遊ぶ人には\n" +
+  "//   効果文が日本語のまま出ていた＝報告 #880 の家族）。文の出どころは tools/0th-text-en.json。\n" +
+  "//   ⚠ 用語は src/card-text.en.js の頭の対応表に合わせること。**手で直さない。**\n" +
   "export const CARD_TEXT_OLD0TH_EN = {\n";
 const 頭data =
   "// 旧0th EDITION（白地に虹の輪の版・2026.04 第2版）のカードデータ。NORMAL_CARDS と同じ形。\n" +
@@ -171,5 +181,5 @@ fs.writeFileSync(path.join(ROOT, "src/cards-data-0th.js"), 頭data + data.join("
 
 console.log("✅ 書き出した:");
 console.log("   src/card-text-0th.ja.js   " + ja.length + " 種");
-console.log("   src/card-text-0th.en.js   " + en.length + " 種（名前だけ）");
+console.log("   src/card-text-0th.en.js   " + en.length + " 種（名前と効果文）");
 console.log("   src/cards-data-0th.js     " + data.length + " 種 / 合計 " + OLD0TH_CARDS.reduce((a, c) => a + c.count, 0) + " 枚（＋虹7枚で112枚）");

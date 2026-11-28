@@ -61,6 +61,7 @@ export const CHANGELOG = [
       "CPU戦の設定画面が読みやすくなりました",
       "志炎者のカードが英語でも読めるようになりました",
       "色者が動く時の見せ場を作り直しました",
+      "拡張カードも英語で読めるようになりました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
@@ -70,6 +71,7 @@ export const CHANGELOG = [
       "The CPU battle settings are tidier",
       "The Shien cards can now be read in English",
       "The Shikija move has a new sequence",
+      "The expansion cards can now be read in English",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
@@ -79,6 +81,7 @@ export const CHANGELOG = [
       "**CPU戦の設定画面**が読みやすくなりました。**i を押すと説明がモーダルで出る**ようになり（その場で開いて下の項目が動くことがなくなりました）、**使うカードには箱の絵**が並び、**対戦ルールの4つが同じ大きさでそろいます**。",
       "志炎者のカードに**英語の効果文**が入りました（これまでは名前だけで、英語でも効果文は日本語のまま出ていました）。",
       "**色者が動く時の見せ場**を作り直しました。**色者の円盤が大きく出て → 捨て色のカードを確認 → その色の棘が光って → 色者のカードがアップになって移動する**、という流れになります（動きを控える設定にしている方には今までどおり出ません）。",
+      "**0th拡張・1st EDITION・旧0th のカード85種**に、**英語の効果文**が入りました。英語表示にしても、カードの文が日本語のまま出ることはもうありません。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
@@ -88,6 +91,7 @@ export const CHANGELOG = [
       "The CPU battle settings are tidier: the i buttons now open their explanation in a dialog instead of pushing the rest of the list down, the chosen edition shows its box art, and the four match rules line up at the same size.",
       "The Shien cards now have English effect text; until now only their names were translated and the effects stayed in Japanese.",
       "The Shikija move now plays as a proper sequence: the dial appears large, the discarded colour card is shown, the matching spike lights up, and the Shikija card zooms in and flies to its new space. Nothing changes if you have animations turned down.",
+      "English effect text has been added for 85 cards across the 0th Expansion, 1st EDITION and old 0th, so card text no longer falls back to Japanese when you play in English.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -239,6 +243,9 @@ export const CHANGELOG = [
       "🔴 **【続き897】ユーザーの問い「色者アイコンはカードの向きとリンクしてますか？」——していなかった。** 盤面の札は続き891（#876）から `orientSeat` のぶん 90°ずつ回して置いてあるのに、**円盤だけ印刷のまま**で、見せ場へ渡す角度は base から出していたので**席に依らず常に同じ**だった。実測（捨色が緑＝印刷では「上」）: **A は合うが、B は右・C は下・D は左へ動くのに円盤は上を指していた**＝「なぜそこへ動いたか」を説明するはずの物が**嘘をついていた**。",
       "🔴 **直し方の肝**: **円盤そのものの向き**（`dial.rot`）は席のぶん回す（絵・くさび・矢を**まとめて**回すので、**色のくさびは色の上に残ったまま矢だけが実際の向きを指す**＝本物の札を回して置いたのと同じ）。一方 **くさびの角度（`dial.angle`）は回してはいけない**——掛けると**別の色のくさびが光る**。⚠ **お知らせの小さい円盤も一緒に回した**（2つが食い違うとどちらが正か分からない）。🔴 続き792 の覚え書き「お知らせの円盤は印刷されたままの向き」はもう正しくないので書き換えた（続き803 の教訓）。⚠ 回転は**お知らせを出す所で1度だけ**足す（枝が5つ＝#477 の家族）。",
       "⚠ 実測は**4席ぶん通した**——**A だけ合っていたのが元の不具合**なので、A だけ測っても意味が無い（0/90/180/270度とも札の回転に一致・対照つき）。🔴 **撮って確かめた**（C席の札は「色」も「7」も逆さま＝本物の札を回して置いたのと同じ見え方）。回帰: 見せ場の4拍もそのまま通る。⚠ **4人戦で実際に B・C・D が表にした札では通していない**（渡す値は1か所で作っているので筋は通っているが、本物の対局で1回見てほしい）。",
+      "🔴 **【続き898】ユーザー指示「英語用意しよう！」。聞かれた2つ（0th拡張・旧0th）を直す前に全部数えたら、3つ目（1st EDITION）も同じ穴だった。** いま: リメイク 34/34（残り7は**ブーストの白紙**＝日本語も空なので穴ではない）／0th拡張 33/33／**1st 33/33**／旧0th 19/19／志炎者 7/7。⚠ **card-text.js は「英語の欄が空なら日本語で出す」作り**なので、書き忘れても何も壊れない——**英語で遊ぶ人の画面に日本語が出るだけ**。だから報告 #880 まで誰も気づかなかった。",
+      "🔴 **言い方は自分で発明しない**——用語は `src/card-text.en.js` の頭の対応表と用語集から写した（オープンする=flip face-up／強制移動=forced to move／**財力=Wealth**／**【状況】=【Situation】**／**【色者】=【Shikija】**／【追色N】=【Color Cost N】）。⚠ 隣も周囲も adjacent（リメイクの英語がそう訳してあるので**こちらで区別を作らない**）。⚠ {白}{黒} は絵の印なので英語でもそのまま。英語は**カードの id を鍵にした別ファイル**（tools/*-text-en.json）に置き、**日本語の出どころは1文字も触らない**（あちらは `no` が鍵で、色寄せの笛のように1件を複数の札が共有するため）。",
+      "🔴 **同じ忘れ方を次のセットでしないよう検査を1本（33本目 check-card-text-en.mjs）**: 日本語に効果文があるカードは英語にもあること。白紙カードは日本語も空なので自動で外れる（名簿を持たない）。A/B で名指しで落ちることと、戻したあと生成し直して指紋が一致することを照合。⚠ 実測で2回つまずいた（どちらもこちらの測り方）: **存在しない関数**を呼んで**静かに全部空**になった（`?.()` は undefined を返す）／**「・」（中黒）をカタカナと数えていた**（リメイクの英語も同じ中黒を使う house style）。**「無い」と出たら、まず自分の数え方を疑う。**",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -338,6 +345,9 @@ export const CHANGELOG = [
       "[Continuation 897] The dial shown during the Shikija sequence was always drawn in its printed orientation even though the card on the board is rotated by the seat that turned it face-up, so for three of the four seats the arrow pointed somewhere other than where the card actually moved.",
       "The whole dial is now rotated with the card, which keeps each colour wedge on its colour while making the arrow point the real direction; the wedge angle itself must never be rotated or a different colour would light up.",
       "All four seats were measured because only seat A was correct before, and the notice's small dial was rotated too so the two cannot disagree.",
+      "[Continuation 898] Counting every set before starting turned up a third gap beyond the two that were reported, because missing English silently falls back to Japanese rather than failing.",
+      "Terminology was copied from the existing English glossary rather than invented, and the English lives in separate id-keyed files so the Japanese sources stay untouched.",
+      "A new check fails by name if a card has Japanese effect text but no English, so a future set cannot ship half-translated.",
     ],
   },
   {
