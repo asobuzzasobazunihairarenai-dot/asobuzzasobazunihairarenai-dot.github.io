@@ -30856,3 +30856,11 @@ body.is-tablet-device .home-match-choice-edition-now {
     transition: none;
   }
 }
+
+/* 🔴【#881・続き902】長い解説の改行を活かす（報告「**改行や強調などもなく
+   テキストが並んでるだけで見にくい解説**」）。文に入れた改行がここで潰れていた。
+   ⚠ **この2つの入れ物だけ**に当てる（他の文まで折り返し方を変えない）。 */
+#my-stack-hint,
+.card-pack-hint-body {
+  white-space: pre-line;
+}

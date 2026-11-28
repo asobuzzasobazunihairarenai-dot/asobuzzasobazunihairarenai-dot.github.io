@@ -11,6 +11,8 @@ export function rectCenter(rect) {
 
 import { isFlightAnimationDisabled } from "./motion-prefs.js";
 import { stageDelta, stageClientToLocal } from "./main.js";
+import { showCardFace } from "./card-face-display.js"; // 【#884・続き902】文字を焼いていない札を飛ばす時
+import { hasNoPrintedFace } from "./cards-data.js";
 
 // fromRect/toRectは常にgetBoundingClientRect()由来の実画面座標。ゴースト自身は
 // document.body直下（ステージのtransformの影響下）に浮かべるため、位置(translate)も
@@ -36,10 +38,21 @@ function isDegenerateRect(r) {
   return !r || !Number.isFinite(r.width) || !Number.isFinite(r.left) || (r.width <= 0 && r.height <= 0);
 }
 
-export function flyGhost(fromRect, toRect, imagePath, className, durationMs) {
+// 🔴【#884・続き902】`cardId`（省略可）を渡すと、**文字が焼かれていない札**
+//   （0th拡張・1st・旧0th・志炎者・新しい無色＝文字はアプリが描く）を
+//   **手札とまったく同じ描き方**（showCardFace）で飛ばす。
+//   それまでは**生の絵のURL**を敷いていたので、報告「**場から手札にカードが飛翔する時、
+//   そのカードに効果文が描画されてない**」のとおり**効果欄が真っ白**になっていた。
+//   ⚠ #660（山札・捨て場）→ #810（掴んだ札）→ ここ、で**同じ穴を3つ目**。
+//     生のURLを敷く所を見つけたら、まずこの形を疑う。
+//   ⚠ 裏向き（`is-facedown`）は今までどおり絵のまま（裏面は文字を持たない）。
+//   ⚠ 渡されなければ今までと1ミリも変わらない（駒の飛翔などはそのまま）。
+export function flyGhost(fromRect, toRect, imagePath, className, durationMs, { cardId = null } = {}) {
   const ghost = document.createElement("div");
   ghost.className = className;
-  ghost.style.backgroundImage = `url("${imagePath}")`;
+  const 文字を描く = !!cardId && hasNoPrintedFace(cardId) && !/\bis-facedown\b/.test(className || "");
+  if (文字を描く) showCardFace(ghost, cardId, imagePath);
+  else ghost.style.backgroundImage = `url("${imagePath}")`;
   ghost.style.width = `${stageDelta(fromRect.width)}px`;
   ghost.style.height = `${stageDelta(fromRect.height)}px`;
 

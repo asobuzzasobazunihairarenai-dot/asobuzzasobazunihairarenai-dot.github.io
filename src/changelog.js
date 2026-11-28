@@ -124,6 +124,10 @@ export const CHANGELOG = [
       "ノワールで遊ぶ時、アバターが勝手に別の絵に変わっていたのをやめました（設定しているアバターのまま出ます）。",
       "志炎者のカードの**ふつうの手札効果が、ハンドフェイズ以外でも割り込みとして使えてしまっていた**のを直しました（割り込めるのは【志炎】の方だけです）。",
       "志炎者のカードの**ふつうの手札効果が、自分のロックフェイズやムーブフェイズでも使えてしまっていた**のを直しました（ふつうの方は自分のハンドフェイズだけ、【志炎】の方だけが割り込めます）。",
+      "**長い解説が改行なしで並んでいて読みにくかった**のを直しました（対戦ルール・使うカード・山札・マイ山札・パックの説明が、項目ごとに分かれて出ます）。",
+      "色者の演出が**終わる前に次のターンへ進んでしまう**のを直しました。",
+      "場から手札へカードが飛んでいく時に、**そのカードの効果文が出ていなかった**のを直しました。",
+      "ホーム画面から「チュートリアルを見る」を押した時、**ホーム画面が残ったまま**始まっていたのを直しました。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -152,6 +156,10 @@ export const CHANGELOG = [
       "Playing as noir no longer replaces your avatar with a different picture; your own avatar is kept.",
       "Fixed the Shien cards letting their ordinary hand effect be used as an interrupt outside your hand phase; only the Shien option can interrupt.",
       "Fixed the ordinary hand effect of a Shien card being usable during your own lock or move phase; the ordinary option is now limited to your hand phase and only the Shien option can interrupt.",
+      "Long explanations are now broken into lines instead of running together as one block.",
+      "The Shikija sequence now finishes before the turn moves on.",
+      "Cards flying from the field to your hand now show their effect text.",
+      "Starting the tutorial from the home screen now closes the home screen first.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -265,6 +273,9 @@ export const CHANGELOG = [
       "🔴🔴 **【続き901】ユーザーの確認「今はちゃんとこうなってますか？」で、続き900 が半分しか直っていなかったと分かった。** 塞いだのは「割り込みの行列」だけで、**手札を直接タップ／ドラッグする道**は別に在り、そこは「いつでも使える」印の付いた札を**フェイズを問わず開く** ⇒ 開いた先で `canUseHandEffect`（どれか1つでも）が true なので、**自分のロック／ムーブフェイズでふつうの手札効果を使えた**。",
       "🔴 **エンジンにフェイズを渡す形にした**（`src/hand-phase-mark.js`。main.js が起動時に1回渡し、エンジンは聞きに行く＝`setOnlineTransport` と同じ作法）。`state.turnPhase` は**オンラインの時しか書かれない**ので当てにできない（CPU戦では常に null＝続き786）。⚠ **分からない時は塞がない**。🔴🔴 **2回つまずいた——どちらも「テストの土台はアプリ本体も動かす」こと**: 素の `isSelfHandPhase` を渡したらテストが8本落ち（土台は index.html を読むので答えがアプリ側の対局のものになる）、「対局が無ければ null」にしてもまだ落ちた（アプリ側は対局を持っている）⇒ **土台側で出どころを差し替える**形へ（既定は null、見たいケースだけ `selfHandPhase` を書く）。**教訓: テストの土台にアプリ本体の状態が混ざっていないか疑う。**",
       "🔴 **「ログインがまた切れる」を本番のデータで数えたら、ユーザーの端末の問題ではなかった**: `auth.sessions` に**生きたセッションが2つ**（同時ログインはできている）、`not_after` は **NULL**（時間制限なし）、refresh token の失効は**ふつうの回転**、そして**ユーザー側の行動ログに `SIGNED_OUT` が1度も無い**（`diag-auth` は `SIGNED_IN` の繰り返しだけ）。⇒ 切れていたのは**こちらの Chrome だけ**で、アプリもサーバーも何も消していない。読み方を変えた（鍵が無い時は Supabase のダッシュボードの SQL から読む）。",
+      "🔴 **【続き902】#884 は「生の絵のURLを敷いている」同じ穴の3つ目**（#660 山札・捨て場 → #810 掴んだ札 → 飛翔のゴースト）。⇒ `flyGhost` に `cardId` を渡せるようにして**手札とまったく同じ描き方**（showCardFace）へ。⚠ 表向きのカードを飛ばす**6か所とも**渡した（1か所だけ直すと必ず取りこぼす＝#477 の家族）。駒と裏向きは今までどおり。",
+      "🔴 **#882**: 続き896 の見せ場は投げっぱなしで、お知らせ（すぐ戻る＝#214）の後ろで対局が先に進んでいた ⇒ 終わりの約束を返し、**色者の処理だけ**が待つ（相手の画面では待たない＝あちらの進行を止めない）。🔴 **上限は実測から決めた**——見せ場は 3.18秒だが、対局が動いているとタイマーがずれて **5.1秒**まで伸びたので、6秒では「ふつうに終わったのに切られる」⇒ 9秒。**#881**: 報告の絵は**続き894 で私が書いた ⓘ の文**（191字が一塊）。出す側は `white-space: pre-wrap` なので**文に改行を入れれば出る**。「総点検を！」なので数えたら**90字以上で改行が無い文が20件**あり、**解説として読ませる6件**に改行と行頭の印を入れた（中身は1文字も変えていない）。⚠ マイ山札とパックの入れ物は改行を潰していたので、その2つだけに `pre-line` を足した。**#887**: チュートリアルは盤面を指しながら進むので、押した時に**先にホームを閉じる**。",
+      "⚠ **実測の期待値を4つ間違えた（全部こちらの数え方）**: 「幕が59msで消えた」＝**出る前**を消えたと数えていた／「焼いてある札は絵のまま」＝🔴 **続き888 で全部の札が文字を描く作りになった**のでもう正しくない／404 1件＝**存在しない絵の名前**を自分で書いた／「待ち終わったら片付いている」＝`close()` のあと 0.22秒かけて消える作り。🔴 **A/B**: #887 は閉じないようにすると**報告どおりホームが残る**。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -376,6 +387,9 @@ export const CHANGELOG = [
       "[Continuation 901] A direct question from the user revealed the previous fix covered only the interrupt queue; tapping or dragging the card in hand was a separate path that opened it in any phase.",
       "The engine now asks main.js for the current phase through a leaf provider, because the state's phase field is only written in online games.",
       "Checking the live data showed the repeated logouts were not on the user's side at all: two live sessions, no session time-box, and no SIGNED_OUT in their logs.",
+      "[Continuation 902] The flight ghost was the third place that pasted a raw image URL instead of composing the card face, so the shared helper now takes a card id and all six face-up flight call sites pass it.",
+      "The Shikija sequence now returns a promise so only the Shikija resolution waits for it, with a cap chosen from measurement rather than guesswork.",
+      "The long explanations now contain line breaks, and the two containers that collapsed them were given pre-line; starting the tutorial closes the home screen first.",
     ],
   },
   {

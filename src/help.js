@@ -174,8 +174,18 @@ function buildPanel(close) {
   tutorialBtn.type = "button";
   tutorialBtn.id = "help-panel-tutorial-btn";
   tutorialBtn.textContent = t("help.tutorialBtn");
-  tutorialBtn.addEventListener("click", () => {
+  tutorialBtn.addEventListener("click", async () => {
     close();
+    // 🔴【#887・続き902】ユーザー報告「**ホーム画面でチュートリアルを見るを押すと、
+    //   ホーム画面のままチュートリアルが始まる**」。チュートリアルは**盤面を指しながら**
+    //   進むので、ホームが乗ったままだと何も見えない。⇒ **先にホームを閉じる。**
+    //   ⚠ 動的 import（help.js → home-screen.js の静的 import は増やさない。
+    //     ホームの側が help を開くので、静的にすると輪になる）。
+    //   ⚠ ホームが開いていない時は何も起きない（closeHomeScreen は空振りに強い）。
+    try {
+      const h = await import("./home-screen.js");
+      h.closeHomeScreen?.();
+    } catch (e) { /* 閉じられなくてもチュートリアルは始める */ }
     startTutorial();
   });
   panel.appendChild(tutorialBtn);

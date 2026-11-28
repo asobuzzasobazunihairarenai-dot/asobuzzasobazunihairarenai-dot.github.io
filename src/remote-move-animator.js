@@ -299,7 +299,9 @@ async function flyAndReveal(item, fromRect, table, blinkDestination, blinkOnly =
         console.error("playPieceMove failed", err);
       }
     } else {
-      const { done } = flyGhost(fromRect, toRect, getGhostImagePath(item.token), "setup-fly-card", FLIGHT_MS);
+      // 🔴【#884・続き902】表向きのカードなら cardId も渡す（文字はアプリが描く札のため）。
+      const { done } = flyGhost(fromRect, toRect, getGhostImagePath(item.token), "setup-fly-card", FLIGHT_MS,
+        { cardId: item.token.kind === "card" && item.token.faceUp ? item.token.cardId : null });
       await done;
     }
   }

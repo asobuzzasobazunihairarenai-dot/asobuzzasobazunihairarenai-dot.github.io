@@ -3876,16 +3876,33 @@ async function announceEffectChoiceForEffect(cardId, player, optionLabel) {
 function announceEffectNoticeForEffect(cardId, text, shikija = null) {
   if (isOnlineMode()) broadcastEffectReason({ fromPlayer: getSelfSeat(), cardId, text, shikija });
   showEffectReasonModal(cardId, text, { dial: shikija?.dial ?? null }); // 戻り値のPromiseは待たない
-  playShikijaBoardBeats(shikija);
+  // 🔴【#882・続き902】**見せ場の終わりを返す**（呼ぶ側が待つかどうかを決められるように）。
+  //   ⚠ 待つのは色者の処理だけ（`色者のお知らせ`）。他の呼び出しは戻り値を使っていないので
+  //     **今までと1ミリも変わらない**。
+  return playShikijaBoardBeats(shikija);
 }
 
 // 🔴【#728・続き791】色者の演出のうち**盤面に出る分**（第3拍の尾・第4拍の輪と光）。
 //   ⚠ 「演出を控える」人には**1ミリも待たせない**（冒頭で戻る＝既にある入口を使う）。
 //   ⚠ 盤面に置く物は `appendEffectHost` 経由（render() が盤面を作り直すと消える＝#621 の実害）。
 //   ⚠ 状態は1つも変えない（見た目だけ）。失敗しても対局は止めない。
+// 🔴【#882・続き902】**見せ場の終わりを待てるようにした**（返り値が約束）。
+//   報告「**色者演出が完全に終わる前に次のターンに切り替わってます**」。
+//   それまでは投げっぱなしで、お知らせ（すぐ戻る作り＝#214）の後ろで対局が先に進んでいた。
+//   ⚠ 待つのは**色者の処理だけ**（下の `色者のお知らせ`）。他の呼び出し（相手の画面で
+//     受け取った時＝onEffectReasonEvents）は**今までどおり待たない**——あちらで待つと
+//     相手の画面の進行まで止まる。
+//   ⚠ **待ちすぎない**（上限つき）。見せ場が何かで終わらなくても対局は止めない。
+//   ⚠ 上限は**実測から決める**。見せ場そのものは約3.2秒だが、対局が動いている間は
+//     タイマーがずれて**実測5.1秒**まで伸びた。6秒だと「ふつうに終わったのに上限で
+//     切られる」ことがあるので 9秒にする（止まった時に対局を道連れにしない役目は保つ）。
+const SHIKIJA_SHOW_WAIT_CAP_MS = 9000;
 function playShikijaBoardBeats(shikija) {
-  if (!shikija) return;
-  if (isArrivalEffectDisabled()) return;
+  if (!shikija) return Promise.resolve();
+  if (isArrivalEffectDisabled()) return Promise.resolve();
+  let 見せ場 = null; // 下の `show` の一連が終わる約束（見せ場が出た時だけ）
+  const 約束 = new Promise((resolve) => {
+    const 終わり = () => resolve();
   // 🔴🔴【続き791】**画面に重ねる**（盤面の子にすると消える）。
   //   実測: 尾は確かに1回作られていたのに、測る時には0件だった。盤面の演出は
   //   次の `render()`（`table.innerHTML = ""`）で捨てられるが、色者はターンの**終わり**に
@@ -3897,7 +3914,8 @@ function playShikijaBoardBeats(shikija) {
   setTimeout(() => {
     try {
       const table = document.getElementById("game-table");
-      if (!table) return;
+      // 🔴【#882】ここで早く帰ると**約束が解けない**（上限で救われるが、6秒も待たせる）。
+      if (!table) { 終わり(); return; }
       const 矩形 = (c) => {
         const el = c && findLocationElement(table, { zone: "cell", row: c.row, col: c.col });
         const r = el && el.getBoundingClientRect();
@@ -3923,7 +3941,7 @@ function playShikijaBoardBeats(shikija) {
             try { showCardFace(el, cardId, getCardImagePath(cardId)); } catch (err) { return null; }
             return el;
           };
-          (async () => {
+          見せ場 = (async () => { // 🔴【#882】終わりを待てるように控える
             try {
               await new Promise((r) => setTimeout(r, 340)); // 拍1: 円盤が出きるまで
               await show.showDiscard({ 作る: 札面(shikija.discard) }); // 拍2: 捨色を確認
@@ -3995,7 +4013,13 @@ function playShikijaBoardBeats(shikija) {
     } catch (err) {
       console.error("playShikijaBoardBeats failed", err);
     }
-  }, 220);
+    // 見せ場が出たならその終わりを待ち、出ていなければここで終わり。
+    if (見せ場 && typeof 見せ場.finally === "function") 見せ場.finally(終わり);
+    else 終わり();
+    }, 220);
+  });
+  // ⚠ 上限で必ず解ける（止まった見せ場に対局を道連れにしない）。
+  return Promise.race([約束, new Promise((r) => setTimeout(r, SHIKIJA_SHOW_WAIT_CAP_MS))]);
 }
 
 // ユーザー要望「効果が不発だった場合（例: マスチェンジで３マス以内に相手がいない等）は
@@ -4417,7 +4441,7 @@ async function playPublicDrawFlight(player, newTokenIds, fromRect) {
     const img = tok?.cardId ? getCardImagePath(tok.cardId) : null;
     el.style.visibility = "hidden";
     shown.push(el);
-    flights.push(flyGhost(fromRect, toRect, img, "setup-fly-card", 420).done);
+    flights.push(flyGhost(fromRect, toRect, img, "setup-fly-card", 420, { cardId: tok?.cardId ?? null }).done);
   }
   if (flights.length === 0) return;
   flushBoard3d(); // 隠した直後にWebGL側も描き直す
@@ -10429,7 +10453,8 @@ async function flyBoardCardToHand(tokenId, player) {
   flushBoard3d();
   const img = token.faceUp ? getCardImagePath(token.cardId) : cardBackImageForToken(token);
   // ユーザー要望「もう少しゆっくり手札に入っていってほしい」。ドロー演出(500ms)より少し長め。
-  const { done } = flyGhost(fromRect, toRect, img, "setup-fly-card", 800);
+  // 🔴【#884・続き902】表向きなら cardId も渡す（文字を焼いていない札の効果欄が真っ白になる）。
+  const { done } = flyGhost(fromRect, toRect, img, "setup-fly-card", 800, { cardId: token.faceUp ? token.cardId : null });
   await done;
 }
 
@@ -10459,7 +10484,7 @@ async function flyHandCardBetweenSeats(fromSeat, toSeat, cardId, faceUp = false)
   if (!fromEl || !toEl) return;
   const img = faceUp ? getCardImagePath(cardId) : getCardBackImagePath(null);
   const cls = faceUp ? "setup-fly-card" : "setup-fly-card is-facedown";
-  const { done } = flyGhost(fromEl.getBoundingClientRect(), toEl.getBoundingClientRect(), img, cls, 650);
+  const { done } = flyGhost(fromEl.getBoundingClientRect(), toEl.getBoundingClientRect(), img, cls, 650, { cardId: faceUp ? cardId : null });
   await done;
 }
 
@@ -14236,7 +14261,7 @@ async function playEternalAcquisitionAnim__inner(attacker, cardId, cardDef, onDo
     if (lockElNow) {
       const lockRect = lockElNow.getBoundingClientRect();
       const returnMs = getContactAnimSeconds("--eternal-anim-return-duration", 1) * 1000;
-      const { done: returnDone } = flyGhost(centerRect, lockRect, getCardImagePath(cardId), "setup-fly-card", returnMs);
+      const { done: returnDone } = flyGhost(centerRect, lockRect, getCardImagePath(cardId), "setup-fly-card", returnMs, { cardId });
       await returnDone;
     }
   } finally {
@@ -14442,7 +14467,7 @@ async function playGateInvasionStealRitual(info, onDone) {
     for (const tok of stolenTokens) {
       const el = cardEls[orderIndexOf(tok.id)];
       if (el && toRect) {
-        const { done } = flyGhost(el.getBoundingClientRect(), toRect, getCardImagePath(tok.cardId), "setup-fly-card", 650);
+        const { done } = flyGhost(el.getBoundingClientRect(), toRect, getCardImagePath(tok.cardId), "setup-fly-card", 650, { cardId: tok.cardId });
         flights.push(done);
         await wait(160);
       }
