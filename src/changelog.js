@@ -55,15 +55,19 @@ export const CHANGELOG = [
     date: "2026-11-28",
     summary: [
       "「使うカード」と「山札」が1つになりました",
+      "ノワールで遊べます（お試し・2026-12-31 まで）",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
+      "Try playing as Noir (trial, until 31 Dec 2026)",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
+      "CPU戦で**ノワール（黒のキューブ）を使って遊べる**ようになりました。ファーストカードが配られたあとに「ノワールに切り替えますか？」と出るので、押すとあなたのファーストがノワールに、駒が黒になります。断れば今までどおりです。⚠ **お試しです（2026-12-31 まで）。** ノワールの効果は、遊んでみた結果で変わることがあります。感想は画面の上の「不具合報告」（虫のしるし）からお待ちしています。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
+      "You can now play as Noir in CPU games. After the First cards are dealt you are asked whether to switch; saying yes turns your First card into the Black Cube and your piece black, and saying no leaves everything as before. This is a trial until 31 December 2026, and Noir's effect may change based on how it plays, so please send your impressions through the bug report button.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -121,6 +125,12 @@ export const CHANGELOG = [
       "⚠ テスト**7本**（箱猫2・白塔4・幼体1。うち**対照3本**: 1番少ないのが自分の時／手札が無ければ聞かない／ロックが無ければ聞かない）＋ 実測**25項目**（山札の算数・名前とふりがな・絵6枚・色者の表と円盤）。回帰: 我忘れの白き龍5・選べる罠3・ピュアバーガー2 とも PASS。",
       "🔴 **サーバー（so7-apply-action.ts）にも同じ山札を書いた＝デプロイが要る。** 流すまでは**オンラインのフレンドリーマッチだけ**が古い山札（新カードが入らない）。**CPU戦は今すぐ効く**（山札をクライアントが組むため）。どちらも管理者だけが選べるセット。",
       "ⓘ **イラストは同じ日のうちに3枚とも届いた**ので、枠だけの札は本物に入れ替えた（1254px角・そのまま使える正方形）。🔴 当て先は名前だけで決めず、**3枚を並べて目で確かめた**（白い幼竜／七色の気流の白塔／虹の翼のキュビット）。⚠ 幼体は**親と同じ見せ方**にそろえた（枠の色名を抜いて WHITE / ONLY を組版で置く＝円盤の場所を空ける）。",
+      "🔴 **【続き883】ノワールのお試し（期間限定）を入れた**（ユーザー案「期間限定で、ゲームプレイ時ファーストカードが配られた後に『ノワールに切り替えますか？』的なモーダルを出し、ノワールを使用できるようにしよう」）。🔴 **仕掛けはもう在った**——`state.js` の `applySeatNoir(seat, brands)` が ①ファーストを `first-noir` に差し替え ②駒を黒に ③ブーストの白紙を取り除く まで一式やる（エイドス物語戦とマイデッキの黒で既に使っている道）。⇒ 新しく作ったのは**聞く所と期間の決まり**だけ（`src/noir-trial.js`）。",
+      "⚠ 聞くのは `runCpuBattleSetup` の**1か所**——CPU戦の入口は複数ある（ホーム・オープニング・対局後パネル・ランク待機中の練習）ので、入口ごとに書くと必ずどれかを書き忘れる（#382 と同じ考え方）。⚠ **配った後**でなければ意味が無い（ファーストを差し替える仕掛けなので）。⚠ 既に黒で始まる時（マイデッキの黒）と、台本のある物語チュートリアルでは**聞かない**。",
+      "🔴 **いまは CPU戦・ローカル対戦だけ。** オンラインは**サーバー（Edge Function）が配る**ので、こちらで差し替えると盤面がずれる。オンラインにも出すなら `APPLY_SEAT_NOIR` をサーバー側にも足して**再デプロイ**が要る（マイデッキの黒は「配る前に黒でと伝える」別の道）。",
+      "⚠ 終わりの日は **`NOIR_TRIAL_UNTIL` の1行**（過ぎると聞かれなくなる。伸ばすだけで戻る）。⚠ 日付は端末の時計で見る（お試しなので実害は無い＝勝敗にも持ち物にも触らない）。⚠ **選んだことを行動ログに残す**（`noir-trial`）——お試しの目的が「意見を集めること」なので、報告に『この対局はノワールだったか』が無いと読み解けない。",
+      "⚠ 実測17項目（`scratchpad/_p883.mjs`・NG 0・例外0）: 期間の決まり（最終日は丸ごと内・翌日は外）＋**対照3本**（既に黒／台本／期間外では聞かない）／**本物のCPU戦の入口から**通して、モーダルが出る・文にテスト用と送り先と終わりの日が入っている・「ノワールで遊ぶ」で `first-noir` と黒い駒になる・**対照「このまま遊ぶ」では何も変わらない**。",
+      "⚠ 測り方のミス（記録）: ①**待ち時間を決め打ちした**——ヘッドレスは配りの演出が実機よりずっと遅く、モーダルが出るまで**約20秒**。2.5秒で見て「出ない」と誤判定し、原因をアプリ側に探しにいった。⇒ 時間ではなく**モーダルが出るまで待つ**。②**ボタンを番号で押した**——並びは ✕ ／ このまま遊ぶ ／ ノワールで遊ぶ（肯定が右＝#746）なので、番号だと「はい」と「いいえ」が入れ替わる。⇒ **文字で押す**。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -164,6 +174,12 @@ export const CHANGELOG = [
       "The server's copy of the deck changed too, so the edge function needs deploying; until then only online friendly matches keep the old deck.",
       "The new cards are mixed only into the admin test deck, so ordinary play is untouched.",
       "The illustrations arrived the same day and replaced the placeholders; the mapping was confirmed by eye rather than by filename, and the young dragon now matches its parent, with the colour name typeset so the dial has room.",
+      "[Continuation 883] A time-limited trial lets players switch to Noir. The machinery already existed, so only the prompt and the trial window were new.",
+      "The prompt is asked in one place, right after the cards are dealt, and is skipped when the game already starts as Noir or follows a script.",
+      "It covers CPU and local games only; online decks are dealt by the server, so extending it there would need a server change and a redeploy.",
+      "The end date is a single constant, and the choice is written to the action log so that feedback reports can be read in context.",
+      "Seventeen measured checks including three controls, driven through the real CPU battle entry point.",
+      "Two measurement mistakes worth recording: a fixed wait was far too short for the dealing animation in a headless browser, and clicking buttons by index swapped the two answers because the affirmative sits on the right.",
     ],
   },
   {

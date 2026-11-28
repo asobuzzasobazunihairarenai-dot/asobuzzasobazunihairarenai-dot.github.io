@@ -38,6 +38,11 @@ import {
 // 【#626】右下のタイマーボタンから、CPU戦のタイマーをその場で切れるようにする。
 import { registerLocalTimerToggle } from "./timer-toggle.js";
 import { resetGame, setupMyDeckMode, applySeatNoir } from "./state.js";
+// 🔴【続き883】ノワールのお試し（期間限定）。期間と「聞くべきか」はあちらが持つ。
+import { shouldOfferNoir, NOIR_TRIAL_UNTIL } from "./noir-trial.js";
+import { showConfirmModal } from "./ui-helpers.js";
+import { t } from "./ui-text.js";
+import { logAction } from "./action-log.js";
 // マイデッキ戦（本気エイドス戦）用。my-deck.jsはcards-data.jsだけに依存する葉モジュールなので
 // ここから安全にimportできる（online.js等は経由しない）。
 import { getSelectedDeckId, getDeckById, makeRandomDeck } from "./my-deck.js";
@@ -283,6 +288,24 @@ export async function runCpuBattleSetup({
   //   自分(A)のファースト・駒を黒へ差し替える（エイドス物語戦とまったく同じ仕組みを流用）。
   //   ⚠ 烙印（noirBrands）は付けない——あれはエイドス物語戦の演出。
   if (黒のデッキ) applySeatNoir("A", false);
+  // 🔴【2026-11-28・続き883】**ノワールのお試し（期間限定）。**
+  //   ユーザー案「ファーストカードが配られた後にモーダルを出し、ノワールを使用できるように」。
+  //   ⚠ 聞くのは**ここ1か所**——CPU戦の入口は複数ある（ホーム・オープニング・対局後パネル・
+  //     ランク待機中の練習）ので、入口ごとに書くと必ずどれかを書き忘れる（#382 と同じ考え方）。
+  //   ⚠ **配った後**でなければ意味が無い（ファーストカードを差し替える仕掛けなので）。
+  //   ⚠ 台本のある物語チュートリアル（noirSeat ＝相手がノワール）では聞かない。
+  //   ⚠ 断っても何も起きない＝今までどおりの対局。
+  if (shouldOfferNoir({ 既に黒: 黒のデッキ, 台本: !!noirSeat })) {
+    const はい = await showConfirmModal(t("noirTrial.body", { until: NOIR_TRIAL_UNTIL }), {
+      見出し: t("noirTrial.title"),
+      はい: t("noirTrial.yes"),
+      いいえ: t("noirTrial.no"),
+    });
+    // 🔴 **選んだことを記録する**（お試しの目的が「意見を集めること」なので、
+    //   不具合報告に『この対局はノワールだったか』が残っていないと読み解けない）。
+    try { logAction("noir-trial", { chose: !!はい, until: NOIR_TRIAL_UNTIL }); } catch (err) { /* 記録は本筋ではない */ }
+    if (はい) applySeatNoir("A", false);
+  }
   if (myDeck && deckA) {
     // A: 確定したデッキ、C(エイドス): おまかせランダム（ユーザー合意: エイドスのデッキは一旦
     // ランダム）。cardsは{cardId:count}なので展開＋シャッフルして「一番上=末尾」のcardId配列に
