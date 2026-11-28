@@ -212,7 +212,9 @@ function getLockDeclaredTokenInWindow(viewer) {
 function getSameColorHandEffectWindow(viewer, color) {
   if (!interruptWindow || interruptWindow.kind !== "hand-effect") return null;
   if (!interruptWindow.player || interruptWindow.player === viewer) return null; // 「相手が」
-  if (!color || interruptWindow.color !== color) return null; // 「同色の」
+  // 🔴【#878・続き895】**なないろの欠片の手札効果で開いた窓は、どの色の志炎者でも割り込める**
+  //   （★これはすべての色である）。色の値どうしなので colorsMatch で見る。
+  if (!colorsMatch(interruptWindow.color, color)) return null; // 「同色の」
   return interruptWindow.player;
 }
 
@@ -531,8 +533,7 @@ export function findSameColorDiscardCandidates(cardTokenId, color, player) {
   return getState().tokens.filter((t) => {
     if (t.kind !== "card" || t.location.player !== player || t.id === cardTokenId) return false;
     if (t.location.zone !== "hand" && t.location.zone !== "publicDraw") return false;
-    if (t.cardId === "rainbow-shard") return true;
-    return getCardDefinition(t.cardId)?.color === color;
+    return cardMatchesColor(t.cardId, color); // 欠片は★すべての色（判定は1か所に寄せる）
   });
 }
 
@@ -1638,6 +1639,16 @@ function cardMatchesColor(cardId, color) {
   if (cardId === "rainbow-shard") return true; // ★これはすべての色である
   return getCardDefinition(cardId)?.color === color;
 }
+
+// 🔴【#878・続き895】**色の値どうし**を突き合わせる時はこちら（カードの id ではなく色名）。
+//   なないろの欠片の色は "rainbow" で、あれは **★すべての色である**ので、
+//   どの色とも一致する。【志炎】の窓（どの色の手札効果で開いたか）がこれを使う。
+// ⚠ 「この札は虹色か」を見るだけの所（枠の描き方など）には**使わない**
+//   ——あちらは一致の話ではなく、その札そのものの色を聞いている。
+function colorsMatch(a, b) {
+  if (!a || !b) return false;
+  return a === b || a === "rainbow" || b === "rainbow";
+}
 function getFaceUpCellCandidatesOfColor(color) {
   if (!color) return [];
   const candidates = [];
@@ -2516,8 +2527,11 @@ async function runAction(action, ctx, helpers) {
       for (const p of rotatedActivePlayersFrom(ctx.player)) {
         if (p === ctx.player) continue;
         // ⚠ ファースト／エターナル等「他のカードの効果の対象にならない」札は出せない。
+        // 🔴【#878・続き895】**なないろの欠片は「★これはすべての色である」ので出せる。**
+        //   色を直に比べると拾えず、欠片しか持っていない人は「出せる札が無い」と見なされて
+        //   聞かれないまま不発になっていた（報告どおり）。判定は cardMatchesColor に任せる。
         const 候補 = getHandTokens(p).filter(
-          (tk) => getCardDefinition(tk.cardId)?.color === 色 && isTargetableToken(tk)
+          (tk) => cardMatchesColor(tk.cardId, 色) && isTargetableToken(tk)
         );
         if (候補.length === 0) continue; // 出せる札が無い人には聞かない（善処の原則）
         const 返事 = await helpers.delegateToPlayer?.(p, "may-discard-color-draw", {
@@ -5486,7 +5500,8 @@ async function runAction(action, ctx, helpers) {
         if (p === ctx.player) continue; // 「相手全員」
         const 手札 = 捨てられる手札(p);
         if (手札.length === 0) continue; // 何も起きない（善処の原則）
-        const 同色 = 手札.filter((tk) => getCardDefinition(tk.cardId)?.color === 色);
+        // 🔴【#878 の家族・続き895】欠片は★すべての色なので「宣言色の１枚」として出せる。
+        const 同色 = 手札.filter((tk) => cardMatchesColor(tk.cardId, 色));
         const 返事 = await helpers.delegateToPlayer?.(p, "greedy-palette", {
           color: 色,
           candidates: 同色.map((tk) => tk.id),

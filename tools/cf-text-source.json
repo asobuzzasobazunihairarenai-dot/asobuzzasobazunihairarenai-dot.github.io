@@ -34,8 +34,16 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 火（ラテン語）。7枚で「火の一生」を表す（③ 燃え盛る）。",
       "ⓘ 絵: 炎剣を振るう赤い戦士（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半（任意の３マス）が起きません。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "Fire no longer waits for anyone's permission.",
+      "arrival": "Each opponent may discard 1 red card from their hand and draw 2. If at least 1 of them did so, discard all cards on any 3 spaces.",
+      "hand": "Gain one of the following effects:\n・Discard all cards on any 1 space.\n・【Shien】Discard all cards on any 3 spaces."
+    }
   },
   {
     "no": "02",
@@ -73,8 +81,16 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 燃え木・焼き印（ラテン語）。7枚で「火の一生」を表す（④ 運ばれる）。",
       "ⓘ 絵: 橙の獣人と光る火の実（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半が起きません。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "The fruit in his arms is hot because it is still burning.",
+      "arrival": "Each opponent may discard 1 orange card from their hand and draw 2. If at least 1 of them did so, add all cards adjacent to you to your hand.",
+      "hand": "Gain one of the following effects:\n・Add 1 card adjacent to you to your hand.\n・【Shien】Add all cards adjacent to you to your hand."
+    }
   },
   {
     "no": "03",
@@ -112,8 +128,16 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 火花（ラテン語）。7枚で「火の一生」を表す（① 生まれる）。",
       "ⓘ 絵: 飛び跳ねる少年と黄金の炎の精霊（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半が起きません。オープンするマスは場のどこでもかまいません。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "The beginning is always small, and dazzling.",
+      "arrival": "Each opponent may discard 1 yellow card from their hand and draw 2. If at least 1 of them did so, flip the cards on any 4 spaces face-up.",
+      "hand": "Gain one of the following effects:\n・Flip the card on any 1 space face-up.\n・【Shien】Flip the cards on any 4 spaces face-up."
+    }
   },
   {
     "no": "04",
@@ -152,8 +176,16 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 残り火（ラテン語）。7枚で「火の一生」を表す（⑥ 燻る）。",
       "ⓘ 絵: 緑の蛮族、裂けた大地（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半が起きません。裏向きのカードは裏向きのまま動かします（中身は見ません）。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "Under the ash, something is still moving.",
+      "arrival": "Each opponent may discard 1 green card from their hand and draw 2. If at least 1 of them did so, move the face-down cards on any 2 spaces to other spaces, keeping them face-down.",
+      "hand": "Gain one of the following effects:\n・Move the face-down card on any 1 space to another space, keeping it face-down.\n・【Shien】Move the face-down cards on any 2 spaces to other spaces, keeping them face-down."
+    }
   },
   {
     "no": "05",
@@ -191,8 +223,16 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 燭（ともしび）（ラテン語）。7枚で「火の一生」を表す（⑤ 灯される）。",
       "ⓘ 絵: 青炎を掲げる老学者（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半が起きません。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "A single candle lights only what is within reach.",
+      "arrival": "Each opponent may discard 1 blue card from their hand and draw 2. If at least 1 of them did so, each opponent discards down to 2 cards in hand.",
+      "hand": "Gain one of the following effects:\n・Each opponent discards 1 card from their hand.\n・【Shien】Each opponent discards down to 2 cards in hand."
+    }
   },
   {
     "no": "06",
@@ -228,8 +268,16 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 炎（ラテン語）。7枚で「火の一生」を表す（② 育つ）。",
       "ⓘ 絵: ピンクの炎を編む少女（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半（３枚ドロー）が起きません。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "With every weave, the flame grows a little larger.",
+      "arrival": "Each opponent may discard 1 pink card from their hand and draw 2. If at least 1 of them did so, draw 3 cards.",
+      "hand": "Gain one of the following effects:\n・Draw 1 card.\n・【Shien】Draw 3 cards."
+    }
   },
   {
     "no": "07",
@@ -266,7 +314,15 @@
       "🔴 扱いは**拡張カード**（新しいエディションではない）。**パックではなく限定報酬**で配る（ユーザー判断）。",
       "ⓘ 名前の由来: 燃えさし・灰（ラテン語）。7枚で「火の一生」を表す（⑦ 還る）。",
       "ⓘ 絵: 紫の老女と燃える灯火（素材は J:/自作カードゲーム/7 seven/画像集/しえんしゃ　画像）。",
-      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**"
-    ]
+      "🔴 【志炎】は**払うコストではなく割り込みの窓**。公式サイトの基本用語集:「相手が、このカードと同色のカードの手札効果を使用した直後に限り、宣言できる」。**まだ未実装。**",
+      "補足: 到達効果は、相手が1人も捨てなかった場合は後半が起きません。",
+      "補足: 【志炎】は、相手がこのカードと同じ色のカードの手札効果を使った直後にだけ宣言できます（払うコストではなく、割り込める瞬間のことです）。",
+      "補足: なないろの欠片はすべての色を兼ねるので、同じ色のカードとして出せます。"
+    ],
+    "en文": {
+      "flavor": "Only once it becomes ash does the fire return to the earth.",
+      "arrival": "Each opponent may discard 1 purple card from their hand and draw 2. If at least 1 of them did so, you are forced to move 2 spaces in one leap.",
+      "hand": "Gain one of the following effects:\n・You are forced to move 1 space.\n・【Shien】You are forced to move 2 spaces in one leap."
+    }
   }
 ]

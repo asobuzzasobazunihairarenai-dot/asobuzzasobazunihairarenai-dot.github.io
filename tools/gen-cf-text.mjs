@@ -73,22 +73,41 @@ const 頭 = (何) => [
     頭("日本語の文") + "export const CARD_TEXT_CF_JA = {\n" + 行.join("\n") + "\n};\n");
 }
 
-// ② 英語（名前だけ）
+// ② 英語（名前＋効果文）
+// 🔴【#880・続き895】報告「志炎カードの英文がないです」。それまで**名前だけ**で、
+//   効果文は空＝英語で遊んでいる人には**日本語のまま**出ていた（card-text.js の設計で、
+//   空の欄は日本語に落ちる）。⇒ 元データの `en文` を出すようにした。
+// ⚠ 用語はリメイクの英語の文から写してある（オープン→flip face-up、強制移動→forced to move、
+//   手札がN枚になるように捨てる→discards down to N、【追色１】→【Color Cost 1】にならって【Shien】）。
 {
   const 行 = CF_CARDS.map((c) => {
     const t = 文.find((x) => x.id === c.id);
-    return "  " + q(c.id) + ": { name: " + q(t.en) + " },";
+    const e = t.en文 || {};
+    return "  " + q(c.id) + ": { name: " + q(t.en)
+      + ", flavor: " + q(e.flavor ?? "")
+      + ", basic: \"\", subtitle: \"\""
+      + ", arrival: " + q(e.arrival ?? "")
+      + ", hand: " + q(e.hand ?? "") + " },";
   });
   fs.writeFileSync(path.join(ROOT, "src/card-text-cf.en.js"),
-    頭("英語の文（いまは名前だけ）") + "export const CARD_TEXT_CF_EN = {\n" + 行.join("\n") + "\n};\n");
+    頭("英語の文") + "export const CARD_TEXT_CF_EN = {\n" + 行.join("\n") + "\n};\n");
 }
 
 // ③ カードのデータ
 {
   const 行 = CF_CARDS.map((c) => {
     const t = 文.find((x) => x.id === c.id);
+    // 🔴【#879・続き895】**「補足:」で始まる行だけを採る**（gen-0th-text.mjs と同じ決まり）。
+    //   notes には作業メモが混ざるので、そのまま入れると**アプリのカード補足に開発の内輪話が出る**
+    //   ——実際に出ていた（報告 #879 の絵に「🔴 2026-11-21: …ユーザー判断で…」と、
+    //   **こちらの手元のフォルダの道**まで並んでいた）。続き783 で 1st を直した時の形にそろえる。
+    const note = (t.notes || [])
+      .filter((n) => /^補足[:：]/.test(n))
+      .map((n) => n.replace(/^補足[:：]\s*/, "").trim())
+      .filter(Boolean)
+      .join(" ");
     return "  { id: " + q(c.id) + ", name: " + q(c.name) + ", color: " + q(c.color)
-      + ", count: " + CF_DECK_COUNT + ", limited: true, note: " + q(t.notes.join(" ")) + " },";
+      + ", count: " + CF_DECK_COUNT + ", limited: true, note: " + q(note || "特になし。") + " },";
   });
   fs.writeFileSync(path.join(ROOT, "src/cards-data-cf.js"), 頭("カードデータ")
     + "// ⚠ `limited: true` は「**手に入り方**が限定報酬だけ」の印。\n"

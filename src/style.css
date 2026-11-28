@@ -25933,11 +25933,21 @@ body.is-phone-device #lock-pick-modal {
   max-height: 23.906rem; /* 47.813rem ÷ 2倍 */
 }
 body.is-phone-device #card-note-modal {
-  /* 🔴【続き888】上の規則で既に縮みを打ち消しているので、ここは割合で決める
-     （22.5rem の決め打ちだと、せっかく広げた札が縦に切られる）。 */
+  /* 🔴🔴【#879・続き895】**拡大が二重に掛かっていた**（続き872 の #848 と同じ形）。
+     上の規則が `--stage-scale` で割って縮みを打ち消し、さらにスマホの
+     `scale(--center-modal-scale-phone)`（＝2）が**その上から**掛かるので、
+     実測で札が **ステージの 86%** まで膨らんでいた（報告 #879 の絵がまさにそれ）。
+     ⇒ **スマホでは打ち消しを外す**。大きくするのはスマホ用の scale に任せる。
+     ⚠ PC（この規則が当たらない所）は1pxも変えていない。 */
+  width: min(38rem, 94vw);
   /* ⚠ max-height に vh は使わない（check-css の決まり）。ステージの高さ＝56.25rem
-     なので、rem で書けば画面の高さに対する割合になる。 */
-  max-height: 48rem;
+     なので、rem で書けば画面の高さに対する割合になる。
+     ⚠ scale(2) が掛かるので、ここは**半分**で見ておく。 */
+  max-height: 24rem;
+}
+/* 🔴【#879】絵も同じ理由で打ち消しを外す（札の幅に対する割合だけで決める）。 */
+body.is-phone-device .card-note-image {
+  width: min(24rem, 45%);
 }
 body.is-phone-device #admin-panel {
   max-height: 34.914rem; /* 50.625rem ÷ 1.45倍 */

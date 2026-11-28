@@ -1208,6 +1208,53 @@ export const CASES = [
     ],
   },
   {
+    // 🔴【#878・続き895】「CPUのフランマの到達効果が不発になりました。私はなないろのかけら
+    //   持ってるのに！」——欠片は **★これはすべての色である**ので、桃として出せるのが正しい。
+    //   直す前は色を直に比べていたので拾えず、**聞かれないまま不発**になっていた。
+    name: "志炎者 桃 フランマ(到達): 相手がなないろの欠片しか持っていなくても、同色として出せる（#878）",
+    kind: "arrival",
+    cardId: "cf-pink-flamma",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-pink-flamma", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bshard", kind: "card", cardId: "rainbow-shard", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-pink-flamma", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { delegate: [{ tokenId: "bshard" }] },
+    expect: [
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 1 },
+      { kind: "tokenGone", id: "bshard" },
+      { kind: "handCount", player: "A", n: 4 }, // 後半（３枚ドロー）＋このカード自身
+    ],
+  },
+  {
+    // 🔴 対照。これが無いと「いつでも聞く」実装でも上が通る＝0しか出ない検査になる。
+    name: "志炎者 桃 フランマ(到達・対照): 同色も欠片も無い相手には聞かず、後半は起きない",
+    kind: "arrival",
+    cardId: "cf-pink-flamma",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "pieceB", kind: "piece", player: "B", location: { zone: "cell", row: 0, col: 0 } },
+        { id: "self", kind: "card", cardId: "cf-pink-flamma", faceUp: true, location: { zone: "cell", row: 3, col: 3 } },
+        { id: "bother", kind: "card", cardId: "white-awakening", faceUp: false, location: { zone: "hand", player: "B" } },
+      ],
+      piles: { deck: ["red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad", "red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-pink-flamma", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    expect: [
+      { kind: "called", name: "delegateToPlayer", arg: "may-discard-color-draw", n: 0 },
+      { kind: "tokenZone", id: "bother", zone: "hand" },
+      { kind: "handCount", player: "A", n: 1 }, // 後半は起きない（このカード自身だけ）
+    ],
+  },
+  {
     name: "志炎者 紫 ファウィラ(到達): 相手が同色を捨てたので、２マス先に一気に強制移動する",
     kind: "arrival",
     cardId: "cf-purple-favilla",

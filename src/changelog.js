@@ -59,6 +59,7 @@ export const CHANGELOG = [
       "カードの補足が読みやすくなりました",
       "カードの補足で色者・状況・志炎の説明も出ます",
       "CPU戦の設定画面が読みやすくなりました",
+      "志炎者のカードが英語でも読めるようになりました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
@@ -66,6 +67,7 @@ export const CHANGELOG = [
       "Card notes are easier to read",
       "Card notes now explain Shikija, Situation and Shien",
       "The CPU battle settings are tidier",
+      "The Shien cards can now be read in English",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
@@ -73,6 +75,7 @@ export const CHANGELOG = [
       "**カードの補足（カードを長押し・右クリックで出る画面）を作り直しました。** カードの絵が**2.7倍**の大きさになり、効果文はその絵で読めます。長い補足は3行にまとめて、続きは「もっと詳しく」で開きます。**追色や財力などの固有効果は、上に単語で並ぶ**ようになり、押すとその説明が出ます。印刷されたカードから効果を変えている札には「デジタル版で効果を変更」の印が付きます。",
       "**カードの補足で、追色や財力などの固有効果に加えて【色者】【状況】【志炎】も説明が出る**ようになりました（公式サイトの基本用語集の文をそのまま載せています）。英語でも出ます。",
       "**CPU戦の設定画面**が読みやすくなりました。**i を押すと説明がモーダルで出る**ようになり（その場で開いて下の項目が動くことがなくなりました）、**使うカードには箱の絵**が並び、**対戦ルールの4つが同じ大きさでそろいます**。",
+      "志炎者のカードに**英語の効果文**が入りました（これまでは名前だけで、英語でも効果文は日本語のまま出ていました）。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
@@ -80,6 +83,7 @@ export const CHANGELOG = [
       "The card notes screen has been rebuilt. The card picture is now about 2.7 times larger, so the effect text can be read from the card itself. A long note is shortened to three lines with a More detail button, and special effects such as Color Cost or Wealth now appear as words at the top that you can tap for an explanation. Cards whose effect differs from the printed version carry a small marker.",
       "The card notes now also explain Shikija, Situation and Shien, alongside Color Cost and Wealth, using the wording from the official basic terms page. This works in English too.",
       "The CPU battle settings are tidier: the i buttons now open their explanation in a dialog instead of pushing the rest of the list down, the chosen edition shows its box art, and the four match rules line up at the same size.",
+      "The Shien cards now have English effect text; until now only their names were translated and the effects stayed in Japanese.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -101,6 +105,9 @@ export const CHANGELOG = [
       "デイリーチャレンジやウィークリーの報酬を受け取った時に、セヴルやパックが飛んでいく演出が出ていなかったのを直しました。",
       "ロックできるカードが無くて自動で飛ばされるフェイズでは、右下のスキップボタンを出さないようにしました（自動送りを切っている時は今までどおりです）。",
       "CPU戦の「対戦ルール」の説明が、4つのうち「自分にも持ち時間」しか書かれていなかったので、白黒カード・ブースト・マイデッキも説明するようにしました。",
+      "なないろの欠片を持っているのに「同じ色のカード」として出せず、効果が不発になっていたのを直しました。",
+      "カードの補足を開いた時、スマホで札が大きくなりすぎて画面からはみ出していたのを直しました。",
+      "志炎者のカードの補足に、開発用のメモがそのまま出ていたのを直しました。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -122,6 +129,9 @@ export const CHANGELOG = [
       "Fixed the coins and packs not flying to your balance when you claim a daily or weekly reward.",
       "The skip button is no longer shown for a phase that will be skipped automatically, unless you have turned auto-advance off.",
       "The explanation for the match rules only covered the turn timer; it now describes the black & white cards, Boost and My Deck as well.",
+      "Fixed the rainbow shard not counting as a card of the matching color, which made some effects fizzle.",
+      "Fixed the card notes being blown up past the edge of the screen on phones.",
+      "Fixed the Shien cards showing internal development memos as their card notes.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -214,6 +224,9 @@ export const CHANGELOG = [
       "🔴🔴 **【続き894】#864 の残り（ⓘ の中身）を並べて読んだら、「使うカード」の説明に**事実でない記述が3つ**あった。** ①「まぜる」は**両方**です → **4つ**（リメイク・0th拡張・1st・旧0th＝続き840）②ファースト／エターナルは**どれを選んでもリメイク**のもの → **1st EDITION は自分の版**を使い、**まぜるはファーストが色ごとに 50/50**（`getFirstCards` / `getEternalCards` を読んだ）③⚠ 効果の自動処理は**まだ一部だけ**なので、ほとんどのカードは自分で処理してください → **もう全部そろっている**（0th拡張 33/33・1st 19+7+7・旧0th 19/19・志炎者 7/7）。いちばん重いのは③——**遊ぶ前に読む人を怯ませる文**で、しかも続き788〜799 で旧0thを実装した時点で**事実ではなくなっていた**。**教訓: 実装が進んだら、進んだことを言っている文も一緒に直す**（続き803 の家族）。",
       "**対戦ルールは4つあるのに1つしか説明していなかった**（白黒カード・ブースト・マイデッキに一言も無く、押しても何が変わるか分からない）。🔴 **文はこちらで作文していない**——既に正しい説明が在ったので縮めて使った（白黒＝`setup.bwNote`／ブースト＝`setup.boostNote`／マイデッキ＝`tip.myDeck`）。**同じことを2通りの言い方で持たない。** ⚠ 残りの3つ（CPUの強さ・人数・マイ山札）は読んで事実と合っていたので1文字も変えていない。⚠ ふつうの人の「使うカード」の ⓘ は `deckPickHint` が出る（続き881 の統合の結果で、エディションの選択が無いので正しい）。",
       "⚠ 実測（`scratchpad/_p894.mjs`・ふつうの人 OK 11／管理者 OK 14）: **本物のホームの設定を開いて、本物の ⓘ を4つとも押して出た文を読んだ**。古い3つの言い回しが消えていること・新しい記述が在ること・どのモーダルも画面の外へ出ないこと。⚠ 申し送り: **#869（色者の演出の組み替え）は未着手**——ユーザーの案はいまの4拍（続き792）とは別の切り方なので、**作り替える前に実機で一度見てほしい**。",
+      "🔴🔴 **【続き895】#878「フランマの到達が不発。なないろのかけら持ってるのに！」——欠片は ★すべての色 なのに、色を直に比べていたので拾えず、欠片しか持っていない人は『出せる札が無い』と見なされて聞かれないまま不発だった。** 🔴🔴 **判定は engine の中に既に在り（`cardMatchesColor`）、そのすぐ上に「色を突き合わせる所を足したら、必ず欠片の例外を書く」と自分で書いてあった**——人任せの約束は**3か所**で破れていた（志炎者の到達／強欲なパレット■／**【志炎】の窓**）。続き863「ルールを private に閉じ込めると、よそでは必ず書き写される」の家族。⇒ 3か所とも判定へ寄せ、色の値どうし用に `colorsMatch` を足した。🔴 **4回目を機械で止めた**（32本目 `check-color-match.mjs`。A/B で名指しの行番号つきで落ちる）。",
+      "🔴🔴 **#879 は絵に2つ写っていた。** (a) 続き888 で `--stage-scale` で割って縮みを打ち消したが、**スマホでは scale(2) が上から掛かる**ので**二重**になり、実測で札が 1216 ステージpx・**画面の外へ 68px**（続き872 の #848 と同じ形）⇒ スマホでは打ち消しを外す（PC は1pxも変えていない）。🔴 **ヘッドレスでは最初 再現しなかった**——`is-phone-device` は**画面幅ではなく端末**で付くクラス（続き767）で、**自分で付け外しして**測って初めて出た。(b) 🔴🔴 **補足が開発メモそのもの**だった（`notes` を丸ごと入れていたので 🔴 や ** が並び、**こちらの手元のフォルダの道まで全員の画面に出ていた**）⇒ 「補足:」で始まる行だけを採る形へ（続き783 で 1st を直した時と同じ罠）。",
+      "🔴🔴 **道具のミスで engine を丸ごと巻き戻した。** A/B の1行で**変数名に日本語を使って**失敗し（bash では使えない）、`&&` が切れたのに **`;` で繋いだ後半だけが走って** `cp /tmp/eng.bak …` ＝**前の回の A/B が残していた古い控え**を書き戻した（続き890 の #872 の直しなど **392行**が消えた）。`git show HEAD:… > …` で戻して今日の5か所を入れ直した。**教訓: A/B の控えを /tmp に置かない。崩すのも戻すのも Edit で行い、シェルの cp を使わない**（続き873・878 の家族で3回目）。⚠ #880 の英語は**リメイクの英語の文から用語を写した**（オープン→flip face-up／強制移動→forced to move／【追色１】→【Color Cost 1】にならって【Shien】）。日本語は1文字も変えていない。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -304,6 +317,9 @@ export const CHANGELOG = [
       "[Continuation 894] Reading the four i explanations together turned up three statements in the card-set hint that were no longer true: Mixed now blends four editions rather than two, 1st EDITION brings its own First and Eternal cards while Mixed picks a First card per colour, and every edition's effects are now implemented, so the warning that most cards must be resolved by hand was both stale and discouraging.",
       "The match-rules hint described only the turn timer, so the other three toggles are now explained, reusing the wording that already existed elsewhere rather than writing a second version of the same explanation.",
       "The other three hints were read and left untouched because they still matched the behaviour.",
+      "[Continuation 895] The rainbow shard counts as every colour, but three places compared colours directly and missed it, so a player holding only the shard was never asked and the effect fizzled; all three now go through the engine's existing predicate, and a new check fails by line number if a fourth is ever written.",
+      "The card note was enlarged twice on phones, once by cancelling the stage shrink and once by the phone scale, and its note text was the raw developer memo including a local folder path; both are fixed.",
+      "A shell one-liner with a Japanese variable name broke mid-chain and restored a stale /tmp backup over the engine, reverting committed work, which was recovered from HEAD and re-applied.",
     ],
   },
   {
