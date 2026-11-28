@@ -53,6 +53,18 @@ import { markChangelogRead } from "./changelog-signature.js";
 export const CHANGELOG = [
   {
     date: "2026-11-28",
+    summary: [
+      "「使うカード」と「山札」が1つになりました",
+    ],
+    summaryEn: [
+      "Choosing cards and choosing your deck are now one step",
+    ],
+    items: [
+      "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
+    ],
+    itemsEn: [
+      "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
+    ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
       "図鑑の「カード一覧」でカードを開いた時に、カードが縦に伸びて**文字と枠がずれていた**のを直しました（説明の長いカードで起きていました）。",
@@ -92,6 +104,12 @@ export const CHANGELOG = [
       "⇒ 計器を直した: **上限（layersMB）と同じ瞬間の下限（layersRootMB・入れ子を除いた分）と、除いた枚数（layersNested）を一緒に残す**。ピークも両方。さらに**いちばん大きい1枚の大きさ**（#857 では `#game-table` 54MB だが、手元の同じ要素は 675x429 ＝ **9.9MB** にしかならない＝なぜ5倍なのかを推測せずに済む）と、**走査そのものに掛かった時間**も残すようにした。⚠ 足した「入れ子の歩き」の費用は実測 **1.2ms**（温まった走査 7.6ms のうち）。",
       "🔴 **申し送りの2つ目（`will-change` が層を増やしているのでは）も実測で否定した。** 本物の盤面で computed を数えたら **7枚・0.2MB だけ**（`.stack` 4・`.piece` 3）。**95枚の正体は計器の数え方であって、`will-change` ではない。**",
       "⚠ **【続き880】「リメイク＋志炎者（各1枚・テスト用）」の表示を「各2枚」に直した**（続き878 で中身を2枚にした時に、名前だけ古いまま残っていた）。",
+      "🔴🔴 **【#859・続き881】「使うカード」と「山札」を1つにした**（ユーザー案「使うカードを選択する画面にマイ山札も並べて、このページの山札の項目は無くしたほうがいい？」⇒「全部すすめよう」）。回転台（edition-select-ui.js）に **`my-stack` という合図の札**を足し、ホームの「山札」の組は丸ごと外した。「組み方を編集」は使うカードの組へ移し、**マイ山札を選んでいる時だけ**出す（選んでいない時に出しても対局に効かない＝#729 の家族）。",
+      "🔴🔴 **統合の唯一の壁は「マイ山札が管理者以外から消えること」だった。** 「使うカード」はそれまで**管理者だけの区画**（続き850）で、マイ山札は**誰でも使えた**。そのまま統合すると、遊んでいる人からマイ山札が消える。⇒ **組は全員に出し、並べる中身を出し分ける**: 管理者でない人には**公開済みのもの＋マイ山札だけ**（リメイクとマイ山札の2枚）。⚠ 1st EDITION は「公式」だが**まだ公開していない**ので `公開` の印を付けていない——付けると**未公開の版で遊べてしまう**。",
+      "⚠ 内部では**2つのまま**（使うカード＝色ごとの枚数の枠／マイ山札＝その中の内訳）。マイ山札を選んでも**使うカードは変えない**——書き換えると「マイ山札にしたらエディションまで変わった」になる。⇒ 画面では1つの問いに見せ、2つの面倒は `いまの選択()` と `選ぶ()` の1か所で見る。",
+      "⚠ 見出しと説明も出し分けた（管理者でない人に「🧪 テストモード（管理者のみ）」や 0th拡張・まぜるの話を出さない）。回転台の題も「エディションを選ぶ」→「**使うカードを選ぶ**」へ（マイ山札はエディションではない）。",
+      "⚠ 実測15項目（**管理者でない人／管理者/本物の道で選ぶ**の3通り）: 管理者でない人には**リメイクとマイ山札の2枚だけ**・未公開の版は出ない・箱の絵も出る／管理者には7枚／**マイ山札を選ぶと枠（まぜる）は変わらず mine だけ立つ**・エディションへ戻すと下りる。追い検査10項目（いまの名が読める・設定が画面に収まる・組は4つ）。",
+      "⚠ **いま選ばれている物の名前を読める大きさにした**（#859 の絵でも、いまの値が「変える」ボタンの横に**ふりがなのように小さく**出ていた）。実測でスマホ **24px**（ボタン 30.4px）・PC 16.8px。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -118,6 +136,12 @@ export const CHANGELOG = [
       "The music change was verified by forcing the audio context into the suspended state: nothing starts while it is suspended, playback begins from the start once it is allowed, and the ordinary case is unaffected.",
       "The CPU choices were verified by asking the real decision routine twenty times for each of the six cards; every answer was the same, while an unregistered card still split ten to ten.",
       "The label for the remake-plus-Shien set said one of each; it now says two, matching what the set actually contains.",
+      "[#859, continuation 881] The two settings rows were merged into one. Your own deck recipe now appears on the same shelf of boxes as the editions, and the edit button moved there, shown only while that deck is selected.",
+      "The one obstacle was that the card-set row had been admin-only while the deck recipe was available to everyone, so a naive merge would have hidden the recipe from players. The row is now shown to everyone, with its contents filtered: non-admins see the published edition and their own deck only.",
+      "Internally the two settings remain distinct: the edition still sets how many cards of each colour the deck holds, and the recipe fills that frame. Choosing your own deck therefore leaves the edition untouched.",
+      "Headings and explanations are also split so that players are not shown admin wording or editions they cannot use, and the shelf is now titled for decks rather than editions.",
+      "Verified across three paths with fifteen checks, plus ten more for readability and fit; the current selection's name was also enlarged, since it was rendered tiny beside the button.",
+      "The settings panel is now four groups instead of five, and still fits on a phone without scrolling.",
     ],
   },
   {

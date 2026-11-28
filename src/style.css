@@ -30624,3 +30624,16 @@ body.is-tablet-device .card-pack-hint-toggle {
 .card-pack-hint-body {
   margin-top: 0.45rem;
 }
+
+/* 🔴【#859・続き881】「使うカード」の**いま選ばれている物の名前**。
+   報告 #859 の絵でも、いまの値（まぜる）が「変える」ボタンの横に**ふりがなのように小さく**
+   出ていて、肝心の答えが読めなかった。ここは「何で遊ぶか」の答えそのものなので、
+   ボタンと同じくらいの大きさにする。
+   ⚠ 指で押す端末では段ごと大きくなる（#822 で押す物を大きくしたのと同じ考え方）。 */
+.home-match-choice-edition-now {
+  font-size: 1.05rem;
+}
+body.is-phone-device .home-match-choice-edition-now,
+body.is-tablet-device .home-match-choice-edition-now {
+  font-size: 1.5rem;
+}

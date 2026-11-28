@@ -59,6 +59,9 @@ const UI = {
     //   無い画面なので）。長い見出しは折り返しの位置が読みにくくなるので短い方を使う。
     "home.matchChoice.difficultyLabelShort": "🤖 CPUの強さ",
     "home.matchChoice.countLabelShort": "👥 人数",
+    "home.matchChoice.deckPickLabel": "🃏 使うカード",
+    "home.matchChoice.deckPickLabelShort": "🃏 使うカード",
+    "home.matchChoice.deckPickHint": "この対局の山札を選びます。次に始める対局から効きます。「マイ山札」にすると、自分で決めた組み方の山札で遊べます（色ごとの枚数は標準と同じままなので、7色勝利の条件は変わりません）。オンラインとランク戦では標準の山札になります。",
     "home.matchChoice.cardSetLabelShort": "🧪 使うカード",
     "home.matchChoice.difficultyHint": "新人＝ランダム／中級・上級＝賢い思考／最強＝伏せカードののぞき見あり",
     // 【#666】説明文を畳む i マークの読み上げ名。
@@ -75,7 +78,7 @@ const UI = {
     "oui.cardSetLabel": "🧪 この部屋で使うカード（管理者のみ）",
     "oui.cardSetHint": "あなたが「ゲームを開始する」を押した時の選択が、この部屋の全員に効きます。ランク戦では使われません（必ずリメイクです）。",
     // --- この対局の山札（deck-choice-ui.js・続き743） ---
-    "edition.title": "エディションを選ぶ",
+    "edition.title": "使うカードを選ぶ",
     "edition.current": "いま選ばれているカード：{name}",
     "edition.change": "変える",
     "edition.prev": "前のエディション",
@@ -2681,6 +2684,9 @@ const UI = {
     "home.matchChoice.difficultyLabel": "🤖 CPU strength (CPU match only)",
     "home.matchChoice.difficultyLabelShort": "🤖 CPU strength",
     "home.matchChoice.countLabelShort": "👥 Players",
+    "home.matchChoice.deckPickLabel": "🃏 Deck",
+    "home.matchChoice.deckPickLabelShort": "🃏 Deck",
+    "home.matchChoice.deckPickHint": "Choose the deck for this game. It takes effect from the next game you start. Pick \"My deck recipe\" to play with the mix you put together yourself; the number of cards in each colour stays the same, so the seven-colour win is unchanged. Online and ranked games always use the standard deck.",
     "home.matchChoice.cardSetLabelShort": "🧪 Card set",
     "home.matchChoice.difficultyHint": "Rookie = random / Intermediate & Advanced = smart AI / Master = peeks at face-down cards",
     "home.matchChoice.infoLabel": "About this setting",
@@ -2696,7 +2702,7 @@ const UI = {
     "oui.cardSetLabel": "🧪 Card set for this room (admin only)",
     "oui.cardSetHint": "Whatever is selected when you press Start applies to everyone in this room. Ranked matches never use it (they are always Remake).",
     // --- Deck for this match (deck-choice-ui.js) ---
-    "edition.title": "Choose an edition",
+    "edition.title": "Choose a deck",
     "edition.current": "Currently selected: {name}",
     "edition.change": "Change",
     "edition.prev": "Previous edition",

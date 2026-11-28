@@ -52,9 +52,9 @@ onCardPacksChange(() => {
 });
 import { getCardSet } from "./card-set.js";
 // 🔴【続き832】エディションを選ぶ画面（画面全体・箱が並ぶ）。
-import { openEditionChooser, セットの名 } from "./edition-select-ui.js";
+import { openEditionChooser, セットの名, いまの選択 } from "./edition-select-ui.js";
 // 【続き725】マイ山札（山札の組み方）。my-stack.js は import を1つも持たない葉なので循環しない。
-import { isMyStackEnabled, setMyStackEnabled } from "./my-stack.js";
+import { isMyStackEnabled } from "./my-stack.js"; // 切り替えは使うカードの回転台が持つ（続き881）
 import { isUiV2 } from "./ui-v2.js"; // 【2026-11-14】試作のレイアウト（?ui=v2 の時だけ使う）
 // 【続き733】デイリーチャレンジ／ウィークリーの「7色のリング」（ユーザー要望）。
 import { buildDailyRing } from "./daily-ring.js";
@@ -625,73 +625,12 @@ function openMatchChoiceModal(opts = {}) {
   説明を畳む(rulesLabel, rulesHint);
   details.appendChild(rules);
 
-  // 🔴【2026-11-15・続き725】「マイ山札」の行（ユーザー指示「**マイ山札から進めよう！**」）。
-  //   山札（112枚）の中身を自分で決められる。色ごとの枚数は標準と同じままなので、
-  //   7色勝利の条件は変わらない（作りの芯は src/my-stack.js の冒頭）。
-  //   ⚠ **ここは CPU戦・ローカル対戦だけに効く。** オンラインの山札を組むのはサーバー
-  //     （Edge Function）だけなので、こちらで何を選んでも盤面は標準の山になる。しかも
-  //     山札は全員の共有物なので、1人の好みが他の3人の引く札を決めてしまう＝筋としても
-  //     効かせるべきではない（state.js の setOnlineMode が明示的に黙らせている）。
-  //   ⚠ **管理者かどうかで候補が変わる**（編集画面側で出し分け）。遊んでいる人には
-  //     未公開の0th拡張・1st EDITION の札は並ばない＝リメイクの33種の中での配分だけ。
-  {
-    const stackBox = document.createElement("div");
-    stackBox.className = "home-match-choice-difficulty";
-    const stackLabel = document.createElement("div");
-    stackLabel.className = "home-match-choice-difficulty-label";
-    stackLabel.textContent = t(cpuだけ ? "home.matchChoice.stackLabelShort" : "home.matchChoice.stackLabel");
-    stackBox.appendChild(stackLabel);
-    const stackSeg = document.createElement("div");
-    stackSeg.className = "home-match-choice-segment";
-    const stackButtons = [];
-    const refreshStack = () => {
-      const on = isMyStackEnabled();
-      for (const b of stackButtons) b.classList.toggle("is-selected", (b.dataset.v === "mine") === on);
-    };
-    for (const [v, key] of [
-      ["standard", "home.matchChoice.stackStandard"],
-      ["mine", "home.matchChoice.stackMine"],
-    ]) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "home-match-choice-segment-btn";
-      b.dataset.v = v;
-      b.textContent = t(key);
-      b.addEventListener("click", () => {
-        setMyStackEnabled(v === "mine");
-        refreshStack();
-      });
-      stackSeg.appendChild(b);
-      stackButtons.push(b);
-    }
-    stackBox.appendChild(stackSeg);
-    // 「組み方を編集」。⚠ **動的 import** にする（my-deck-builder と同じ作法。
-    //   静的に書くと home-screen.js → my-stack-editor.js → cards-data.js と輪になり得る）。
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "home-match-choice-stack-edit";
-    editBtn.textContent = t("home.matchChoice.stackEdit");
-    editBtn.addEventListener("click", async () => {
-      // 🔴【続き734・#675】**先にこのモーダルを閉じる**。
-      //   設定モーダルは z 9200 で、マイ山札の画面(2661)より上。閉じずに開くと
-      //   **モーダルの後ろ**に開いてしまう（マイページで起きたのと同じ形）。
-      //   ⚠ 上げて重ねる手もあるが、モーダルを全画面ページの後ろに残すのは筋が悪い
-      //     （閉じ方が2つ重なる）。ここは閉じるのが正しい。
-      closeMatchChoiceModal();
-      const m = await import("./my-stack-editor.js");
-      // 未公開の0th拡張・1st EDITION の札は管理者だけに見せる（カードセットの選択と同じ扱い）。
-      m.setMyStackShowAllSets(isAdminUser());
-      m.openMyStackEditor();
-    });
-    stackBox.appendChild(editBtn);
-    const stackHint = document.createElement("div");
-    stackHint.className = "home-match-choice-difficulty-hint";
-    stackHint.textContent = t("home.matchChoice.stackHint");
-    stackBox.appendChild(stackHint);
-    説明を畳む(stackLabel, stackHint);
-    refreshStack();
-    details.appendChild(stackBox);
-  }
+  // 🔴【#859・続き881】**「山札（標準／マイ山札）」の組はここから消した。**
+  //   ユーザー案「使うカードを選択する画面にマイ山札も並べて、このページの山札の項目は
+  //   無くしたほうがいい？」⇒「全部すすめよう」。どちらも「**何のカードで遊ぶか**」の
+  //   1つの問いなのに、2つに分かれていて**噛み合い方も分かりにくかった**（#859 の質問そのもの）。
+  //   ⇒ 下の「使うカード」の回転台に**マイ山札の箱を並べる**（edition-select-ui.js）。
+  //   ⚠ 「組み方を編集」はそちらの組へ移した（マイ山札を選んでいる時だけ出す）。
 
   // 🔴 管理者だけに出す「テストモード」。0th拡張（0th EDITION 拡張）の33種で遊ぶための入口。
   //   遊んでいる人には**この区画自体が存在しない**（既定はリメイクの33種のまま）。
@@ -700,12 +639,21 @@ function openMatchChoiceModal(opts = {}) {
   //     さらに 2026-11-10 から**部屋の中でも選べる**（online-ui.js の buildRoomCardSetChooser）。
   //     部屋で選ばなければ、ここの選択がそのまま使われる。
   //   🔴 **ランク戦はここを見ない**（必ずリメイク）。それまでは端末の設定が漏れていた。
-  if (isAdminUser()) {
+  // 🔴【#859・続き881】**この組は全員に出す**（それまでは管理者だけだった）。
+  //   マイ山札がここへ移ったので、管理者だけにすると**マイ山札が遊んでいる人から消える**。
+  //   ⚠ 並べる中身は今までどおり出し分ける——管理者でない人には**公開済みのもの＋マイ山札**
+  //     だけ（未公開の 1st EDITION・旧0th・まぜる等は出ない＝edition-select-ui.js の `公開` 印）。
+  //   ⚠ 「試験モード」の見た目（home-match-choice-testmode）は**管理者の時だけ**付ける。
+  {
+    const 管理者 = isAdminUser();
     const setBox = document.createElement("div");
-    setBox.className = "home-match-choice-difficulty home-match-choice-testmode";
+    setBox.className = "home-match-choice-difficulty" + (管理者 ? " home-match-choice-testmode" : "");
     const setLabel = document.createElement("div");
     setLabel.className = "home-match-choice-difficulty-label";
-    setLabel.textContent = t(cpuだけ ? "home.matchChoice.cardSetLabelShort" : "home.matchChoice.cardSetLabel");
+    // 🔴【#859・続き881】管理者でない人には「テストモード（管理者のみ）」ではない言い方を出す。
+    setLabel.textContent = 管理者
+      ? t(cpuだけ ? "home.matchChoice.cardSetLabelShort" : "home.matchChoice.cardSetLabel")
+      : t(cpuだけ ? "home.matchChoice.deckPickLabelShort" : "home.matchChoice.deckPickLabel");
     setBox.appendChild(setLabel);
     // 🔴【続き832】**6つのボタンを横に並べるのをやめた。**
     //   報告 #741「この選択モーダルが細々している」はこの列のことで、箱の絵を持っているのに
@@ -719,17 +667,37 @@ function openMatchChoiceModal(opts = {}) {
     setBtn.type = "button";
     setBtn.className = "home-match-choice-segment-btn";
     setBtn.textContent = t("edition.change");
+    // 🔴【#859・続き881】「組み方を編集」はマイ山札を選んでいる時だけ出す
+    //   （選んでいない時に出すと、押しても対局には効かない＝#729 の家族）。
+    //   ⚠ **動的 import** にする（静的に書くと home-screen.js → my-stack-editor.js →
+    //     cards-data.js と輪になり得る。続き725 からの作法）。
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "home-match-choice-stack-edit";
+    editBtn.textContent = t("home.matchChoice.stackEdit");
+    editBtn.addEventListener("click", async () => {
+      // 🔴【続き734・#675】**先にこのモーダルを閉じる**（設定モーダルの方が手前なので、
+      //   閉じずに開くとマイ山札の画面がその後ろに出る）。
+      closeMatchChoiceModal();
+      const m = await import("./my-stack-editor.js");
+      // 未公開の0th拡張・1st EDITION の札は管理者だけに見せる（使うカードと同じ扱い）。
+      m.setMyStackShowAllSets(管理者);
+      m.openMyStackEditor();
+    });
     const refreshSet = () => {
-      setNow.textContent = セットの名(getCardSet());
+      setNow.textContent = セットの名(いまの選択());
+      editBtn.hidden = !isMyStackEnabled();
     };
     setBtn.addEventListener("click", () => {
-      openEditionChooser({ 試験も: true, onChanged: () => refreshSet() });
+      openEditionChooser({ 試験も: 管理者, onChanged: () => refreshSet() });
     });
     setRow.append(setNow, setBtn);
     setBox.appendChild(setRow);
+    setBox.appendChild(editBtn);
     const setHint = document.createElement("div");
     setHint.className = "home-match-choice-difficulty-hint";
-    setHint.textContent = t("home.matchChoice.cardSetHint");
+    // ⚠ 説明も分ける——管理者でない人に 0th拡張・まぜるの話をしても、その札は並ばない。
+    setHint.textContent = t(管理者 ? "home.matchChoice.cardSetHint" : "home.matchChoice.deckPickHint");
     setBox.appendChild(setHint);
     説明を畳む(setLabel, setHint);
     refreshSet();
@@ -745,9 +713,11 @@ function openMatchChoiceModal(opts = {}) {
   //   ⚠ 片方しか無い時（管理者でない／マイ山札が無い）は**並べ替えない**＝今までどおり。
   //   ⚠ 作る順は変えていない（作る所は条件が入り組んでいるので、**できあがってから並べ替える**）。
   {
-    const 使うカード = details.querySelector(".home-match-choice-testmode");
-    // 山札の組は「組み方を編集」ボタンを持つ組（`.home-match-choice-stack-edit`）。
-    const 山札 = details.querySelector(".home-match-choice-stack-edit")?.closest(".home-match-choice-difficulty") || null;
+    // 🔴【#859・続き881】**「使うカード」と「山札」は1つになった**ので、対はもう無い。
+    //   ⚠ 組は「変える」ボタン（`.home-match-choice-edition-row`）で見分ける
+    //     ——管理者でない人には `home-match-choice-testmode` が付かないため。
+    const 使うカード = details.querySelector(".home-match-choice-edition-row")?.closest(".home-match-choice-difficulty") || null;
+    const 山札 = null;
     // 対戦ルールの組は「ルールのボタン」を持つ組。
     const ルール = details.querySelector(".home-match-choice-rule-btn")?.closest(".home-match-choice-difficulty") || null;
     if (使うカード && 山札) {

@@ -25,15 +25,31 @@
 //   ここで isAdminUser() を呼ぶと online.js → state.js → … と輪になりかねない）。
 
 import { CARD_SETS, getCardSet, setCardSet } from "./card-set.js";
+// 🔴【#859・続き881】マイ山札もこの回転台に並べる（ユーザー案「使うカードを選択する画面に
+//   マイ山札も並べて、このページの山札の項目は無くしたほうがいい？」⇒「全部すすめよう」）。
+//   ⚠ my-stack.js は **import を1つも持たない葉**なので、ここから取っても輪にならない。
+import { isMyStackEnabled, setMyStackEnabled, getMyStacks, getSelectedStackId } from "./my-stack.js";
+import { buildStackBoxArt } from "./stack-box-art.js"; // マイ山札の箱の絵（続き835）
 import { buildDeckBox3d, hasDeckBoxArt } from "./deck-box-3d.js";
 import { buildPackBag } from "./pack-bag.js"; // 「まぜる」の箱のそばに置く 0th拡張のパック（続き840）
 import { isFlatten2dMode } from "./tablet-2d-mode.js";
 import { t } from "./ui-text.js";
 import { createModalCloseX } from "./ui-helpers.js";
 
+// 🔴【#859・続き881】**マイ山札の札**。CARD_SETS の値ではない合図（エディションではないので）。
+//   選ばれている間は `isMyStackEnabled()` が true になり、**使うカード（枠）は今の設定のまま**
+//   ——マイ山札は「色ごとの枚数の枠」を使うカードから借りて、中の内訳だけ差し替える作り
+//   （cards-data.js の getDeckNormalCards）。だから2つは排他ではなく**重なる**。
+//   ⇒ 画面では1つの問い（「何のカードで遊ぶか」）に見せ、内部の2つはこの1か所で面倒を見る。
+export const MY_STACK_PICK = "my-stack";
+
 // 公式＝**実物の箱で売られたもの**（続き744 のユーザー判断と同じ並び）。
+// 🔴 `公開` ＝ **管理者でない人にも並べてよいか**。
+//   ⚠ 1st EDITION は「公式」だが**まだ公開していない**（続き850・851 のユーザー判断
+//     「旧0th を公式へ出すかはまだです」と同じ扱い）。この印を外すと、**遊んでいる人が
+//     未公開の版で遊べてしまう**ので、公開の判断が出るまで付けないこと。
 const 公式 = [
-  { set: CARD_SETS.REMAKE, key: "home.matchChoice.cardSetRemake" },
+  { set: CARD_SETS.REMAKE, key: "home.matchChoice.cardSetRemake", 公開: true },
   { set: CARD_SETS.FIRST_ED, key: "home.matchChoice.cardSet1st" },
 ];
 // 試験＝管理者のテスト用。0th拡張はブースターパックで売られた拡張、旧0thは「とりあえず
@@ -45,9 +61,46 @@ const 試験 = [
   { set: CARD_SETS.REMAKE_CF, key: "home.matchChoice.cardSetRemakeCf" },
 ];
 
+// いま選んでいるマイ山札の「箱の絵にする札」の id（無ければ空＝無地の箱）。
+function 箱の絵のid() {
+  try {
+    const id = getSelectedStackId();
+    return (getMyStacks().find((x) => x.id === id) || {}).skin || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+// マイ山札の札（名前は選んでいる山札の名前。無ければ「マイ山札」）。
+function 自分の山札の札() {
+  let 名 = "";
+  try {
+    const id = getSelectedStackId();
+    名 = (getMyStacks().find((x) => x.id === id) || {}).name || "";
+  } catch (err) {
+    /* 読めなくても既定の名前で出す */
+  }
+  return { set: MY_STACK_PICK, key: "home.matchChoice.stackMine", 名, 公開: true };
+}
+
 export function セットの名(set) {
+  if (set === MY_STACK_PICK) {
+    const o = 自分の山札の札();
+    return o.名 || t(o.key);
+  }
   const o = [...公式, ...試験].find((x) => x.set === set);
   return o ? t(o.key) : String(set || "");
+}
+
+// 🔴 いま選ばれているのはどれか。**使うカードとマイ山札は重なる**ので、
+//   マイ山札が入なら必ずマイ山札（使うカードは枠として裏で効き続ける）。
+export function いまの選択() {
+  try {
+    if (isMyStackEnabled()) return MY_STACK_PICK;
+  } catch (err) {
+    /* 読めなければエディションの方を答える */
+  }
+  return getCardSet();
 }
 
 let 開いている = null;
@@ -89,7 +142,14 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
 
   const 選ぶ = (set) => {
     if (!生きている) return;
-    setCardSet(set);
+    // 🔴【#859・続き881】マイ山札を選んだら**使うカード（枠）は変えない**
+    //   ——マイ山札は枠を使うカードから借りる作りなので、ここで書き換えると
+    //   「マイ山札にしたらエディションまで変わった」になる。
+    if (set === MY_STACK_PICK) setMyStackEnabled(true);
+    else {
+      setMyStackEnabled(false);
+      setCardSet(set);
+    }
     // ⚠ **組み立て直さない。** 箱を作り直すと回転台が初期化され、せっかく回した向きが戻る
     //   （deck-choice-ui.js の「中身が本当に変わった時だけ組み直す」と同じ考え方）。
     置き直す();
@@ -105,8 +165,13 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
   //   （教訓2）、箱を指で回す操作とも喧嘩する。
   //   ⇒ **角度から x と奥行きを自分で計算して、translateX + scale で並べる**。
   //     見た目は回転台そのもので、箱の中の 3D には一切触らない。
-  const 並び = [...公式, ...(試験も ? 試験 : [])];
-  let 位置 = Math.max(0, 並び.findIndex((o) => o.set === getCardSet()));
+  // 🔴【#859・続き881】管理者でない人には**公開済みのものと、マイ山札だけ**を並べる。
+  //   ⚠ ここを「公式ぜんぶ」にすると、**未公開の 1st EDITION で遊べてしまう**（上の注）。
+  const 並び = [
+    ...(試験も ? [...公式, ...試験] : 公式.filter((o) => o.公開)),
+    自分の山札の札(),
+  ];
+  let 位置 = Math.max(0, 並び.findIndex((o) => o.set === いまの選択()));
   const 札たち = [];
   const 袋たち = []; // まぜるの箱のそばに置く 0th拡張のパック（続き840）
 
@@ -163,19 +228,19 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
       //   （とくに「リメイク+志炎者（各1枚・テスト用）」が長い）。2つ以上奥の名前は出さない
       //   ——前に出ている物の名前は、下に大きく出ている。
       札.el.classList.toggle("is-far", Math.abs(d) >= 2);
-      札.el.classList.toggle("is-selected", getCardSet() === 札.set);
+      札.el.classList.toggle("is-selected", いまの選択() === 札.set);
       // 🔴 前の1枚だけが「箱そのもの」を触れる（指で回す・押して選ぶ）。
       //   後ろの箱を触れるままにすると、回そうとした指で**奥の箱**を掴んでしまう。
       if (札.覆い) 札.覆い.style.display = 前 ? "none" : "block";
     }
     const いま = 並び[前の番号];
-    if (名前の行) 名前の行.textContent = いま ? t(いま.key) : "";
+    if (名前の行) 名前の行.textContent = いま ? (いま.名 || t(いま.key)) : "";
     if (決めるボタン) {
-      const 選択中 = いま && getCardSet() === いま.set;
+      const 選択中 = いま && いまの選択() === いま.set;
       決めるボタン.textContent = 選択中 ? t("deckChoice.picked") : t("deckChoice.pick");
       決めるボタン.disabled = !!選択中;
     }
-    if (いまの行) いまの行.textContent = t("edition.current", { name: セットの名(getCardSet()) });
+    if (いまの行) いまの行.textContent = t("edition.current", { name: セットの名(いまの選択()) });
   };
 
   // 🔴【#812・続き845】横に払った直後は、奥の箱の覆いの click を無視する。
@@ -206,8 +271,20 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
     //   ⚠ 0th拡張は deck-box-3d がリメイクの箱の絵を流用しているので、ここでは出さない
     //     （リメイクと見分けが付かない＝続き832 で撮って気づいた）。
     //   ⓘ 旧0th は続き834 で、まぜるは続き839 で箱の絵が付いた。
-    const 箱を出す = hasDeckBoxArt(o.set) && o.set !== CARD_SETS.EX0;
-    if (箱を出す) {
+    // 🔴【#859・続き881】マイ山札の箱。蓋の絵は**その山札に選んである札のイラスト**（続き835）。
+    //   ⚠ `buildStackBoxArt` は**カードの表に在る id だけ**を絵にする（砦。素通しにしない）。
+    //   ⚠ 選んでいなければ**無地の箱**になる（top が null でも buildDeckBox3d は作る）。
+    const 箱を出す = o.set !== MY_STACK_PICK && hasDeckBoxArt(o.set) && o.set !== CARD_SETS.EX0;
+    if (o.set === MY_STACK_PICK) {
+      const 絵 = buildStackBoxArt(箱の絵のid());
+      const box = buildDeckBox3d(絵, {
+        size: 箱の大きさ(),
+        flat: 平面,
+        onTap: () => 選ぶ(o.set),
+        nameplate: o.名 || t(o.key),
+      });
+      if (box) { stage.appendChild(box); 箱たち.push(box); }
+    } else if (箱を出す) {
       const box = buildDeckBox3d(o.set, { size: 箱の大きさ(), flat: 平面, onTap: () => 選ぶ(o.set) });
       if (box) { stage.appendChild(box); 箱たち.push(box); }
     } else if (o.set === CARD_SETS.EX0) {
@@ -281,7 +358,8 @@ export function openEditionChooser({ 試験も = false, onChanged = null } = {})
 
     const nm = document.createElement("div");
     nm.className = "deck-chooser-name";
-    nm.textContent = t(o.key);
+    // ⚠ マイ山札はその山札の名前を出す（箱の名札と同じ＝どれを指しているか分かる）。
+    nm.textContent = o.名 || t(o.key);
     el.appendChild(nm);
 
     // 後ろの箱を押したら「前へ出す」だけ（選ばない）。前に出ている時は箱そのものに触らせる。
