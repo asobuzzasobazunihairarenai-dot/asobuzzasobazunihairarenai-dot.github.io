@@ -21,6 +21,11 @@ const 組 = [
   ["1st", "src/card-text-1st.ja.js", "CARD_TEXT_1ST_JA", "src/card-text-1st.en.js", "CARD_TEXT_1ST_EN"],
   ["旧0th", "src/card-text-0th.ja.js", "CARD_TEXT_OLD0TH_JA", "src/card-text-0th.en.js", "CARD_TEXT_OLD0TH_EN"],
   ["志炎者", "src/card-text-cf.ja.js", "CARD_TEXT_CF_JA", "src/card-text-cf.en.js", "CARD_TEXT_CF_EN"],
+  // 🔴【続き904】**新カードが抜けていた。** 続き882 で足したセットを、続き898 でこの
+  //   名簿に入れ忘れていた ⇒ 3枚とも英語が空のまま素通りしていた。
+  //   ⚠ **セットを足したらここにも足す**（card-text.js は英語が空なら日本語で出すので、
+  //     書き忘れても何も壊れない＝誰も気づかない）。
+  ["新カード", "src/card-text-new.ja.js", "CARD_TEXT_NEW_JA", "src/card-text-new.en.js", "CARD_TEXT_NEW_EN"],
 ];
 
 const 問題 = [];

@@ -3472,6 +3472,9 @@ body.theme-light .card-note-chip {
   color: #4a3f22;
 }
 /* 長い補足は3行で畳む（「もっと詳しく」で開く）。 */
+/* ⚠【続き904】**いまどこからも使っていない。** 補足は畳まないことにした（ユーザー指摘
+   「もっと詳しくの手前が補足文が中途半端な状態になってる」）。規則は、また畳みたくなった
+   時のために残してある（main.js の `is-clamped` を付け直すだけ）。 */
 .card-note-body.is-clamped {
   display: -webkit-box;
   -webkit-line-clamp: 3;

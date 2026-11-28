@@ -18357,9 +18357,8 @@ function showCardNoteModal(cardId, opts = {}) {
 
   textCol.appendChild(noteLabel);
   textCol.appendChild(body);
-  // 🔴 長い補足は**3行で畳む**（ユーザー指摘「現状テキストが多すぎる気がします」）。
-  //   ⚠ 長さで決める——短い札まで畳むと、押さないと読めない行き止まりになる。
-  // 畳んだ中に、断りの文も入れる（消さずに読める形で残す＝#729 の家族）。
+  // 「印刷されたカードから変えています」の断りは、畳む中に入れる（消さずに読める形で
+  // 残す＝#729 の家族）。⚠ 補足そのものは畳まない（下の続き904 の注）。
   if (断り.length > 0) {
     const 見出し2 = document.createElement("div");
     見出し2.className = "card-note-section-label";
@@ -18370,9 +18369,13 @@ function showCardNoteModal(cardId, opts = {}) {
     詳しく.insertBefore(本文2, 詳しく.firstChild);
     詳しく.insertBefore(見出し2, 詳しく.firstChild);
   }
-  const 長い = 補足の文.replace(/\s+/g, "").length > 60;
-  if (長い) body.classList.add("is-clamped");
-  if (長い || 詳しく.childElementCount > 0) {
+  // 🔴【続き904】**補足は畳まない。** ユーザー指摘「もっと詳しくの手前が補足文が
+  //   中途半端な状態になってる。あくまでもっと詳しくは**補足を全て記載し終わった後**に
+  //   持ってきませんか？」——文の途中でボタンが出ると、**読み終わる前に止まる**。
+  // ⚠ 以前は長い補足を3行で畳んでいた（「現状テキストが多すぎる」への手当て）が、
+  //   続き888 で**効果文の方を畳んだ**のでその用は足りている。
+  //   ⇒ ボタンが開けるのは「効果文」と「印刷から変えた断り」だけ。
+  if (詳しく.childElementCount > 0) {
     const もっと = document.createElement("button");
     もっと.type = "button";
     もっと.className = "card-note-more-btn";
@@ -18382,7 +18385,6 @@ function showCardNoteModal(cardId, opts = {}) {
       e.stopPropagation();
       開いた = !開いた;
       詳しく.hidden = !開いた;
-      body.classList.toggle("is-clamped", 長い && !開いた);
       もっと.textContent = t(開いた ? "game.cardNote.less" : "game.cardNote.more");
     });
     textCol.appendChild(もっと);

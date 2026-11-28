@@ -52,6 +52,37 @@ import { markChangelogRead } from "./changelog-signature.js";
 
 export const CHANGELOG = [
   {
+    date: "2026-11-29",
+    summary: [
+      "カードの補足が途中で切れず、最後まで読めるようになりました",
+    ],
+    summaryEn: [
+      "Card notes are no longer cut off part-way",
+    ],
+    items: [
+      "カードの詳細を開いた時、**補足が3行で切られて**「もっと詳しく」が出ていたのをやめました。補足は**最後まで**そのまま出て、「もっと詳しく」はその**後ろ**で効果文を開くボタンになりました。",
+    ],
+    itemsEn: [
+      "The card detail view no longer cuts the note off after three lines. The whole note is shown, and the more button now sits after it and opens the effect text instead.",
+    ],
+    fixes: [
+      "新しく足した3枚のカードの補足に、**開発用の記号がそのまま出ていた**のを直しました。",
+    ],
+    fixesEn: [
+      "Three newly added cards showed developer markup in their notes. Fixed.",
+    ],
+    devItems: [
+      "🔴 **【続き904】①補足を畳むのをやめた**（ユーザー指摘「もっと詳しくの手前が補足文が中途半端な状態になってる。あくまでもっと詳しくは**補足を全て記載し終わった後**に持ってきませんか？」）。畳む形は以前の指摘（「現状テキストが多すぎる」）で入れたものだが、続き888 で**効果文の方を畳んだ**のでその用は足りている。🔴 **A/B**: 3行で畳む形へ戻すと、いちばん長い補足（マスチェンジ・377字）で**131px が隠れた**＝報告どおりを再現。⚠ `.is-clamped` の規則は残した（また畳みたくなった時のため・使っていない旨を書いた）。",
+      "🔴 **②新カード3枚の効果文は、言い回しを自分で発明せず既にある札から写した**: 幼体の【色者】「全員は」→「プレイヤーは」（親の我忘れの白き龍）／3枚とも手札効果を「**これを**〜」（補足には最初からそう書いてあったのに文だけ抜けていた）／白塔「これ**は**あなたの手札に加えない」（印刷された2枚＝ジャンプ台・バスストップがどちらも「は」）／白塔の壊す条件を「〜してもよい。そうしたなら、」（実装は MAY ＝任意なのに、文が条件のように読めた）。フレーバーも3枚とも入れた。🔴 **英語の効果文も入れた**——この3枚は名前だけで、英語で遊ぶ人には日本語が出ていた。⚠ **続き898 の検査にこのセットが入っていなかった**（名簿から漏れ）⇒ 足した。",
+      "🔴🔴 **③撮って見つけた: 補足が開発メモそのものだった**（続き895 ③(b) の志炎者と**同じ形で2回目**）。`**2枚目の【色者】カード**`・🔴・「ユーザー判断 2026-11-28」が**全員の画面に出ていた**。⇒ プレイヤーに読ませる文へ書き直し、開発の事情は JS のコメントへ。**2回目なので機械で止めた（34本目・check-card-notes.mjs）**: 補足135件に `**`・🔴・ⓘ・「ユーザー判断」・「続き」・手元のフォルダの道が混ざっていないか。⚠ **`⚠` は落とさない**（印刷から変えた断りの house style・実測10枚）。⚠ 母数を毎回出す。🔴 A/B で3件を名指しで落ちる。🔴 **数字では1つも落ちなかった。絵を見て初めて分かった。**",
+    ],
+    devItemsEn: [
+      "[Continuation 904] The card note is no longer clamped to three lines; the more button now follows the whole note and only opens the effect text.",
+      "The three new cards had their effect wording aligned with existing printed cards, gained flavour text, and finally got English effect text — the checker had been missing that set.",
+      "A screenshot revealed the three notes were raw developer memos, the same trap as the Shien cards, so a new check now scans every card note for developer markup.",
+    ],
+  },
+  {
     date: "2026-11-28",
     summary: [
       "「使うカード」と「山札」が1つになりました",

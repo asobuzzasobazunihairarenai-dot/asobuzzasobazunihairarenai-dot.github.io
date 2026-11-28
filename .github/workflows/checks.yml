@@ -52,6 +52,8 @@ jobs:
         run: node tools/check-color-match.mjs
       - name: カード文の英語がそろっているか
         run: node tools/check-card-text-en.mjs
+      - name: カードの補足に開発用の記法が混ざっていないか
+        run: node tools/check-card-notes.mjs
       - name: SQL の全文再実行が安全か
         run: node tools/check-sql-rerun.mjs
       - name: SQL の関数が「閉じたつもりで開いていない」か
