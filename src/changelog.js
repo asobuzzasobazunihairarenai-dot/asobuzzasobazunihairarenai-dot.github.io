@@ -57,21 +57,25 @@ export const CHANGELOG = [
       "「使うカード」と「山札」が1つになりました",
       "ノワールで遊べます（お試し・2026-12-31 まで）",
       "カードの補足が読みやすくなりました",
+      "カードの補足で色者・状況・志炎の説明も出ます",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
       "Try playing as Noir (trial, until 31 Dec 2026)",
       "Card notes are easier to read",
+      "Card notes now explain Shikija, Situation and Shien",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
       "CPU戦で**ノワール（黒のキューブ）を使って遊べる**ようになりました。ファーストカードが配られたあとに「ノワールに切り替えますか？」と出るので、押すとあなたのファーストがノワールに、駒が黒になります。断れば今までどおりです。⚠ **お試しです（2026-12-31 まで）。** ノワールの効果は、遊んでみた結果で変わることがあります。感想は画面の上の「不具合報告」（虫のしるし）からお待ちしています。",
       "**カードの補足（カードを長押し・右クリックで出る画面）を作り直しました。** カードの絵が**2.7倍**の大きさになり、効果文はその絵で読めます。長い補足は3行にまとめて、続きは「もっと詳しく」で開きます。**追色や財力などの固有効果は、上に単語で並ぶ**ようになり、押すとその説明が出ます。印刷されたカードから効果を変えている札には「デジタル版で効果を変更」の印が付きます。",
+      "**カードの補足で、追色や財力などの固有効果に加えて【色者】【状況】【志炎】も説明が出る**ようになりました（公式サイトの基本用語集の文をそのまま載せています）。英語でも出ます。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
       "You can now play as Noir in CPU games. After the First cards are dealt you are asked whether to switch; saying yes turns your First card into the Black Cube and your piece black, and saying no leaves everything as before. This is a trial until 31 December 2026, and Noir's effect may change based on how it plays, so please send your impressions through the bug report button.",
       "The card notes screen has been rebuilt. The card picture is now about 2.7 times larger, so the effect text can be read from the card itself. A long note is shortened to three lines with a More detail button, and special effects such as Color Cost or Wealth now appear as words at the top that you can tap for an explanation. Cards whose effect differs from the printed version carry a small marker.",
+      "The card notes now also explain Shikija, Situation and Shien, alongside Color Cost and Wealth, using the wording from the official basic terms page. This works in English too.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -83,6 +87,10 @@ export const CHANGELOG = [
       "カードの補足を見ている最中に効果の選択が出ると、補足を閉じられなくなっていたのを直しました。",
       "相手に捨てさせたカードが「非公開のカード」と出ることがあったのを直しました（捨て場のカードは全員に見えるものです）。",
       "CPUが、ジャンプ台を踏めばゲートまで届く場面でも踏まなかったのを直しました。",
+      "志炎を募る白塔で、カードを置いて2枚引く問いが何度も出て、いくらでも引けてしまったのを直しました。",
+      "ノワールで遊んでいる時、自分のアバターが出なかったのを直しました。",
+      "色者の捨色が「◯◯が獲得」と出て、そのカードを手に入れたように見えていたのを直しました。",
+      "「ノワールにしますか」の問いが、外側をタップすると消えてしまうのを直しました。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -94,6 +102,10 @@ export const CHANGELOG = [
       "Fixed the card notes becoming impossible to close when an effect choice opened on top of them.",
       "Fixed a card you made an opponent discard sometimes showing as a hidden card.",
       "Fixed the CPU ignoring a Jump Pad that would have carried it to a gate.",
+      "Fixed the White Tower asking to place a card and draw two over and over, allowing unlimited draws.",
+      "Fixed your avatar disappearing while playing as Noir.",
+      "Fixed the Shikija discard colour being announced as if you had gained that card.",
+      "Fixed the Noir prompt closing when you tapped outside it.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -166,6 +178,12 @@ export const CHANGELOG = [
       "**焼いた絵をやめた**（`hasNoPrintedFace` が常に true）。下地（assets/cards-blank/）が34種とも在ることを確かめてから切り替え、実測で**見た目が変わらない**ことを確認（文字12/12・はみ出し0・404なし・日英とも切り替わる・スモークPASS・画面の検査16枚ぶんも合格）。⚠ **焼いた絵は消していない**（公開済みの素材は消さない）。戻す形はコメントで残した。ⓘ canvas（霧散演出）は `paintCardFaceTextToCanvas` が文字をデータから描くので影響なし。",
       "**補足画面の作り直し**: 札 290x245 → **608x318px**、カードの絵 **107 → 296px**、到達/手札の文は「もっと詳しく」の中へ（消さずに畳む）、デジタル版で変えた断りは**印1つ**にして中身を畳む、固有効果は**上にチップ**（押すと用語の説明）。🔴 大きさは **#825 と同じ家族**——台ごと縮むので rem のままだと本文の字が**実質6.5px**だった。⚠ `max-height` に `vh` は使わない（check-css に止められて rem へ直した）。",
       "🔴 **チップは最初「文中の用語ぜんぶ」にしたら、全員・マス・移動・相手・裏向き のような一般語で埋まった**（実測して気づいた）⇒ **【】で囲まれた固有効果だけ**に絞った（数えたら 追色・志炎・財力・状況・色者 の5種類）。⚠ 【追色１】【財力≧３】のように数が付くので基の語に直す。⚠ **用語集に説明がある語だけ**出す（無い語は押しても何も起きない＝#729 の家族）。🔴 申し送り: **用語集に【志炎】【色者】【状況】が無い**ので、その3つは今は出ない（説明の文はこちらで作らずユーザーに聞く）。",
+      "**【続き889】用語集に【色者】【状況】【志炎】を足した。** 文は**公式HP（site/basic-terms/）からそのまま写した**——ルールの文はユーザーのものなので、こちらで作文しない。英語は訳して足した。🔴 **チップの語を日英どちらでも拾えるようにした**: 英語の札は `【Color Cost 1】` と中身が長く、8文字までしか見ていなかった前の形では**英語で1つも拾えなかった**。24文字まで見て、数や記号を削りながら用語集が知っている形を探す。実測7項目（対照つき）。",
+      "🔴🔴 **#871・#874 白塔で永遠にドローできた＝無限ループ。** 塔の下に札を入れるため**塔を積み直す**が、そこは到達した人の駒が立っているマスなので、積み直しが**露出到達**と見なされ**塔の到達効果がまた始まっていた**。⚠ **テストでは捕まらない**（土台の moveAndSync は到達を起こさない）。⇒ 積み直しでは到達を抑える。**教訓: 同じマスへ積み直す所は、到達の引き金になっていないか必ず見る。**",
+      "🔴 **#875 ノワールだとアバターが消える＝#868 とまったく同じ家族。** アバターの絵も駒の色で決まるが、黒には `protagonist-noir-*` も `noir-*` も無いので **404 → 丸ごと消えていた**。⇒ **エイドス物語戦のノワールの絵（eidos-noir の9枚）**へ振り替えた（持ち主は1か所）。",
+      "**#877 捨色が「◯◯が獲得」と出ていた。** 色者の捨色は「いったん手札へ引いて、その1枚をそのまま捨てる」作り（公開エリアを使うとターンの切り替わりで手札へ合流するため）なので、獲得のお知らせと札のミニモーダルが出ていた ⇒ この1回だけ黙らせる（`silentPickupNotice` を足した）。捨色そのものは直後の中央のめくり演出（ラベル「捨色」）で見せている。",
+      "**#873 「ノワールにしますか」は外側を押しても閉じないようにした**（これから始まる対局の中身を決める問いなので、うっかり外を触って既定へ流れると気づかないまま別の対局になる）。`showConfirmModal` に `覆いで閉じない` を足した——**既定は今までどおり閉じる**ので他の呼び出しは1つも変わらない。",
+      "⚠ 残り2件は未着手: **#876「色者は盤面上でのカードの向きが大事」**（公式用語集にも『向きは、オープンした、または場に表向きで置いたプレイヤーから見て正の方向』と在る。誰が表にしたかを state に覚える必要があり、**オンラインの同期にも関わる**）／**#872「志炎を持っているのに割り込みモーダルが出ない」**（未調査）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -236,6 +254,12 @@ export const CHANGELOG = [
       "The baked card images are no longer used; the blank art plus app-drawn text is now used for every set, verified to look identical with no missing text and no 404s. The baked files are kept.",
       "The card notes screen was rebuilt: a much larger picture, effect text folded behind a More detail button, a marker for cards changed in the digital version, and tappable chips for special effects.",
       "The chips were first filled with ordinary words, so they are now limited to the bracketed special effects that have a glossary entry; three of those entries do not exist yet and are left for the user to define.",
+      "[Continuation 889] The glossary gained Shikija, Situation and Shien, copied verbatim from the official basic terms page, and the chip extraction now works in English too.",
+      "The White Tower could be drawn from endlessly, because re-stacking the tower on the same square counted as a fresh arrival and restarted its own effect.",
+      "The Noir avatar was missing for the same reason the Noir piece was: no art exists under that colour name, so the existing Eidos Noir art is now used.",
+      "The Shikija discard colour was announced as a card gained, because it is drawn into hand and discarded immediately; that one announcement is now silenced.",
+      "The Noir prompt no longer closes when tapping outside it.",
+      "The Noir prompt no longer closes when tapping outside it, and the remaining two reports (Shikija card orientation and the Shien interrupt prompt) are still open.",
     ],
   },
   {

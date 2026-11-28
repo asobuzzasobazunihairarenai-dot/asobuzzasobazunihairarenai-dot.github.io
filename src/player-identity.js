@@ -83,8 +83,19 @@ function protagonistColorForSeat(seat) {
   }
   return "gray";
 }
+// 🔴🔴【#875・続き889】**黒（ノワール）のアバターの絵は「ノワール」という名前では無い。**
+//   アバターの絵は駒の色で決まる（protagonist-赤-front.webp 等）が、黒には
+//   `protagonist-noir-*` も `noir-*` も無いので、**404 → アバターが丸ごと消えていた**
+//   （報告「自分のアバターが出てないです！多分ノワールの影響」）。
+//   ⇒ **エイドス物語戦のノワールの絵が在る**（eidos-noir-front/left/right ＋ 覚醒/激昂の9枚）
+//     ので、そこへ振り替える。⚠ #868（駒が透明）とまったく同じ家族。
+//   ⚠ ここが**唯一の持ち主**。青年（protagonist）も色アバター（entrusted）も同じ絵にする
+//     ——黒の絵はこの1組しか無いので、2通りに分けても同じ所へ行き着く。
+const NOIR_AVATAR = "assets/avatars/eidos-noir-front.webp";
 export function protagonistPathForSeat(seat) {
-  return `assets/avatars/protagonist-${protagonistColorForSeat(seat)}-front.webp`;
+  const color = protagonistColorForSeat(seat);
+  if (color === "noir") return NOIR_AVATAR;
+  return `assets/avatars/protagonist-${color}-front.webp`;
 }
 
 // 「（基本）託された者たち」アバター（基本7色アバター＝assets/avatars/${color}-front.webp）。
@@ -95,6 +106,7 @@ export function protagonistPathForSeat(seat) {
 export const ENTRUSTED_AVATAR = "entrusted";
 export function entrustedPathForSeat(seat) {
   const color = protagonistColorForSeat(seat); // 駒の色。駒がまだ無ければ "gray"
+  if (color === "noir") return NOIR_AVATAR; // 【#875】黒の絵は eidos-noir の1組だけ
   if (AVATAR_COLORS.includes(color)) return `assets/avatars/${color}-front.webp`;
   // 駒がまだ配られていない（色未確定）一瞬のプレースホルダ。基本セットに gray は無いため、
   // 中立的な青年の灰色を流用する（駒が置かれ次第、上の色アバターへ解決される）。

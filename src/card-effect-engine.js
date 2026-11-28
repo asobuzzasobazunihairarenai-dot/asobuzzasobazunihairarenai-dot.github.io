@@ -5288,7 +5288,14 @@ async function runAction(action, ctx, helpers) {
         // 塔を一番上へ戻す＝さっき置いた札が「直下」に入る。
         const いま = getState().tokens.find((x) => x.id === ctx.cardTokenId);
         if (いま && いま.location.zone === "cell") {
-          await helpers.moveAndSync(ctx.cardTokenId, { zone: "cell", row: いま.location.row, col: いま.location.col }, undefined, undefined, false, false, { landFaceUp: true });
+          // 🔴🔴【#871・#874・続き889】**積み直しで到達をもう一度起こさない。**
+          //   塔は「到達した人の駒が立っているマス」に在るので、そのまま積み直すと
+          //   「一番上のカードが変わった＝露出到達」と見なされ、**塔の到達効果がまた始まる**
+          //   ⇒ 置く→2枚引く→また聞かれる…の**無限ループ**になっていた
+          //   （報告「置いて2枚ドローモーダルが何度も出ます」「白塔で永遠にドローできる」）。
+          //   ⚠ テストでは捕まらない（土台の moveAndSync は到達を起こさない作り）。
+          //   引数は (tokenId, location, 音, 到達を抑える, 露出到達を待つ, 露出到達を飛ばす, 見た目)。
+          await helpers.moveAndSync(ctx.cardTokenId, { zone: "cell", row: いま.location.row, col: いま.location.col }, undefined, true, false, true, { landFaceUp: true });
         }
         await helpers.drawCards(p, 引く枚数);
         誰かした = true;

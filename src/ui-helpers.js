@@ -187,7 +187,10 @@ export function showNoticeModal(文, { 見出し = null, onClose = null } = {}) 
 //   ⚠ **既定は「やめない」**（覆いを押す・Esc・✕ はすべて false）＝危ない方を既定にしない。
 //   ⚠ 盤面の確認モーダル（cell-confirm）の中からは呼ばない。あちらは自分の覆いを持っていて、
 //     その上に重ねると「閉じ方が2つある」状態になる（あちらは2段押しで警告している）。
-export function showConfirmModal(文, { 見出し = null, はい = null, いいえ = null } = {}) {
+//   ⚠【#873・続き889】`覆いで閉じない: true` を渡すと、**外側を押しても閉じない**
+//     （ボタンか ✕ を押すまで残る）。「これから始まる対局がどうなるか」を決める問いなど、
+//     うっかり外を触って既定へ流れると困る所で使う。既定は今までどおり閉じる。
+export function showConfirmModal(文, { 見出し = null, はい = null, いいえ = null, 覆いで閉じない = false } = {}) {
   const 既に = document.getElementById("so7-confirm-modal");
   if (既に) 既に.remove();
   return new Promise((resolve) => {
@@ -203,7 +206,7 @@ export function showConfirmModal(文, { 見出し = null, はい = null, いい�
       resolve(v);
     };
     // dim / blocksGame の理由は showNoticeModal と同じ（上のコメント）。
-    const backdrop = createBackdrop(() => finish(false), { zIndex: 100200, dim: true, blocksGame: false });
+    const backdrop = createBackdrop(覆いで閉じない ? () => {} : () => finish(false), { zIndex: 100200, dim: true, blocksGame: false });
     modal.style.zIndex = "100201";
     modal.appendChild(createModalCloseX(() => finish(false)));
     if (見出し) {

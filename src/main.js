@@ -5449,7 +5449,12 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
       .tokens.filter((tk) => tk.kind === "card" && tk.location.zone === "hand" && tk.location.player === seatForDraw)
       .map((tk) => tk.id)
   );
-  await drawCardsForEffect(seatForDraw, 1);
+  // 🔴【#877・続き889】**「◯◯が獲得」を出さない。** 捨色は
+  //   「いったん手札へ引いて、その1枚をそのまま捨てる」作り（上の注）なので、
+  //   ふつうに引くと獲得のお知らせと札のミニモーダルが出て、**捨色を手に入れたように見える**
+  //   （報告「ミニモーダルで、色者の捨て色を獲得したみたいな書き方になってる」）。
+  //   ⚠ 捨色そのものは、この直後に**中央のめくり演出（ラベル「捨色」）**で見せている。
+  await drawCardsForEffect(seatForDraw, 1, { silentDrawNotice: true, silentPickupNotice: true });
   const drawn = getState().tokens.filter(
     (tk) => tk.kind === "card" && tk.location.zone === "hand" && tk.location.player === seatForDraw && !引く前.has(tk.id)
   );
@@ -10675,7 +10680,8 @@ async function drawCardsForEffect(player, count, opts = {}) {
   }
   // ユーザー要望「獲得ポップアップは1枚ずつ出るのではなく、まとめて1回出てほしい」
   // （複数枚ドローする効果で連続表示が煩雑だったため）。
-  if (pickups.length > 0) announceHandPickups(player, pickups);
+  // 🔴【#877】呼ぶ側が「今回は見せない」と言える（捨色のように、引いた直後に捨てる場合）。
+  if (pickups.length > 0 && !opts.silentPickupNotice) announceHandPickups(player, pickups);
   if (drawnTokenIds.length > 0) glowHandTokensBriefly(drawnTokenIds);
 }
 
@@ -18185,11 +18191,22 @@ function showCardNoteModal(cardId, opts = {}) {
   const 固有効果 = (() => {
     const 文ぜんぶ = [文.basic, 文.arrival, 文.hand].filter(Boolean).join(String.fromCharCode(10));
     const 出た = [];
-    for (const m of 文ぜんぶ.matchAll(/【([^】]{1,8})】/g)) {
-      const 基 = m[1].replace(/[0-9０-９＝≧≦=><]+$/, '');
-      if (!基 || 出た.includes(基)) continue;
-      // 用語集がその語を知っているか（文中のリンクと同じ表に聞く）。
-      if (findGlossaryTerms(基).includes(基)) 出た.push(基);
+    // ⚠ 英語の札は【Color Cost 1】のように**中身が長い**（最初 8 文字までにしていて、
+    //   英語では1つも拾えなかった）。24文字まで見る。
+    for (const m of 文ぜんぶ.matchAll(/【([^】]{1,24})】/g)) {
+      // 【追色１】【財力≧３】【Color Cost 1】… 数や記号が付くので、**基の語**へ削っていき、
+      // 用語集が知っている形になったらそれを採る（文中のリンクと同じ表に聞く）。
+      const 候補 = [];
+      const 素 = m[1].trim();
+      候補.push(素);
+      候補.push(素.replace(/[\s0-9０-９＝≧≦=><]+$/, ''));
+      候補.push(素.replace(/[\s0-9０-９＝≧≦=><ＳS]+$/, ''));
+      let 基 = null;
+      for (const c of 候補) {
+        if (!c || 出た.includes(c)) continue;
+        if (findGlossaryTerms(c).includes(c)) { 基 = c; break; }
+      }
+      if (基) 出た.push(基);
     }
     return 出た;
   })();

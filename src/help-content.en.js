@@ -244,6 +244,28 @@ export const GLOSSARY_EN = [
       "S is a natural number.",
     ],
   },
+  {
+    term: "Shikija",
+    body: [
+      "While this card is face-up on the field, at the end of each player's turn discard one card from the deck, check that card's color (the discard color) and do the following.",
+      "1. Following the destination dial at the lower right of the illustration, place this card on the square that the discard color indicates.",
+      "2. Gain the effect that the discard color indicates.",
+      "As a rule, when another Shikija card newly enters the field, turn this card face-down. As a rule, a player who arrives at a Shikija card does not add it to their hand.",
+      "(Note) Directions are taken from the point of view of the player who revealed it or placed it face-up. Where a choice such as picking any square is needed, the player whose turn it is decides. If a color with no listed effect comes up, nothing happens. The discard color includes black and white.",
+    ],
+  },
+  {
+    term: "Situation",
+    body: [
+      "If this card is placed face-up at the center of the field, gain the effect that follows.",
+    ],
+  },
+  {
+    term: "Shien",
+    body: [
+      "Only immediately after an opponent uses the hand effect of a card of the same color as this card, you may declare the use of this Shien effect. If you declare it, gain the effect that follows.",
+    ],
+  },
   { term: "Normal move", body: ["The move you normally make during the Move phase."] },
   { term: "Hand", body: ["The cards a player is holding.", "As a rule you keep them hidden from everyone else, and there is no limit to how many you may hold."] },
   {
