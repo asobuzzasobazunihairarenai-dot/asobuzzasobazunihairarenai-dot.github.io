@@ -99,6 +99,52 @@ for (const [名, fn] of [
   "大きさ0・pointer-events:none の残骸まで『人が選んでいる最中』と数えてしまう"
 );
 
+// ── D 自動で回す対局を、人の返事で止めない ──────────────────────────
+// 🔴🔴 2026-11-28（続き883）の実害: ノワールのお試しを聞くモーダルを
+//   `runCpuBattleSetup` に足したら、**スモークテスト（自己対戦）がそこで永久に止まった**
+//   （CI の「カード効果のテストとスモーク」が緑にならず、押す人が居ないので一生待つ）。
+//   ⇒ あの関数の中で**人の返事を待つ**所は、必ず `askDeck`（＝「人が始めた対局か」の印）で
+//      囲み、自動で回す側は `askDeck: false` を渡す。
+const cpu道 = "src/cpu-battle.js";
+const c = fs.readFileSync(cpu道, "utf8").replace(/\r\n/g, "\n");
+const 設定の中 = (() => {
+  const i = c.indexOf("export async function runCpuBattleSetup");
+  if (i < 0) return "";
+  const j = c.indexOf("\nexport ", i + 10);
+  return c.slice(i, j < 0 ? c.length : j);
+})();
+要る(
+  "runCpuBattleSetup が在る",
+  設定の中.length > 200,
+  "🔴 関数が見つからない＝この節が何も見ていない（検査の数え方が壊れている）"
+);
+// 人の返事を待つ呼び出し（await showConfirmModal など）を数える。
+const 返事待ち = [...設定の中.matchAll(/await\s+(show\w*(?:Confirm|Choice|Prompt)\w*Modal|askUser\w*)\s*\(/g)];
+for (const m of 返事待ち) {
+  // その行から前へ遡って、同じ if の中に askDeck が在るか見る（素朴だが、ここでは十分）。
+  const 前 = 設定の中.slice(Math.max(0, m.index - 700), m.index);
+  要る(
+    "人の返事待ち（" + m[1] + "）が askDeck で囲まれている",
+    /askDeck\s*&&|if\s*\(\s*askDeck\b/.test(前),
+    "🔴 囲まないと、スモーク等の**自動で回す対局がここで永久に止まる**（続き883 の実害）"
+  );
+}
+const sm道 = "test/smoke.mjs";
+const sm = fs.readFileSync(sm道, "utf8").replace(/\r\n/g, "\n");
+const 呼び出し = [...sm.matchAll(/runCpuBattleSetup\(\{([^}]*)\}/g)];
+要る(
+  "スモークが runCpuBattleSetup を呼んでいる",
+  呼び出し.length > 0,
+  "🔴 呼び出しが見つからない＝下の行が『0しか出ない検査』になっている"
+);
+for (const m of 呼び出し) {
+  要る(
+    "スモークの呼び出しが askDeck: false を渡している",
+    /askDeck\s*:\s*false/.test(m[1]),
+    "🔴 渡さないと、人の返事を待つ所が増えた日に**また CI が止まる**（続き883）"
+  );
+}
+
 if (問題.length) {
   console.log("❌ 固まり防止の歯止めが外れている " + 問題.length + " 件");
   for (const p of 問題) console.log("  - " + p);

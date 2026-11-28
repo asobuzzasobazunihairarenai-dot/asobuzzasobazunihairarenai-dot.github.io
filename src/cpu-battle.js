@@ -295,7 +295,11 @@ export async function runCpuBattleSetup({
   //   ⚠ **配った後**でなければ意味が無い（ファーストカードを差し替える仕掛けなので）。
   //   ⚠ 台本のある物語チュートリアル（noirSeat ＝相手がノワール）では聞かない。
   //   ⚠ 断っても何も起きない＝今までどおりの対局。
-  if (shouldOfferNoir({ 既に黒: 黒のデッキ, 台本: !!noirSeat })) {
+  //   🔴 **`askDeck` に繋ぐ**（＝「人が始めた対局か」の印。#382 でデッキを選ぶ画面のために
+  //     作られたもので、注にも「スモークテスト（自己対戦）は**誰も押さないので false を渡す**」
+  //     と書いてある）。繋がないと、**自動で回す対局がここで永久に止まる**
+  //     ——実際、入れた直後の CI でスモークが止まった。
+  if (askDeck && shouldOfferNoir({ 既に黒: 黒のデッキ, 台本: !!noirSeat })) {
     const はい = await showConfirmModal(t("noirTrial.body", { until: NOIR_TRIAL_UNTIL }), {
       見出し: t("noirTrial.title"),
       はい: t("noirTrial.yes"),

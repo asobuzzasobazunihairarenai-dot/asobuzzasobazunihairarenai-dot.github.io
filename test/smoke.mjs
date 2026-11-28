@@ -184,7 +184,7 @@ async function playOneGame(page, allErrors) {
     admin.setPseudoCpuModeEnabled?.(true);
     await cpu.startCpuBattle(count);
     admin.setPseudoCpuIncludeSelf?.(true); // setup前に：A席も自動化
-    await cpu.runCpuBattleSetup({ count });
+    await cpu.runCpuBattleSetup({ count, askDeck: false });
     admin.setPseudoCpuIncludeSelf?.(true); // 念のため再設定（startCpuBattleがfalseに戻すため）
     // オープニング画面（#opening-screen, z50000）を閉じて盤面を露出させる。閉じないと盤面中央を
     // 覆ったままになり、UI不変条件チェック（幽霊オーバーレイ検知）が実際の盤面を検査できない。
@@ -431,7 +431,7 @@ async function run() {
       const admin = await import("/src/admin.js");
       admin.setPseudoCpuModeEnabled?.(true);
       await cpu.startCpuBattle(2);
-      await cpu.runCpuBattleSetup({ count: 2 });
+      await cpu.runCpuBattleSetup({ count: 2, askDeck: false });
       try { const os = await import("/src/opening-screen.js"); os.forceCloseOpeningScreen?.(); } catch (e) {}
     });
     await page.waitForTimeout(1500);

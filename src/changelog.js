@@ -131,6 +131,10 @@ export const CHANGELOG = [
       "⚠ 終わりの日は **`NOIR_TRIAL_UNTIL` の1行**（過ぎると聞かれなくなる。伸ばすだけで戻る）。⚠ 日付は端末の時計で見る（お試しなので実害は無い＝勝敗にも持ち物にも触らない）。⚠ **選んだことを行動ログに残す**（`noir-trial`）——お試しの目的が「意見を集めること」なので、報告に『この対局はノワールだったか』が無いと読み解けない。",
       "⚠ 実測17項目（`scratchpad/_p883.mjs`・NG 0・例外0）: 期間の決まり（最終日は丸ごと内・翌日は外）＋**対照3本**（既に黒／台本／期間外では聞かない）／**本物のCPU戦の入口から**通して、モーダルが出る・文にテスト用と送り先と終わりの日が入っている・「ノワールで遊ぶ」で `first-noir` と黒い駒になる・**対照「このまま遊ぶ」では何も変わらない**。",
       "⚠ 測り方のミス（記録）: ①**待ち時間を決め打ちした**——ヘッドレスは配りの演出が実機よりずっと遅く、モーダルが出るまで**約20秒**。2.5秒で見て「出ない」と誤判定し、原因をアプリ側に探しにいった。⇒ 時間ではなく**モーダルが出るまで待つ**。②**ボタンを番号で押した**——並びは ✕ ／ このまま遊ぶ ／ ノワールで遊ぶ（肯定が右＝#746）なので、番号だと「はい」と「いいえ」が入れ替わる。⇒ **文字で押す**。",
+      "🔴🔴 **【続き884】続き883 で入れたモーダルで、CI のスモークテストが止まっていた。** `test/smoke.mjs` は `runCpuBattleSetup` を呼んで**自己対戦**を回す（人は居ない）ので、配り終わった所の `await showConfirmModal(...)` を**永久に待っていた**。⚠ 落ちるのではなく**止まる**ので、CI は赤にならずジョブが延々走り続ける（いちばん分かりにくい形）。",
+      "🔴 **直し: 印はもう在った。** `runCpuBattleSetup` の引数 `askDeck` の注に「スモークテスト（自己対戦）は**誰も押さないので false を渡す**」と #382 の時点で書いてあった。⇒ 新しい旗を作らず**聞く所をその印で囲み**（`askDeck && shouldOfferNoir(...)`）、スモークの2か所に `askDeck: false` を渡した。**教訓: 「人が答えられる対局か」の印は1つに保つ**（聞く所が増えるたびに旗を増やすと、どれかを必ず書き忘れる）。",
+      "🔴 **検査に節を足した**（`check-freeze-guards` の D・固まり防止の歯止めと同じ家族なので道具は増やさない）: `runCpuBattleSetup` の中の人の返事待ちが `askDeck` で囲まれているか／スモークの呼び出しが**全部** `askDeck: false` を渡しているか／🔴 前提2つ（関数と呼び出しが在る＝**0しか出ない検査にしない**）。**A/B 3通りとも名指しで落ち**、2ファイルとも指紋で元に戻したことを照合した。",
+      "⚠ 実測: **スモークが完走**（終了コード0・8ターン・PASS）。`scratchpad/_p883.mjs` は **OK 21**（続き883 の17項目＋**対照4本**: 誰も押さなくても配り終わる／聞くモーダルを出さない／ノワールにならない／例外0）。⚠ 測り方のミス（記録）: 対照の1行が「ノワールになっている」と出たが、**`page.evaluate` の返り値に約束を入れると `{}` になる**のが原因＝私の数え方。中で await する。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -180,6 +184,10 @@ export const CHANGELOG = [
       "The end date is a single constant, and the choice is written to the action log so that feedback reports can be read in context.",
       "Seventeen measured checks including three controls, driven through the real CPU battle entry point.",
       "Two measurement mistakes worth recording: a fixed wait was far too short for the dealing animation in a headless browser, and clicking buttons by index swapped the two answers because the affirmative sits on the right.",
+      "[Continuation 884] The prompt added in 883 hung the smoke test, because self-play has nobody to answer a modal; CI never turned red, it just kept running.",
+      "The fix reused the existing askDeck flag, whose own comment already said automated self-play should pass false, instead of introducing a second flag.",
+      "A section was added to the freeze-guard check so the same trap cannot be dug a third time, with three A/B breakages and fingerprint-verified restores.",
+      "The smoke test now completes, and the measurement grew to twenty-one checks including four controls.",
     ],
   },
   {
