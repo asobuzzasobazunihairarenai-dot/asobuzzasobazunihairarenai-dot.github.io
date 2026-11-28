@@ -251,6 +251,11 @@ export async function showEffectReasonModal(cardId, text, { holdUntilClick = fal
       //   包みが外側の余白と中央寄せを引き継ぐので見た目は変わらない（CSS 側で合わせてある）。
       const 包み = document.createElement("div");
       包み.className = "effect-reason-modal-dial-wrap";
+      // 🔴【続き897】**円盤ごと**、その札の向き（90°ずつ）に回す。
+      //   それまでは印刷のままで、盤面の札（続き891 から回して置いてある）と食い違っていた。
+      //   ⚠ 回すのは包み（絵・くさび・矢をまとめて）なので、**色のくさびは色の上に残る**。
+      //     くさびの角度（angle）を席で回してはいけない——それだと別の色が光る。
+      if (dial && Number(dial.rot)) 包み.style.setProperty("--shikija-dial-rot", Number(dial.rot) + "deg");
       const img = document.createElement("img");
       img.className = 絵.cls;
       img.src = 絵.src;

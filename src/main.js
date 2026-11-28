@@ -3911,7 +3911,7 @@ function playShikijaBoardBeats(shikija) {
       //     （新しい通信路は要らない＝既にある effect_reason に相乗りしたまま）。
       //   ⚠ 札の面を作る関数は**こちらから渡す**（shikija-show.js は葉のまま保つ）。
       if (shikija.dial) {
-        const show = openShikijaShow();
+        const show = openShikijaShow(shikija.dial.rot || 0);
         if (show) {
           const 札面 = (cardId) => () => {
             if (!cardId) return null;
@@ -5520,11 +5520,22 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   //   ⚠ **お知らせと同じ文を使う**（2か所に書くと必ずズレる）。
   //   ⚠ 他の人の画面ぶんは、お知らせが既に全員へ届いているので**受け側で同じ1行を残す**
   //     （onEffectReasonEvents の中。新しい通信路もサーバーの変更も要らない）。
+  // 🔴【続き897】**円盤の向きは、その札の向きと同じにする。**
+  //   盤面の札は続き891（#876）から `orientSeat` のぶん 90°ずつ回して置いてあるのに、
+  //   円盤だけ**印刷のまま**だったので、**A以外の席が表にした札では矢と実際の動きが食い違っていた**
+  //   （実測: 緑＝印刷では「上」なのに、Bの札は右・Cは下・Dは左へ動く）。
+  //   ⚠ 回すのは**円盤ごと**（絵・くさび・矢をまとめて）。こうすると**色のくさびは色の上に残ったまま**、
+  //     矢だけが実際の向きを指す＝**本物の札を回して置いたのと同じ**になる。
+  //     くさびの角度（`angle`）を席で回してはいけない——それだと**別の色のくさびが光る**。
+  const 向きの席 = token.orientSeat ?? getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
+  const 円盤の回転 = Math.max(0, SEAT_ORDER.indexOf(向きの席)) * 90;
   const 色者のお知らせ = async (文, 演出 = null) => {
     try { logAction("shikija", { player: endedPlayer ?? getState().turnPlayer, cardId: token.cardId, text: 文 }); } catch (err) {}
     // 🔴【#869・続き896】見せ場（拍2 の捨色・拍4 の色者の札）に要る2つを**ここで1度だけ**足す。
     //   枝ごとに書くと必ずどれかを書き忘れる（#477 の家族）。
-    const 演出2 = 演出 ? { discard: 捨色カード, cardId: token.cardId, ...演出 } : null;
+    const 演出2 = 演出
+      ? { discard: 捨色カード, cardId: token.cardId, ...演出, dial: 演出.dial ? { ...演出.dial, rot: 円盤の回転 } : 演出.dial }
+      : null;
     await announceEffectNoticeForEffect(token.cardId, 文, 演出2);
   };
   // 🔴【#728・続き791】色の CSS 値。7色は変数から、無色は明暗で出し分ける
@@ -5576,8 +5587,11 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
       // 🔴 **お知らせは動いた「後」に出す。** 動く前に出すと、すぐ後ろの移動が
       //   render() を呼んで盤面を作り直すので、**盤面に置いた尾がその場で捨てられる**
       //   （#621 と同じ罠。実測で尾 0件だった）。
-      //   ⚠ 円盤の角度は **回していない向き（base）**。お知らせの円盤は印刷されたままの
-      //     向きなので、席ごとの回転を掛けると**別のくさびを指す**。
+      //   🔴 **くさびの角度（angle）は「回していない向き（base）」のまま**にする。
+      //     ここに席の回転を掛けると**別の色のくさびが光る**（色と向きは円盤の上で結びついている）。
+      //     ⚠【続き897】**円盤そのものの向き**は別の話で、`dial.rot` で**円盤ごと**回している
+      //       （絵・くさび・矢をまとめて）＝本物の札を回して置いたのと同じ。これで
+      //       **矢が実際に動く向きを指す**（それまでは A 以外の3席で食い違っていた）。
       //   ⚠ 盤面の尾（第3拍）は逆に**来た方向**（画面でどう動いたか）で引く＝from/to から出す。
       const 元のマス = { row: token.location.row, col: token.location.col };
       await moveAndSyncForEffect(token.id, { zone: "cell", row, col }, undefined, undefined, false, true);

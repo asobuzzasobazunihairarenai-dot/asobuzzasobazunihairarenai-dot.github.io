@@ -112,6 +112,7 @@ export const CHANGELOG = [
       "なないろの欠片を持っているのに「同じ色のカード」として出せず、効果が不発になっていたのを直しました。",
       "カードの補足を開いた時、スマホで札が大きくなりすぎて画面からはみ出していたのを直しました。",
       "志炎者のカードの補足に、開発用のメモがそのまま出ていたのを直しました。",
+      "色者が動く時に出る円盤が、**そのカードの向きと合っていなかった**のを直しました（カードを置いた人によっては、矢の向きと実際に動く向きが食い違っていました）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -136,6 +137,7 @@ export const CHANGELOG = [
       "Fixed the rainbow shard not counting as a card of the matching color, which made some effects fizzle.",
       "Fixed the card notes being blown up past the edge of the screen on phones.",
       "Fixed the Shien cards showing internal development memos as their card notes.",
+      "Fixed the Shikija dial not matching the orientation of the card on the board, which made its arrow point a different way than the card actually moved.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -234,6 +236,9 @@ export const CHANGELOG = [
       "🔴 **【続き896】#869 の原文どおりに色者の演出を切り直した**（ログインしてもらって debug を読み直したら、新着は0件で、残っていたのは #869 だけだった）。続き792 の4拍（中央で捨色をめくる→お知らせの中の小さい円盤→盤面の尾→範囲の輪）とは**順番も中身も違う**: ①円盤が**大きく**出る ②捨色の札を確認 ③その色の**棘（くさび＋矢）**が光る ④**色者の札がアップになって移動先へ飛ぶ**。⚠ **範囲の輪は残した**——あれは見た目ではなく「誰に効いたか」というルールの情報（#729）。⚠ 続き792 の**尾は出さない**（札の移動が同じ役目。2つ動くと目が散る）。",
       "**作りの決まり**: 🔴 `src/shikija-show.js` は**葉**（import 0本。札の面を作る関数とマスの矩形は main.js から渡す）。🔴 **payload から出す**ので自分の画面も相手の画面も**同じ1本の道**（既にある effect_reason に相乗り＝新しい通信路もサーバーの変更も不要）。body 直下に重ねる（盤面の子にすると次の render() で捨てられる＝#621）。円盤とくさび・矢は**お知らせと同じ部品**。大きさは vmin（台の縮みに左右されない）。指を食べない。🔴 捨色の確認を拍2へ移したので中央じらしフリップはこの効果では呼ばない（**呼ぶと円盤より先に出て順番が逆になる**）——あの関数は試練の儀式・ギャンブルがまだ使う。🔴 payload に足す2つは**お知らせの中で1度だけ**足す（枝が5つあるので枝ごとに書くと必ず忘れる＝#477 の家族）。",
       "🔴🔴 **実測で3回つまずいた（全部こちらの測り方）**: ①撮った絵に**対戦前の案内**が写っていた（盤の上に乗っていた＝続き790 の教訓で4回目。本物の道で閉じてから撮る）②**2枚目以降がただの盤面**だった——**撮影そのものに数秒かかる**（続き800）ので、続けて撮ると演出が終わっている ⇒ **1拍につき1回出し直して1枚だけ撮る** ③「片付かない」で1件落ちたが**待ち時間が足りなかっただけ**。🔴 **拍4（札のアップ）はどう撮っても絵に入らなかった**（山が2.7〜3.0秒で、撮影の遅れがそこを飛び越える）⇒ **0.05秒ごとに大きさを記録して数字で確かめた**（42px →268px→40px）。そこで「きっかり420msで次へ行くと**8割までしか膨らまない**」ことも分かり、待ちを140ms延ばした。**教訓: 撮れない動きは、撮ろうと粘らずに数字で測る。**",
+      "🔴 **【続き897】ユーザーの問い「色者アイコンはカードの向きとリンクしてますか？」——していなかった。** 盤面の札は続き891（#876）から `orientSeat` のぶん 90°ずつ回して置いてあるのに、**円盤だけ印刷のまま**で、見せ場へ渡す角度は base から出していたので**席に依らず常に同じ**だった。実測（捨色が緑＝印刷では「上」）: **A は合うが、B は右・C は下・D は左へ動くのに円盤は上を指していた**＝「なぜそこへ動いたか」を説明するはずの物が**嘘をついていた**。",
+      "🔴 **直し方の肝**: **円盤そのものの向き**（`dial.rot`）は席のぶん回す（絵・くさび・矢を**まとめて**回すので、**色のくさびは色の上に残ったまま矢だけが実際の向きを指す**＝本物の札を回して置いたのと同じ）。一方 **くさびの角度（`dial.angle`）は回してはいけない**——掛けると**別の色のくさびが光る**。⚠ **お知らせの小さい円盤も一緒に回した**（2つが食い違うとどちらが正か分からない）。🔴 続き792 の覚え書き「お知らせの円盤は印刷されたままの向き」はもう正しくないので書き換えた（続き803 の教訓）。⚠ 回転は**お知らせを出す所で1度だけ**足す（枝が5つ＝#477 の家族）。",
+      "⚠ 実測は**4席ぶん通した**——**A だけ合っていたのが元の不具合**なので、A だけ測っても意味が無い（0/90/180/270度とも札の回転に一致・対照つき）。🔴 **撮って確かめた**（C席の札は「色」も「7」も逆さま＝本物の札を回して置いたのと同じ見え方）。回帰: 見せ場の4拍もそのまま通る。⚠ **4人戦で実際に B・C・D が表にした札では通していない**（渡す値は1か所で作っているので筋は通っているが、本物の対局で1回見てほしい）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -330,6 +335,9 @@ export const CHANGELOG = [
       "[Continuation 896] The Shikija sequence was re-cut to the order the report asked for: a large dial, then the discarded colour card, then the matching spike lighting up, then the card zooming in and flying to its destination; the range ring stays because it carries rule information rather than decoration.",
       "The new module is a leaf driven entirely by the broadcast payload, so every client plays the same single path with no new transport or server change.",
       "The zoom could not be captured in a still because screenshots lag past its peak, so its size was sampled every 50ms instead, which also revealed that the zoom was being cut off at 80 percent.",
+      "[Continuation 897] The dial shown during the Shikija sequence was always drawn in its printed orientation even though the card on the board is rotated by the seat that turned it face-up, so for three of the four seats the arrow pointed somewhere other than where the card actually moved.",
+      "The whole dial is now rotated with the card, which keeps each colour wedge on its colour while making the arrow point the real direction; the wedge angle itself must never be rotated or a different colour would light up.",
+      "All four seats were measured because only seat A was correct before, and the notice's small dial was rotated too so the two cannot disagree.",
     ],
   },
   {

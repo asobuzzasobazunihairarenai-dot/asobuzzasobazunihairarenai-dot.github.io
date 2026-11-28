@@ -31,7 +31,7 @@ export const SHIKIJA_SHOW_MS = { 出る: 340, 捨色: 900, 棘: 560, 寄る: 420
  * 見せ場を開く（拍1「円盤が大きく出る」）。
  * @returns {null|{glow:Function, flyCard:Function, close:Function}} 出せない時は null
  */
-export function openShikijaShow() {
+export function openShikijaShow(rot = 0) {
   if (typeof document === "undefined" || !document.body) return null;
   // 二重に出さない（前のが残っていたら片付ける）
   for (const old of document.querySelectorAll(".shikija-show")) old.remove();
@@ -40,6 +40,11 @@ export function openShikijaShow() {
   幕.className = "shikija-show";
   const 包み = document.createElement("div");
   包み.className = "shikija-show-dial-wrap";
+  // 🔴【続き897】**円盤ごと**、その札の向き（90°ずつ）に回す。
+  //   盤面の札は続き891 から回して置いてあるので、円盤だけ印刷のままだと
+  //   **矢の向きと実際の動きが食い違う**（実測: A以外の3席で食い違っていた）。
+  //   ⚠ 回すのは包み（絵・くさび・矢をまとめて）＝**色のくさびは色の上に残る**。
+  包み.style.setProperty("--shikija-show-rot", (Number(rot) || 0) + "deg");
   const img = document.createElement("img");
   img.className = "shikija-show-dial";
   img.src = 絵の道;
