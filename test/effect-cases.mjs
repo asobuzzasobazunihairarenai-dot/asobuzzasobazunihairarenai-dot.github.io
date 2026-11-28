@@ -1520,6 +1520,54 @@ export const CASES = [
     //   **割り込みで札を差し出すかどうか**は「いつでも使える選択肢が使えるか」で決まる。
     //   それまでは「どれか1つでも使えるか」で見ていたので、**ふだんの選択肢が使えるだけ**で
     //   割り込みの行列に入り、自分のターンのロック宣言の窓などでも差し出されていた。
+    // 🔴🔴【#885・#886・続き901】ユーザーの言う決まりそのもの:
+    //   「**そうでない方の普通の効果は通常どおり自分のハンドフェイズで使用します**」。
+    //   ⇒ 自分のターンでも、**ロックフェイズ／ムーブフェイズでは使えない**。
+    //   ⚠ 続き900 までの守り（自分の手番か／他人の窓か）はここを素通りしていた
+    //     ——この札は「いつでも使える」印を持つので、手札を直接タップする道が開くため。
+    name: "志炎者 赤(手札): 自分のターンでも、ハンドフェイズでなければ「ふつうの方」は使えない（#885）",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    selfHandPhase: false, // ← ロックフェイズ／ムーブフェイズ等
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-plain"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: false },
+    ],
+  },
+  {
+    // 🔴 対照: **同じ場面でハンドフェイズなら使える**（これが無いと「使えない」が
+    //   0しか出ない検査になる＝ふつうの手札効果まで塞いでいないことの証拠）。
+    name: "志炎者 赤(手札・対照): 自分のハンドフェイズなら「ふつうの方」が使える（#885）",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    selfHandPhase: true,
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-plain"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: true },
+      { kind: "tokenGone", id: "t1" },
+    ],
+  },
+  {
     name: "志炎者 赤(手札): 窓が無い自分のターンは、割り込みには差し出さない（#885・#886）",
     kind: "hand",
     cardId: "cf-red-ignis",

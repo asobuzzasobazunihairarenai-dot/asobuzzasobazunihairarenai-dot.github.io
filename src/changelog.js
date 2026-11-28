@@ -123,6 +123,7 @@ export const CHANGELOG = [
       "色者が動く時に出る円盤が、**そのカードの向きと合っていなかった**のを直しました（カードを置いた人によっては、矢の向きと実際に動く向きが食い違っていました）。",
       "ノワールで遊ぶ時、アバターが勝手に別の絵に変わっていたのをやめました（設定しているアバターのまま出ます）。",
       "志炎者のカードの**ふつうの手札効果が、ハンドフェイズ以外でも割り込みとして使えてしまっていた**のを直しました（割り込めるのは【志炎】の方だけです）。",
+      "志炎者のカードの**ふつうの手札効果が、自分のロックフェイズやムーブフェイズでも使えてしまっていた**のを直しました（ふつうの方は自分のハンドフェイズだけ、【志炎】の方だけが割り込めます）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -150,6 +151,7 @@ export const CHANGELOG = [
       "Fixed the Shikija dial not matching the orientation of the card on the board, which made its arrow point a different way than the card actually moved.",
       "Playing as noir no longer replaces your avatar with a different picture; your own avatar is kept.",
       "Fixed the Shien cards letting their ordinary hand effect be used as an interrupt outside your hand phase; only the Shien option can interrupt.",
+      "Fixed the ordinary hand effect of a Shien card being usable during your own lock or move phase; the ordinary option is now limited to your hand phase and only the Shien option can interrupt.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -260,6 +262,9 @@ export const CHANGELOG = [
       "🔴🔴 **【続き900】#883 #885 #886 は、続き890 で私が入れた直しの副作用だった。** 🔴 **エンジンは正しかった**——本物の対局で6場面測ったら `isHandEffectOptionUsable` はどの場面も正しい答えを返していた。漏れていたのは**その外側**（誰に割り込みを聞くか）。**推測で engine を直していたら、正しい所を壊していた。**",
       "**#885 #886**: 割り込みで札を差し出すかを `canUseHandEffect`（**どれか1つでも**使えるか）で見ていたので、志炎者は**ふだんの選択肢が使えるだけ**で割り込みの行列に入り、自分のターンのロック宣言の窓などでも差し出されて**ハンドフェイズ以外でふつうの手札効果を使えた** ⇒ `canUseAnytimeHandEffectOption`（**いつでも使える印の付いた選択肢が使えるか**）で数える形へ。⚠ 選択肢が1つの札（やり直しのカギ等）は今までと1つも変わらない。**#883**: 続き890 の守りは「自分の手番でない時」しか見ていなかったが、**相手が自分のターンに割り込む**と窓は自分のターンのまま開く ⇒ 「**他の人が開けた手札効果の窓が開いている間**はふつうの選択肢を使えない」を足した（自分で使った直後の窓は妨げない）。",
       "⚠ 回帰テスト2本（どちらも**対照つき**: #883 は「同じ場面で【志炎】は使える」、#885 は「ふだんの手札効果としては使える」）。A/B で守りを外すと名指しで落ちる。割り込みを持つ札は全部そのまま（志炎者22・リトルマウス6・やり直し4・欠片8・賄賂2・ゴメンナサイ1・反撃2・ちょっと待った5）。🔴 **debug の残り4件**: #882（色者演出が終わる前に次のターンへ）／#884（飛翔する札に効果文が描かれない＝#810 の家族）／#881・#887（どちらも絵を見てから）。",
+      "🔴🔴 **【続き901】ユーザーの確認「今はちゃんとこうなってますか？」で、続き900 が半分しか直っていなかったと分かった。** 塞いだのは「割り込みの行列」だけで、**手札を直接タップ／ドラッグする道**は別に在り、そこは「いつでも使える」印の付いた札を**フェイズを問わず開く** ⇒ 開いた先で `canUseHandEffect`（どれか1つでも）が true なので、**自分のロック／ムーブフェイズでふつうの手札効果を使えた**。",
+      "🔴 **エンジンにフェイズを渡す形にした**（`src/hand-phase-mark.js`。main.js が起動時に1回渡し、エンジンは聞きに行く＝`setOnlineTransport` と同じ作法）。`state.turnPhase` は**オンラインの時しか書かれない**ので当てにできない（CPU戦では常に null＝続き786）。⚠ **分からない時は塞がない**。🔴🔴 **2回つまずいた——どちらも「テストの土台はアプリ本体も動かす」こと**: 素の `isSelfHandPhase` を渡したらテストが8本落ち（土台は index.html を読むので答えがアプリ側の対局のものになる）、「対局が無ければ null」にしてもまだ落ちた（アプリ側は対局を持っている）⇒ **土台側で出どころを差し替える**形へ（既定は null、見たいケースだけ `selfHandPhase` を書く）。**教訓: テストの土台にアプリ本体の状態が混ざっていないか疑う。**",
+      "🔴 **「ログインがまた切れる」を本番のデータで数えたら、ユーザーの端末の問題ではなかった**: `auth.sessions` に**生きたセッションが2つ**（同時ログインはできている）、`not_after` は **NULL**（時間制限なし）、refresh token の失効は**ふつうの回転**、そして**ユーザー側の行動ログに `SIGNED_OUT` が1度も無い**（`diag-auth` は `SIGNED_IN` の繰り返しだけ）。⇒ 切れていたのは**こちらの Chrome だけ**で、アプリもサーバーも何も消していない。読み方を変えた（鍵が無い時は Supabase のダッシュボードの SQL から読む）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -368,6 +373,9 @@ export const CHANGELOG = [
       "[Continuation 900] Three of the new reports came from my own previous fix. Measuring six situations in a real game showed the engine was already correct, so the leak was outside it, in which cards are offered for an interrupt.",
       "Offering was decided by whether any option was usable, so a Shien card qualified merely because its ordinary hand effect was usable on your own turn; it is now decided by whether an anytime option is usable.",
       "The earlier guard only blocked the ordinary option on other players' turns, but an opponent interrupting during your turn leaves the window open on your own turn, so the ordinary option is now also blocked while another player's hand-effect window is open.",
+      "[Continuation 901] A direct question from the user revealed the previous fix covered only the interrupt queue; tapping or dragging the card in hand was a separate path that opened it in any phase.",
+      "The engine now asks main.js for the current phase through a leaf provider, because the state's phase field is only written in online games.",
+      "Checking the live data showed the repeated logouts were not on the user's side at all: two live sessions, no session time-box, and no SIGNED_OUT in their logs.",
     ],
   },
   {

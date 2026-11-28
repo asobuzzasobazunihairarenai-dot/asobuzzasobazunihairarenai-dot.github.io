@@ -455,6 +455,19 @@ export async function runOneCase(spec) {
   };
 
   // 手札効果ケースの失敗調査用の軽い診断（DEBUG_CALLS 時のみ出力）。
+  // 🔴【#885・続き901】**フェイズの出どころを、このケースのものに差し替える。**
+  //   テストの土台は index.html を読む＝**アプリ本体も動いている**ので、main.js が渡した
+  //   「いま自分のハンドフェイズか」は**アプリ側の対局**の答えになる（テストが差し込んだ
+  //   state とは無関係）。放っておくと false が返り、ふつうの手札効果が全部使えなくなる
+  //   ——実際それでテストが8本落ちた。
+  //   ⚠ 既定は **null（分からない）＝塞がない**。フェイズを見るケースだけ
+  //     `selfHandPhase: true/false` を書く。
+  try {
+    const hp = await import("/src/hand-phase-mark.js");
+    hp.registerSelfHandPhaseProvider(
+      spec.selfHandPhase === undefined ? null : () => !!spec.selfHandPhase
+    );
+  } catch (e) { /* 葉が無い古い版でも動く */ }
   let diag = null;
   if (spec.kind === "hand") {
     try {

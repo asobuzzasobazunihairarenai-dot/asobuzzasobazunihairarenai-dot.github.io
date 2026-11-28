@@ -26,6 +26,7 @@ import { setThumbSrc } from "./image-thumbs.js"; // #505: 小さく出す絵は�
 import { hasShikijaDial, shikijaRuleOf } from "./shikija-dial.js";
 import { openShikijaShow } from "./shikija-show.js"; // 【#869・続き896】色者の見せ場（画面いっぱいの4拍）
 import { noirLockColorForSeat } from "./noir-lock-color.js"; // 【続き899】ノワールが置かれた色スロットの色
+import { registerSelfHandPhaseProvider } from "./hand-phase-mark.js"; // 【#885・続き901】フェイズをエンジンへ渡す
 import { isAutoPaySingleExtraColorEnabled } from "./auto-pay-single-cost.js"; // #489
 import { logAction, initActionLogPanel, getActionLogText, getActionLogEntries } from "./action-log.js";
 import { initDeckViewer, openDeckViewer } from "./deck-viewer.js";
@@ -8447,6 +8448,13 @@ function getAutoDriveSeat() {
 function isSelfHandPhase() {
   return isHandPhaseActive() && getState().turnPlayer === getSelfSeat();
 }
+// 🔴【#885・#886・続き901】**エンジンへフェイズを渡す**（値を写さず、聞きに来てもらう）。
+//   ふつうの手札効果は自分のハンドフェイズの物だが、エンジンは `state.turnPhase` を
+//   当てにできない（CPU戦では常に null＝続き786）。詳しくは src/hand-phase-mark.js。
+//   🔴 **フェイズがまだ無い時は「分からない（null）」を返す。** テストの土台も main.js を
+//     読むので、素の `isSelfHandPhase()`（＝false）を渡すと**ふつうの手札効果が全部
+//     使えなくなる**（実測でテストが8本落ちた）。対局が走っていない＝塞ぐ理由が無い。
+registerSelfHandPhaseProvider(() => (getPhaseDebugInfo().currentPhase == null ? null : isSelfHandPhase()));
 
 // CPU戦で「賢いCPU（cpu-brain.js）」がこの席の手を選ぶべきか。ローカルCPU戦のCPU席
 // （疑似CPU対象）で、難易度が新人より上（isCpuBrainSmart）の時だけtrue。
@@ -19905,7 +19913,10 @@ async function tryUsePublicDrawCardByTap(tokenId, player) {
   const effectProcessingBusy = isAnyEffectProcessingBusy();
   if (usableAnytime && effectProcessingBusy) return;
   if (!isSelfHandPhase() && !(usableAnytime && !effectProcessingBusy)) return;
-  if (canUseHandEffect(token.cardId, token.id, player)) {
+  // 🔴【#885・続き901】ハンドフェイズの外で開けるのは**割り込みの選択肢が使える時だけ**。
+  //   「どれか1つでも使えるか」で見ると、志炎者は**ふだんの方が使えるだけ**で開いてしまう。
+  const 使えるか = isSelfHandPhase() ? canUseHandEffect : canUseAnytimeHandEffectOption;
+  if (使えるか(token.cardId, token.id, player)) {
     if (await confirmHandEffectUseNow(token, player)) {
       runAutoHandEffect(token.cardId, token.id, player);
     }
@@ -20459,7 +20470,10 @@ async function onDragEnd(e) {
           }
           if (isSelfHandPhase() || (isUsableAnytime && !effectProcessingBusy)) {
             render();
-            if (canUseHandEffect(clickedToken.cardId, clickedToken.id, clickPlayer)) {
+            // 🔴【#885・続き901】ハンドフェイズの外で開けるのは**割り込みの選択肢が使える時だけ**
+            //   （上のドラッグの道と同じ決まり）。
+            const 使えるか2 = isSelfHandPhase() ? canUseHandEffect : canUseAnytimeHandEffectOption;
+            if (使えるか2(clickedToken.cardId, clickedToken.id, clickPlayer)) {
               if (await confirmHandEffectUseNow(clickedToken, clickPlayer)) {
                 runAutoHandEffect(clickedToken.cardId, clickedToken.id, clickPlayer);
               }

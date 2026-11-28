@@ -16,6 +16,7 @@
 // 「呼び出し元に注入してもらう」設計）。
 
 import { didNormalMoveOnTurn } from "./normal-move-mark.js"; // 【続き788】旧0th ダッシュ（手札）の条件
+import { isSelfHandPhaseNow } from "./hand-phase-mark.js"; // 【#885・続き901】ふつうの手札効果は自分のハンドフェイズだけ
 import { getState } from "./state.js";
 // 🔴【続き791】山札の並びが分かり得る時だけ「置く順」を聞く（ユーザー判断）。
 import { isDeckOrderKnown } from "./deck-order-known.js";
@@ -693,6 +694,16 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
         interruptWindow.player && interruptWindow.player !== player) {
       return false;
     }
+    // 🔴🔴【#885・#886・続き901】**ふつうの方は「自分のハンドフェイズ」でしか使えない。**
+    //   ユーザーの言うとおり:「【志炎】の方は誰かがその色の手札効果を使った後にのみ割り込める。
+    //   そうでない普通の効果は**通常どおり自分のハンドフェイズ**で使用する。」
+    //   ⚠ 続き900 までの守り（自分の手番か／他人の窓が開いていないか）だけでは、
+    //     **自分のロックフェイズ・ムーブフェイズ**が素通りしていた
+    //     （この札は「いつでも使える」印が付いているので、手札を直接タップする道が開く）。
+    //   ⚠ フェイズは **main.js が渡してくれた物**に聞く（state.turnPhase はCPU戦では常に null）。
+    //     **分からない時は塞がない**（テストの土台や起動直後で、ふつうの手札効果まで
+    //     使えなくなるのを避ける＝「分からないなら今までどおり」）。
+    if (窓用がある && isSelfHandPhaseNow() === false) return false;
   }
   // 🔴【続き788】旧0th のダッシュ（手札）「このターン、**通常の移動をしたなら**、１マス移動する。」
   //   ⚠ **接触は数えない**（接触は「移動」ではない）＝接触したターンには使えない。
