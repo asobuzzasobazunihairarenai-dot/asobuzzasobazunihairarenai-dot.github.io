@@ -24,6 +24,7 @@ import { optionLabel } from "./card-effects.js"; // UI英語化フェーズ11
 import { setThumbSrc } from "./image-thumbs.js"; // #505: 小さく出す絵は小さい版を貼る
 // 🔴【続き882】【色者】の表（どのカードが色者か・白黒の効果）。色者が2枚になったので決め打ちをやめた。
 import { hasShikijaDial, shikijaRuleOf } from "./shikija-dial.js";
+import { openShikijaShow } from "./shikija-show.js"; // 【#869・続き896】色者の見せ場（画面いっぱいの4拍）
 import { isAutoPaySingleExtraColorEnabled } from "./auto-pay-single-cost.js"; // #489
 import { logAction, initActionLogPanel, getActionLogText, getActionLogEntries } from "./action-log.js";
 import { initDeckViewer, openDeckViewer } from "./deck-viewer.js";
@@ -3904,8 +3905,41 @@ function playShikijaBoardBeats(shikija) {
         document.body.appendChild(el);
         setTimeout(() => el.remove(), ms);
       };
-      // 第3拍: 移動元の中心から移動先の中心へ、**本当に通った道**をなぞる尾。
-      if (shikija.from && shikija.to) {
+      // 🔴【#869・続き896】**見せ場**（円盤が大きく出る → 捨色を確認 → 棘が光る → 札がアップで移動）。
+      //   ユーザー案どおりの順番に切り直した（続き792 の「尾」は、この札の移動が引き継ぐ）。
+      //   ⚠ **payload から出す**ので、自分の画面も相手の画面も**同じ1本の道**を通る
+      //     （新しい通信路は要らない＝既にある effect_reason に相乗りしたまま）。
+      //   ⚠ 札の面を作る関数は**こちらから渡す**（shikija-show.js は葉のまま保つ）。
+      if (shikija.dial) {
+        const show = openShikijaShow();
+        if (show) {
+          const 札面 = (cardId) => () => {
+            if (!cardId) return null;
+            const el = document.createElement("div");
+            el.className = "card-box";
+            try { showCardFace(el, cardId, getCardImagePath(cardId)); } catch (err) { return null; }
+            return el;
+          };
+          (async () => {
+            try {
+              await new Promise((r) => setTimeout(r, 340)); // 拍1: 円盤が出きるまで
+              await show.showDiscard({ 作る: 札面(shikija.discard) }); // 拍2: 捨色を確認
+              await show.glow(shikija.dial); // 拍3: その色の棘が光る
+              await show.flyCard({ // 拍4: 色者の札がアップになって移動
+                作る: 札面(shikija.cardId),
+                from: shikija.from ? 矩形(shikija.from) : null,
+                to: shikija.to ? 矩形(shikija.to) : null,
+              });
+            } catch (err) {
+              /* 見せ場が転んでも対局は止めない */
+            } finally {
+              show.close();
+            }
+          })();
+        }
+      }
+      // 第3拍（続き792・いまは見せ場が無い時だけ）: 移動元から移動先へ、通った道をなぞる尾。
+      if (!shikija.dial && shikija.from && shikija.to) {
         const a = 矩形(shikija.from);
         const b2 = 矩形(shikija.to);
         if (a && b2) {
@@ -5488,20 +5522,19 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   //     （onEffectReasonEvents の中。新しい通信路もサーバーの変更も要らない）。
   const 色者のお知らせ = async (文, 演出 = null) => {
     try { logAction("shikija", { player: endedPlayer ?? getState().turnPlayer, cardId: token.cardId, text: 文 }); } catch (err) {}
-    await announceEffectNoticeForEffect(token.cardId, 文, 演出);
+    // 🔴【#869・続き896】見せ場（拍2 の捨色・拍4 の色者の札）に要る2つを**ここで1度だけ**足す。
+    //   枝ごとに書くと必ずどれかを書き忘れる（#477 の家族）。
+    const 演出2 = 演出 ? { discard: 捨色カード, cardId: token.cardId, ...演出 } : null;
+    await announceEffectNoticeForEffect(token.cardId, 文, 演出2);
   };
   // 🔴【#728・続き791】色の CSS 値。7色は変数から、無色は明暗で出し分ける
   //   （`--color-*` を決め打ちで写さない＝表を2か所に持たない）。
   const 色のCSS = (c) =>
     c === "white" ? "#ffffff" : c === "black" ? "#141c26" : c && c !== "rainbow" ? "var(--color-" + c + ")" : "#f6c945";
-  // 🔴 **第1拍「捨色をめくる」。** 何色が出たのかを札そのもので見せる。
-  //   ⚠ 既にある中央じらしフリップを使う＝**全員の画面に配信される**（新しい通信路は不要）。
-  //   ⚠ 演出を切っている人は中で即戻る（待たされない）。
-  try {
-    await revealCenterCardForAll(捨色カード, t("ce.ex0ShikijaRevealLabel"));
-  } catch (err) {
-    /* めくりに失敗しても処理は続ける（見た目だけ） */
-  }
+  // 🔴【#869・続き896】**捨色の確認は見せ場の拍2へ移した**（ユーザー案の順番＝
+  //   円盤が大きく出る → 捨色を確認 → 棘が光る → 色者の札がアップで移動）。
+  //   ⚠ ここで中央じらしフリップを出すと、円盤より**先**に捨色が出て順番が逆になる。
+  //   ⚠ 配信は今までどおり（お知らせの payload に相乗り）なので、相手の画面でも同じ順で出る。
   const base = color ? SHIKIJA_DIRS[color] : null;
   // ⚠ t() は**無い鍵をそのまま返す**ので、鍵が返ってきたらカードの名前で代える（文言の穴を作らない）。
   const 色の鍵 = color ? colorLabel(color) : null;
@@ -10822,6 +10855,12 @@ export function debugOpenPlayerPick(candidates, hint, options) {
 //   ⚠ アプリ側のどこからも呼んでいない。
 export function debugShowCardNote(cardId) {
   return showCardNoteModal(cardId);
+}
+// 🔴【#869・続き896】色者の見せ場を実測から**本物の道で**動かすための覗き穴。
+//   ⚠ アプリ側からは呼ばない（`debugOpenCellPick` / `debugShowCardNote` と同じ棚）。
+//   見た目だけを出す（状態は1つも変えない）。
+export function debugShikijaBeats(shikija) {
+  return playShikijaBoardBeats(shikija);
 }
 export function debugActivePickerType() {
   return activeEffectPicker ? activeEffectPicker.type : null;

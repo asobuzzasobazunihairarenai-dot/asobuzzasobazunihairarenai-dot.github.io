@@ -60,6 +60,7 @@ export const CHANGELOG = [
       "カードの補足で色者・状況・志炎の説明も出ます",
       "CPU戦の設定画面が読みやすくなりました",
       "志炎者のカードが英語でも読めるようになりました",
+      "色者が動く時の見せ場を作り直しました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
@@ -68,6 +69,7 @@ export const CHANGELOG = [
       "Card notes now explain Shikija, Situation and Shien",
       "The CPU battle settings are tidier",
       "The Shien cards can now be read in English",
+      "The Shikija move has a new sequence",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
@@ -76,6 +78,7 @@ export const CHANGELOG = [
       "**カードの補足で、追色や財力などの固有効果に加えて【色者】【状況】【志炎】も説明が出る**ようになりました（公式サイトの基本用語集の文をそのまま載せています）。英語でも出ます。",
       "**CPU戦の設定画面**が読みやすくなりました。**i を押すと説明がモーダルで出る**ようになり（その場で開いて下の項目が動くことがなくなりました）、**使うカードには箱の絵**が並び、**対戦ルールの4つが同じ大きさでそろいます**。",
       "志炎者のカードに**英語の効果文**が入りました（これまでは名前だけで、英語でも効果文は日本語のまま出ていました）。",
+      "**色者が動く時の見せ場**を作り直しました。**色者の円盤が大きく出て → 捨て色のカードを確認 → その色の棘が光って → 色者のカードがアップになって移動する**、という流れになります（動きを控える設定にしている方には今までどおり出ません）。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
@@ -84,6 +87,7 @@ export const CHANGELOG = [
       "The card notes now also explain Shikija, Situation and Shien, alongside Color Cost and Wealth, using the wording from the official basic terms page. This works in English too.",
       "The CPU battle settings are tidier: the i buttons now open their explanation in a dialog instead of pushing the rest of the list down, the chosen edition shows its box art, and the four match rules line up at the same size.",
       "The Shien cards now have English effect text; until now only their names were translated and the effects stayed in Japanese.",
+      "The Shikija move now plays as a proper sequence: the dial appears large, the discarded colour card is shown, the matching spike lights up, and the Shikija card zooms in and flies to its new space. Nothing changes if you have animations turned down.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -227,6 +231,9 @@ export const CHANGELOG = [
       "🔴🔴 **【続き895】#878「フランマの到達が不発。なないろのかけら持ってるのに！」——欠片は ★すべての色 なのに、色を直に比べていたので拾えず、欠片しか持っていない人は『出せる札が無い』と見なされて聞かれないまま不発だった。** 🔴🔴 **判定は engine の中に既に在り（`cardMatchesColor`）、そのすぐ上に「色を突き合わせる所を足したら、必ず欠片の例外を書く」と自分で書いてあった**——人任せの約束は**3か所**で破れていた（志炎者の到達／強欲なパレット■／**【志炎】の窓**）。続き863「ルールを private に閉じ込めると、よそでは必ず書き写される」の家族。⇒ 3か所とも判定へ寄せ、色の値どうし用に `colorsMatch` を足した。🔴 **4回目を機械で止めた**（32本目 `check-color-match.mjs`。A/B で名指しの行番号つきで落ちる）。",
       "🔴🔴 **#879 は絵に2つ写っていた。** (a) 続き888 で `--stage-scale` で割って縮みを打ち消したが、**スマホでは scale(2) が上から掛かる**ので**二重**になり、実測で札が 1216 ステージpx・**画面の外へ 68px**（続き872 の #848 と同じ形）⇒ スマホでは打ち消しを外す（PC は1pxも変えていない）。🔴 **ヘッドレスでは最初 再現しなかった**——`is-phone-device` は**画面幅ではなく端末**で付くクラス（続き767）で、**自分で付け外しして**測って初めて出た。(b) 🔴🔴 **補足が開発メモそのもの**だった（`notes` を丸ごと入れていたので 🔴 や ** が並び、**こちらの手元のフォルダの道まで全員の画面に出ていた**）⇒ 「補足:」で始まる行だけを採る形へ（続き783 で 1st を直した時と同じ罠）。",
       "🔴🔴 **道具のミスで engine を丸ごと巻き戻した。** A/B の1行で**変数名に日本語を使って**失敗し（bash では使えない）、`&&` が切れたのに **`;` で繋いだ後半だけが走って** `cp /tmp/eng.bak …` ＝**前の回の A/B が残していた古い控え**を書き戻した（続き890 の #872 の直しなど **392行**が消えた）。`git show HEAD:… > …` で戻して今日の5か所を入れ直した。**教訓: A/B の控えを /tmp に置かない。崩すのも戻すのも Edit で行い、シェルの cp を使わない**（続き873・878 の家族で3回目）。⚠ #880 の英語は**リメイクの英語の文から用語を写した**（オープン→flip face-up／強制移動→forced to move／【追色１】→【Color Cost 1】にならって【Shien】）。日本語は1文字も変えていない。",
+      "🔴 **【続き896】#869 の原文どおりに色者の演出を切り直した**（ログインしてもらって debug を読み直したら、新着は0件で、残っていたのは #869 だけだった）。続き792 の4拍（中央で捨色をめくる→お知らせの中の小さい円盤→盤面の尾→範囲の輪）とは**順番も中身も違う**: ①円盤が**大きく**出る ②捨色の札を確認 ③その色の**棘（くさび＋矢）**が光る ④**色者の札がアップになって移動先へ飛ぶ**。⚠ **範囲の輪は残した**——あれは見た目ではなく「誰に効いたか」というルールの情報（#729）。⚠ 続き792 の**尾は出さない**（札の移動が同じ役目。2つ動くと目が散る）。",
+      "**作りの決まり**: 🔴 `src/shikija-show.js` は**葉**（import 0本。札の面を作る関数とマスの矩形は main.js から渡す）。🔴 **payload から出す**ので自分の画面も相手の画面も**同じ1本の道**（既にある effect_reason に相乗り＝新しい通信路もサーバーの変更も不要）。body 直下に重ねる（盤面の子にすると次の render() で捨てられる＝#621）。円盤とくさび・矢は**お知らせと同じ部品**。大きさは vmin（台の縮みに左右されない）。指を食べない。🔴 捨色の確認を拍2へ移したので中央じらしフリップはこの効果では呼ばない（**呼ぶと円盤より先に出て順番が逆になる**）——あの関数は試練の儀式・ギャンブルがまだ使う。🔴 payload に足す2つは**お知らせの中で1度だけ**足す（枝が5つあるので枝ごとに書くと必ず忘れる＝#477 の家族）。",
+      "🔴🔴 **実測で3回つまずいた（全部こちらの測り方）**: ①撮った絵に**対戦前の案内**が写っていた（盤の上に乗っていた＝続き790 の教訓で4回目。本物の道で閉じてから撮る）②**2枚目以降がただの盤面**だった——**撮影そのものに数秒かかる**（続き800）ので、続けて撮ると演出が終わっている ⇒ **1拍につき1回出し直して1枚だけ撮る** ③「片付かない」で1件落ちたが**待ち時間が足りなかっただけ**。🔴 **拍4（札のアップ）はどう撮っても絵に入らなかった**（山が2.7〜3.0秒で、撮影の遅れがそこを飛び越える）⇒ **0.05秒ごとに大きさを記録して数字で確かめた**（42px →268px→40px）。そこで「きっかり420msで次へ行くと**8割までしか膨らまない**」ことも分かり、待ちを140ms延ばした。**教訓: 撮れない動きは、撮ろうと粘らずに数字で測る。**",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -320,6 +327,9 @@ export const CHANGELOG = [
       "[Continuation 895] The rainbow shard counts as every colour, but three places compared colours directly and missed it, so a player holding only the shard was never asked and the effect fizzled; all three now go through the engine's existing predicate, and a new check fails by line number if a fourth is ever written.",
       "The card note was enlarged twice on phones, once by cancelling the stage shrink and once by the phone scale, and its note text was the raw developer memo including a local folder path; both are fixed.",
       "A shell one-liner with a Japanese variable name broke mid-chain and restored a stale /tmp backup over the engine, reverting committed work, which was recovered from HEAD and re-applied.",
+      "[Continuation 896] The Shikija sequence was re-cut to the order the report asked for: a large dial, then the discarded colour card, then the matching spike lighting up, then the card zooming in and flying to its destination; the range ring stays because it carries rule information rather than decoration.",
+      "The new module is a leaf driven entirely by the broadcast payload, so every client plays the same single path with no new transport or server change.",
+      "The zoom could not be captured in a still because screenshots lag past its peak, so its size was sampled every 50ms instead, which also revealed that the zoom was being cut off at 80 percent.",
     ],
   },
   {
