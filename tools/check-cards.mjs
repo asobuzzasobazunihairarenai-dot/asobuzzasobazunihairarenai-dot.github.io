@@ -306,6 +306,45 @@ if (firstEdSrc) {
     `テスト 通常 ${テストあり}/${fe.length}・F ${Fテストあり}/${first1st.length}` +
     `（Fカードはジュエル版の絵。ファーストの山はエディションごとに切り替わる）`;
 
+  // ── 🔴🔴 駒スキンの絵（続き886・報告#868「ノワール時の駒が透明です」）──────────
+  //   駒の絵のパスは「色 × スキンの番号」で組み立てる（src/piece-skins.js）。
+  //   **黒（ノワール）には番号違いの絵が無い**ので、スキンを選んでいる人がノワールになると
+  //   `noir-5.webp` のような**存在しない絵**を取りに行き、**駒が丸ごと透明**になった。
+  //   ⚠ 物語のエイドス戦では相手の席だけがノワール（番号は0のまま）なので一度も出ず、
+  //     続き883 で**自分の席**が初めてノワールになって表に出た。
+  //   ⇒ **コードが作り得るパスを全部数えて、絵が在るかを見る。**
+  {
+    const ps = fs.readFileSync(path.join(ROOT, "src/piece-skins.js"), "utf8");
+    const 変種 = (ps.match(/const SKIN_VARIANTS = \[([^\]]*)\]/) || [])[1];
+    const 番号 = 変種 ? 変種.split(",").map((x) => Number(x.trim())).filter((n) => Number.isFinite(n)) : [];
+    const 無い色 = (ps.match(/COLORS_WITHOUT_SKIN_VARIANTS = new Set\(\[([^\]]*)\]/) || [])[1] || "";
+    const 番号違いが無い = new Set([...無い色.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+    // 駒が取り得る色は**ファーストカードの色**（state.js の DEAL_FIRST_CARDS が def.color を写す）
+    // ＝7色、プラス APPLY_SEAT_NOIR が作る noir。
+    // ⚠ 白・黒は**駒にならない**（ファーストカードが7色しか無い）。最初それも数えて28件の
+    //   「絵が無い」を出したが、あれは私の数え方の間違い。
+    const 駒の色 = [...BLANK_COLORS, "noir"];
+    if (番号.length < 5) note("駒スキン: SKIN_VARIANTS を読めていない（この節が『0しか出ない検査』になっている）");
+    else {
+      let 欠け = 0;
+      let 数えた = 0;
+      for (const c of 駒の色) {
+        const 当てる = 番号違いが無い.has(c) ? [0] : 番号;
+        for (const i of 当てる) {
+          数えた++;
+          const rel = i === 0 ? `assets/pieces/${c}.webp` : `assets/pieces/${c}-${i}.webp`;
+          if (!fs.existsSync(path.join(ROOT, rel))) {
+            欠け++;
+            if (欠け <= 5) note(`駒スキンの絵が無い: ${rel}（この色では駒が透明になる＝#868）`);
+          }
+        }
+      }
+      if (欠け > 5) note(`駒スキンの絵が無い: ほかに ${欠け - 5} 件`);
+      console.log(`ⓘ 駒スキン: 色 ${駒の色.length} × 番号 → ${数えた} 通りの絵を見て、欠け ${欠け} 件` +
+        `（番号違いが無い色: ${[...番号違いが無い].join(",") || "無し"}）`);
+    }
+  }
+
   // サーバー側の写しとのズレ（0th拡張と同じ理由。手でコピペしてデプロイする運用なので見張る）
   let edge2 = null;
   try {

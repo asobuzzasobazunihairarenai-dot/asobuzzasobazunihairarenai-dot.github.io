@@ -1275,11 +1275,34 @@ function 委任のマスを候補に合わせる(返事, candidates, 札) {
 }
 
 // 「任意の1マス」（カードがあるマスに限る、1マスの1枚を対象にする効果向け）の候補一覧。
+// 🔴🔴 **守られている札の居るマスは候補に入れない**（続き886・報告#870
+//   「ノクスアエル幼体だけど、パーティの効果で回収できてしまいました！色者は他のカードの
+//   効果の対象にならないはずです！」）。
+//   ここを通る効果は**どれも「別のカードの効果が、盤面の札を対象にする」**もの
+//   （パーティで手札に加える／ワイナウエアでそのマスを全部捨てる／愚直な欲求で全部取る／
+//   収穫と種まき等でめくる・取る）なので、決まりがそのまま当たる。
+//   ⚠ **判定は isTargetableToken に聞く**（公開されている札だけが守られ、裏向きなら
+//     今までどおり対象にできる＝続き865 の裁定）。条件を写さない。
+//   ⚠ そのマスの**どれか1枚でも**守られていれば、そのマスごと候補から外す——「そのマスの
+//     カードを全部捨てる」のような効果が、下に埋もれた札を巻き込むため。
+//   ⚠ 表向きの札は**全員に見えている**ので、外しても秘匿情報は漏れない
+//     （裏向きの札を外すと「そこが龍だ」と分かってしまう＝続き865 で直した所）。
 export function getAnyCellWithCardCandidates() {
   const candidates = [];
+  const st = getState();
   for (let row = 0; row <= 6; row++) {
     for (let col = 0; col <= 6; col++) {
-      if (hasCardAt(row, col)) candidates.push({ zone: "cell", row, col });
+      if (!hasCardAt(row, col)) continue;
+      const 守られている = st.tokens.some(
+        (t) =>
+          t.kind === "card" &&
+          t.location.zone === "cell" &&
+          t.location.row === row &&
+          t.location.col === col &&
+          !isTargetableToken(t)
+      );
+      if (守られている) continue;
+      candidates.push({ zone: "cell", row, col });
     }
   }
   return candidates;

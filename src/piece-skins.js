@@ -67,9 +67,22 @@ function getSkinCost(idx) {
   return 80;
 }
 
+// 🔴🔴 **番号違いの絵を持たない色**（続き886・報告#868）。
+//   黒（ノワール）の駒は `assets/pieces/noir.webp` の**1枚しか無い**。ところが駒スキンの
+//   番号は「自分の席」なら必ず当たるので、**スキンを選んでいる人がノワールになると**
+//   `noir-5.webp` のような**存在しない絵**を取りに行き、**駒が丸ごと透明**になる
+//   （報告「ノワール時の駒が透明です。アバターもなくなってます」）。
+//   ⚠ 物語のエイドス戦では相手（C席）だけがノワールで、あちらは番号が 0 のままなので
+//     **一度も表に出なかった**。続き883 の「ノワールのお試し」で**自分の席**が初めて
+//     ノワールになり、出た。
+//   🔴 ここが**唯一の持ち主**。my-deck-builder / my-deck-list のサムネも同じ決まりで守る
+//     （あちらは piece-skins を静的 import すると循環するので、条件だけを写してある）。
+export const COLORS_WITHOUT_SKIN_VARIANTS = new Set(["noir"]);
+
 // getSkinImagePath()と同じパス組み立てロジックを、任意の色・バリエーション番号に
 // ついて呼べる形で切り出したもの（続き84、ショップの色スウォッチ切り替え用）。
 function skinImagePathFor(color, variant) {
+  if (COLORS_WITHOUT_SKIN_VARIANTS.has(color)) return `assets/pieces/${color}.webp`;
   return variant === 0 ? `assets/pieces/${color}.webp` : `assets/pieces/${color}-${variant}.webp`;
 }
 export function getSkinImagePathForVariant(color, variant) {
@@ -182,7 +195,9 @@ export function getSkinImagePath(color, seat) {
     const synced = getSyncedIdentity(seat)?.pieceSkinIndex;
     if (typeof synced === "number") idx = synced;
   }
-  return idx === 0 ? `assets/pieces/${color}.webp` : `assets/pieces/${color}-${idx}.webp`;
+  // 🔴 番号違いの絵が無い色（黒＝ノワール）は、番号を無視して1枚だけの絵を返す。
+  //   ここを通さないと存在しない絵を取りに行って**駒が透明になる**（#868）。
+  return skinImagePathFor(color, idx);
 }
 
 export function getMyPieceColor() {

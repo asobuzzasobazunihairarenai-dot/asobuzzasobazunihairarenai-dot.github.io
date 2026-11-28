@@ -457,7 +457,11 @@ function makeCardDraggable(el, cardId) {
 }
 
 // ── デッキ設定（ファースト色・駒スキン・ペット・裏面。ユーザー要望2026-08-11）────────
+// ⚠ 黒（ノワール）には番号違いの絵が無い（`assets/pieces/noir.webp` の1枚だけ）。
+//   正は piece-skins.js の COLORS_WITHOUT_SKIN_VARIANTS だが、あれを静的 import すると
+//   循環する（このファイル上部の注を参照）ので、**条件だけ**を写してある。
 function pieceThumbSrc(color, idx) {
+  if (color === "noir") return "assets/pieces/noir.webp";
   const c = color || "red"; // 色未定（ランダム）は赤で仮表示
   return idx ? `assets/pieces/${c}-${idx}.webp` : `assets/pieces/${c}.webp`;
 }

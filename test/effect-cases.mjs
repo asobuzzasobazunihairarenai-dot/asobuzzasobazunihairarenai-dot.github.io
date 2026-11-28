@@ -6382,6 +6382,58 @@ export const CASES = [
     ],
   },
   {
+    // 🔴 続き886・報告#870「ノクスアエル幼体だけど、パーティの効果で回収できてしまいました！
+    //   色者は他のカードの効果の対象にならないはずです！」。
+    //   マスの候補を作る所（getAnyCellWithCardCandidates）が守りを通していなかった。
+    //   ⚠ 選ぼうとしているのは**幼体の居るマス**。守りが効いていれば候補から外れ、
+    //     残った1マス（ふつうの札）が自動で選ばれる。効いていなければ幼体を取ってしまう。
+    name: "愚直な欲求(手札): 表向きの色者（幼体）の居るマスは選べない（#870）",
+    kind: "hand",
+    cardId: "eternal-1st-orange",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-orange", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "dragon", kind: "card", cardId: "new-white-young-dragon", faceUp: true, location: { zone: "cell", row: 2, col: 2 } },
+        { id: "plain", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 4, col: 4 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-orange", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    // ⚠ 台本の答えは**候補の中から**選ぶ（土台は候補の外の答えも通してしまうので、
+    //   候補そのものを数えないと「守れている」の証拠にならない＝最初それで嘘の合格を書いた）。
+    picks: { location: [{ row: 4, col: 4 }] },
+    expect: [
+      { kind: "called", name: "pickLocationCandidates", arg: "1" }, // 🔴 幼体のマスが外れて1つだけ
+      { kind: "tokenZone", id: "dragon", zone: "cell" },
+      { kind: "tokenZone", id: "plain", zone: "hand", player: "A" },
+    ],
+  },
+  {
+    // 対: **裏向き**なら今までどおり取れる（秘匿なので対象にできる＝続き865 の裁定）。
+    //   これが無いと「何でも守る」実装でも上のテストが通る。
+    name: "愚直な欲求(手札): 裏向きの色者（幼体）は今までどおり取れる（#870 の対照）",
+    kind: "hand",
+    cardId: "eternal-1st-orange",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 6, col: 3 } },
+        { id: "self", kind: "card", cardId: "eternal-1st-orange", faceUp: true, location: { zone: "lock", side: "bottom", index: 1 } },
+        { id: "hA0", kind: "card", cardId: "red-jump-pad", location: { zone: "hand", player: "A" } },
+        { id: "dragon", kind: "card", cardId: "new-white-young-dragon", faceUp: false, location: { zone: "cell", row: 2, col: 2 } },
+      ],
+      piles: { deck: [], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "eternal-1st-orange", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 6, col: 3 } },
+    picks: { location: [{ row: 2, col: 2 }] },
+    expect: [
+      { kind: "tokenZone", id: "dragon", zone: "hand", player: "A" },
+    ],
+  },
+  {
     name: "富豪の教え/eternal-1st-yellow(手札): 【財力＝２】全員の財力が１多く計算される",
     kind: "hand",
     cardId: "eternal-1st-yellow",

@@ -33,7 +33,11 @@ let onCloseCb = null;
 let petMod = null;
 
 // 駒画像パス（色＋スキンindex）。裏面画像パス（card-back-skins backImagePath 同等をインライン化）。
+// ⚠ 黒（ノワール）には番号違いの絵が無い（`assets/pieces/noir.webp` の1枚だけ）。
+//   正は piece-skins.js の COLORS_WITHOUT_SKIN_VARIANTS だが、あれを静的 import すると
+//   循環する（このファイル上部の注を参照）ので、**条件だけ**を写してある。
 function pieceThumbSrc(color, idx) {
+  if (color === "noir") return "assets/pieces/noir.webp";
   const c = color || "red";
   return idx ? `assets/pieces/${c}-${idx}.webp` : `assets/pieces/${c}.webp`;
 }

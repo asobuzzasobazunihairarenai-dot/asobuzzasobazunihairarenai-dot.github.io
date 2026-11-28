@@ -74,12 +74,16 @@ export const CHANGELOG = [
       "図鑑の「カード一覧」でカードを開いた時に、カードが縦に伸びて**文字と枠がずれていた**のを直しました（説明の長いカードで起きていました）。",
       "BGMが鳴らないことがあったのを直しました。音を出せない状態のまま曲だけが進んでしまい、**触った頃には頭が終わっていた**のが原因です。これからは、鳴らせるようになってから頭から流れます。",
       "マイページの「着せ替え」が小さすぎて押しにくかったのを直しました（スマホ・タブレットで大きくし、枠の真ん中に置きました）。",
+      "黒（ノワール）で遊んでいる時、自分の駒とアバターが見えなくなっていたのを直しました。",
+      "色者のカードが、ほかのカードの効果で奪われたり捨てられたりすることがあったのを直しました。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
       "Fixed cards stretching vertically when opened from the card list, which pushed the text out of line with the card frame. It happened on cards with a long explanation.",
       "Fixed the music sometimes not being audible. The track was advancing while sound was still blocked, so by the time you touched the screen the opening had already passed. It now starts from the beginning once sound is allowed.",
       "The outfit buttons on My Page were too small to tap comfortably. They are now larger on phones and tablets, and centred in their panel.",
+      "Fixed your piece and avatar disappearing while playing as Noir.",
+      "Fixed Shikija cards being taken or discarded by other cards' effects.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -138,6 +142,11 @@ export const CHANGELOG = [
       "🔴🔴 **【続き885】続き884 は片方だけ直していた。** スモークは完走したのに CI の同じジョブが終わらず、数えたら `runCpuBattleSetup` を**人が居ない所から**呼ぶのは6か所あった——`tools/check-cpu-value.mjs` が `askDeck` を渡さず、しかも**CIの同じジョブでスモークより前**に走るので、**そこで止まっていた**（ほかに `test/stall-block-test.mjs` / `test/stall-probe.mjs` / `tools/measure-layout.mjs` も同じ形。`src/smoke-test-runner.js` は元から渡していた）。⇒ 4か所に `askDeck: false` を渡した。**教訓: 「ここだけ直した」と思った時は、同じ形の呼び出しを数える**（#477 の家族。スモークという名前に引きずられて、検査の中の自己対戦を見落とした）。",
       "🔴 **検査の節Dを名簿を持たない形へ作り直した。** 続き884 の節Dは `test/smoke.mjs` だけを見ていたので**この実害をすり抜けた** ⇒ 自動で回す置き場（`test/` と `tools/` と `src/smoke-test-runner.js`）を**歩いて呼び出しを全部数える**形にした（新しく足した道具も自動で入る。1件も見つからなければ名指しで落ちる＝0しか出ない検査にしない）。⚠ 人が始める入口（ホーム・オープニング・対局後パネル・練習・物語戦）は**今までどおり渡さない**。",
       "⚠ A/B: わざと `askDeck` を外すと `tools/check-cpu-value.mjs` は**100秒で切っても終わらない**（ふだんは40秒ほどで125枚とも例外0）＝**CIが緑にならなかった理由はこれ**と再現してから直した。検査も名指しで落ち、指紋で元に戻したことを照合。実測: 値踏みの検査が完走・スモークも完走（8ターン）・歯止めは **29点**（24→自動の呼び出し6件ぶん増）・`npm run check` 31本とも合格。",
+      "🔴🔴 **【続き886】#868「ノワール時の駒が透明です。アバターもなくなってます」＝続き883 で私が出した不具合。** 駒の絵のパスは「色 × スキンの番号」で組み立てるが、**黒（ノワール）には番号違いの絵が無い**（`assets/pieces/noir.webp` の1枚だけ）ので、スキンを選んでいる人がノワールになると `noir-5.webp` を取りに行って **404 → 駒が丸ごと透明**。🔴 物語のエイドス戦では**相手の席だけ**がノワール（番号は0のまま）なので一度も出ず、**自分の席が初めてノワールになって**表に出た。⚠ `my-deck-builder.js` には「黒には番号違いが無い」と**注まで書いてあった**——知っていたのに、パスを組む所には書いていなかった。⇒ `COLORS_WITHOUT_SKIN_VARIANTS` を唯一の持ち主にした。",
+      "🔴 **その見張りを `check-cards` に足した**（コードが作り得るパスを**色 × 番号で全部＝99通り**数えて絵が在るか）。**これが在ればその日に分かった。** ⚠ 最初「白・黒も駒になる」と数えて28件の『絵が無い』を出したが、駒の色は**ファーストカードの色（7色）＋noir** だけ＝**私の数え方の間違い**。実測7項目（黒は200／**対照: 赤は選んだ番号のまま200**／**直す前の `noir-5.webp` は本当に404**）。",
+      "🔴🔴 **#870「色者（幼体）がパーティの効果で回収できてしまいました」。穴は2つ在って、2つ目の方が広かった。** ①守る札の名簿が**手書き**で、続き882 で増えた2枚目の色者（幼体）を足し忘れていた ②🔴 **マスの候補を作る所が、守りを一度も通していなかった**（＝**親の白き龍も同じように回収できた**・前からの不具合）。⇒ ①は名簿をやめて**色者の表から引く**（3枚目が増えた日に自動で守られる）②候補を作る1か所で `isTargetableToken` に聞く。⚠ **裏向きなら今までどおり対象にできる**（続き865 の裁定）。⚠ 守りは**カードの文ではなく【色者】という種類**に付いている、というユーザー裁定の読み。",
+      "🔴 **テストの作りが甘く、嘘の合格を書きかけた。** 最初のテストは台本の答えを**候補の外**に置いていたが、土台は候補の外の答えもそのまま通すので、守りが効いていてもいなくても同じ結果になる ⇒ **候補そのものを数える**形へ。**教訓: 「選べない」を測るなら、選んだ結果ではなく候補を数える。** 回帰テスト2本（本体＋対照）、A/B 2通りとも名指しで落ち、指紋で元に戻したことを照合。",
+      "⚠ **続き882 の Edge Function を本番へ流した**（新しい無色カード3枚と `remake+cf`）。流す前 `b3ff97142cfb8b74`／手元と GitHub `9f40bc375b9878ff`／**流した後 `9f40bc375b9878ff`** で3つとも一致。⚠ SQL エディタのタブに未保存の内容が在ったので、そのタブは触らず新しいタブで開いた。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -194,6 +203,11 @@ export const CHANGELOG = [
       "[Continuation 885] The previous fix only covered the smoke test; counting every automated caller found six, and the CPU-value check ran earlier in the same CI job without the flag, which is where the job was actually hanging. Four call sites were fixed.",
       "The guard section was rewritten to walk the automated directories instead of naming one file, so newly added tools are covered automatically, while human entry points keep asking as before.",
       "The hang was reproduced before fixing it: with the flag removed the CPU-value check does not finish within a hundred seconds, against about forty seconds normally.",
+      "[Continuation 886] The Noir trial made the player's own piece invisible, because black has only one piece image while skin numbers are always applied to your own seat. The single owner of that fact now lives beside the path builder.",
+      "A check now counts every colour-by-variant path the code can produce and verifies the image exists; an early version of it miscounted by assuming white and black can be piece colours.",
+      "Shikija cards could be taken by other cards' effects, through two holes: a hand-written list that missed the second Shikija card, and a cell-candidate builder that never applied the rule at all, which affected the original dragon too.",
+      "The first regression test was unsound because the harness accepts an answer outside the offered candidates, so the test now counts the candidates themselves.",
+      "The Edge Function from continuation 882 was deployed, with fingerprints matching across local, GitHub and production.",
     ],
   },
   {

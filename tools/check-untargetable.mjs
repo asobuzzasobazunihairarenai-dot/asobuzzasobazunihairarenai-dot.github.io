@@ -41,10 +41,22 @@ for (const 名 of ["isTargetableToken", "isCardIdentityPublic", "isProtectedCard
 //   ＝公開済みの src/*.js から export を消さない。続き423 の実害と同じ家族）。
 if (/export function isTargetableByOtherCardEffects\b/.test(葉)) OK("古い名前も残してある（キャッシュの古い端末のため）");
 else NG("古い名前（isTargetableByOtherCardEffects）を消している——キャッシュの古い端末が壊れる");
-if (/"ex0-white-dragon"/.test(葉)) OK("名簿に我忘れの白き龍が居る");
-else NG("名簿に我忘れの白き龍が居ない（★「これは他のカードの効果の対象にならない。」）");
-if (/^import\s/m.test(葉)) NG("葉が何かを import している（葉のままにすること）");
-else OK("葉は何も import していない");
+// 🔴🔴 **名簿は手書きしない。色者の表（shikija-dial.js）から引く**（続き886・#870）。
+//   続き882 で色者が2枚目（惑う白龍の幼体）になった時、名簿の方を足し忘れて
+//   **幼体だけ守られなかった**（パーティの効果で回収できた）。表から引けば、
+//   3枚目が増えた日に自動で守られる。
+if (/CARDS_WITH_SHIKIJA_DIAL/.test(葉)) OK("名簿を色者の表から引いている（名前を手書きしない）");
+else NG("名簿を手書きしている——色者が増えた日に、その札だけ守られなくなる（#870 の実害）");
+// ⚠ 読んでよいのは shikija-dial.js **だけ**（あれ自身が何も import しない葉なので輪にならない）。
+{
+  const 読む = [...葉.matchAll(/^import\s[^\n]*from\s+"\.\/([\w.-]+)"/gm)].map((m) => m[1]);
+  const よそ = 読む.filter((f) => f !== "shikija-dial.js");
+  if (よそ.length === 0) OK("葉が読むのは色者の表だけ（" + (読む.join(",") || "何も読まない") + "）");
+  else NG("葉がよそを import している: " + よそ.join(",") + "（輪になり得る）");
+  const 表 = fs.readFileSync(path.join(ROOT, "src/shikija-dial.js"), "utf8");
+  if (/^import\s/m.test(表)) NG("色者の表が何かを import している（葉のままにすること）");
+  else OK("色者の表は何も import していない（葉のまま）");
+}
 
 // ── 🔴 ② 判定そのものを動かす（決め打ちの8例）────────────────────────
 // 名簿や export が在るだけでは「正しく判定する」証拠にならない。
@@ -55,6 +67,9 @@ let 対になっている = false;
     [{ cardId: "first-red", location: { zone: "lock" } }, false, "ファースト（ロック＝常に公開）"],
     [{ cardId: "eternal-blue", location: { zone: "lock" } }, false, "エターナル（ロック＝常に公開）"],
     [{ cardId: "ex0-white-dragon", location: { zone: "lock" } }, false, "龍（ロック）"],
+    // 🔴 続き882 で増えた2枚目の色者。名簿を手書きしていると、ここだけ true になる（#870）。
+    [{ cardId: "new-white-young-dragon", location: { zone: "cell", faceUp: true }, faceUp: true }, false, "幼体（表向きのマス）"],
+    [{ cardId: "new-white-young-dragon", location: { zone: "cell" }, faceUp: false }, true, "幼体（裏向きのマス＝秘匿なので対象にできる）"],
     [{ cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: true }, false, "龍（表向きのマス＝公開）"],
     [{ cardId: "ex0-white-dragon", location: { zone: "cell" }, faceUp: false }, true, "龍（裏向きのマス＝秘匿）"],
     [{ cardId: "ex0-white-dragon", location: { zone: "hand", player: "A" } }, true, "龍（手札＝秘匿）"],
