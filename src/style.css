@@ -30864,3 +30864,45 @@ body.is-tablet-device .home-match-choice-edition-now {
 .card-pack-hint-body {
   white-space: pre-line;
 }
+
+/* 🔴【続き903】拡大カード（到達・手札効果・【状況】）の虫眼鏡。
+   見た目は隣の「📌 消えないようにする」「📌 キープ」と同じ丸薬にそろえる
+   ——同じ列に並ぶので、ここだけ別の形だと浮く。 */
+.card-detail-zoom-btn {
+  padding: 0.35rem 0.9rem;
+  background: rgba(15, 23, 32, 0.85);
+  color: #bfdbfe;
+  border: 1px solid rgba(147, 197, 253, 0.5);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-family: sans-serif;
+  font-size: 0.75rem;
+}
+.card-detail-zoom-btn:hover {
+  background: rgba(147, 197, 253, 0.2);
+}
+/* 指で押す端末では、ステージごと縮むぶんを打ち消す（#453・#569 の家族）。
+   🔴 **同じ列に並ぶ丸薬を3つとも**同じ比で大きくする。虫眼鏡だけ大きくしたら
+   不揃いに見えた（撮って気づいた）し、隣の2つも実測15pxで指には小さい。 */
+body.is-phone-device .card-detail-zoom-btn,
+body.is-tablet-device .card-detail-zoom-btn,
+body.is-phone-device .card-arrival-modal-pin,
+body.is-tablet-device .card-arrival-modal-pin,
+body.is-phone-device .card-arrival-modal-keep,
+body.is-tablet-device .card-arrival-modal-keep,
+body.is-phone-device .card-arrival-modal-add-to-hand,
+body.is-tablet-device .card-arrival-modal-add-to-hand {
+  padding: 0.6rem 1.4rem;
+  font-size: 1.2rem;
+}
+
+/* 🔴【続き903】拡大カードの上に出す詳細。
+   拡大カードは z-index 10600（到達・手札効果）／10641（受け取り）に居るので、
+   既定の 10001/10002 のままでは**詳細が札の下に隠れる**（実測で確かめた）。
+   ⚠ **この印が付いた時だけ**上げる（よそから開いた詳細の重なりは1つも変えない）。 */
+#card-note-modal-backdrop.is-over-notice {
+  z-index: 10660;
+}
+#card-note-modal.is-over-notice {
+  z-index: 10661;
+}

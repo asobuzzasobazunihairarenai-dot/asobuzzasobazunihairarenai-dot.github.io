@@ -366,6 +366,7 @@ import { isTrialEntry } from "./trial-entry.js";
 import { applyStoredCardPreviewSize, applyStoredCardArrivalSize, getCardPreviewSide } from "./card-preview-size.js";
 import { setTextWithCoin } from "./ui-helpers.js"; // 【#844・続き871】通貨アイコンを文の中へ
 import { onBlockingBackdropOpen } from "./ui-helpers.js"; // 🔴【#784・続き812】モーダルが開いたら拡大を消す
+import { registerCardDetailOpener } from "./ui-helpers.js"; // 🔴【続き903】拡大カードの虫眼鏡から詳細を開く
 import { isFixedHandEnabled, applyStoredFixedHand } from "./fixed-hand.js";
 import {
   isCpuBattleActive,
@@ -17640,6 +17641,11 @@ function hideCardPreview() {
 //   報告「手札をタップするとこうなってモーダルが見えない」＝長押しの拡大が
 //   モーダルの札と「はい／いいえ」を覆っていた。覆いの側（ui-helpers）から呼ばれるので、
 //   **これから足すモーダルも自動で守られる**（1か所ずつ消して回らない）。
+// 🔴【続き903】拡大カードの虫眼鏡から、カードの詳細を開けるようにする。
+//   ⚠ 詳細を出す関数はこのファイルに在り、拡大カードの側（card-arrival / hand-effect-ui）は
+//     **葉**なので main.js を import できない ⇒ こちらから渡す（onBlockingBackdropOpen と同じ作法）。
+registerCardDetailOpener((cardId, o2) => showCardNoteModal(cardId, o2));
+
 onBlockingBackdropOpen(() => {
   hideCardPreview();
   previewCardId = null;
@@ -18201,14 +18207,22 @@ function closeContextMenu() {
 // 🔴【#866・続き887】いま出ている補足の「閉じ方」。画面を覆うモーダルが開いた時に
 //   呼ぶ（上の onBlockingBackdropOpen）。出ていなければ null。
 let cardNoteModalClose = null;
+// 🔴【続き903】opts.overNotice: 拡大カード（到達・手札効果・【状況】）の**上**に出す。
+//   あちらは z-index 10600〜10641 なので、既定の 10002 のままでは札の下に隠れる。
 function showCardNoteModal(cardId, opts = {}) {
   const def = getCardDefinition(cardId);
   if (!def) return;
+  // 🔴【続き903】二重に開かない（同じ id が2つできると、✕で閉じても下に残る）。
+  if (document.getElementById("card-note-modal")) return;
   const guardUntil = performance.now() + (opts.guardMs || 0);
   const backdrop = document.createElement("div");
   backdrop.id = "card-note-modal-backdrop";
   const modal = document.createElement("div");
   modal.id = "card-note-modal";
+  if (opts.overNotice) {
+    backdrop.classList.add("is-over-notice");
+    modal.classList.add("is-over-notice");
+  }
   const img = document.createElement("div");
   img.className = "card-note-image";
   showCardFace(img, cardId, getCardImagePath(cardId));

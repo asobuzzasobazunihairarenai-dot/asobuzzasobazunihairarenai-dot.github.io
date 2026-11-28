@@ -14,7 +14,7 @@
 import { getCardDefinition, getCardImagePath } from "./cards-data.js";
 import { optionLabel as resolveOptionLabel } from "./card-effects.js"; // UI英語化フェーズ11（同名の引数があるため別名）
 import { buildCardBox, showCardFace } from "./card-face-display.js";
-import { createModalCloseX, createBackdrop } from "./ui-helpers.js";
+import { createModalCloseX, createBackdrop, createCardDetailButton } from "./ui-helpers.js";
 import { isCardArrivalModalPersistent } from "./admin.js";
 import { getCardName } from "./card-text.js"; // UI英語化フェーズ13: 表示用のカード名
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
@@ -107,6 +107,12 @@ export async function showHandEffectUseModal(cardId, optionLabel, { label: label
   }
 
   modal.appendChild(createModalCloseX(dismiss));
+
+  // 🔴【続き903】虫眼鏡＝カードの詳細（到達の拡大カードと同じもの）。
+  // ⚠ 【状況】カードもこの箱を使う（続き622）ので、そちらにも同じように出る。
+  const detailBtn = createCardDetailButton(cardId, { 前: () => clearTimeout(currentUseModalTimer) });
+  if (detailBtn) modal.appendChild(detailBtn);
+
   modal.addEventListener("click", dismiss);
 
   document.body.appendChild(modal);

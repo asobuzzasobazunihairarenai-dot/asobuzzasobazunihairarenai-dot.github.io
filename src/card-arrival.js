@@ -8,7 +8,7 @@
 
 import { getCardDefinition, getCardImagePath } from "./cards-data.js";
 import { buildCardBox } from "./card-face-display.js";
-import { createModalCloseX } from "./ui-helpers.js";
+import { createModalCloseX, createCardDetailButton } from "./ui-helpers.js";
 import { isCardArrivalModalPersistent } from "./admin.js";
 import { t } from "./ui-text.js"; // UI英語化フェーズ13
 
@@ -122,6 +122,12 @@ export function showCardArrivalModal(cardId, options = {}) {
   }
 
   modal.appendChild(createModalCloseX(dismiss));
+
+  // 🔴【続き903】虫眼鏡＝カードの詳細（効果文・補足・固有効果の印まで読める）。
+  // ⚠ 押したら**自動で消えるのを止める**（詳細を読んでいる間に下の札が消えると、
+  //   閉じた時に「手札に加える」が無くなる）。
+  const detailBtn = createCardDetailButton(cardId, { 前: () => clearTimeout(currentTimer) });
+  if (detailBtn) modal.appendChild(detailBtn);
 
   // 「キープ」ボタン（ユーザー要望2026-08-08）。押すと自動消滅タイマーを止め、currentModal管理
   // から外して、ターン終了の一括クローズや次の到達での置き換えの対象外にする（＝ターンを跨いでも

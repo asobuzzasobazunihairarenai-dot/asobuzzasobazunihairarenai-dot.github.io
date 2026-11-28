@@ -53,6 +53,41 @@ export function createBackdrop(onClose, { dim = false, zIndex = 2000, blocksGame
   return backdrop;
 }
 
+// 🔴【続き903】拡大カードに付ける**虫眼鏡**（ユーザー案「到達効果や手札効果、状況効果など
+//   発動した時画面の右に拡大カードが出るけど、そこに虫眼鏡マークをつけて、カード詳細を
+//   確認できるようにするのはどう？」）。
+//
+// ⚠ **カードの詳細を出す関数は main.js に在る**（`showCardNoteModal`。用語のリンクと
+//   下線の印まで通す richer な版で、対局中はこちらが正＝続き808 の覚え書き「統合するなら
+//   main.js 側に寄せる」）。このファイルは**葉**なので向こうから登録してもらう
+//   ——`onBlockingBackdropOpen` と同じ作法。
+// ⚠ 登録が無ければボタンを**作らない**（押せない約束を残さない＝#729 の家族）。
+let カードの詳細を開く = null;
+export function registerCardDetailOpener(fn) {
+  if (typeof fn === "function") カードの詳細を開く = fn;
+}
+export function canOpenCardDetail() {
+  return typeof カードの詳細を開く === "function";
+}
+// cardId の詳細を開く小さなボタン。opts.前に … 開く直前に呼ぶ（自動で消えるのを止める等）。
+// 🔴 **stopPropagation を必ず呼ぶ。** この手のモーダルは**どこを押しても閉じる**作りなので、
+//   止めないと**押した瞬間に閉じて何も出ない**。
+export function createCardDetailButton(cardId, opts = {}) {
+  if (!cardId || !canOpenCardDetail()) return null;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "card-detail-zoom-btn";
+  btn.textContent = t("ca.detail");
+  btn.setAttribute("aria-label", t("ca.detailAria"));
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    try { opts.前?.(); } catch { /* noop */ }
+    // ⚠ 拡大カードは z-index 10600〜10641 に居るので、詳細はその上に出す（overNotice）。
+    try { カードの詳細を開く(cardId, { overNotice: true }); } catch { /* noop */ }
+  });
+  return btn;
+}
+
 // 対戦画面がライト配色か（theme-light=全体設定 or theme-light-ingame=盤面だけライト）。
 export function isIngameLight() {
   return (

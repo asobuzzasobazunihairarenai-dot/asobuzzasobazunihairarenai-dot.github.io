@@ -63,6 +63,7 @@ export const CHANGELOG = [
       "色者が動く時の見せ場を作り直しました",
       "拡張カードも英語で読めるようになりました",
       "ノワールの駒が色で見分けられるようになりました",
+      "拡大カードから、そのカードの詳細をすぐ開けるようになりました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
@@ -74,6 +75,7 @@ export const CHANGELOG = [
       "The Shikija move has a new sequence",
       "The expansion cards can now be read in English",
       "Noir pieces can now be told apart by color",
+      "Open a card's details straight from the enlarged card",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
@@ -85,6 +87,7 @@ export const CHANGELOG = [
       "**色者が動く時の見せ場**を作り直しました。**色者の円盤が大きく出て → 捨て色のカードを確認 → その色の棘が光って → 色者のカードがアップになって移動する**、という流れになります（動きを控える設定にしている方には今までどおり出ません）。",
       "**0th拡張・1st EDITION・旧0th のカード85種**に、**英語の効果文**が入りました。英語表示にしても、カードの文が日本語のまま出ることはもうありません。",
       "**ノワールの駒が、その人の色で塗り分けられる**ようになりました（白い線と輪が、ノワールを置いているロックエリアの色になります）。全員がノワールでも、どれが誰の駒か分かります。",
+      "到達効果・手札効果・【状況】の効果で画面の右に大きく出るカードに、**🔍 カードの詳細**のボタンが付きました。押すと、そのカードの効果文・補足・用語の説明が読める画面が開きます（長押しで開くのと同じものです）。読んでいる間、右の大きなカードは消えません。指で押す端末では、並んでいるボタンをまとめて押しやすい大きさにしました。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
@@ -96,6 +99,7 @@ export const CHANGELOG = [
       "The Shikija move now plays as a proper sequence: the dial appears large, the discarded colour card is shown, the matching spike lights up, and the Shikija card zooms in and flies to its new space. Nothing changes if you have animations turned down.",
       "English effect text has been added for 85 cards across the 0th Expansion, 1st EDITION and old 0th, so card text no longer falls back to Japanese when you play in English.",
       "Noir pieces are now tinted: the white lines and ring take the color of the Lock Area the noir card sits in, so you can tell the pieces apart even when everyone is playing noir.",
+      "The large card that appears on the right during arrival, hand and Situation effects now has a 🔍 Card details button. It opens the same detail view as a long press, with the effect text, notes and glossary links. The large card stays put while you read, and on touch devices the buttons in that column are now easier to hit.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -276,6 +280,9 @@ export const CHANGELOG = [
       "🔴 **【続き902】#884 は「生の絵のURLを敷いている」同じ穴の3つ目**（#660 山札・捨て場 → #810 掴んだ札 → 飛翔のゴースト）。⇒ `flyGhost` に `cardId` を渡せるようにして**手札とまったく同じ描き方**（showCardFace）へ。⚠ 表向きのカードを飛ばす**6か所とも**渡した（1か所だけ直すと必ず取りこぼす＝#477 の家族）。駒と裏向きは今までどおり。",
       "🔴 **#882**: 続き896 の見せ場は投げっぱなしで、お知らせ（すぐ戻る＝#214）の後ろで対局が先に進んでいた ⇒ 終わりの約束を返し、**色者の処理だけ**が待つ（相手の画面では待たない＝あちらの進行を止めない）。🔴 **上限は実測から決めた**——見せ場は 3.18秒だが、対局が動いているとタイマーがずれて **5.1秒**まで伸びたので、6秒では「ふつうに終わったのに切られる」⇒ 9秒。**#881**: 報告の絵は**続き894 で私が書いた ⓘ の文**（191字が一塊）。出す側は `white-space: pre-wrap` なので**文に改行を入れれば出る**。「総点検を！」なので数えたら**90字以上で改行が無い文が20件**あり、**解説として読ませる6件**に改行と行頭の印を入れた（中身は1文字も変えていない）。⚠ マイ山札とパックの入れ物は改行を潰していたので、その2つだけに `pre-line` を足した。**#887**: チュートリアルは盤面を指しながら進むので、押した時に**先にホームを閉じる**。",
       "⚠ **実測の期待値を4つ間違えた（全部こちらの数え方）**: 「幕が59msで消えた」＝**出る前**を消えたと数えていた／「焼いてある札は絵のまま」＝🔴 **続き888 で全部の札が文字を描く作りになった**のでもう正しくない／404 1件＝**存在しない絵の名前**を自分で書いた／「待ち終わったら片付いている」＝`close()` のあと 0.22秒かけて消える作り。🔴 **A/B**: #887 は閉じないようにすると**報告どおりホームが残る**。",
+      "🔴 **【続き903】拡大カードの虫眼鏡**（ユーザー案）。詳細を出す関数は main.js に在るのに、拡大カードの側（card-arrival / hand-effect-ui）は**葉**で main.js を import できない ⇒ **向こうから登録してもらう**（`registerCardDetailOpener`。`onBlockingBackdropOpen` と同じ作法・同じ置き場）。⚠ 登録が無ければボタンを作らない（押せない約束を残さない＝#729 の家族）。⚠ 【状況】の札は手札効果と**同じ箱**（続き622）なので、足した所は1つで両方に出る。",
+      "🔴🔴 **踏んだ所が2つ。** ①拡大カードは `modal.addEventListener(click, dismiss)` ＝**どこを押しても閉じる**ので、`stopPropagation` を忘れると**押した瞬間に閉じて何も出ない**（A/B でその1行を外すと7件落ちる）。②拡大カードは **z-index 10600**（受け取りは 10641）、詳細は **10002** ＝**詳細の方が下**だった ⇒ `overNotice` の印が付いた時だけ 10660/10661 へ（よそから開いた詳細の重なりは1つも変えていない）。あわせて**二重に開かない守り**（同じ id が2つできると✕で閉じても下に残る）と、**押したら自動で消えるのを止める**（読んでいる間に札が消えると「手札に加える」を失う）。",
+      "🔴 **撮って気づいた不揃い**: 虫眼鏡だけ指向けに大きくしたが、隣の「📌 キープ」「手札に加える」には上書きが無く、同じ列で1つだけ 24px 対 15px になっていた ⇒ **3つとも同じ比**へ（隣の2つも指には小さい＝#453・#569・#822 の家族）。PC は1pxも変わらない。⚠ **実測の数え方を3回間違えた**: `page.evaluate` に**引数を渡し忘れ**（アプリ側は正しかった）／`ALL_CARDS` は**export されていない**（`getDeckNormalCards()` が正）／🔴🔴 **A/B が通ってしまった**——**重なっていない所で重なり順を測っていた**（詳細の上端は札と重ならない）＝0しか出ない検査 ⇒ **2つの箱の交わりの真ん中**で測る形へ（実測: スマホ横は重なり、PC は 3px 差で重ならない）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -390,6 +397,9 @@ export const CHANGELOG = [
       "[Continuation 902] The flight ghost was the third place that pasted a raw image URL instead of composing the card face, so the shared helper now takes a card id and all six face-up flight call sites pass it.",
       "The Shikija sequence now returns a promise so only the Shikija resolution waits for it, with a cap chosen from measurement rather than guesswork.",
       "The long explanations now contain line breaks, and the two containers that collapsed them were given pre-line; starting the tutorial closes the home screen first.",
+      "[Continuation 903] The magnifier on the enlarged card: the detail view lives in main.js while the notice modules are leaves, so main.js registers the opener through ui-helpers, the same way blocking backdrops are announced.",
+      "Two traps: the notices close on any click, so the button must stop propagation, and the detail modal sat below them in the stacking order until an opt-in class raised it.",
+      "A screenshot showed the new button was the only large one in its column, so all three pills now scale together on touch devices.",
     ],
   },
   {
