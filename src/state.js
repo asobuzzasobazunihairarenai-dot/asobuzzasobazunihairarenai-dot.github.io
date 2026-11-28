@@ -271,6 +271,14 @@ function reduce(current, action) {
         } else if (!(isTable(token.location) && isTable(action.location))) {
           next.faceUp = faceUpForLocation(action.location);
         }
+      // 🔴🔴【#876・続き891】**誰が表にしたかを覚える。**
+      //   公式の用語集:「向きは、**オープンした、または場に表向きで置いたプレイヤー**から
+      //   見て正の方向とする」。色者の移動先（円盤）はこの向きで読むので、覚えていないと
+      //   **誰が出しても同じ向き**になる（報告 #876）。
+      //   ⚠ **state に入れる**（クライアントのローカルな記録では、オンラインで他の人の画面に
+      //     無い＝同じ盤面を別の向きで読んでしまう）。サーバーにも同じ処理が要る。
+      //   ⚠ **表になった時だけ**書く（表のまま動かしても向きは変わらない）。
+        if (next.faceUp && !token.faceUp) next.orientSeat = action.by ?? current.turnPlayer ?? null;
         // 手札公開エリア（location.zone: "publicDraw"）へドラッグで手動配置したカードは
         // 「宣言」扱い（revealSource: "manual"）。公開ドローボタンで引いたカード
         // （DRAW_FROM_PILEケース参照、revealSource: "draw"）と視覚的に区別するための印。
@@ -401,8 +409,11 @@ function reduce(current, action) {
       return { ...current, tokens: [...others, ...shuffled(handTokens)] };
     }
     case "FLIP_TOKEN": {
+      // 🔴【#876・続き891】裏→表にした人を覚える（MOVE_TOKEN と同じ理由。上の注を参照）。
       const tokens = current.tokens.map((t) =>
-        t.id === action.tokenId && t.kind === "card" ? { ...t, faceUp: !t.faceUp } : t
+        t.id === action.tokenId && t.kind === "card"
+          ? { ...t, faceUp: !t.faceUp, ...(!t.faceUp ? { orientSeat: action.by ?? current.turnPlayer ?? null } : {}) }
+          : t
       );
       return { ...current, tokens };
     }

@@ -1685,6 +1685,20 @@ function buildFlatCard(token) {
   if (landingFlightTokenIds.has(token.id)) card.style.visibility = "hidden";
   if (token.faceUp) {
     card.className = "board-card";
+    // 🔴🔴【#876・続き891】**色者の札だけ、表にした人の向きに回す。**
+    //   公式の用語集:「向きは、オープンした、または場に表向きで置いたプレイヤーから見て
+    //   正の方向とする」。移動先の円盤が絵に描かれているので、向きが合っていないと
+    //   **絵と実際の動きが食い違う**（報告「今は誰が発動した色者でも正の向きで置かれてしまっています」）。
+    //   ⚠ **色者の札だけ**。ふつうの札の向きには意味が無いので回さない（全部回すと別物になる）。
+    //   ⚠ 回し方は盤面の座標系で 90°ずつ（rotateOffsetForSeat と同じ決まり＝SEAT_ORDER の順に
+    //     時計回り）。盤面そのものが見る人に合わせて回るので、これで全員の画面で正しく見える。
+    //   ⚠ WebGL の描画は**DOM の transform をそのまま再現する**（board-3d.js が
+    //     getComputedStyle(el).transform を積む）ので、CSS で回せば絵も回る。
+    if (hasShikijaDial(token.cardId)) {
+      const 席 = token.orientSeat ?? getCardOrientationSeat(token.id) ?? null;
+      const n = 席 ? SEAT_ORDER.indexOf(席) : 0;
+      if (n > 0) card.style.transform = `rotate(${n * 90}deg)`;
+    }
     // 盤面・ロックエリアのカードは既定で「イラストのみ画像」。
     // 【#660】イラストのみを切っている時に、文字を焼き込んだ絵を持たない札（0th拡張・1st）が
     //   「効果欄だけ真っ白」になっていたので、その時はアプリが文字を描く。
@@ -5516,7 +5530,11 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
     // 第2拍: 矢は出さない（出すと動いたように読める）。中央の切り欠きが脈打ち8方向が暗くなる。
     await 色者のお知らせ(t("ce.ex0ShikijaNoDir", { color: 色名, card: 札名 }), { dial: { mode: "nomove" } });
   } else {
-    const seat = getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
+    // 🔴【#876・続き891】向きの基準は **state の orientSeat**（＝表にした人）を最優先。
+    //   それまではクライアントのローカルな記録しか見ておらず、**他の人の画面には無い**ので
+    //   オンラインでは「誰が出しても手番の人の向き」で読まれていた。
+    //   ⚠ 古い対局（orientSeat がまだ無い盤面）のために、ローカルの記録と手番を控えに残す。
+    const seat = token.orientSeat ?? getCardOrientationSeat(token.id) ?? endedPlayer ?? getState().turnPlayer;
     const { dr, dc } = rotateOffsetForSeat(base.dr, base.dc, seat);
     const row = token.location.row + dr;
     const col = token.location.col + dc;

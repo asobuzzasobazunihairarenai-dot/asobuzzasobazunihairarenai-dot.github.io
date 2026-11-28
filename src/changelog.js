@@ -93,6 +93,7 @@ export const CHANGELOG = [
       "「ノワールにしますか」の問いが、外側をタップすると消えてしまうのを直しました。",
       "志炎のカードを持っていても割り込みの問いが出なかったのを直しました。",
       "色者の捨色が、一度手札に入ってから捨てられていたのを直しました（山札から直接捨てます）。",
+      "色者のカードが、誰が表にしても同じ向きで置かれていたのを直しました（表にした人から見た向きになります）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -110,6 +111,7 @@ export const CHANGELOG = [
       "Fixed the Noir prompt closing when you tapped outside it.",
       "Fixed the Shien interrupt prompt never appearing even while holding a Shien card.",
       "Fixed the Shikija discard colour passing through your hand; it is now discarded straight from the deck.",
+      "Fixed Shikija cards always facing the same way; they now face the player who revealed them.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -191,6 +193,9 @@ export const CHANGELOG = [
       "🔴🔴 **【続き890】ユーザーの一言で、前の回の直しが土台から間違いだと分かった。** 「色者の効果の定義に捨て色を一度手札に入れるってありましたっけ？」——**無い**（公式の用語集は「山札から1枚捨て」）。実装は「いったん手札へ引いてすぐ捨てる」形で、**一瞬だけ手札が1枚増え**（＝財力が動く）、獲得のお知らせまで出ていた。続き889 の私は**お知らせを黙らせただけ＝土台が間違っているのに上から蓋をした**。⇒ `DISCARD_TOP_OF_DECK` を足して山札の一番上をそのまま捨て場へ。🔴 **サーバーにも同じ処理を入れた**（入れないとオンラインで state がずれる）。実測6項目（手札もトークンも1つも動かない）。**教訓: 見え方を直す前に、その見え方を生んでいる作りが正しいかを確かめる。**",
       "🔴🔴 **#872 志炎の割り込みが一度も開いていなかった。** `isHandEffectUsableAnytime` が **handEffect（単一）しか見ていなかった**が、志炎者7枚は**選択肢（handEffectOptions）の側**に「いつでも使える」印を持つ形 ⇒ 常に false ＝ 自分のハンドフェイズ以外ではカードごと使えず、窓が一度も開かなかった。ⓘ すぐ上の注が「**選択肢を持つカードにはこの概念は今のところ無い**」と書いていたが、それは志炎者を足す前の話。**教訓: 「今のところ無い」と書かれた注は、その『今』が過ぎていないか疑う。**",
       "⚠ カードごと「いつでも使える」にすると**ふだんの選択肢まで相手のターンに使えて**しまうので、**いつでも使える選択肢を持つカードだけ**、相手のターンではその印の付いた選択肢しか選べないようにした。🔴 最初 `turnPhase === 'hand'` で書いて**テストが8本落ちた**——**CPU戦では turnPhase は常に null**（続き786）。⇒ 自分の手番かで見る。🔴 残り1本は**期待値の方が間違っていた**（相手のターンではふつうの手札効果も使えないのが正しい。あれは窓が一度も開かなかった頃の期待値）。志炎 22/22 PASS。",
+      "🔴 **【続き891】#876 色者のカードの向き。** 公式の用語集「向きは、**オープンした、または場に表向きで置いたプレイヤー**から見て正の方向とする」。⇒ **`orientSeat` をトークンの欄にした**（`MOVE_TOKEN`・`FLIP_TOKEN` で**裏→表になった時だけ**書く）。🔴 **サーバーにも同じ処理**（入れないとオンラインで state がずれる）。ⓘ `getCardOrientationSeat` と `rotateOffsetForSeat` は**既に在った**が、前者は**その操作をしたクライアントのローカルな記録**で、**他の人の画面には無かった**（色者はターン終了時に働くので、めくった人と処理する人が違うことがある）。",
+      "**見た目も回す（色者の札だけ）**: 盤面の札に `transform: rotate(90°×席)`。🔴 **WebGL は DOM の transform をそのまま再現する**（board-3d.js が computed transform を root まで積む）ので CSS で回せば絵も回る。⚠ ふつうの札は回さない（向きに意味が無い。全部回すと別物になる）。実測9項目（A=0°・B=90°・C=180°／**対照: ふつうの札は回さない**／**対照: 表のまま動かしても向きは変わらない**）。",
+      "⚠ 実測で2回つまずいた（どちらも私の測り方）: ①**同じマスへ `moveToken` しても描き直されない**ので古い要素を測っていた ⇒ 本物の道（その席の手番にして裏→表にめくる）で付ける形へ。②配った直後の盤面は**全部が裏向き**／**盤面は3D変形がかかっている**ので札の矩形だけを切ると描かれている絵とずれる（教訓4 の家族）。⚠ **WebGL が本当に絵まで回すところは撮って確かめられていない**（実機で1回見てほしい）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -270,6 +275,9 @@ export const CHANGELOG = [
       "[Continuation 890] A single question from the user showed the previous fix was patching over a wrong foundation: the Shikija discard colour was drawn into hand and discarded, which briefly changed the hand count. It is now discarded straight from the deck, with the same action added on the server.",
       "The Shien interrupt had never once opened, because the usable-anytime check only looked at a single hand effect while the Shien cards carry that flag on an option.",
       "Making the card usable anytime would have exposed its ordinary option during an opponent's turn, so that is now restricted; an early attempt used the turn phase, which is always null in CPU games.",
+      "[Continuation 891] Shikija cards now remember who turned them face-up, as a token field mirrored on the server, because the previous record lived only on the client that performed the flip.",
+      "The board card is rotated for that seat, and since the WebGL painter reproduces the DOM transform, the artwork rotates with it; ordinary cards are left alone.",
+      "Two measurement mistakes are recorded, including that moving a token to the same square does not trigger a redraw.",
     ],
   },
   {
