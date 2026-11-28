@@ -263,6 +263,19 @@ async function パックを飛ばす(fromEl, 枚) {
   } catch {}
 }
 
+// 🔴🔴【#863・続き892】**出発点は「押した瞬間」に押さえる。**
+//   下の2つは `await import(...)` を挟むので、**動き出す頃にはボタンが DOM から消えている**
+//   （受け取りが通ると 描き直す() が走る）。消えた要素の矩形は幅0なので、飛ばす側は
+//   「出発点が無い」と見なして**毎回あきらめていた**——仕掛けは在るのに一度も飛ばなかった
+//   （報告 #863「受け取るボタンから…セヴルアイコンが行く演出はどう？」）。
+//   ⚠ 飛ばす側（currency-display / pack-fly）は**矩形を返せる物なら何でも**受けるので、
+//     押さえた矩形をそのまま返す小さな包みを渡す。
+function 出発点(el) {
+  const r = el?.getBoundingClientRect?.();
+  if (!r || !r.width) return null;
+  return { getBoundingClientRect: () => r };
+}
+
 async function セヴルを飛ばす(fromEl, 額) {
   if (!(額 > 0) || !fromEl) return;
   try {
@@ -281,12 +294,13 @@ function ボタン(文, 中身, 無効, 報酬 = 0, パック = 0) {
     e.stopPropagation();
     if (b.disabled) return;
     b.disabled = true;
+    // 🔴【#863】**押した瞬間の矩形**を押さえる（上の 出発点 の注を参照）。
+    const 出発 = 出発点(b);
     try {
       await 中身();
       // 🔴 **受け取れた時だけ**飛ばす（失敗したのにセヴルが飛ぶと嘘になる）。
-      //   描き直す前に出発点を押さえる——描き直すとこのボタンは DOM から消える。
-      void セヴルを飛ばす(b, 報酬);
-      void パックを飛ばす(b, パック);
+      void セヴルを飛ばす(出発, 報酬);
+      void パックを飛ばす(出発, パック);
     } catch (err) {
       // 失敗しても画面は壊さない。理由は札の中に出す。
       const n = cardEl?.querySelector(".daily-ring-note");

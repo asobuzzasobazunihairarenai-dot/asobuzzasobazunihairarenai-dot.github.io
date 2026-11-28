@@ -94,6 +94,8 @@ export const CHANGELOG = [
       "志炎のカードを持っていても割り込みの問いが出なかったのを直しました。",
       "色者の捨色が、一度手札に入ってから捨てられていたのを直しました（山札から直接捨てます）。",
       "色者のカードが、誰が表にしても同じ向きで置かれていたのを直しました（表にした人から見た向きになります）。",
+      "デイリーチャレンジやウィークリーの報酬を受け取った時に、セヴルやパックが飛んでいく演出が出ていなかったのを直しました。",
+      "ロックできるカードが無くて自動で飛ばされるフェイズでは、右下のスキップボタンを出さないようにしました（自動送りを切っている時は今までどおりです）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -112,6 +114,8 @@ export const CHANGELOG = [
       "Fixed the Shien interrupt prompt never appearing even while holding a Shien card.",
       "Fixed the Shikija discard colour passing through your hand; it is now discarded straight from the deck.",
       "Fixed Shikija cards always facing the same way; they now face the player who revealed them.",
+      "Fixed the coins and packs not flying to your balance when you claim a daily or weekly reward.",
+      "The skip button is no longer shown for a phase that will be skipped automatically, unless you have turned auto-advance off.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -196,6 +200,8 @@ export const CHANGELOG = [
       "🔴 **【続き891】#876 色者のカードの向き。** 公式の用語集「向きは、**オープンした、または場に表向きで置いたプレイヤー**から見て正の方向とする」。⇒ **`orientSeat` をトークンの欄にした**（`MOVE_TOKEN`・`FLIP_TOKEN` で**裏→表になった時だけ**書く）。🔴 **サーバーにも同じ処理**（入れないとオンラインで state がずれる）。ⓘ `getCardOrientationSeat` と `rotateOffsetForSeat` は**既に在った**が、前者は**その操作をしたクライアントのローカルな記録**で、**他の人の画面には無かった**（色者はターン終了時に働くので、めくった人と処理する人が違うことがある）。",
       "**見た目も回す（色者の札だけ）**: 盤面の札に `transform: rotate(90°×席)`。🔴 **WebGL は DOM の transform をそのまま再現する**（board-3d.js が computed transform を root まで積む）ので CSS で回せば絵も回る。⚠ ふつうの札は回さない（向きに意味が無い。全部回すと別物になる）。実測9項目（A=0°・B=90°・C=180°／**対照: ふつうの札は回さない**／**対照: 表のまま動かしても向きは変わらない**）。",
       "⚠ 実測で2回つまずいた（どちらも私の測り方）: ①**同じマスへ `moveToken` しても描き直されない**ので古い要素を測っていた ⇒ 本物の道（その席の手番にして裏→表にめくる）で付ける形へ。②配った直後の盤面は**全部が裏向き**／**盤面は3D変形がかかっている**ので札の矩形だけを切ると描かれている絵とずれる（教訓4 の家族）。⚠ **WebGL が本当に絵まで回すところは撮って確かめられていない**（実機で1回見てほしい）。",
+      "🔴🔴 **【続き892】#863 の演出は在るのに一度も飛んでいなかった。** `flyCurrencyToBalance`（3枚飛ぶ）も呼ぶ所（#703）も既に在ったのに、実測すると**1枚も飛ばない**（控えの「光る」だけが出ていた）。正体は飛ばす関数が **`await import(...)` を挟む**こと——受け取りが通るとその場で `描き直す()` が走って**ボタンが DOM から消える**ので、import が解けた頃には出発点の矩形が**幅0**。⚠ 呼ぶ側のコメントには「**描き直す前に出発点を押さえる**」と**書いてあった**（意図は正しかったが、await を挟んだ時点で成り立たなくなっていた）。⇒ **押した瞬間に矩形を押さえる**形へ。**パックの受け取り（続き815）も同じ形だったので一緒に直った。** **教訓: 「消える前に押さえる」は、間に await が1つでも入ると成り立たない。**",
+      "**#865 自動で飛ぶフェイズではスキップボタンを出さない。** 🔴🔴 ⚠ **自動送りが OFF の時は今までどおり出す**——あの設定は「ロックできる手札が無いこと等を相手に悟られません」ためのもので、ここで隠すと**隠したいことが見た目から分かってしまう**。⚠ 判定は自動スキップが実際に使っているのと同じ関数に聞く。⚠ 同じファイルの中の名前は検査が見ていないので、7つとも在ることを grep で数えてから書いた。⚠ #865 は実測していない（その場面を作る手が無い）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -278,6 +284,8 @@ export const CHANGELOG = [
       "[Continuation 891] Shikija cards now remember who turned them face-up, as a token field mirrored on the server, because the previous record lived only on the client that performed the flip.",
       "The board card is rotated for that seat, and since the WebGL painter reproduces the DOM transform, the artwork rotates with it; ordinary cards are left alone.",
       "Two measurement mistakes are recorded, including that moving a token to the same square does not trigger a redraw.",
+      "[Continuation 892] The coin-flight effect for daily rewards existed but never ran: the awaited dynamic import meant the button had already been removed by the re-render, so the start rectangle was empty. The rectangle is now captured at the moment of the click, which also fixes the pack flight.",
+      "The skip button is hidden for phases that will auto-skip, but only while auto-advance is on, because that setting exists precisely to hide the fact that you have nothing to play.",
     ],
   },
   {

@@ -1104,8 +1104,29 @@ export function updateSkipButtonVisibility() {
   const lockPhaseDone =
     currentPhase === "lock" &&
     (lockSubmitInFlight || myDeckDrawnThisPhase || hasPlacedNewLockThisPhase(phaseOwner ?? getSelfSeat()));
+  // 🔴【#865・続き892】ユーザー要望「自動送りの時、ロックできるカードがないと自動で
+  //   スキップされるけど、そういう時、右下のスキップボタンは非表示にできる？
+  //   ハンドフェイズも同様です！」。押しても**自動で飛ぶのと同じ結果**にしかならないので、
+  //   出す理由が無い（押せない約束を残さない＝#729 の家族）。
+  //   🔴🔴 ⚠ **自動送りが OFF の時は今までどおり出す。** あの設定は
+  //     「自分でスキップを押すまでフェイズを送りません。**ロックできる手札が無いこと等を
+  //     相手に悟られません**」というもの——ここで隠すと、**隠したいことが見た目から分かって
+  //     しまう**（設定の狙いを壊す）。
+  //   ⚠ 判定はこのファイルの中の、**自動スキップが実際に使っているのと同じ関数**に聞く
+  //     （条件を写すと必ずズレる）。
+  const willAutoSkip = (() => {
+    if (!isAutoPhaseSkipEnabled()) return false;
+    const p = phaseOwner ?? getSelfSeat();
+    if (!p) return false;
+    if (currentPhase === "lock") return !hasLockableCard(p) && !canDrawFromMyDeck(p);
+    if (currentPhase === "hand") {
+      return handIsEmpty(p) || handHasOnlyReactiveOnlyCards(p) || handHasNoUsableCards(p);
+    }
+    return false;
+  })();
   const showSkip =
     (currentPhase === "lock" || currentPhase === "hand") &&
+    !willAutoSkip &&
     !isPseudoCpuTarget(phaseOwner) &&
     !approvalPending &&
     !busyResolving &&
