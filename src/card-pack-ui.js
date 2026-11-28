@@ -319,9 +319,23 @@ function 引いた札を組む() {
     inner.append(back, front);
     card.appendChild(inner);
     card.addEventListener("click", () => {
-      if (c.めくった) return;
-      c.めくった = true;
-      再描画();
+      if (!c.めくった) {
+        c.めくった = true;
+        再描画();
+        return;
+      }
+      // 🔴【#852・続き880】報告「パック開ける時、長押しでカードの詳細見れるといいかも」。
+      //   ⚠ **長押しは既に「拡大」に使っている**（続き737 でユーザー要望により入れたもの）ので、
+      //     そこへ詳細を重ねると拡大が出せなくなる。
+      //   ⇒ コレクションの画面とまったく同じ割り当てにする（#743・続き808）:
+      //     **軽く触る＝詳細／長押し＝拡大**。めくる前のタップは今までどおり「めくる」。
+      const def = getCardDefinition(c.cardId);
+      const 持 = getCollection();
+      openCardNoteModal(c.cardId, {
+        持っている: Number(持?.cards?.[c.cardId]) || 0,
+        上限: def ? capOf(def) : undefined,
+        名前: cardDisplayName(c.cardId),
+      });
     });
     slot.appendChild(card);
     // 🔴 **めくった後だけ**拡大を出す（裏向きのうちに中身が見えてしまっては台無し）。
@@ -747,10 +761,30 @@ function 中身を組む(inner) {
 
   if (いまの引き) inner.appendChild(引いた札を組む());
   else {
+    // 🔴【#856・続き880】ユーザー案「細々した説明はiまーくとかで隠す？」。
+    //   あの3行は**初めての人には要るが、2回目からは邪魔**で、しかもいちばん押したい
+    //   「封を切る」より下に長く居座っていた。⇒ **ⓘ の中へ畳む**（押した時だけ開く）。
+    //   ⚠ 消すのではなく畳む（#729 の家族＝説明へ辿れなくならない）。
+    //   ⚠ 文は1文字も変えていない。
+    //   ⚠ 見た目は絞り込みの札（.card-pack-filter-chip）と同じ規則を借りる
+    //     ——あちらは明暗2テーマの色を持っているので、ここで色を決め打ちしないで済む。
+    const 畳み = document.createElement("div");
+    畳み.className = "card-pack-hint-fold";
+    const 開く = document.createElement("button");
+    開く.type = "button";
+    開く.className = "card-pack-filter-chip card-pack-hint-toggle";
+    開く.setAttribute("aria-expanded", "false");
+    開く.textContent = t("packs.hintToggle");
     const note = document.createElement("div");
-    note.className = "card-pack-note";
+    note.className = "card-pack-note card-pack-hint-body";
+    note.hidden = true;
     note.textContent = t("packs.hint", { n: PACK_SIZE, max: COPY_MAX, per: WILD_PER });
-    inner.appendChild(note);
+    開く.addEventListener("click", () => {
+      note.hidden = !note.hidden;
+      開く.setAttribute("aria-expanded", note.hidden ? "false" : "true");
+    });
+    畳み.append(開く, note);
+    inner.appendChild(畳み);
   }
 
   // 🔴【続き733】ユーザー判断「**パックを開けるページにデイリーチャレンジやウィークリーは

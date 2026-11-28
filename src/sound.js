@@ -236,7 +236,61 @@ function watchBgm(name, audioEl, getGain, getTarget) {
     } catch (err) {
       /* ログ失敗は無視 */
     }
+    // 🔴【#851・続き880】報告「BGMが鳴ってませんでした！」の正体は、この行が持っていた:
+    //   `paused:false / t:1.51 / err:null / gain:0.18` ＝**要素は鳴っている**のに
+    //   **`ctx:"suspended"`** ＝ AudioContext が止まっている。BGM は
+    //   createMediaElementSource でこの context を通すので、**完全に無音**になる。
+    //   ⚠ iOS の AudioContext は**人の操作の流れでしか resume できない**。だから
+    //     ここで resume を叩き続けても、触ってくれるまでは running にならない。
+    //   ⇒ ①触ってもらえた時に確実に拾えるよう、running になるまで見張る（initSoundUnlock の
+    //     listener が毎回 resume を叩くので、触られた直後に running へ変わる）
+    //     ②**変わったか／変わらなかったかを必ず記録する**——1枚の写真（3秒後）だけでは
+    //     「このあと鳴ったのか、ずっと無音だったのか」が分からず、次も同じ所で止まる。
+    try {
+      if (audioCtx && audioCtx.state !== "running") 見張る(name);
+    } catch (err) {
+      /* 見張れなくても再生は続ける */
+    }
   }, 3000);
+}
+
+// AudioContext が止まっていて音が出ない時だけ回る見張り（ふだんは1度も動かない）。
+const 見張り済み = new Set();
+function 見張る(name) {
+  if (見張り済み.has(name)) return;
+  見張り済み.add(name);
+  const 始め = Date.now();
+  const 限度 = 30000; // これを過ぎたら諦めて「ずっと無音だった」と残す
+  const 間隔 = 500;
+  const 見る = () => {
+    const c = audioCtx;
+    if (!c) return;
+    if (c.state === "running") {
+      try {
+        logAction("diag-bgm-recovered", { name, afterMs: Date.now() - 始め });
+      } catch (err) {
+        /* ignore */
+      }
+      return;
+    }
+    // 触られていれば initSoundUnlock 側が resume を叩くが、こちらからも一度試す
+    // （人の操作の直後に回ってくることがあるため。失敗しても害はない）。
+    try {
+      c.resume().catch(() => {});
+    } catch (err) {
+      /* ignore */
+    }
+    if (Date.now() - 始め >= 限度) {
+      try {
+        logAction("diag-bgm-stuck", { name, state: c.state, ms: Date.now() - 始め });
+      } catch (err) {
+        /* ignore */
+      }
+      return;
+    }
+    setTimeout(見る, 間隔);
+  };
+  setTimeout(見る, 間隔);
 }
 
 const BGM_FADE_IN_MS = 1400;
@@ -321,8 +375,44 @@ function stopOtherBgms(keep) {
   if (keep !== "waiting") stopWaitingBgm(250);
   if (keep !== "victory") stopVictoryBgm(250);
 }
+// 🔴【#851・続き880】**止まっている AudioContext の上で BGM を始めない。**
+//   iOS では「要素は鳴っているのに context が suspended ＝完全に無音」という形になり、
+//   しかも `currentTime` だけが進むので、触った頃には**曲の頭が終わっている**。
+//   （opening-screen.js の skipIntroToContent は、Googleログインから戻った時など
+//     **人の操作を経ずに**鳴らし始める。あそこの注は「ブロックされても実害が無い」と
+//     書いてあるが、本当は**ブロックされずに無音で進む**のがいちばん困る形だった。）
+//   ⇒ context が止まっている間は始めず、**鳴らせるようになってから頭から**始める。
+//   ⚠ context そのものが無い端末（WebAudio 非対応）では**今までどおりすぐ始める**
+//     （あちらは要素だけで鳴るので、待つと永久に鳴らない）。
+//   ⚠ 待っている間に別の曲が始まったら、待っていた方は**捨てる**（token で見分ける）。
+let bgm待ち番号 = 0;
+function 鳴らせるようになったら(fn) {
+  const 私の番号 = ++bgm待ち番号;
+  const 限度 = Date.now() + 60000;
+  const 見る = () => {
+    if (私の番号 !== bgm待ち番号) return; // 別の曲が始まった＝この待ちは捨てる
+    const c = audioCtx;
+    if (!c || c.state === "running") { fn(); return; }
+    try { c.resume().catch(() => {}); } catch (err) { /* ignore */ }
+    if (Date.now() > 限度) return;
+    setTimeout(見る, 200);
+  };
+  見る();
+}
+
 export function playOpeningBgm() {
   stopOtherBgms("opening");
+  // ⚠ **先に context を作らせてから**見る。`audioCtx` は getAudioContext() が初めて
+  //   呼ばれるまで null で、BGM の場合それは attachGainNode の中＝この判定より後。
+  //   先に見ると「まだ null ＝止まっていない」と読んでしまい、素通りして無音で始まる。
+  try { getAudioContext(); } catch (err) { /* 非対応端末では null のまま */ }
+  // context が止まっているなら、鳴らせるようになってから**頭から**始める。
+  if (audioCtx && audioCtx.state !== "running") {
+    try { logAction("diag-bgm-deferred", { name: "opening", state: audioCtx.state }); } catch (err) { /* ignore */ }
+    鳴らせるようになったら(() => playOpeningBgm());
+    return;
+  }
+  bgm待ち番号++; // ここから先は本当に始める＝待っているものがあれば捨てさせる
   if (!openingBgmAudio) {
     openingBgmAudio = createBgmAudio("opening-bgm");
     openingBgmAudio.loop = true;

@@ -30565,3 +30565,62 @@ body.is-tablet-device .ranked-vote-btn {
 #card-effect-top-stack > #card-effect-picker-hint {
   pointer-events: none;
 }
+
+/* 🔴【#858・続き880】報告「着せ替えが枠に対して中身が小さい気がする、余白が多い気がする」。
+   実測（スマホ横 932x430・ステージ倍率 0.478）: サムネ 3rem ＝ **実画面 23px**、
+   ラベル 0.72rem ＝ **実画面 5.5px**。箱は 312x149（実画面）あるのに、中身は上の方に
+   60px ぶんだけ乗っていた＝下が丸ごと余白。
+   ⇒ **箱は触らない**（大きさと位置は管理者が「レイアウト編集」で詰めた値＝勝手に動かさない）。
+     指で押す端末でだけ**中身を大きくして、箱の中で上下の真ん中に置く**。
+   ⚠ PC は1pxも変えない（あちらは倍率1に近く、今の大きさで読める）。 */
+body.is-phone-device .my-page-cosmetics,
+body.is-tablet-device .my-page-cosmetics {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* 箱の中で上下の真ん中へ（下だけ余るのをやめる） */
+  height: 100%;
+  margin: 0;
+}
+body.is-phone-device .my-page-cosmetics-title,
+body.is-tablet-device .my-page-cosmetics-title {
+  font-size: 1.5rem;
+  margin-bottom: 0.9rem;
+}
+body.is-phone-device .my-page-cosmetics-grid,
+body.is-tablet-device .my-page-cosmetics-grid {
+  gap: 0.9rem;
+}
+body.is-phone-device .my-page-cosmetic-btn,
+body.is-tablet-device .my-page-cosmetic-btn {
+  font-size: 1.15rem;
+  gap: 0.4rem;
+  padding: 0.2rem 0.45rem;
+}
+body.is-phone-device .my-page-cosmetic-thumb,
+body.is-tablet-device .my-page-cosmetic-thumb {
+  width: 5.4rem;
+  height: 5.4rem;
+  border-radius: 0.8rem;
+}
+body.is-phone-device .my-page-cosmetic-thumb.is-none,
+body.is-tablet-device .my-page-cosmetic-thumb.is-none {
+  font-size: 1.1rem;
+}
+
+/* 🔴【#856・続き880】パックのしくみの説明を ⓘ の中へ畳む（ユーザー案）。
+   ⚠ 色は借り物（.card-pack-filter-chip）で持たせるので、ここは置き場所だけ。 */
+.card-pack-hint-fold {
+  margin: 0.4rem 0 0.2rem;
+}
+.card-pack-hint-toggle {
+  /* 絞り込みの札と同じ見た目。押す物なので小さくしない（指で押す端末では下で大きくする）。 */
+  font-size: 0.82rem;
+}
+body.is-phone-device .card-pack-hint-toggle,
+body.is-tablet-device .card-pack-hint-toggle {
+  font-size: 1.2rem;
+  padding: 0.45rem 0.9rem;
+}
+.card-pack-hint-body {
+  margin-top: 0.45rem;
+}

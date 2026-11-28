@@ -254,6 +254,28 @@ try {
   }
 }
 
+
+// 🔴【#845・#854・続き880】**カードの枠を入れる箱は `align-self: flex-start` を持つ。**
+//   横並びの flex は既定で高さいっぱいに伸びる（align-items: stretch）ので、右の列の文が
+//   長い札では箱が縦へ伸びて**正方形でなくなる**。枠の絵は cover なので横が切り落とされ、
+//   「illustration : YGM」の頭が消え、題名と ONLY の印が重なる（実測 比 0.821）。
+//   ⚠ `aspect-ratio: 1/1` だけでは守れない（stretch の高さが勝つ）。
+//   ⓘ 2026-11-10・B-4 で `.card-note-image` に入れた直しが、続き721 で図鑑の札へ写した時に
+//     **この1語だけ落ちた**。同じ穴を3回掘らないよう、2か所を名指しで見張る。
+{
+  const 四角い = /align-self:\s*flex-start/;
+  const 比 = /aspect-ratio:\s*1\s*\/\s*1/;
+  // ① 補足モーダル（style.css の規則）
+  const m = src.match(/\.card-note-image\s*\{[^}]*\}/);
+  if (!m) problems.push(SHOW + " に .card-note-image の規則が見つからない（目印が変わった？）");
+  else if (!四角い.test(m[0])) problems.push(SHOW + " の .card-note-image に align-self: flex-start が無い（縦へ伸びて正方形でなくなる）");
+  else if (!比.test(m[0])) problems.push(SHOW + " の .card-note-image に aspect-ratio: 1 / 1 が無い");
+  // ② 図鑑の札（じか書き。CSS ではなく JS に在るので、そちらを読む）
+  const dv = fs.readFileSync(path.join(HERE, "..", "src", "deck-viewer.js"), "utf8");
+  const 一行 = dv.split("\n").find((l) => 比.test(l) && l.includes("background-size: cover"));
+  if (!一行) problems.push("src/deck-viewer.js にカードの枠の箱（aspect-ratio + cover）が見つからない（目印が変わった？）");
+  else if (!四角い.test(一行)) problems.push("src/deck-viewer.js のカードの枠の箱に align-self: flex-start が無い（#845・#854 の形に戻る）");
+}
 if (problems.length) {
   console.error("❌ CSS に問題 " + problems.length + " 件");
   for (const p of problems) console.error("  ・" + p);

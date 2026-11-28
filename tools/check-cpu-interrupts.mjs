@@ -97,6 +97,32 @@ for (const id of 窓の札) {
   }
 }
 
+
+// 🔴【#855・続き880】**「はい／いいえ」を聞く札も、登録が無ければコイン投げになる。**
+//   報告「CPUがフェスティバルでカードを取らないのなんで？」の正体がこれだった
+//   （取らないのではなく 50/50。烙印の #115 とまったく同じ形で2回目）。
+//   ⇒ 聞く所を持つ札（効果データの optional / 状況札の財力宣言）が
+//     OPTION_RANK に在るかを毎回見る。新しい札でまた黙って落ちないように。
+{
+  const i = brain.indexOf("const OPTION_RANK");
+  const 表 = i >= 0 ? brain.slice(i, brain.indexOf("\n};", i)) : "";
+  const 聞く札 = new Set();
+  for (const [id, def] of Object.entries(CARD_EFFECTS)) {
+    const 並び = [def?.situation, def?.arrival, def?.handEffect].filter(Boolean);
+    for (const d of 並び) {
+      if ((d.actions || []).some((a) => a && a.optional === true)) 聞く札.add(id);
+    }
+    // 状況札の【財力】宣言（main.js が『この効果を受けますか？』と聞く）
+    if (def?.situation?.wealth) 聞く札.add(id);
+  }
+  if (聞く札.size < 3) 問題.push("検査そのものが怪しい: はい／いいえを聞く札が " + 聞く札.size + " 件しか取れなかった");
+  for (const id of 聞く札) {
+    if (!表.includes('"' + id + '"')) {
+      問題.push(`はい／いいえを聞くのに CPU の優先順が無い（コイン投げになる）: ${id} → OPTION_RANK`);
+    }
+  }
+  console.log(`  ⓘ はい／いいえを聞く札: ${聞く札.size} 件（全部 OPTION_RANK に在ること）`);
+}
 if (問題.length === 0) {
   console.log(
     `✅ 問題なし（「いつでも／割り込み」の札 ${窓の札.length} 件のうち、CPU が見ているのは ${窓の札.length - 除外.size} 件・` +

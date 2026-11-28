@@ -75,7 +75,17 @@ let peakLayersMB = 0;
 //   peakLayersMB だけでは「何が量を作ったのか」が分からなかった（layerWeight の注を参照）。
 let peakLayersTop = null;
 let peakLayersTopMB = 0;
+let peakLayersTopSize = null;
 let peakLayersCount = 0;
+// 🔴🔴【続き880】**この見積りは上限であって、そのぶん減らせる量ではない。**
+//   実測（本物の2人CPU戦・932x430・dpr3。scratchpad/_p880layers.mjs）:
+//     数えた 91枚 ＝ **入れ子でないもの 2枚（10MB）** ＋ **入れ子 89枚（9MB）**
+//   ＝ `#game-table` は preserve-3d の入れ物なので、その中の 49マス・駒・カードも全部
+//   条件に当たり、**同じ画素を何十回も足している**。
+//   ⇒ 続き879 で「合成層のピーク 92MB が本命」と読んだのは**この重複を見ていなかった**。
+//   ⚠ かわりに「入れ子でないものだけ」は**下限**（preserve-3d の子は本当に自分の層を
+//     持つことがあるので、こちらは数え落とす）。**上限と下限の両方を残して幅で読む。**
+let peakLayersRootMB = 0;
 let peakBackdropMB = 0;
 let peakTag = null; // そのピークを記録した場面（noteBlackboxWeight の呼び元。心拍なら null）
 // 🔴 **場面ごとの最大。これが本命。** 「合計のピーク」は画像が重い瞬間に奪われるので
@@ -196,6 +206,9 @@ function scan3dLayers() {
   //   ⇒ 名前と大きさを1つだけ持ち帰る。ループの中で比べるだけ＝ほぼ無料。
   let 最大MB = 0;
   let 最大名 = null;
+  let 最大寸 = null;
+  // 🔴【続き880】重複ぶんを分けるために、当たった要素と面積を控える（91個ほど＝ただ）。
+  const 当たり = [];
   for (let i = 0; i < n; i++) {
     const el = all[i];
     const cs = window.getComputedStyle(el);
@@ -209,17 +222,42 @@ function scan3dLayers() {
     const mb = r.width * dpr * r.height * dpr * 4 / 1048576;
     threeMB += mb;
     promoted++;
+    当たり.push([el, mb]);
     if (mb > 最大MB) {
       最大MB = mb;
+      // 🔴【続き880】**大きさも残す。** #857 では `#game-table` が 54MB と出たが、
+      //   手元（932x430・dpr3）では同じ要素が 675x429 ＝ **9.9MB** にしかならない。
+      //   大きさが無いと「なぜ5倍なのか」を推測するしかなく、実際に推測して外した。
+      最大寸 = Math.round(r.width) + "x" + Math.round(r.height);
       // id → 最初のクラス → タグ名。長い名前は切る（記録は数百バイトに収める）。
       最大名 = (el.id ? "#" + el.id : el.className && typeof el.className === "string" ? "." + el.className.split(" ")[0] : el.tagName).slice(0, 36);
     }
   }
+  // 🔴【続き880】「入れ子でないもの」だけの合計も出す（＝同じ画素を何十回も数えない方の値）。
+  //   当たった要素は 100個ほどで、祖先を辿る深さも十数段なので、ここの費用はほぼ0。
+  //   ⚠ 上限（threeMB）と下限（rootMB）の**両方**を残す。片方だけだと必ず読み違える。
+  let rootMB = 0;
+  let nested = 0;
+  const 集 = new Set();
+  for (const [el] of 当たり) 集.add(el);
+  for (const [el, mb] of 当たり) {
+    let p = el.parentElement;
+    let 親在り = false;
+    while (p) {
+      if (集.has(p)) { 親在り = true; break; }
+      p = p.parentElement;
+    }
+    if (親在り) nested++;
+    else rootMB += mb;
+  }
   const t1 = typeof performance !== "undefined" && performance.now ? performance.now() : 0;
   layer3dCache = {
     layers3dMB: Math.round(threeMB),
+    layersRootMB: Math.round(rootMB),
+    layersNested: nested,
     promotedCount: promoted,
     layerTop: 最大名,
+    layerTopSize: 最大寸,
     layerTopMB: Math.round(最大MB),
     layerScanned: n,
     // 🔴 実機でこの走査がいくら掛かったかも残す（60ms を超えるなら作りを見直す合図）。
@@ -258,15 +296,19 @@ function layerWeight() {
       backdropCount: bdCount,
       layersMB: Math.round(three.layers3dMB + bdMB),
       layers3dMB: three.layers3dMB,
+      // 🔴【続き880】入れ子ぶんを除いた下限と、除いた枚数（上の注を参照）。
+      layersRootMB: Math.round((three.layersRootMB || 0) + bdMB),
+      layersNested: three.layersNested ?? null,
       promotedCount: three.promotedCount,
       // 🔴【続き755】いちばん大きい1枚（何が量を作っているのか）。
       layerTop: three.layerTop ?? null,
+      layerTopSize: three.layerTopSize ?? null,
       layerTopMB: three.layerTopMB ?? 0,
       layerScanned: three.layerScanned,
       layerScanMs: three.layerScanMs,
     };
   } catch {
-    return { layersMB: 0, layers3dMB: 0, backdropMB: 0, backdropCount: 0, promotedCount: 0, layerTop: null, layerTopMB: 0, layerScanned: 0, layerScanMs: 0 };
+    return { layersMB: 0, layers3dMB: 0, layersRootMB: 0, layersNested: null, layerTopSize: null, backdropMB: 0, backdropCount: 0, promotedCount: 0, layerTop: null, layerTopMB: 0, layerScanned: 0, layerScanMs: 0 };
   }
 }
 
@@ -381,7 +423,11 @@ function writeRecord(extra) {
       //   分からなかった（合計には peakTag が在るのに、レイヤーには無かった）。
       peakLayersTop = weight.layerTop ?? null;
       peakLayersTopMB = weight.layerTopMB ?? 0;
+      peakLayersTopSize = weight.layerTopSize ?? null;
       peakLayersCount = weight.promotedCount ?? 0;
+      // 🔴【続き880】**同じ瞬間の下限**も一緒に控える（別々にピークを取ると、
+      //   上限と下限が違う場面の値になって幅として読めなくなる）。
+      peakLayersRootMB = weight.layersRootMB ?? 0;
     }
     if ((weight.backdropMB || 0) > peakBackdropMB) peakBackdropMB = weight.backdropMB || 0;
     const tag = (extra && extra.weightTag) || null;
@@ -417,13 +463,23 @@ function writeRecord(extra) {
       // 🔴【#634・2026-11-14】ここから下が合成レイヤーの見積り。
       layersMB: weight.layersMB ?? null,
       peakLayersMB,
+      // 🔴【続き880】上限（layersMB）だけでは読み違える。同じ瞬間の下限と、除いた枚数。
+      layersRootMB: weight.layersRootMB ?? null,
+      layersNested: weight.layersNested ?? null,
+      peakLayersRootMB,
       // 🔴【続き755】ピークの時のいちばん大きい1枚（何が量を作ったのか）。
       peakLayersTop,
       peakLayersTopMB,
+      peakLayersTopSize,
       peakLayersCount,
       layerTop: weight.layerTop ?? null,
       layerTopMB: weight.layerTopMB ?? null,
+      layerTopSize: weight.layerTopSize ?? null,
       layers3dMB: weight.layers3dMB ?? null,
+      // 🔴【続き880】**走査そのものに掛かった時間**（#634 で「計器が不具合を作った」ので、
+      //   60ms を超えたら作りを見直す合図——と自分で書いてあるのに、記録に残していなかった）。
+      layerScanMs: weight.layerScanMs ?? null,
+      layerScanned: weight.layerScanned ?? null,
       backdropMB: weight.backdropMB ?? null,
       peakBackdropMB,
       backdropCount: weight.backdropCount ?? null,
@@ -577,10 +633,18 @@ function init() {
       //   prevPeakAllMB ＋ prevPeakLayersMB（backdrop ぶんはさらに2〜3倍）で読む。
       prevLayersMB: prev.layersMB ?? null,
       prevPeakLayersMB: prev.peakLayersMB ?? null,
+      // 🔴🔴【続き880】**この見積りは幅で読む。** prevPeakLayersMB は上限（入れ子の重複を
+      //   含む＝実測で 91枚のうち 89枚が入れ子）、prevPeakLayersRootMB が下限。
+      //   続き879 で「92MB が本命」と読んだのは、上限だけを見ていたため。
+      prevLayersRootMB: prev.layersRootMB ?? null,
+      prevLayersNested: prev.layersNested ?? null,
+      prevPeakLayersRootMB: prev.peakLayersRootMB ?? null,
+      prevLayerScanMs: prev.layerScanMs ?? null, // 計器そのものの重さ（60ms 超なら作り直す合図）
       // 🔴【続き755】**ピークの時にいちばん大きかった1枚**。#663 は 33MB（ピーク79MB）
       //   だったが数字しか無く、何が倍にしたのか分からなかった。ここで名前が分かる。
       prevPeakLayersTop: prev.peakLayersTop ?? null,
       prevPeakLayersTopMB: prev.peakLayersTopMB ?? null,
+      prevPeakLayersTopSize: prev.peakLayersTopSize ?? null,
       prevPeakLayersCount: prev.peakLayersCount ?? null,
       prevLayers3dMB: prev.layers3dMB ?? null,
       prevBackdropMB: prev.backdropMB ?? null,

@@ -281,8 +281,16 @@ function buildCardModal() {
   //     body ごと倍率で縮むぶん**二重に小さくなる**（58vh のつもりが画面では 119px だった）。
   //     ⇒ `--stage-scale` で割って打ち消す（ミニロックが style.css で使っているのと同じ手）。
   //     rem はもともとステージ側の物差しなので割らない。
+  // 🔴【#845・#854・続き880】**`align-self: flex-start` を忘れない。**
+  //   横並びの flex は既定で高さいっぱいに伸びる（align-items: stretch）ので、
+  //   右の列の文が長い札（我忘れの白き龍など）では**カードの枠が縦へ伸びて正方形でなくなる**。
+  //   枠の絵は `background-size: cover` なので、縦に伸びた箱では**横が切り落とされ**、
+  //   「illustration : YGM」の頭が消え、題名と ONLY の印が重なった（報告の絵がまさにこれ）。
+  //   ⚠ `aspect-ratio` より stretch の高さが勝つので、aspect-ratio だけでは守れない。
+  //   ⓘ まったく同じ直しが `.card-note-image`（style.css）に 2026-11-10・B-4 で入っている。
+  //     あちらの写しをここに書いた時に、この1語だけが落ちた。
   img.style.cssText =
-    "position: relative; width: min(28rem, calc(56vh / var(--stage-scale, 1)), calc(46vw / var(--stage-scale, 1))); flex-shrink: 0; border-radius: 0.4rem; display: block; aspect-ratio: 1 / 1; overflow: hidden; background-size: cover; background-position: center; background-repeat: no-repeat;";
+    "position: relative; width: min(28rem, calc(56vh / var(--stage-scale, 1)), calc(46vw / var(--stage-scale, 1))); flex-shrink: 0; align-self: flex-start; border-radius: 0.4rem; display: block; aspect-ratio: 1 / 1; overflow: hidden; background-size: cover; background-position: center; background-repeat: no-repeat;";
 
   const textCol = document.createElement("div");
   // ⚠ min-width は**絵より小さく**しておく（狭い画面で縦積みに落ちるのを妨げない）。
