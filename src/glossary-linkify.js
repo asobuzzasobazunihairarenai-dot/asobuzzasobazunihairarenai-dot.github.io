@@ -62,6 +62,23 @@ export function linkifyGlossary(pEl, text) {
   if (last < text.length) pEl.appendChild(document.createTextNode(text.slice(last)));
 }
 
+// 🔴【続き888】text の中に出てくる用語を、**重複なし・出てきた順**で返す。
+//   カードの補足画面で「この札が持っている固有効果（追色・財力・【志炎】…）」を
+//   上にチップで並べるために要る（ユーザー要望「単語だけしっかり出して、タップすると説明」）。
+//   ⚠ **同じ正規表現（glossaryTables）から出す。** 別の表を持つと必ず食い違う。
+export function findGlossaryTerms(text) {
+  const { re: TERM_RE } = glossaryTables();
+  if (!TERM_RE || !text) return [];
+  const 出た = [];
+  for (const m of String(text).matchAll(TERM_RE)) if (!出た.includes(m[0])) 出た.push(m[0]);
+  return 出た;
+}
+
+// その用語の説明を出す（チップから呼ぶ。文中のリンクと**同じ**ものが開く）。
+export function openGlossaryTerm(term) {
+  showGlossaryPopup(term);
+}
+
 let popupEl = null;
 let popupBackdrop = null;
 

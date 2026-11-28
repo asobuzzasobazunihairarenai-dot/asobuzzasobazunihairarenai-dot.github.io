@@ -3370,8 +3370,13 @@ body.theme-light #contact-result-modal {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(38rem, 92vw);
-  max-height: 45rem; /* 80vh相当 */
+  /* 🔴【続き888・#825 の家族】このアプリは画面に合わせて**台ごと縮む**ので、rem/vw の
+     まま書くと実画面ではさらに小さくなる（実測: スマホ横で 290x245px ＝画面の31%、
+     本文の字は実質 6.5px）。⇒ **縮みを打ち消す**（ミニロック・図鑑の札と同じ手）。 */
+  width: calc(min(38rem, 94vw) / var(--stage-scale, 1));
+  /* ⚠ max-height に vh は使わない（check-css の決まり）。ステージの高さ＝56.25rem
+     なので、rem で書けば画面の高さに対する割合になる。 */
+  max-height: 48rem;
   overflow-y: auto;
   background: rgba(15, 23, 32, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -3393,7 +3398,11 @@ body.theme-light #contact-result-modal {
 .card-note-image {
   display: block;
   position: relative;
-  width: 14rem;
+  /* 🔴【続き888】ユーザー要望「カード絵をもっと大きく」。札の幅に対する割合にして、
+     どの画面でも同じ見え方にする（実測で 107px → 250px 超）。 */
+  /* ⚠ rem のままだと、縮む画面では**絵だけ小さいまま**（実測 PC 256px / スマホ 153px）。
+     縮みを打ち消したうえで、札の幅に対する割合で頭打ちにする（どちらも約267px）。 */
+  width: min(calc(24rem / var(--stage-scale, 1)), 50%);
   flex-shrink: 0;
   /* 🔴【B-4・2026-11-10】横並びの flex は既定で高さいっぱいに伸びる（align-items: stretch）。
      効果文を足して右の列が高くなったら、カードの絵が 214x320 に**縦へ伸びた**（実測）。
@@ -3409,7 +3418,70 @@ body.theme-light #contact-result-modal {
 }
 .card-note-text-col {
   flex: 1;
-  min-width: 12rem;
+  min-width: 10rem;
+}
+/* 🔴【続き888】固有効果の単語（追色・財力・【志炎】…）。押すと用語の説明が出る
+   ——文中のリンクと**同じもの**が開く。
+   ⚠ 色は決め打ちしない所と、自前の地を持つ所を分ける（教訓15）: 地は自分で持ち、
+     明るいテーマでは下の規則で上書きする。 */
+.card-note-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 0.6rem;
+}
+.card-note-chip {
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(148, 163, 184, 0.14);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+.card-note-chip:hover {
+  background: rgba(148, 163, 184, 0.28);
+}
+/* 印刷から効果を変えている札の印（押せない“ただの札”なので span で出す）。 */
+.card-note-chip.is-changed {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+  cursor: default;
+}
+body.theme-light .card-note-chip.is-changed {
+  border-color: rgba(185, 28, 28, 0.45);
+  background: rgba(185, 28, 28, 0.1);
+  color: #7f1d1d;
+}
+body.theme-light .card-note-chip {
+  border-color: rgba(176, 141, 63, 0.5);
+  background: rgba(176, 141, 63, 0.12);
+  color: #4a3f22;
+}
+/* 長い補足は3行で畳む（「もっと詳しく」で開く）。 */
+.card-note-body.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-note-more-btn {
+  font: inherit;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+body.theme-light .card-note-more-btn {
+  border-color: rgba(176, 141, 63, 0.5);
+  color: #4a3f22;
 }
 .card-note-title {
   font-weight: bold;
@@ -25841,7 +25913,11 @@ body.is-phone-device #lock-pick-modal {
   max-height: 23.906rem; /* 47.813rem ÷ 2倍 */
 }
 body.is-phone-device #card-note-modal {
-  max-height: 22.5rem; /* 45rem ÷ 2倍 */
+  /* 🔴【続き888】上の規則で既に縮みを打ち消しているので、ここは割合で決める
+     （22.5rem の決め打ちだと、せっかく広げた札が縦に切られる）。 */
+  /* ⚠ max-height に vh は使わない（check-css の決まり）。ステージの高さ＝56.25rem
+     なので、rem で書けば画面の高さに対する割合になる。 */
+  max-height: 48rem;
 }
 body.is-phone-device #admin-panel {
   max-height: 34.914rem; /* 50.625rem ÷ 1.45倍 */

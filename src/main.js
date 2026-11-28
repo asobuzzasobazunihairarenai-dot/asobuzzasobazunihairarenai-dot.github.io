@@ -290,7 +290,7 @@ import {
   isAnytimeInterruptOptedOut,
   setAnytimeInterruptOptedOut,
 } from "./anytime-interrupt-setting.js";
-import { linkifyGlossary } from "./glossary-linkify.js";
+import { linkifyGlossary, findGlossaryTerms, openGlossaryTerm } from "./glossary-linkify.js";
 import { initUpdateChecker, setUpdateBannerGate, reevaluateUpdateBanner } from "./update-checker.js";
 import { initTutorialAutoStart, registerTutorialStageHelpers } from "./tutorial.js";
 // チュートリアルCPU戦（台本化された練習試合）へ、ロック効果アニメとステージ座標変換を注入する。
@@ -520,7 +520,7 @@ import { cinematicAllows, cinematicShotOff, getCinematicCamera, getCinematicTuni
 import { showCardFace } from "./card-face-display.js";
 // 🔴【#802・続き825】画面の上の「ログイン中」から、アカウントを切り替えられるようにする。
 import { openAccountMenu } from "./account-menu.js";
-import { onLangChange } from "./i18n.js";
+import { onLangChange, getLang } from "./i18n.js"; // 【続き888】補足の「デジタル版で変更」の断りを言語ごとに見分ける
 // 【2026-11-13・続き699】新しい見た目（UI v2）の切り替え。読み込んだ時点で body へ
 //   クラスを付けるだけ（admin.js の applyThemeMode と同じ作法）。既定は今までの見た目。
 import "./ui-v2.js";
@@ -18111,6 +18111,14 @@ function showCardNoteModal(cardId, opts = {}) {
   //   一方この箱の本文は**13.0px**で読める。⇒ 読める箱の方へ文を持ってくる。
   //   ⚠ 絵に焼き込まれているカード（1stのFカード等）でも、文のデータは在るので出せる。
   const 文 = getCardText(def.id) || {};
+  // 🔴【続き888】**効果文は「もっと詳しく」の中へ畳む**（ユーザー要望「到達効果と手札効果の
+  //   文面を今そのまま起こしてるけど、それは左側のカードの絵に記載があるので不要かも」）。
+  //   ⇒ 消さずに畳む。カードの絵はアプリが文字を描いていて**英語にも切り替わる**ので
+  //     （続き888 で実測: 日本語945字→英語1838字）、ふだんは絵を読めばよい。
+  //     ⚠ 絵を小さく出している所や、読み上げを使う人のために**残す**（#729 の家族）。
+  const 詳しく = document.createElement("div");
+  詳しく.className = "card-note-more";
+  詳しく.hidden = true;
   for (const [鍵, 中身] of [["basic", 文.basic], ["arrival", 文.arrival], ["hand", 文.hand]]) {
     if (!中身) continue;
     const 見出し = document.createElement("div");
@@ -18138,18 +18146,110 @@ function showCardNoteModal(cardId, opts = {}) {
       }
       linkifyGlossary(入れ物, run.text);
     }
-    textCol.appendChild(見出し);
-    textCol.appendChild(本文);
+    詳しく.appendChild(見出し);
+    詳しく.appendChild(本文);
   }
   const noteLabel = document.createElement("div");
   noteLabel.className = "card-note-section-label";
   noteLabel.textContent = t("game.cardNote.note");
   const body = document.createElement("div");
   body.className = "card-note-body";
-  linkifyGlossary(body, getCardNote(def.id) || def.note || t("game.stack.noNote")); // 【#589】補足の中の用語も
+  const 補足の全文 = getCardNote(def.id) || def.note || t("game.stack.noNote");
+  // 🔴【続き888】**「デジタル版では効果を変えています」は印にして、本文は畳む**
+  //   （ユーザー要望「『もっと詳しく』的なボタンを置いて、そこで説明でもいいかも」）。
+  //   ⚠ あの断りは19枚に入っていて、しかも**補足の先頭**に来ることが多いので、
+  //     畳まないと「いちばん先に読む3行」がぜんぶ断りで埋まる（実測してそうなった）。
+  //   ⚠ 文で切る（ja は「。」、en は「. 」）。見つからなければ**今までどおり**。
+  const 断りの目印 = getLang() === "ja" ? "デジタル版では" : "digital version";
+  const 文に切る = (t2) => (getLang() === "ja" ? t2.split(/(?<=。)/) : t2.split(/(?<=\.)\s+/));
+  const 断り = [];
+  const 残り = [];
+  for (const 文2 of 文に切る(補足の全文)) {
+    (文2.toLowerCase().includes(断りの目印.toLowerCase()) ? 断り : 残り).push(文2);
+  }
+  const 補足の文 = (残り.join("").trim() || (断り.length ? "" : 補足の全文));
+  linkifyGlossary(body, 補足の文 || t("game.stack.noNote")); // 【#589】補足の中の用語も
   textCol.insertBefore(title, textCol.firstChild);
+
+  // 🔴【続き888】**固有効果の単語だけを上に並べる**（ユーザー要望「追色などの固有効果を
+  //   持っていたら、その説明は補足説明文の前半に単語だけしっかり出して、タップすると説明」）。
+  //   ⚠ 用語は**文中のリンクと同じ表**から出す（findGlossaryTerms）。別の表を持つと食い違う。
+  //   ⚠ 探すのは**効果文だけ**（補足の文まで入れると「場」「駒」のような一般語で埋まる）。
+  //   ⚠ 1つも無ければ行ごと出さない（空の帯を残さない）。
+  // 🔴 チップに出すのは**【】で囲まれた固有効果だけ**（追色・財力・志炎・色者・状況）。
+  //   最初ここを「文中の用語ぜんぶ」にしたら、**全員・マス・移動・相手・裏向き**のような
+  //   一般語が並んで、何が特別なのか分からなくなった（実測して気づいた）。
+  //   ⚠ 【追色１】【財力≧３】のように数や記号が付くので、**基になる語**に直してから見る。
+  //   ⚠ **用語集に説明がある語だけ**出す。無い語を出すと、押しても何も起きない
+  //     （＝押せない約束を残す。#729 の家族）。
+  const 固有効果 = (() => {
+    const 文ぜんぶ = [文.basic, 文.arrival, 文.hand].filter(Boolean).join(String.fromCharCode(10));
+    const 出た = [];
+    for (const m of 文ぜんぶ.matchAll(/【([^】]{1,8})】/g)) {
+      const 基 = m[1].replace(/[0-9０-９＝≧≦=><]+$/, '');
+      if (!基 || 出た.includes(基)) continue;
+      // 用語集がその語を知っているか（文中のリンクと同じ表に聞く）。
+      if (findGlossaryTerms(基).includes(基)) 出た.push(基);
+    }
+    return 出た;
+  })();
+  const 用語 = 固有効果;
+  const チップを出す = 用語.length > 0 || 断り.length > 0;
+  if (チップを出す) {
+    const chips = document.createElement("div");
+    chips.className = "card-note-chips";
+    // 印刷されたカードから効果を変えている札は、ここで一目で分かるようにする。
+    if (断り.length > 0) {
+      const 印 = document.createElement("span");
+      印.className = "card-note-chip is-changed";
+      印.textContent = t("game.cardNote.changed");
+      chips.appendChild(印);
+    }
+    for (const 語 of 用語.slice(0, 8)) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "card-note-chip";
+      chip.textContent = 語;
+      chip.title = t("help.glossary.tip");
+      chip.addEventListener("click", (e) => { e.stopPropagation(); openGlossaryTerm(語); });
+      chips.appendChild(chip);
+    }
+    textCol.appendChild(chips);
+  }
+
   textCol.appendChild(noteLabel);
   textCol.appendChild(body);
+  // 🔴 長い補足は**3行で畳む**（ユーザー指摘「現状テキストが多すぎる気がします」）。
+  //   ⚠ 長さで決める——短い札まで畳むと、押さないと読めない行き止まりになる。
+  // 畳んだ中に、断りの文も入れる（消さずに読める形で残す＝#729 の家族）。
+  if (断り.length > 0) {
+    const 見出し2 = document.createElement("div");
+    見出し2.className = "card-note-section-label";
+    見出し2.textContent = t("game.cardNote.changed");
+    const 本文2 = document.createElement("div");
+    本文2.className = "card-note-body";
+    linkifyGlossary(本文2, 断り.join("").trim());
+    詳しく.insertBefore(本文2, 詳しく.firstChild);
+    詳しく.insertBefore(見出し2, 詳しく.firstChild);
+  }
+  const 長い = 補足の文.replace(/\s+/g, "").length > 60;
+  if (長い) body.classList.add("is-clamped");
+  if (長い || 詳しく.childElementCount > 0) {
+    const もっと = document.createElement("button");
+    もっと.type = "button";
+    もっと.className = "card-note-more-btn";
+    もっと.textContent = t("game.cardNote.more");
+    let 開いた = false;
+    もっと.addEventListener("click", (e) => {
+      e.stopPropagation();
+      開いた = !開いた;
+      詳しく.hidden = !開いた;
+      body.classList.toggle("is-clamped", 長い && !開いた);
+      もっと.textContent = t(開いた ? "game.cardNote.less" : "game.cardNote.more");
+    });
+    textCol.appendChild(もっと);
+  }
+  textCol.appendChild(詳しく);
   const content = document.createElement("div");
   content.className = "card-note-content";
   content.appendChild(img);

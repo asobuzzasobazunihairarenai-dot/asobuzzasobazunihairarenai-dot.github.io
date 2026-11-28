@@ -343,9 +343,22 @@ export function hasNoPrintedFace(cardId) {
   //   続き779 で志炎者を足した時に**ここだけ漏れた**。絵は assets/cards-blank/ に在るのに
   //   `assets/cards/cf-*.webp` を取りに行って **404** になっていた
   //   （マイデッキ編集に並べた実測で出た。山札一覧・霧散演出・飛翔ゴーストでも同じ）。
-  return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("0th-")
-    || cardId.startsWith("cf-") || cardId.startsWith("new-")
-    || cardId.startsWith("eternal-1st-") || cardId.startsWith("first-1st-");
+  // 🔴🔴【続き888】**リメイクの札も「下地＋アプリが描く文字」にそろえた**
+  //   （ユーザーの問い「焼かれたやつをやめたらどうかな？」）。
+  //   調べたら、リメイクの効果文は **ja・en の両方がデータに在り**（card-text.ja/en.js）、
+  //   **カードの面はもともとアプリが描いていて英語にも切り替わっていた**
+  //   （実測: 同じ12枚で日本語945字 → 英語1838字）。焼いた絵は**下に敷いてあるだけ**で、
+  //   その上をアプリの文字の帯が覆っていた＝**日本語の文字を二重に持っていた**。
+  //   ⇒ 下地（assets/cards-blank/、34種とも在ることを確認）に切り替えると、
+  //     **見た目は変わらないまま**（実測: 文字12/12・はみ出し0・404なし）、
+  //     同じ文を2か所で持たなくて済む。
+  //   ⚠ **焼いた絵（assets/cards/）は消さない**（公開済みの素材は消さない決まり）。
+  //     戻したくなったら、この return を元の接頭辞の並びに戻すだけ。
+  //   ⓘ 戻す時の形（続き888 より前）:
+  //     return cardId.startsWith("ex0-") || cardId.startsWith("1st-") || cardId.startsWith("0th-")
+  //       || cardId.startsWith("cf-") || cardId.startsWith("new-")
+  //       || cardId.startsWith("eternal-1st-") || cardId.startsWith("first-1st-");
+  return true;
 }
 
 // 「カードの絵に文字が焼き込まれている」カードか（＝アプリは文字を描かず、絵をそのまま出す）。

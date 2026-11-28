@@ -56,18 +56,22 @@ export const CHANGELOG = [
     summary: [
       "「使うカード」と「山札」が1つになりました",
       "ノワールで遊べます（お試し・2026-12-31 まで）",
+      "カードの補足が読みやすくなりました",
     ],
     summaryEn: [
       "Choosing cards and choosing your deck are now one step",
       "Try playing as Noir (trial, until 31 Dec 2026)",
+      "Card notes are easier to read",
     ],
     items: [
       "CPU戦の設定にあった「使うカード」と「山札（標準／マイ山札）」を、**1つの「使うカード」にまとめました**。押すと箱が並ぶ画面が開いて、**マイ山札も箱として並びます**（箱の絵は、その山札に選んだカードのイラストです）。どちらも「何のカードで遊ぶか」の話なので、2回考えなくて済むようになりました。",
       "CPU戦で**ノワール（黒のキューブ）を使って遊べる**ようになりました。ファーストカードが配られたあとに「ノワールに切り替えますか？」と出るので、押すとあなたのファーストがノワールに、駒が黒になります。断れば今までどおりです。⚠ **お試しです（2026-12-31 まで）。** ノワールの効果は、遊んでみた結果で変わることがあります。感想は画面の上の「不具合報告」（虫のしるし）からお待ちしています。",
+      "**カードの補足（カードを長押し・右クリックで出る画面）を作り直しました。** カードの絵が**2.7倍**の大きさになり、効果文はその絵で読めます。長い補足は3行にまとめて、続きは「もっと詳しく」で開きます。**追色や財力などの固有効果は、上に単語で並ぶ**ようになり、押すとその説明が出ます。印刷されたカードから効果を変えている札には「デジタル版で効果を変更」の印が付きます。",
     ],
     itemsEn: [
       "The CPU game settings had two separate rows: which cards to use, and whether to play with your own deck recipe. They are now one row. Pressing it opens the shelf of boxes, and your own deck appears there as a box too, with the artwork you chose for it.",
       "You can now play as Noir in CPU games. After the First cards are dealt you are asked whether to switch; saying yes turns your First card into the Black Cube and your piece black, and saying no leaves everything as before. This is a trial until 31 December 2026, and Noir's effect may change based on how it plays, so please send your impressions through the bug report button.",
+      "The card notes screen has been rebuilt. The card picture is now about 2.7 times larger, so the effect text can be read from the card itself. A long note is shortened to three lines with a More detail button, and special effects such as Color Cost or Wealth now appear as words at the top that you can tap for an explanation. Cards whose effect differs from the printed version carry a small marker.",
     ],
     fixes: [
       "カードを大きく表示した時に、色者（ノクスアエル）の円盤がカードいっぱいに巨大化していたのを直しました。",
@@ -158,6 +162,10 @@ export const CHANGELOG = [
       "🔴 **#861 CPU がジャンプ台の先を読んでいなかった。** ジャンプ台は**テレポートではなく「2マス一気に移動」**なのに、CPU の前進度は**乗ったマスまで**しか測っていなかった。⇒ 乗った先から跳べるマスを**本物の候補の出し方**で出して測り直す（跳び先に相手ゲートが在れば +5。⚠ **直接着地の +6 より下**——あちらは確実、こちらは跳び先でゲートを選べばの話）。⚠ **表向きの時だけ**（裏向きの中身で判断させない）。実測は対照2本つき（裏向きなら乗らない／ジャンプ台でなければ乗らない）。",
       "ⓘ **#860「CPUがプレゼントを使ってこない」は不具合ではなかった**——本物の判断に聞くと「使える」と判定し、ジャンプ台との二択でもこれを選ぶ。相手の駒が盤上に居ない時だけ使わない（置く先が無い）。文面で答えた（#839 と同じ形）。**強さの加減はゲームバランスの話なので言われずには変えない。**",
       "🔴🔴 **実測の作り方で4回つまずいた（全部こちらの測り方）。いちばん大きいのは `page.waitForFunction` に約束を返す関数を渡すと中身を待たずに通ること**（返ってきた Promise そのものが truthy）——そのせいで**配られる前の盤面**を測り、「ゲートの近くにカードが1枚も無い」と出た。⇒ **先に window へ取り込んで素の式で待つ。** ほかに: 配った直後は手札が0枚（判断は札の一覧を引数で受けるので直接聞けばよかった）／初期配置では相手の駒が自分のゲートに立っている（跳び先から外れる）／🔴 **前提が落ちたのに下の3行が `undefined === undefined` で合格していた＝0しか出ない検査**。",
+      "🔴🔴 **【続き888】前の回に私が言ったことが間違っていた（訂正）。** 「リメイクの絵は日本語の印刷物なので、補足から効果文を消すと英語の人が読めなくなる」と書いたが、測ったら**効果文は ja・en の両方がデータに在り**（card-text.ja/en.js に34件・41件）、**カードの面はもともとアプリが描いていて英語にも切り替わっていた**（同じ12枚で日本語945字→英語1838字）。焼いた日本語の上を**アプリの文字の帯が覆っていた**＝同じ文を2か所で持っていた。**教訓: 「◯◯だからできない」と言う前に、1回描いて測る。**",
+      "**焼いた絵をやめた**（`hasNoPrintedFace` が常に true）。下地（assets/cards-blank/）が34種とも在ることを確かめてから切り替え、実測で**見た目が変わらない**ことを確認（文字12/12・はみ出し0・404なし・日英とも切り替わる・スモークPASS・画面の検査16枚ぶんも合格）。⚠ **焼いた絵は消していない**（公開済みの素材は消さない）。戻す形はコメントで残した。ⓘ canvas（霧散演出）は `paintCardFaceTextToCanvas` が文字をデータから描くので影響なし。",
+      "**補足画面の作り直し**: 札 290x245 → **608x318px**、カードの絵 **107 → 296px**、到達/手札の文は「もっと詳しく」の中へ（消さずに畳む）、デジタル版で変えた断りは**印1つ**にして中身を畳む、固有効果は**上にチップ**（押すと用語の説明）。🔴 大きさは **#825 と同じ家族**——台ごと縮むので rem のままだと本文の字が**実質6.5px**だった。⚠ `max-height` に `vh` は使わない（check-css に止められて rem へ直した）。",
+      "🔴 **チップは最初「文中の用語ぜんぶ」にしたら、全員・マス・移動・相手・裏向き のような一般語で埋まった**（実測して気づいた）⇒ **【】で囲まれた固有効果だけ**に絞った（数えたら 追色・志炎・財力・状況・色者 の5種類）。⚠ 【追色１】【財力≧３】のように数が付くので基の語に直す。⚠ **用語集に説明がある語だけ**出す（無い語は押しても何も起きない＝#729 の家族）。🔴 申し送り: **用語集に【志炎】【色者】【状況】が無い**ので、その3つは今は出ない（説明の文はこちらで作らずユーザーに聞く）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -224,6 +232,10 @@ export const CHANGELOG = [
       "The CPU did not look past a Jump Pad, which moves two cells at once, so it could not see that stepping on one would reach a gate.",
       "The report about the CPU never using Present turned out to be chance: measurement shows it judges the card usable and picks it.",
       "Four measurement mistakes are recorded, the largest being that waitForFunction accepts a promise-returning predicate and passes immediately, which meant measuring a board that had not been dealt yet.",
+      "[Continuation 888] A correction: the remake card faces already drew their text from data and already switched to English, so the baked Japanese text was simply covered up, duplicating the same sentences in two places.",
+      "The baked card images are no longer used; the blank art plus app-drawn text is now used for every set, verified to look identical with no missing text and no 404s. The baked files are kept.",
+      "The card notes screen was rebuilt: a much larger picture, effect text folded behind a More detail button, a marker for cards changed in the digital version, and tappable chips for special effects.",
+      "The chips were first filled with ordinary words, so they are now limited to the bracketed special effects that have a glossary entry; three of those entries do not exist yet and are left for the user to define.",
     ],
   },
   {
