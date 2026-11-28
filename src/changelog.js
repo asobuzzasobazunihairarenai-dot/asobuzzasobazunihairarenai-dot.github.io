@@ -100,6 +100,7 @@ export const CHANGELOG = [
       "色者のカードが、誰が表にしても同じ向きで置かれていたのを直しました（表にした人から見た向きになります）。",
       "デイリーチャレンジやウィークリーの報酬を受け取った時に、セヴルやパックが飛んでいく演出が出ていなかったのを直しました。",
       "ロックできるカードが無くて自動で飛ばされるフェイズでは、右下のスキップボタンを出さないようにしました（自動送りを切っている時は今までどおりです）。",
+      "CPU戦の「対戦ルール」の説明が、4つのうち「自分にも持ち時間」しか書かれていなかったので、白黒カード・ブースト・マイデッキも説明するようにしました。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -120,6 +121,7 @@ export const CHANGELOG = [
       "Fixed Shikija cards always facing the same way; they now face the player who revealed them.",
       "Fixed the coins and packs not flying to your balance when you claim a daily or weekly reward.",
       "The skip button is no longer shown for a phase that will be skipped automatically, unless you have turned auto-advance off.",
+      "The explanation for the match rules only covered the turn timer; it now describes the black & white cards, Boost and My Deck as well.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -209,6 +211,9 @@ export const CHANGELOG = [
       "🔴🔴 **【続き893】#864 の「対戦ルールの配置が整ってるといいかも」の正体は、整っていないのではなく**はみ出していた**こと。** 測ったら**箱が 115px しか無いのにボタンが 348px** あった（横並びのまま外へ出ていた）。⇒ 箱に幅を取らせて格子にした（実測: 4つとも 170px・1行）。🔴 **直す場所を間違えて1回空回りした**——同じクラスの規則が2か所あり、**後ろの `display: flex` に踏み潰されて**いた（教訓9 の家族）。後ろを直し、前に書いた方は消した。",
       "**i を押したらモーダル**（その場で開くと下の項目が押し下げられて、読む前に並びが動く）。⚠ 説明の文はそのまま使う（モーダル用に書き直さない＝2か所に持たない）。**使うカードに箱の絵**も置いた。⚠ 箱の絵を持たない選択（マイ山札・0th拡張・まぜる等）では**何も出さない**（代わりの絵をでっち上げない。判定は箱の持ち主に聞く）。",
       "⚠ 実測（管理者 OK 9／ふつうの人 OK 8）。段取りで1つ踏んだ: **ホームを開かずにタイルを押していた**ので「設定が開けない」と出た ⇒ `openHomeScreen()` を先に呼ぶ。**「無い」と出たら、まず自分の段取りを疑う。** ⚠ 申し送り: **#864 の『ⓘの中身の見直し』と #869（色者の演出の組み替え）は未着手**。",
+      "🔴🔴 **【続き894】#864 の残り（ⓘ の中身）を並べて読んだら、「使うカード」の説明に**事実でない記述が3つ**あった。** ①「まぜる」は**両方**です → **4つ**（リメイク・0th拡張・1st・旧0th＝続き840）②ファースト／エターナルは**どれを選んでもリメイク**のもの → **1st EDITION は自分の版**を使い、**まぜるはファーストが色ごとに 50/50**（`getFirstCards` / `getEternalCards` を読んだ）③⚠ 効果の自動処理は**まだ一部だけ**なので、ほとんどのカードは自分で処理してください → **もう全部そろっている**（0th拡張 33/33・1st 19+7+7・旧0th 19/19・志炎者 7/7）。いちばん重いのは③——**遊ぶ前に読む人を怯ませる文**で、しかも続き788〜799 で旧0thを実装した時点で**事実ではなくなっていた**。**教訓: 実装が進んだら、進んだことを言っている文も一緒に直す**（続き803 の家族）。",
+      "**対戦ルールは4つあるのに1つしか説明していなかった**（白黒カード・ブースト・マイデッキに一言も無く、押しても何が変わるか分からない）。🔴 **文はこちらで作文していない**——既に正しい説明が在ったので縮めて使った（白黒＝`setup.bwNote`／ブースト＝`setup.boostNote`／マイデッキ＝`tip.myDeck`）。**同じことを2通りの言い方で持たない。** ⚠ 残りの3つ（CPUの強さ・人数・マイ山札）は読んで事実と合っていたので1文字も変えていない。⚠ ふつうの人の「使うカード」の ⓘ は `deckPickHint` が出る（続き881 の統合の結果で、エディションの選択が無いので正しい）。",
+      "⚠ 実測（`scratchpad/_p894.mjs`・ふつうの人 OK 11／管理者 OK 14）: **本物のホームの設定を開いて、本物の ⓘ を4つとも押して出た文を読んだ**。古い3つの言い回しが消えていること・新しい記述が在ること・どのモーダルも画面の外へ出ないこと。⚠ 申し送り: **#869（色者の演出の組み替え）は未着手**——ユーザーの案はいまの4拍（続き792）とは別の切り方なので、**作り替える前に実機で一度見てほしい**。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -296,6 +301,9 @@ export const CHANGELOG = [
       "[Continuation 893] The match rules were not merely untidy, they overflowed their 115px container while the buttons were 348px wide; the container now takes full width and lays the four out as an even grid.",
       "A duplicate rule for the same class later in the stylesheet had been overriding the first attempt, so the later one was fixed and the earlier removed.",
       "The i buttons now open a dialog, and the chosen edition shows its box art where one exists.",
+      "[Continuation 894] Reading the four i explanations together turned up three statements in the card-set hint that were no longer true: Mixed now blends four editions rather than two, 1st EDITION brings its own First and Eternal cards while Mixed picks a First card per colour, and every edition's effects are now implemented, so the warning that most cards must be resolved by hand was both stale and discouraging.",
+      "The match-rules hint described only the turn timer, so the other three toggles are now explained, reusing the wording that already existed elsewhere rather than writing a second version of the same explanation.",
+      "The other three hints were read and left untouched because they still matched the behaviour.",
     ],
   },
   {
