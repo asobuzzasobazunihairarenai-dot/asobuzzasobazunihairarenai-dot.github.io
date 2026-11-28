@@ -76,6 +76,9 @@ export const CHANGELOG = [
       "マイページの「着せ替え」が小さすぎて押しにくかったのを直しました（スマホ・タブレットで大きくし、枠の真ん中に置きました）。",
       "黒（ノワール）で遊んでいる時、自分の駒とアバターが見えなくなっていたのを直しました。",
       "色者のカードが、ほかのカードの効果で奪われたり捨てられたりすることがあったのを直しました。",
+      "カードの補足を見ている最中に効果の選択が出ると、補足を閉じられなくなっていたのを直しました。",
+      "相手に捨てさせたカードが「非公開のカード」と出ることがあったのを直しました（捨て場のカードは全員に見えるものです）。",
+      "CPUが、ジャンプ台を踏めばゲートまで届く場面でも踏まなかったのを直しました。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -84,6 +87,9 @@ export const CHANGELOG = [
       "The outfit buttons on My Page were too small to tap comfortably. They are now larger on phones and tablets, and centred in their panel.",
       "Fixed your piece and avatar disappearing while playing as Noir.",
       "Fixed Shikija cards being taken or discarded by other cards' effects.",
+      "Fixed the card notes becoming impossible to close when an effect choice opened on top of them.",
+      "Fixed a card you made an opponent discard sometimes showing as a hidden card.",
+      "Fixed the CPU ignoring a Jump Pad that would have carried it to a gate.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -147,6 +153,11 @@ export const CHANGELOG = [
       "🔴🔴 **#870「色者（幼体）がパーティの効果で回収できてしまいました」。穴は2つ在って、2つ目の方が広かった。** ①守る札の名簿が**手書き**で、続き882 で増えた2枚目の色者（幼体）を足し忘れていた ②🔴 **マスの候補を作る所が、守りを一度も通していなかった**（＝**親の白き龍も同じように回収できた**・前からの不具合）。⇒ ①は名簿をやめて**色者の表から引く**（3枚目が増えた日に自動で守られる）②候補を作る1か所で `isTargetableToken` に聞く。⚠ **裏向きなら今までどおり対象にできる**（続き865 の裁定）。⚠ 守りは**カードの文ではなく【色者】という種類**に付いている、というユーザー裁定の読み。",
       "🔴 **テストの作りが甘く、嘘の合格を書きかけた。** 最初のテストは台本の答えを**候補の外**に置いていたが、土台は候補の外の答えもそのまま通すので、守りが効いていてもいなくても同じ結果になる ⇒ **候補そのものを数える**形へ。**教訓: 「選べない」を測るなら、選んだ結果ではなく候補を数える。** 回帰テスト2本（本体＋対照）、A/B 2通りとも名指しで落ち、指紋で元に戻したことを照合。",
       "⚠ **続き882 の Edge Function を本番へ流した**（新しい無色カード3枚と `remake+cf`）。流す前 `b3ff97142cfb8b74`／手元と GitHub `9f40bc375b9878ff`／**流した後 `9f40bc375b9878ff`** で3つとも一致。⚠ SQL エディタのタブに未保存の内容が在ったので、そのタブは触らず新しいタブで開いた。",
+      "🔴🔴 **【続き887】#867「セスティアで捨てさせたとき、モーダルのカードが非公開のカード」＝奪う（秘密）と捨てさせる（公開）の区別が無かった。** #331 で入れた「当事者でなければ中身を見せない」は**奪う**話（奪った札は相手の手札＝見えない情報）だが、**捨てさせた札は捨て場へ積まれる＝全員に見える**ので、同じ規則を当てると「CPU同士で撃った時だけ非公開」になる。⇒ 呼ぶ側が `公開してよい` を渡せるようにし、セレスティアの道だけ true。ⓘ ユーザー確認済みの「捨てるカードは公開でいいです」（#298 の時）が**コードの注に残っていた**。",
+      "**#866 カードの補足が選択モーダルの下に潜って閉じられない。** ⇒ 続き812 で作った仕掛け（**画面を覆う覆いが開いたら片付ける**）に補足も乗せた——1か所ずつ消して回らない形なので、これから足すモーダルも自動で守られる。⚠ 要素を直に消さず**本人の閉じ方を呼ぶ**（後始末のため）。⚠ 暗くしない覆い（管理者パネル等）では片付けない＝対照つきで実測。",
+      "🔴 **#861 CPU がジャンプ台の先を読んでいなかった。** ジャンプ台は**テレポートではなく「2マス一気に移動」**なのに、CPU の前進度は**乗ったマスまで**しか測っていなかった。⇒ 乗った先から跳べるマスを**本物の候補の出し方**で出して測り直す（跳び先に相手ゲートが在れば +5。⚠ **直接着地の +6 より下**——あちらは確実、こちらは跳び先でゲートを選べばの話）。⚠ **表向きの時だけ**（裏向きの中身で判断させない）。実測は対照2本つき（裏向きなら乗らない／ジャンプ台でなければ乗らない）。",
+      "ⓘ **#860「CPUがプレゼントを使ってこない」は不具合ではなかった**——本物の判断に聞くと「使える」と判定し、ジャンプ台との二択でもこれを選ぶ。相手の駒が盤上に居ない時だけ使わない（置く先が無い）。文面で答えた（#839 と同じ形）。**強さの加減はゲームバランスの話なので言われずには変えない。**",
+      "🔴🔴 **実測の作り方で4回つまずいた（全部こちらの測り方）。いちばん大きいのは `page.waitForFunction` に約束を返す関数を渡すと中身を待たずに通ること**（返ってきた Promise そのものが truthy）——そのせいで**配られる前の盤面**を測り、「ゲートの近くにカードが1枚も無い」と出た。⇒ **先に window へ取り込んで素の式で待つ。** ほかに: 配った直後は手札が0枚（判断は札の一覧を引数で受けるので直接聞けばよかった）／初期配置では相手の駒が自分のゲートに立っている（跳び先から外れる）／🔴 **前提が落ちたのに下の3行が `undefined === undefined` で合格していた＝0しか出ない検査**。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -208,6 +219,11 @@ export const CHANGELOG = [
       "Shikija cards could be taken by other cards' effects, through two holes: a hand-written list that missed the second Shikija card, and a cell-candidate builder that never applied the rule at all, which affected the original dragon too.",
       "The first regression test was unsound because the harness accepts an answer outside the offered candidates, so the test now counts the candidates themselves.",
       "The Edge Function from continuation 882 was deployed, with fingerprints matching across local, GitHub and production.",
+      "[Continuation 887] A card an opponent was forced to discard could show as hidden, because the rule for stolen cards (secret) was applied to discards (public, since they land in the discard pile).",
+      "Card notes could be buried under an effect picker; they are now cleared by the same hook that clears the zoom when a blocking overlay opens.",
+      "The CPU did not look past a Jump Pad, which moves two cells at once, so it could not see that stepping on one would reach a gate.",
+      "The report about the CPU never using Present turned out to be chance: measurement shows it judges the card usable and picks it.",
+      "Four measurement mistakes are recorded, the largest being that waitForFunction accepts a promise-returning predicate and passes immediately, which meant measuring a board that had not been dealt yet.",
     ],
   },
   {

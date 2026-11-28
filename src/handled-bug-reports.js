@@ -633,6 +633,10 @@ export const HANDLED_BUG_REPORT_IDS = new Set([
   // 2026-11-28（続き886）。どちらも**こちらが入れた不具合**。
   868, // ノワールのお試しで自分の駒が透明になっていた（黒に番号違いの絵が無い）
   870, // 色者（惑う白龍の幼体）が他のカードの効果の対象になっていた
+  // 2026-11-28（続き887）
+  861, // CPU がジャンプ台の「2マス一気」の先を読んでいなかった
+  866, // 選択モーダルの下にカードの補足が潜って閉じられない
+  867, // 捨てさせた札が「非公開のカード」と出る（捨て場＝公開情報なのに）
   // 「使うカード」と「山札」を同じ行に並べた
 ]);
 
@@ -1306,6 +1310,11 @@ export const BUG_REPORT_FIX_NOTES = {
   839: {
     ja: "測ってみたところ、CPU はちゃんと使います。本物の2人CPU戦で、この札が『使える』と判定され、CPU がこれを選ぶことを確かめました。ただし**撃つかどうかは場面で決まります**——相手が手札を1枚も持っていない時は撃たず（何も起きないため）、相手の手札が多いほど優先して撃ちます（4枚以上で強め）。また、その時もっと価値の高い札が手にあれば、そちらが先になります。ですので『たまたま』で合っています。⚠ 強さの加減はゲームバランスの話なので、ご指示なしには変えていません。『もっと積極的に使ってほしい』ようでしたら調整します。",
     en: "Measured, and the CPU does use it. In a real two-player CPU match the card is judged usable and the CPU picks it. Whether it fires depends on the situation: it holds back when no opponent has any cards in hand, since nothing would happen, and prefers it more the more cards opponents hold, strongly from four upwards. If a more valuable card is in hand at that moment, that one goes first. So it was indeed chance. The aggressiveness is a balance decision and was not changed without being asked; say the word if you want it to reach for this card more often.",
+  },
+  // ── 2026-11-28（続き887）──────────────────────────────────────
+  860: {
+    ja: "測ってみたところ、CPU はちゃんと使います。本物の2人CPU戦で、この札が「使える」と判定され、CPU がこれを選ぶことを確かめました（ジャンプ台と二択にしてもこちらを選びました）。ただし**撃つかどうかは場面で決まります**——相手の駒が盤上に居ない時は使わず（置く先が無いため）、その時もっと価値の高い札（パーティのゲート侵攻コンボ等）が手にあればそちらが先になります。ですので「たまたま」で合っています。⚠ 強さの加減はゲームバランスの話なので、ご指示なしには変えていません。「もっと積極的に使ってほしい」ようでしたら調整します。",
+    en: "Measured, and the CPU does use it. In a real two-player CPU match the card is judged usable and the CPU picks it, even when offered alongside a Jump Pad. Whether it fires depends on the situation: it is skipped when no opponent piece is on the board, since there is nowhere to place it, and a more valuable card in hand goes first. So it was indeed chance. The aggressiveness is a balance decision and was not changed without being asked.",
   },
   720: {
     ja: "直しました。おっしゃるとおり「任意のプレイヤー」は自分も含みます。カードの文も処理も自分を含んでいたのですが、**選ぶ画面を組む所で自分の席だけが落ちて**いました。自分の盤面アバターは既定で表示されない設定（左下の大きいアバターと重複するため）で、選ぶ画面が「盤面にアバターがある人」だけを並べていたのが原因です。これからは自分も必ず並び、「（自分）」と添えて分かるようにしました。あわせて、候補が自分ひとりだけの効果（リトルマウス等）がこの穴で黙って不発になっていたのも直っています。",

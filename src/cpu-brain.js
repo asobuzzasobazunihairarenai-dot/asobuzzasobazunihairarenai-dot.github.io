@@ -20,7 +20,7 @@ import { GATE_POSITIONS, SIDE_TO_SEAT, SEAT_TO_SIDE, COLORS } from "./board-layo
 import { isCpuPeekAllowed, isCpuOpponentAware } from "./cpu-battle-state.js";
 // #310: 「ディメンションをこのターン既に使ったか」を見るため（重ねても意味が無いので二度撃たない）。
 // card-effect-engine.js は cpu-brain.js を import しないので循環しない。
-import { isMovementBoostActiveThisTurn } from "./card-effect-engine.js";
+import { isMovementBoostActiveThisTurn, getMoveCandidates } from "./card-effect-engine.js";
 import { logAction } from "./action-log.js"; // 値踏みで転んだ時に、黙らせずに記録する（#745）
 
 // カードごとの「そのマスに着地して到達効果を受けるのが得か損か」の大まかな評価値。
@@ -233,6 +233,31 @@ function scoreMove(c, seat, ctx) {
       ctx.myGate && here.row === ctx.myGate.row && here.col === ctx.myGate.col && gateThreatened(ctx);
     if (!isDefensiveGateHold && ctx.myCell && ctx.oppGates.length > 0) {
       score += (minDistTo(ctx.myCell, ctx.oppGates) - minDistTo(here, ctx.oppGates)) * 3;
+    }
+    // 🔴🔴【#861・続き887】**ジャンプ台に乗ると、その場で2マス一気に動ける**
+    //   （到達効果 MOVE count:2 atOnce。テレポートではない）。ところが上の「前進度」は
+    //   **乗ったマスまで**しか測らないので、CPU には「ここを踏めば相手ゲートに届く」が
+    //   見えていなかった（報告「CPUが、ジャンプ台になればゲート侵攻できたのにしてこなかった」）。
+    //   ⇒ 乗った先から跳べるマスを**本物の候補の出し方**（getMoveCandidates）で出して、
+    //     いちばん良い跳び先で測り直す。
+    //   ⚠ **表向きだと分かっている時だけ**（known）。裏向きの札の中身で判断させない
+    //     ——それは覗き見（isCpuPeekAllowed の設定に従う）。
+    //   ⚠ 跳び先に**相手のゲートが在るならゲート侵攻**なので、距離では足りない。
+    //     重みは自ゲートの緊急防衛(+9)より少し下＝攻めより守りを優先する既存の形にそろえた。
+    if (known && c.topCardId === "red-jump-pad" && ctx.oppGates.length > 0) {
+      let 跳び先 = [];
+      try { 跳び先 = getMoveCandidates({ zone: "cell", row: c.row, col: c.col }, 2, true) || []; } catch (e) { 跳び先 = []; }
+      if (跳び先.length > 0) {
+        const ゲートへ届く = 跳び先.some((d) => ctx.oppGates.some((g) => g.row === d.row && g.col === d.col));
+        // ⚠ **直接ゲートに着地する手（+6）より下**にする——あちらは確実だが、
+        //   こちらは「跳び先でゲートを選べば」の話なので、同点以上だと回り道を選ぶ。
+        if (ゲートへ届く) score += 5;
+        else {
+          const いちばん近い = Math.min(...跳び先.map((d) => minDistTo({ row: d.row, col: d.col }, ctx.oppGates)));
+          // 乗ったマスから、さらにどれだけ近づけるか（同じ重み＝1マスにつき+3）。
+          score += Math.max(0, minDistTo(here, ctx.oppGates) - いちばん近い) * 3;
+        }
+      }
     }
     // 接触狙い（相手駒へ近づく）は「カウンターロック所持時のみ」（ユーザー方針2026-08-08:
     // カウンターロックが無いのにむやみに相手の隣へ行かない＝接触は相手に主導権を渡すと危険）。

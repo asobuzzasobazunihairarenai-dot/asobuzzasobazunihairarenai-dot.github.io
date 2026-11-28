@@ -2565,7 +2565,15 @@ function requestOpponentHandRitualPick(targetPlayer, hint, excludeTokenIds, reve
           // スリカエでは #217 として 2026-09-03 に同じ判定を入れてあり、こちらが取り残されていた。
           // 見せないだけで「何が起きたか」は伝える（中身の代わりに裏面を出す。
           // getCardImagePath(null) が裏面を返す）。
-          const maySeeIdentity = targetPlayer === self || actor === self;
+          // 🔴🔴【#867・続き887】**奪う（秘密）と捨てさせる（公開）を分ける。**
+          //   #331 で「当事者でなければ中身を見せない」を入れたのは**奪う**話
+          //   （奪った札は相手の手札へ行く＝誰にも見えない情報）。ところが**捨てさせる**札は
+          //   **捨て場へ積まれる＝全員に見える公開情報**なので、同じ規則を当てると
+          //   「CPU同士でセレスティアを撃った時だけ『非公開のカード』と出る」ことになる
+          //   （報告「セスティアで捨てさせたとき捨てさせたモーダルのカードが非公開のカードと
+          //   なってました」）。ユーザー確認済み「**捨てるカードは公開でいいです**」。
+          //   ⚠ 見せてよいのは**捨て終えた後**だけ（この表示は deferReveal で捨てた後に出る）。
+          const maySeeIdentity = !!options?.公開してよい || targetPlayer === self || actor === self;
           const doReveal = (overrideCardId) =>
             showCardReceivedModal(maySeeIdentity ? overrideCardId ?? revealCardId : null, sub, { labelText });
           if (options?.deferReveal) options.deferReveal(doReveal);
@@ -10722,7 +10730,8 @@ function pickRandomFromOpponentHandForEffect(targetPlayer) {
     t("game.pick.randomFromHand", { name: getPlayerName(targetPlayer) }),
     undefined,
     { takes: t("game.label.madeDiscard"), loses: t("game.label.forcedDiscard") },
-    { deferReveal: (fn) => { pendingForcedDiscardReveal = fn; } }
+    // 🔴【#867】捨てた札は捨て場＝公開情報なので、当事者でない人の画面でも中身を見せる。
+    { deferReveal: (fn) => { pendingForcedDiscardReveal = fn; }, 公開してよい: true }
   );
 }
 // engine が捨て終えた後に呼ぶ。捨て場の一番上から読んだ実際の cardId で中央に見せる。
@@ -10790,6 +10799,12 @@ export function debugOpenPlayerPick(candidates, hint, options) {
 //   これが無いと「picker が片付いたか」を実測できない（モジュールの中の変数なので）。
 //   ⚠ 片付け漏れは**画面に何も出ないまま全部のタップが死ぬ**形で表に出るので、
 //     「出ていない」ではなく「登録が消えたか」で測るしかない。
+// 【#866・続き887】同じ棚: カードの補足を外から出せるようにする（本物は長押しから出るが、
+//   「覆いが開いたら片付くか」を測るのに長押しの再現まで要らない）。
+//   ⚠ アプリ側のどこからも呼んでいない。
+export function debugShowCardNote(cardId) {
+  return showCardNoteModal(cardId);
+}
 export function debugActivePickerType() {
   return activeEffectPicker ? activeEffectPicker.type : null;
 }
@@ -17515,6 +17530,11 @@ function hideCardPreview() {
 onBlockingBackdropOpen(() => {
   hideCardPreview();
   previewCardId = null;
+  // 🔴【#866・続き887】**カードの補足も片付ける。** 報告「カード補足など見てる時に
+  //   パーティのモーダルが出ると、パーティ効果選択前にカード補足モーダルを閉じれない！」
+  //   ——補足は後から開いた選択モーダルの**下**に潜るので、閉じるボタンに手が届かない。
+  //   ⚠ 要素を直に消さず**本人の閉じ方を呼ぶ**（Escape の見張り等の後始末があるため）。
+  try { cardNoteModalClose?.(); } catch { /* noop */ }
 });
 
 // 🔴【#645・続き740】ユーザー要望「**場のカードの表面を見てる間、どのマスのカードを
@@ -18065,6 +18085,9 @@ function closeContextMenu() {
 
 // 【B-1・2026-11-10】opts.guardMs: 開いた直後に覆いのクリックで閉じない猶予（ミリ秒）。
 //   スワイプで開く時は、指を離した勢いの click が覆いに当たって**出た瞬間に閉じる**ため。
+// 🔴【#866・続き887】いま出ている補足の「閉じ方」。画面を覆うモーダルが開いた時に
+//   呼ぶ（上の onBlockingBackdropOpen）。出ていなければ null。
+let cardNoteModalClose = null;
 function showCardNoteModal(cardId, opts = {}) {
   const def = getCardDefinition(cardId);
   if (!def) return;
@@ -18138,7 +18161,10 @@ function showCardNoteModal(cardId, opts = {}) {
   const close = () => {
     backdrop.remove();
     modal.remove();
+    // 🔴【#866】覆いが開いた時に呼ばれる口を片付ける（閉じた後に呼ばれても何もしない）。
+    if (cardNoteModalClose === close) cardNoteModalClose = null;
   };
+  cardNoteModalClose = close;
   closeBtn.addEventListener("click", close);
   backdrop.addEventListener("click", () => {
     if (performance.now() < guardUntil) return; // 【B-1】開いた勢いの click では閉じない
