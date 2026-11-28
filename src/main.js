@@ -40,6 +40,7 @@ import {
   canAutoProcessArrival,
   runArrivalEffect,
   canUseHandEffect,
+  canUseAnytimeHandEffectOption, // 【#885・続き900】割り込みで聞くのは「いつでも使える選択肢」が使える時だけ
   runHandEffect,
   canPayHandEffectCost,
   getHandEffectUnusableReason,
@@ -10988,7 +10989,15 @@ function getAnytimeUsableHandTokensFor(player) {
       t.location.zone === "hand" &&
       t.location.player === player &&
       isHandEffectUsableAnytime(t.cardId) &&
-      canUseHandEffect(t.cardId, t.id, player)
+      // 🔴🔴【#885・#886・続き900】**割り込みで聞くのは「いつでも使える選択肢」が使える時だけ。**
+      //   それまでは `canUseHandEffect`（＝**どれか1つでも**使えるか）で見ていたので、
+      //   志炎者のように「ふだんの手札効果＋【志炎】の割り込み」を持つ札は、
+      //   **ふだんの選択肢が使えるだけ**で割り込みの行列に入ってしまった。
+      //   ⇒ 自分のターンのロック宣言の窓などでも札が差し出され、**ハンドフェイズ以外で
+      //     ふつうの手札効果を使えた**（報告「どこでも割り込めてしまう」）。
+      //   ⚠ 1つの選択肢しか持たない札（やり直しのカギ等）は今までと同じ（その選択肢が
+      //     usableAnytime なので、この判定を通る）。
+      canUseAnytimeHandEffectOption(t.cardId, t.id, player)
   );
 }
 

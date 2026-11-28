@@ -461,6 +461,9 @@ export async function runOneCase(spec) {
       const opts = eng.getHandEffectOptions(spec.ctx.cardId);
       diag = {
         canUse: eng.canUseHandEffect(spec.ctx.cardId, spec.ctx.cardTokenId, spec.ctx.player),
+        // 🔴【#885・続き900】**割り込みで差し出すか**（いつでも使える選択肢が使えるか）。
+        //   canUse（どれか1つでも）とは別物。志炎者はふだんの方が使えるので canUse は true。
+        canUseAnytimeOption: eng.canUseAnytimeHandEffectOption?.(spec.ctx.cardId, spec.ctx.cardTokenId, spec.ctx.player) ?? null,
         // ⚠ id も持たせる（optionUsable の検査が「どの選択肢か」で引くため＝続き781）。
         options: opts.map((o) => ({ id: o.id, label: o.label, cost: o.cost, actions: o.actions, inh: o.inheritsArrival, usable: eng.isHandEffectOptionUsable(spec.ctx.cardId, spec.ctx.cardTokenId, spec.ctx.player, o) })),
       };

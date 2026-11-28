@@ -122,6 +122,7 @@ export const CHANGELOG = [
       "志炎者のカードの補足に、開発用のメモがそのまま出ていたのを直しました。",
       "色者が動く時に出る円盤が、**そのカードの向きと合っていなかった**のを直しました（カードを置いた人によっては、矢の向きと実際に動く向きが食い違っていました）。",
       "ノワールで遊ぶ時、アバターが勝手に別の絵に変わっていたのをやめました（設定しているアバターのまま出ます）。",
+      "志炎者のカードの**ふつうの手札効果が、ハンドフェイズ以外でも割り込みとして使えてしまっていた**のを直しました（割り込めるのは【志炎】の方だけです）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -148,6 +149,7 @@ export const CHANGELOG = [
       "Fixed the Shien cards showing internal development memos as their card notes.",
       "Fixed the Shikija dial not matching the orientation of the card on the board, which made its arrow point a different way than the card actually moved.",
       "Playing as noir no longer replaces your avatar with a different picture; your own avatar is kept.",
+      "Fixed the Shien cards letting their ordinary hand effect be used as an interrupt outside your hand phase; only the Shien option can interrupt.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -255,6 +257,9 @@ export const CHANGELOG = [
       "🔴 **【続き899】ノワールの駒を7色に塗り分けた。** 見分ける手がかりは**もう state の中にあった**——ノワールは**元のファーストカードと同じ色スロット**に placed のまま残る（APPLY_SEAT_NOIR）ので、「ノワールが置かれているロックエリアの色」＝**その人が本来持っていた色**。⚠ 同じ計算が main.js に写してあり3か所目になる所だったので、**葉に1つ置いて全部そこを見る**形にした（src/noir-lock-color.js。import は state と board-layout だけ＝輪にならない）。",
       "**駒は焼いた絵**（tools/make-noir-tint.mjs が白い所だけを色に替えて7枚）。🔴 **runtime の色変えはしない**——駒は `preserve-3d` の中なので `filter` は枝を丸ごと2Dに潰す（教訓1）し、盤面の駒は**WebGL が描く**ので**絵のURLを替えれば両方に効く**。かけ算で塗るので**線のふちのなめらかさもそのまま**。⚠ 実測で元の絵は白22.8%・黒71.4%＝塗るのは線と輪だけで黒い本体は残る。⚠ 白い所が1%未満なら焼かずに止まる。⚠ 既定の noir.webp は1バイトも触っていない。",
       "🔴 **#875（黒＝エイドスの絵）は取り消した**（ユーザー判断）。自分で絵を選んでいる人は元から何も起きない（差し替えはセンチネルの時だけ）。残るセンチネル＋ノワールは、黒の青年も黒の色アバターも**存在しない**ので 404 で消える＝#875 そのもの ⇒ **駒と同じ手がかり**（ロックエリアの色）で出す。🔴 **ついでに #868 の残りを見つけた**——`getSkinImagePath` の**マイデッキの持ち物の枝だけ**が絵の道を直に組み立てていて、黒が来ると存在しない絵を取りに行く形が**この道だけ残っていた**。⚠ 実測の呼び方を1つ間違えた: `startCpuBattle({seatCount:4})` は**数を取る**関数なので2人戦になっていた（「4席とも」が2席で通っていた）。",
+      "🔴🔴 **【続き900】#883 #885 #886 は、続き890 で私が入れた直しの副作用だった。** 🔴 **エンジンは正しかった**——本物の対局で6場面測ったら `isHandEffectOptionUsable` はどの場面も正しい答えを返していた。漏れていたのは**その外側**（誰に割り込みを聞くか）。**推測で engine を直していたら、正しい所を壊していた。**",
+      "**#885 #886**: 割り込みで札を差し出すかを `canUseHandEffect`（**どれか1つでも**使えるか）で見ていたので、志炎者は**ふだんの選択肢が使えるだけ**で割り込みの行列に入り、自分のターンのロック宣言の窓などでも差し出されて**ハンドフェイズ以外でふつうの手札効果を使えた** ⇒ `canUseAnytimeHandEffectOption`（**いつでも使える印の付いた選択肢が使えるか**）で数える形へ。⚠ 選択肢が1つの札（やり直しのカギ等）は今までと1つも変わらない。**#883**: 続き890 の守りは「自分の手番でない時」しか見ていなかったが、**相手が自分のターンに割り込む**と窓は自分のターンのまま開く ⇒ 「**他の人が開けた手札効果の窓が開いている間**はふつうの選択肢を使えない」を足した（自分で使った直後の窓は妨げない）。",
+      "⚠ 回帰テスト2本（どちらも**対照つき**: #883 は「同じ場面で【志炎】は使える」、#885 は「ふだんの手札効果としては使える」）。A/B で守りを外すと名指しで落ちる。割り込みを持つ札は全部そのまま（志炎者22・リトルマウス6・やり直し4・欠片8・賄賂2・ゴメンナサイ1・反撃2・ちょっと待った5）。🔴 **debug の残り4件**: #882（色者演出が終わる前に次のターンへ）／#884（飛翔する札に効果文が描かれない＝#810 の家族）／#881・#887（どちらも絵を見てから）。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -360,6 +365,9 @@ export const CHANGELOG = [
       "[Continuation 899] The tint colour was already in the state: a noir card stays in the lock slot of the player's original First card, so that slot's colour identifies the player.",
       "The seven tinted images are baked rather than tinted at runtime, because a CSS filter would flatten the 3D piece and the board pieces are drawn by WebGL from the same image URL.",
       "The eidos avatar substitution was reverted per the user's decision, and a remaining copy of the broken path-building for colours without skin variants was found and routed through the shared helper.",
+      "[Continuation 900] Three of the new reports came from my own previous fix. Measuring six situations in a real game showed the engine was already correct, so the leak was outside it, in which cards are offered for an interrupt.",
+      "Offering was decided by whether any option was usable, so a Shien card qualified merely because its ordinary hand effect was usable on your own turn; it is now decided by whether an anytime option is usable.",
+      "The earlier guard only blocked the ordinary option on other players' turns, but an opponent interrupting during your turn leaves the window open on your own turn, so the ordinary option is now also blocked while another player's hand-effect window is open.",
     ],
   },
   {

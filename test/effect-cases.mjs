@@ -1488,6 +1488,59 @@ export const CASES = [
     ],
   },
   {
+    // 🔴🔴【#883・続き900】報告「**赤のカードの手札効果は使われてないのに**イグニスの
+    //   志炎効果を発動できてしまった」の家族。**自分のターンでも、相手が割り込んで手札効果を
+    //   使った直後は窓が開いている**——そこで「ふつうの方」を割り込みとして使えてはいけない
+    //   （ふつうの手札効果は自分のハンドフェイズの物）。
+    //   ⚠ 続き890 の守りは「自分の手番でない時」しか見ていなかったので、ここが素通りしていた。
+    name: "志炎者 赤(手札): 自分のターンでも、相手が開けた窓の間は「ふつうの方」を使えない（#883）",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    interruptWindow: { kind: "hand-effect", player: "B", color: "red" },
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A", // 🔴 **自分のターン**
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-shien"], location: [{ row: 1, col: 1 }, { row: 1, col: 1 }, { row: 1, col: 1 }] },
+    expect: [
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: false },
+      // 🔴 対照: 同じ場面で**【志炎】の方は使える**（これが無いと「使えない」が0しか出ない検査）。
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-shien", usable: true },
+    ],
+  },
+  {
+    // 🔴【#885・#886・続き900】報告「**志炎カードはいつでも使えるわけではないです**」
+    //   「ふつうの方がどこでも割り込めてしまう」。
+    //   **割り込みで札を差し出すかどうか**は「いつでも使える選択肢が使えるか」で決まる。
+    //   それまでは「どれか1つでも使えるか」で見ていたので、**ふだんの選択肢が使えるだけ**で
+    //   割り込みの行列に入り、自分のターンのロック宣言の窓などでも差し出されていた。
+    name: "志炎者 赤(手札): 窓が無い自分のターンは、割り込みには差し出さない（#885・#886）",
+    kind: "hand",
+    cardId: "cf-red-ignis",
+    state: {
+      activePlayers: ["A", "B"], turnPlayer: "A",
+      tokens: [
+        { id: "pieceA", kind: "piece", player: "A", location: { zone: "cell", row: 3, col: 3 } },
+        { id: "self", kind: "card", cardId: "cf-red-ignis", faceUp: true, location: { zone: "hand", player: "A" } },
+        { id: "t1", kind: "card", cardId: "green-growing-trees", faceUp: true, location: { zone: "cell", row: 1, col: 1 } },
+      ],
+      piles: { deck: ["red-jump-pad"], eternal: [], first: [], discard: [] },
+    },
+    ctx: { player: "A", cardId: "cf-red-ignis", cardTokenId: "self", pieceTokenId: "pieceA", pieceLocation: { zone: "cell", row: 3, col: 3 } },
+    picks: { option: ["cf-red-ignis-plain"], location: [{ row: 1, col: 1 }] },
+    expect: [
+      { kind: "anytimeOptionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", usable: false },
+      // 🔴 対照: ふだんの手札効果としては**使える**（ハンドフェイズの正常な使い方まで塞いでいない）。
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: true },
+    ],
+  },
+  {
     // 🔴【#872・続き890】期待値を直した: **相手のターンでは「ふつうの方」も使えない**
     //   （手札効果は自分のハンドフェイズの物。使えるのは「いつでも使える」印の付いた選択肢だけ）。
     //   前はここを true にしていたが、それは**窓そのものが一度も開かなかった頃**の期待値だった。
@@ -7416,6 +7469,15 @@ export function checkExpect(res, exp) {
     case "handUsable": {
       const 実際 = !!res.diag?.canUse;
       if (実際 !== !!exp.value) return `手札効果が使えるか ${実際}（期待 ${!!exp.value}）`;
+      return null;
+    }
+    // 🔴【#885・#886・続き900】**割り込みで差し出すかどうか**。
+    //   「どれか1つでも使えるか」（handUsable）とは別物で、見るのは
+    //   **いつでも使える印の付いた選択肢が使えるか**。志炎者はふだんの方が使えるので
+    //   handUsable は true のままだが、割り込みには差し出してはいけない。
+    case "anytimeOptionUsable": {
+      const 実際 = !!res.diag?.canUseAnytimeOption;
+      if (実際 !== !!exp.usable) return `割り込みで差し出すか ${実際}（期待 ${!!exp.usable}）`;
       return null;
     }
     case "called": {

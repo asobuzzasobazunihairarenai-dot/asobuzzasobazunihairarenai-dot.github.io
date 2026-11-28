@@ -682,6 +682,17 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
     //     ＝続き786 で確かめた）なので、見るとふだんの選択肢まで使えなくなる
     //     ——実際それでテストが8本落ちた。**自分の手番かどうか**で見る。
     if (窓用がある && getState().turnPlayer !== player) return false;
+    // 🔴【#883・続き900】**自分の手番でも、割り込みの窓が開いている間は「ふつうの方」を選べない。**
+    //   相手が自分のターンに割り込んで手札効果を使うと、窓は**自分のターンのまま**開く。
+    //   上の判定（自分の手番か）だけだと、そこで**ふだんの手札効果**を割り込みとして
+    //   使えてしまう（報告「赤のカードの手札効果は使われてないのにイグニスの志炎効果を
+    //   発動できてしまった」の家族＝割り込みの場面で出てはいけない選択肢が出る）。
+    //   ⚠ 見るのは「**他の人が開けた**手札効果の窓」。自分で使った直後の窓は、
+    //     続けてもう1枚ふつうに使う妨げにしない。
+    if (窓用がある && interruptWindow && interruptWindow.kind === "hand-effect" &&
+        interruptWindow.player && interruptWindow.player !== player) {
+      return false;
+    }
   }
   // 🔴【続き788】旧0th のダッシュ（手札）「このターン、**通常の移動をしたなら**、１マス移動する。」
   //   ⚠ **接触は数えない**（接触は「移動」ではない）＝接触したターンには使えない。
@@ -952,6 +963,17 @@ export function getHandEffectUnusableReason(cardId, cardTokenId, player) {
 // スキップ判定にも使う共通関数。
 export function canUseHandEffect(cardId, cardTokenId, player) {
   return getHandEffectOptions(cardId).some((opt) => isHandEffectOptionUsable(cardId, cardTokenId, player, opt));
+}
+
+// 🔴【#885・#886・続き900】**割り込み（いつでも使える窓）で使える選択肢があるか。**
+//   `canUseHandEffect` は「**どれか1つでも**使えるか」なので、志炎者のように
+//   「ふだんの手札効果＋【志炎】の割り込み」を持つ札では、**ふだんの方が使えるだけ**で
+//   割り込みの行列に入ってしまう（報告「志炎カードの志炎効果じゃない方の効果が
+//   どこでも割り込めてしまう」）。割り込みに誘う時はこちらで数える。
+export function canUseAnytimeHandEffectOption(cardId, cardTokenId, player) {
+  return getHandEffectOptions(cardId).some(
+    (opt) => opt && opt.usableAnytime && isHandEffectOptionUsable(cardId, cardTokenId, player, opt)
+  );
 }
 
 // このカードが構造化された手札効果データを持っているか（使用可否は問わない）。
