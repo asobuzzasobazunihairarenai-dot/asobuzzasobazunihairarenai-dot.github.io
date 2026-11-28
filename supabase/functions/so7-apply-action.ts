@@ -629,6 +629,23 @@ function reduce(current: GameState, action: any): GameState {
       const rest = current.tokens.filter((t) => t.id !== action.tokenId);
       return { ...current, tokens: [...rest, next] };
     }
+    // 🔴🔴【#877・続き890】**山札の一番上を、手札を経由せずそのまま捨て場へ。**
+    //   ユーザー指摘「色者の効果の定義に捨て色を一度手札に入れるってありましたっけ？」
+    //   ——**無い**。公式の用語集は「山札から1枚捨て」。それまでは「いったん手札へ引いて
+    //   すぐ捨てる」作りだったので、**一瞬だけ手札が1枚増え**、獲得のお知らせまで出ていた。
+    //   ⚠ 山札が空なら、捨て場をそのまま裏向きで山札へ戻してから捨てる（DRAW_FROM_PILE と
+    //     同じノーシャッフルの補充。ここだけ別の決まりにしない）。
+    case "DISCARD_TOP_OF_DECK": {
+      let piles = current.piles;
+      let deck = piles.deck as string[] | undefined;
+      if ((!deck || deck.length === 0) && piles.discard.length > 0) {
+        piles = { ...piles, deck: [...piles.discard].reverse(), discard: [] };
+        deck = piles.deck;
+      }
+      if (!deck || deck.length === 0) return current;
+      const cardId = deck[deck.length - 1];
+      return { ...current, piles: { ...piles, deck: deck.slice(0, -1), discard: [...piles.discard, cardId] } };
+    }
     case "DRAW_FROM_PILE": {
       // ユーザー要望「山札がなくなったら、自動でノーシャッフルで捨て場のカードを山札に
       // します。捨て場の一番上のカードが山札の一番下になります」。src/state.jsの

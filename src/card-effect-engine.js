@@ -74,7 +74,16 @@ export function canAutoProcessArrival(cardId) {
 // ドラッグでの発動を許可するかどうかを判断する（handEffectOptionsを持つカード
 // ＝複数選択肢のあるカードにはこの概念は今のところ無いため対象外）。
 export function isHandEffectUsableAnytime(cardId) {
-  return !!CARD_EFFECTS[cardId]?.handEffect?.usableAnytime;
+  if (CARD_EFFECTS[cardId]?.handEffect?.usableAnytime) return true;
+  // 🔴🔴【#872・続き890】**選択肢の側に付いている場合も「いつでも使える」。**
+  //   報告「志炎カードをもっているのに、割り込みモーダルが出てない気がします」。
+  //   志炎者7枚は「ふだんの手札効果」と「【志炎】の割り込み」の**2つの選択肢**を持つ形
+  //   （handEffectOptions）で、いつでも使える印は**割り込みの選択肢の側**に付いている。
+  //   ところがここは **handEffect（単一）しか見ていなかった**ので常に false を返し、
+  //   ⇒ 自分のハンドフェイズ以外では**カードごと使えない＝窓が一度も開かなかった**。
+  //   ⚠ すぐ上の注が「選択肢を持つカードにはこの概念は今のところ無い」と書いていたのは、
+  //     志炎者を足す**前**の話。足した時にここを直し忘れた。
+  return getHandEffectOptions(cardId).some((o) => o && o.usableAnytime);
 }
 
 // --- 手札効果（■）の自動処理 -----------------------------------------------------------
@@ -661,6 +670,17 @@ export function isHandEffectOptionUsable(cardId, cardTokenId, player, option) {
   // 🔴【続き781】志炎者7枚の【志炎】。窓が開いていない時は宣言できない。
   if (option.requiresOpponentSameColorHandEffect) {
     if (!getSameColorHandEffectWindow(player, getCardDefinition(cardId)?.color)) return false;
+  }
+  // 🔴🔴【#872・続き890】**割り込みの窓では、いつでも使える印の付いた選択肢だけ。**
+  //   上の直しでカードごと「いつでも使える」になったので、そのままだと**ふだんの選択肢まで
+  //   相手のターンに使えて**しまう（志炎者の「ふだんの手札効果」は自分のハンドフェイズの物）。
+  //   ⚠ **いつでも使える選択肢を持つカードだけ**を見る（他のカードの振る舞いは1つも変えない）。
+  if (!option.usableAnytime) {
+    const 窓用がある = getHandEffectOptions(cardId).some((o) => o && o.usableAnytime);
+    //   ⚠ **`turnPhase` は見ない。** CPU戦では常に null（サーバーに書くのはオンラインだけ
+    //     ＝続き786 で確かめた）なので、見るとふだんの選択肢まで使えなくなる
+    //     ——実際それでテストが8本落ちた。**自分の手番かどうか**で見る。
+    if (窓用がある && getState().turnPlayer !== player) return false;
   }
   // 🔴【続き788】旧0th のダッシュ（手札）「このターン、**通常の移動をしたなら**、１マス移動する。」
   //   ⚠ **接触は数えない**（接触は「移動」ではない）＝接触したターンには使えない。

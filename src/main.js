@@ -336,6 +336,7 @@ import {
   moveToken,
   swapPieceLocations,
   sendTokenToPile,
+  discardTopOfDeck, // 【#877・続き890】色者の捨色は山札から直接捨てる
   drawFromPile,
   flipToken,
   shuffleHand,
@@ -5438,29 +5439,22 @@ async function resolveShikijaAtTurnEnd(endedPlayer) {
   if (!token) return;
   const 決まり = shikijaRuleOf(token.cardId);
   if (!決まり) return;
-  // 山札から1枚捨てる。
-  // ⚠ 公開エリア（publicDraw）へ出す形は**採らなかった**——あのエリアは NEXT_TURN の中で
-  //   手札へ合流する（state.js の mergePublicDrawIntoHand）ので、ターンの切り替わりで動く
-  //   この処理とは相性が悪い（合流に先回りされると「捨てた」はずの札が手札に残る）。
-  //   いったん手番の人の手札へ引いてから、その1枚をそのまま捨てる。
-  const seatForDraw = endedPlayer ?? getState().turnPlayer;
-  const 引く前 = new Set(
-    getState()
-      .tokens.filter((tk) => tk.kind === "card" && tk.location.zone === "hand" && tk.location.player === seatForDraw)
-      .map((tk) => tk.id)
-  );
-  // 🔴【#877・続き889】**「◯◯が獲得」を出さない。** 捨色は
-  //   「いったん手札へ引いて、その1枚をそのまま捨てる」作り（上の注）なので、
-  //   ふつうに引くと獲得のお知らせと札のミニモーダルが出て、**捨色を手に入れたように見える**
-  //   （報告「ミニモーダルで、色者の捨て色を獲得したみたいな書き方になってる」）。
-  //   ⚠ 捨色そのものは、この直後に**中央のめくり演出（ラベル「捨色」）**で見せている。
-  await drawCardsForEffect(seatForDraw, 1, { silentDrawNotice: true, silentPickupNotice: true });
-  const drawn = getState().tokens.filter(
-    (tk) => tk.kind === "card" && tk.location.zone === "hand" && tk.location.player === seatForDraw && !引く前.has(tk.id)
-  );
-  if (drawn.length === 0) return; // 山札が尽きた（善処の原則）
-  const 捨色カード = drawn[0].cardId;
-  for (const tk of drawn) await discardFromHandReveal(tk.id);
+  // 🔴🔴【#877・続き890】**山札から直接捨てる。手札を経由しない。**
+  //   ユーザー指摘「色者の効果の定義に捨て色を一度手札に入れるってありましたっけ？」
+  //   ——**無い**。公式の用語集は「**山札から1枚捨て**」。
+  //   それまでは「いったん手番の人の手札へ引いて、その1枚をすぐ捨てる」作りだったので、
+  //   **一瞬だけ手札が1枚増え**（＝財力が動く）、獲得のお知らせまで出ていた（続き889 では
+  //   お知らせを黙らせただけ＝**土台が間違っているのに上から蓋をしていた**）。
+  //   ⇒ state に `DISCARD_TOP_OF_DECK` を足して、山札の一番上をそのまま捨て場へ送る。
+  //   ⚠ **サーバー（so7-apply-action.ts）にも同じ処理が要る**（オンラインで state がずれる）。
+  //   ⚠ 山札が空なら捨て場を裏向きで戻してから捨てる（DRAW_FROM_PILE と同じ決まり）。
+  const 捨てる前 = getState().piles.discard.length;
+  // ⚠ オンラインでは discardTopOfDeck が中継を返すので、await すれば取り込みまで待てる。
+  await discardTopOfDeck();
+  const 捨て場 = getState().piles.discard;
+  if (捨て場.length <= 捨てる前) return; // 山札も捨て場も空（善処の原則）
+  const 捨色カード = 捨て場[捨て場.length - 1];
+  render();
   const color = getCardDefinition(捨色カード)?.color ?? null;
   // ① 移動先表示に従い、これを1マス動かす。
   // 🔴🔴【#723・2026-11-19】報告「色者ノクスアエルが下方向に移動しましたが、なんで？」の正体は

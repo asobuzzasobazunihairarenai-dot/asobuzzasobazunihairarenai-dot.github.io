@@ -91,6 +91,8 @@ export const CHANGELOG = [
       "ノワールで遊んでいる時、自分のアバターが出なかったのを直しました。",
       "色者の捨色が「◯◯が獲得」と出て、そのカードを手に入れたように見えていたのを直しました。",
       "「ノワールにしますか」の問いが、外側をタップすると消えてしまうのを直しました。",
+      "志炎のカードを持っていても割り込みの問いが出なかったのを直しました。",
+      "色者の捨色が、一度手札に入ってから捨てられていたのを直しました（山札から直接捨てます）。",
     ],
     fixesEn: [
       "Fixed the colour dial on the Nox Aether card filling the whole card when the card was shown enlarged.",
@@ -106,6 +108,8 @@ export const CHANGELOG = [
       "Fixed your avatar disappearing while playing as Noir.",
       "Fixed the Shikija discard colour being announced as if you had gained that card.",
       "Fixed the Noir prompt closing when you tapped outside it.",
+      "Fixed the Shien interrupt prompt never appearing even while holding a Shien card.",
+      "Fixed the Shikija discard colour passing through your hand; it is now discarded straight from the deck.",
     ],
     // ⚠ この回は**管理者だけに見せる項目（devItems）しか無い**ので、
     //   プレイヤーの画面にはこの日付ごと出ない（このファイル冒頭の決まり）。
@@ -184,6 +188,9 @@ export const CHANGELOG = [
       "**#877 捨色が「◯◯が獲得」と出ていた。** 色者の捨色は「いったん手札へ引いて、その1枚をそのまま捨てる」作り（公開エリアを使うとターンの切り替わりで手札へ合流するため）なので、獲得のお知らせと札のミニモーダルが出ていた ⇒ この1回だけ黙らせる（`silentPickupNotice` を足した）。捨色そのものは直後の中央のめくり演出（ラベル「捨色」）で見せている。",
       "**#873 「ノワールにしますか」は外側を押しても閉じないようにした**（これから始まる対局の中身を決める問いなので、うっかり外を触って既定へ流れると気づかないまま別の対局になる）。`showConfirmModal` に `覆いで閉じない` を足した——**既定は今までどおり閉じる**ので他の呼び出しは1つも変わらない。",
       "⚠ 残り2件は未着手: **#876「色者は盤面上でのカードの向きが大事」**（公式用語集にも『向きは、オープンした、または場に表向きで置いたプレイヤーから見て正の方向』と在る。誰が表にしたかを state に覚える必要があり、**オンラインの同期にも関わる**）／**#872「志炎を持っているのに割り込みモーダルが出ない」**（未調査）。",
+      "🔴🔴 **【続き890】ユーザーの一言で、前の回の直しが土台から間違いだと分かった。** 「色者の効果の定義に捨て色を一度手札に入れるってありましたっけ？」——**無い**（公式の用語集は「山札から1枚捨て」）。実装は「いったん手札へ引いてすぐ捨てる」形で、**一瞬だけ手札が1枚増え**（＝財力が動く）、獲得のお知らせまで出ていた。続き889 の私は**お知らせを黙らせただけ＝土台が間違っているのに上から蓋をした**。⇒ `DISCARD_TOP_OF_DECK` を足して山札の一番上をそのまま捨て場へ。🔴 **サーバーにも同じ処理を入れた**（入れないとオンラインで state がずれる）。実測6項目（手札もトークンも1つも動かない）。**教訓: 見え方を直す前に、その見え方を生んでいる作りが正しいかを確かめる。**",
+      "🔴🔴 **#872 志炎の割り込みが一度も開いていなかった。** `isHandEffectUsableAnytime` が **handEffect（単一）しか見ていなかった**が、志炎者7枚は**選択肢（handEffectOptions）の側**に「いつでも使える」印を持つ形 ⇒ 常に false ＝ 自分のハンドフェイズ以外ではカードごと使えず、窓が一度も開かなかった。ⓘ すぐ上の注が「**選択肢を持つカードにはこの概念は今のところ無い**」と書いていたが、それは志炎者を足す前の話。**教訓: 「今のところ無い」と書かれた注は、その『今』が過ぎていないか疑う。**",
+      "⚠ カードごと「いつでも使える」にすると**ふだんの選択肢まで相手のターンに使えて**しまうので、**いつでも使える選択肢を持つカードだけ**、相手のターンではその印の付いた選択肢しか選べないようにした。🔴 最初 `turnPhase === 'hand'` で書いて**テストが8本落ちた**——**CPU戦では turnPhase は常に null**（続き786）。⇒ 自分の手番かで見る。🔴 残り1本は**期待値の方が間違っていた**（相手のターンではふつうの手札効果も使えないのが正しい。あれは窓が一度も開かなかった頃の期待値）。志炎 22/22 PASS。",
     ],
     devItemsEn: [
       "[Continuation 878] The Shien cards now appear twice each in the remake-plus-Shien set, instead of once. The deck is 26 kinds and 126 cards, with each of the seven colours at sixteen. The base definition still says seven, since the set makes a copy rather than editing the shared table.",
@@ -260,6 +267,9 @@ export const CHANGELOG = [
       "The Shikija discard colour was announced as a card gained, because it is drawn into hand and discarded immediately; that one announcement is now silenced.",
       "The Noir prompt no longer closes when tapping outside it.",
       "The Noir prompt no longer closes when tapping outside it, and the remaining two reports (Shikija card orientation and the Shien interrupt prompt) are still open.",
+      "[Continuation 890] A single question from the user showed the previous fix was patching over a wrong foundation: the Shikija discard colour was drawn into hand and discarded, which briefly changed the hand count. It is now discarded straight from the deck, with the same action added on the server.",
+      "The Shien interrupt had never once opened, because the usable-anytime check only looked at a single hand effect while the Shien cards carry that flag on an option.",
+      "Making the card usable anytime would have exposed its ordinary option during an opponent's turn, so that is now restricted; an early attempt used the turn phase, which is always null in CPU games.",
     ],
   },
   {

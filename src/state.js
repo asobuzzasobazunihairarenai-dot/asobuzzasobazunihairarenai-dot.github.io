@@ -311,6 +311,23 @@ function reduce(current, action) {
       const piles = { ...current.piles, [action.pile]: [...current.piles[action.pile], token.cardId] };
       return { ...current, tokens, piles };
     }
+    // 🔴🔴【#877・続き890】**山札の一番上を、手札を経由せずそのまま捨て場へ。**
+    //   ユーザー指摘「色者の効果の定義に捨て色を一度手札に入れるってありましたっけ？」
+    //   ——**無い**。公式の用語集は「山札から1枚捨て」。それまでは「いったん手札へ引いて
+    //   すぐ捨てる」作りだったので、**一瞬だけ手札が1枚増え**、獲得のお知らせまで出ていた。
+    //   ⚠ 山札が空なら、捨て場をそのまま裏向きで山札へ戻してから捨てる（DRAW_FROM_PILE と
+    //     同じノーシャッフルの補充。ここだけ別の決まりにしない）。
+    case "DISCARD_TOP_OF_DECK": {
+      let piles = current.piles;
+      let deck = piles.deck;
+      if ((!deck || deck.length === 0) && piles.discard.length > 0) {
+        piles = { ...piles, deck: [...piles.discard].reverse(), discard: [] };
+        deck = piles.deck;
+      }
+      if (!deck || deck.length === 0) return current;
+      const cardId = deck[deck.length - 1];
+      return { ...current, piles: { ...piles, deck: deck.slice(0, -1), discard: [...piles.discard, cardId] } };
+    }
     case "DRAW_FROM_PILE": {
       // ユーザー要望「山札がなくなったら、自動でノーシャッフルで捨て場のカードを山札に
       // します。捨て場の一番上のカードが山札の一番下になります」。山札から引こうとした
@@ -1019,6 +1036,12 @@ export function sendTokenToPile(tokenId, pile) {
 // revealToActor: 試練の儀式専用。山札から盤面(cell)へ“裏向き”で置いたカードの中身を、引いた
 // 本人（リクエスト元）にだけサーバー応答で返してもらうフラグ（盤面は伏せたまま＝他プレイヤーには
 // 見えない。オンラインでもローカル同様のじらしフリップを実現するため。so7-apply-action.ts参照）。
+// 【#877・続き890】山札の一番上を手札を経由せずそのまま捨て場へ（色者の捨色）。
+export function discardTopOfDeck() {
+  if (onlineMode && onlineTransport) return onlineTransport({ type: "DISCARD_TOP_OF_DECK" });
+  dispatch({ type: "DISCARD_TOP_OF_DECK" });
+}
+
 export function drawFromPile(pile, location, revealToActor = false) {
   if (onlineMode && onlineTransport)
     return onlineTransport({ type: "DRAW_FROM_PILE", pile, location, ...(revealToActor ? { revealToActor: true } : {}) });

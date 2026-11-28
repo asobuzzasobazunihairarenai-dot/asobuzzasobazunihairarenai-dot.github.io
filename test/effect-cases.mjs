@@ -1441,7 +1441,11 @@ export const CASES = [
     ],
   },
   {
-    name: "志炎者 赤(手札・【志炎】): 窓が別の色なら宣言できない（ふつうの方だけ使える）",
+    // 🔴【#872・続き890】期待値を直した: **相手のターンでは「ふつうの方」も使えない**
+    //   （手札効果は自分のハンドフェイズの物。使えるのは「いつでも使える」印の付いた選択肢だけ）。
+    //   前はここを true にしていたが、それは**窓そのものが一度も開かなかった頃**の期待値だった。
+    //   ⓘ 「自分のターンならふつうの方が使える」は別のテスト（ふつうの方）が見ている。
+    name: "志炎者 赤(手札・【志炎】): 窓が別の色なら、どちらの選択肢も使えない",
     kind: "hand",
     cardId: "cf-red-ignis",
     // 🔴 対照: 同じ場面で**色だけ違う**窓。これが無いと「使えない」が0しか出ない検査になる。
@@ -1459,7 +1463,7 @@ export const CASES = [
     picks: { option: ["cf-red-ignis-plain"], location: [{ row: 1, col: 1 }] },
     expect: [
       { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-shien", usable: false },
-      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: true },
+      { kind: "optionUsable", cardId: "cf-red-ignis", tokenId: "self", player: "A", optionId: "cf-red-ignis-plain", usable: false },
     ],
   },
 
